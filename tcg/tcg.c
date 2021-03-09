@@ -727,9 +727,10 @@ static bool tcg_region_alloc(TCGContext *s)
  * Perform a context's first region allocation.
  * This function does _not_ increment region.agg_size_full.
  */
-static inline bool tcg_region_initial_alloc__locked(TCGContext *s)
+static void tcg_region_initial_alloc__locked(TCGContext *s)
 {
-    return tcg_region_alloc__locked(s);
+    bool err = tcg_region_alloc__locked(s);
+    g_assert(!err);
 }
 
 /* Call from a safe-work context */
@@ -744,9 +745,7 @@ void tcg_region_reset_all(void)
 
     for (i = 0; i < n_ctxs; i++) {
         TCGContext *s = qatomic_read(&tcg_ctxs[i]);
-        bool err = tcg_region_initial_alloc__locked(s);
-
-        g_assert(!err);
+        tcg_region_initial_alloc__locked(s);
     }
     qemu_mutex_unlock(&region.lock);
 
@@ -883,11 +882,7 @@ void tcg_region_init(void)
 
     /* In user-mode we support only one ctx, so do the initial allocation now */
 #ifdef CONFIG_USER_ONLY
-    {
-        bool err = tcg_region_initial_alloc__locked(tcg_ctx);
-
-        g_assert(!err);
-    }
+    tcg_region_initial_alloc__locked(tcg_ctx);
 #endif
 }
 
@@ -949,7 +944,6 @@ void tcg_register_thread(void)
     MachineState *ms = MACHINE(qdev_get_machine());
     TCGContext *s = g_malloc(sizeof(*s));
     unsigned int i, n;
-    bool err;
 
     *s = tcg_init_ctx;
 
@@ -973,8 +967,7 @@ void tcg_register_thread(void)
 
     tcg_ctx = s;
     qemu_mutex_lock(&region.lock);
-    err = tcg_region_initial_alloc__locked(tcg_ctx);
-    g_assert(!err);
+    tcg_region_initial_alloc__locked(s);
     qemu_mutex_unlock(&region.lock);
 }
 #endif /* !CONFIG_USER_ONLY */
