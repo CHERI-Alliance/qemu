@@ -1774,9 +1774,9 @@ static void tcg_dump_ops(TCGContext *s, bool have_prefs)
             nb_cargs = def->nb_cargs;
 
             /* function name, flags, out args */
-            col += qemu_log(" %s %s,$0x%" TCG_PRIlx ",$%d", def->name,
+            col += qemu_log(" %s %s,$0x%x,$%d", def->name,
                             tcg_find_helper(s, op->args[nb_oargs + nb_iargs]),
-                            op->args[nb_oargs + nb_iargs + 1], nb_oargs);
+                            tcg_call_flags(op), nb_oargs);
             for (i = 0; i < nb_oargs; i++) {
                 col += qemu_log(",%s", tcg_get_arg_str(s, buf, sizeof(buf),
                                                        op->args[i]));
@@ -2165,7 +2165,6 @@ static void reachable_code_pass(TCGContext *s)
     QTAILQ_FOREACH_SAFE(op, &s->ops, link, op_next) {
         bool remove = dead;
         TCGLabel *label;
-        int call_flags;
 
         switch (op->opc) {
         case INDEX_op_set_label:
@@ -2210,8 +2209,7 @@ static void reachable_code_pass(TCGContext *s)
 
         case INDEX_op_call:
             /* Notice noreturn helper calls, raising exceptions.  */
-            call_flags = op->args[TCGOP_CALLO(op) + TCGOP_CALLI(op) + 1];
-            if (call_flags & TCG_CALL_NO_RETURN) {
+            if (tcg_call_flags(op) & TCG_CALL_NO_RETURN) {
                 dead = true;
             }
             break;
@@ -2412,7 +2410,7 @@ static void liveness_pass_1(TCGContext *s)
 
                 nb_oargs = TCGOP_CALLO(op);
                 nb_iargs = TCGOP_CALLI(op);
-                call_flags = op->args[nb_oargs + nb_iargs + 1];
+                call_flags = tcg_call_flags(op);
 
                 /* pure functions can be removed if their result is unused */
                 if (call_flags & TCG_CALL_NO_SIDE_EFFECTS) {
@@ -2732,7 +2730,7 @@ static bool liveness_pass_2(TCGContext *s)
         if (opc == INDEX_op_call) {
             nb_oargs = TCGOP_CALLO(op);
             nb_iargs = TCGOP_CALLI(op);
-            call_flags = op->args[nb_oargs + nb_iargs + 1];
+            call_flags = tcg_call_flags(op);
         } else {
             nb_iargs = def->nb_iargs;
             nb_oargs = def->nb_oargs;
@@ -3832,7 +3830,7 @@ static void tcg_reg_alloc_call(TCGContext *s, TCGOp *op)
     TCGRegSet allocated_regs;
 
     func_addr = (tcg_insn_unit *)(intptr_t)op->args[nb_oargs + nb_iargs];
-    flags = op->args[nb_oargs + nb_iargs + 1];
+    flags = tcg_call_flags(op);
 
     nb_regs = ARRAY_SIZE(tcg_target_call_iarg_regs);
     if (nb_regs > nb_iargs) {
