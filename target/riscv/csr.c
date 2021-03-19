@@ -720,26 +720,6 @@ static int write_mcounteren(CPURISCVState *env, int csrno, target_ulong val)
     return 0;
 }
 
-/* This regiser is replaced with CSR_MCOUNTINHIBIT in 1.11.0 */
-static int read_mscounteren(CPURISCVState *env, int csrno, target_ulong *val)
-{
-    if (env->priv_ver < PRIV_VERSION_1_11_0) {
-        return -RISCV_EXCP_ILLEGAL_INST;
-    }
-    *val = env->mcounteren;
-    return 0;
-}
-
-/* This regiser is replaced with CSR_MCOUNTINHIBIT in 1.11.0 */
-static int write_mscounteren(CPURISCVState *env, int csrno, target_ulong val)
-{
-    if (env->priv_ver < PRIV_VERSION_1_11_0) {
-        return -RISCV_EXCP_ILLEGAL_INST;
-    }
-    env->mcounteren = val;
-    return 0;
-}
-
 static int read_mcause(CPURISCVState *env, int csrno, target_ulong *val)
 {
     *val = env->mcause;
@@ -862,15 +842,15 @@ static int write_scause(CPURISCVState *env, int csrno, target_ulong val)
     return 0;
 }
 
-static int read_sbadaddr(CPURISCVState *env, int csrno, target_ulong *val)
+static int read_stval(CPURISCVState *env, int csrno, target_ulong *val)
 {
-    *val = env->sbadaddr;
+    *val = env->stval;
     return 0;
 }
 
-static int write_sbadaddr(CPURISCVState *env, int csrno, target_ulong val)
+static int write_stval(CPURISCVState *env, int csrno, target_ulong val)
 {
-    env->sbadaddr = val;
+    env->stval = val;
     return 0;
 }
 
@@ -1988,8 +1968,6 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_MENVCFG] =             CSR_OP_RW(any, menvcfg),
     [CSR_SENVCFG] =             CSR_OP_RW(any, senvcfg),
 
-    [CSR_MSCOUNTEREN] =         CSR_OP_RW(any, mscounteren),
-
     /* Machine Trap Handling */
     [CSR_MCAUSE] =              CSR_OP_RW(any, mcause),
     [CSR_MTVAL] =            CSR_OP_RW(any, mtval),
@@ -2002,7 +1980,7 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
 
     /* Supervisor Trap Handling */
     [CSR_SCAUSE] =              CSR_OP_RW(smode, scause),
-    [CSR_SBADADDR] =            CSR_OP_RW(smode, sbadaddr),
+    [CSR_STVAL] =               CSR_OP_RW(any, stval),
     [CSR_SIP] =                 CSR_OP_RMW(smode, sip),
 
     /* Supervisor Protection and Translation */

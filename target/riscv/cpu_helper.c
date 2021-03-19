@@ -179,12 +179,12 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env, bool hs_mode_trap)
             riscv_log_instr_csr_changed(env, CSR_SCAUSE);
         }
 
-        env->vstval = env->sbadaddr;
-        env->sbadaddr = env->stval_hs;
+        env->vstval = env->stval;
+        env->stval = env->stval_hs;
         riscv_log_instr_csr_changed(env, CSR_VSTVAL);
         if (!hs_mode_trap) {
-            /* sbaddaddr is modified again when trapping to HS-mode */
-            riscv_log_instr_csr_changed(env, CSR_SBADADDR);
+            /* stval is modified again when trapping to HS-mode */
+            riscv_log_instr_csr_changed(env, CSR_STVAL);
         }
 
         env->vsatp = env->satp;
@@ -217,9 +217,9 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env, bool hs_mode_trap)
         env->scause = env->vscause;
         riscv_log_instr_csr_changed(env, CSR_SCAUSE);
 
-        env->stval_hs = env->sbadaddr;
-        env->sbadaddr = env->vstval;
-        riscv_log_instr_csr_changed(env, CSR_SBADADDR);
+        env->stval_hs = env->stval;
+        env->stval = env->vstval;
+        riscv_log_instr_csr_changed(env, CSR_STVAL);
 
         env->satp_hs = env->satp;
         env->satp = env->vsatp;
@@ -1441,8 +1441,8 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         COPY_SPECIAL_REG(env, sepc, SEPCC, pc, PCC);
         riscv_log_instr_csr_changed(env, CSR_SEPC);
 
-        env->sbadaddr = tval;
-        riscv_log_instr_csr_changed(env, CSR_SBADADDR);
+        env->stval = tval;
+        riscv_log_instr_csr_changed(env, CSR_STVAL);
         env->htval = htval;
         riscv_log_instr_csr_changed(env, CSR_HTVAL);
 
