@@ -696,7 +696,7 @@ void rvfi_dii_communicate(CPUState* cs, CPURISCVState* env, bool was_trap) {
             cpu_resume(cs);
             env->rvfi_dii_trace.PC.rvfi_pc_wdata = -1; // Will be set after single-step trap
             // Clear the EXCP_DEBUG flag to avoid dropping into GDB
-            cs->exception_index = EXCP_NONE; // EXCP_INTERRUPT;
+            cs->exception_index = RISCV_EXCP_NONE; // EXCP_INTERRUPT;
             cs->cflags_next_tb = (curr_cflags(cs) & ~CF_USE_ICOUNT) | 1;
             // Continue execution at env->pc
             cpu_loop_exit_noexc(cs); // noreturn -> jumps back to TCG
@@ -748,7 +748,7 @@ static void riscv_cpu_reset(DeviceState *dev)
 #endif
 #endif
 
-    cs->exception_index = EXCP_NONE;
+    cs->exception_index = RISCV_EXCP_NONE;
     env->load_res = -1;
     set_default_nan_mode(1, &env->fp_status);
 
