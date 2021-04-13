@@ -51,11 +51,6 @@ mips_ss.add(when: 'CONFIG_KVM', if_true: files('kvm.c'))
 mips_ss.add(when: 'TARGET_CHERI', if_true: files('op_helper_cheri.c'))
 mips_ss.add(when: ['CONFIG_TCG', 'CONFIG_TCG_LOG_INSTR'], if_true: files('op_helper_log_instr.c'))
 
-mips_softmmu_ss.add(when: 'CONFIG_TCG', if_true: files(
-  'cp0_helper.c',
-  'mips-semi.c',
-))
-
 mips_ss.add_all(when: 'CONFIG_TCG', if_true: [mips_tcg_ss])
 
 target_arch += {'mips': mips_ss}
