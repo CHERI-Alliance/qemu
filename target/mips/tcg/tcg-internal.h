@@ -14,10 +14,26 @@
 #include "hw/core/cpu.h"
 #include "cpu.h"
 
+void mips_cpu_synchronize_from_tb(CPUState *cs, const TranslationBlock *tb);
 void mips_cpu_do_interrupt(CPUState *cpu);
+bool mips_cpu_exec_interrupt(CPUState *cpu, int int_req);
 bool mips_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                        MMUAccessType access_type, int mmu_idx,
                        bool probe, uintptr_t retaddr);
+
+const char *mips_exception_name(int32_t exception);
+
+/* TODO: We changed uint32_t -> MipsExcp during the v6.1.0 merge. Is this ok? */
+void QEMU_NORETURN do_raise_exception_err(CPUMIPSState *env, MipsExcp exception,
+                                          int error_code, uintptr_t pc);
+
+static inline void QEMU_NORETURN do_raise_exception(CPUMIPSState *env,
+                                                    MipsExcp exception,
+                                                    uintptr_t pc)
+{
+    /* NOTE: pc is a HOST program counter (from GETPC()) and not a MIPS guest pc */
+    do_raise_exception_err(env, exception, env->error_code & EXCP_INST_NOTAVAIL, pc);
+}
 
 #if !defined(CONFIG_USER_ONLY)
 
