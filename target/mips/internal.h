@@ -93,9 +93,6 @@ int mips_gdb_set_sys_reg(CPUMIPSState *env, uint8_t *mem_buf, int n);
 
 int mips_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
 int mips_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
-void mips_cpu_do_unaligned_access(CPUState *cpu, vaddr addr,
-                                  MMUAccessType access_type,
-                                  int mmu_idx, uintptr_t retaddr);
 
 #define USEG_LIMIT      ((target_ulong)(int32_t)0x7FFFFFFFUL)
 #define KSEG0_BASE      ((target_ulong)(int32_t)0x80000000UL)
@@ -177,12 +174,6 @@ struct CPUMIPSTLBContext {
 
 bool r4k_lookup_tlb(CPUMIPSState *env, int *matching, bool use_extra);
 
-void mips_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
-                                    vaddr addr, unsigned size,
-                                    MMUAccessType access_type,
-                                    int mmu_idx, MemTxAttrs attrs,
-                                    MemTxResult response, uintptr_t retaddr);
-
 void sync_c0_status(CPUMIPSState *env, CPUMIPSState *cpu, int tc);
 void cpu_mips_store_status(CPUMIPSState *env, target_ulong val);
 void cpu_mips_store_cause(CPUMIPSState *env, target_ulong val);
@@ -234,8 +225,6 @@ static inline bool cpu_mips_hw_interrupts_pending(CPUMIPSState *env)
     }
     return r;
 }
-
-void mips_tcg_init(void);
 
 void msa_reset(CPUMIPSState *env);
 
