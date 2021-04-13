@@ -211,13 +211,6 @@ DEF_HELPER_2(mtc0_epc, void, env, tl)
 DEF_HELPER_1(mfc0_error_epc, tl, env)
 DEF_HELPER_2(mtc0_error_epc, void, env, tl)
 #endif
-DEF_HELPER_1(tlbwi, void, env)
-DEF_HELPER_1(tlbwr, void, env)
-DEF_HELPER_1(tlbp, void, env)
-DEF_HELPER_1(tlbr, void, env)
-DEF_HELPER_1(tlbinv, void, env)
-DEF_HELPER_1(tlbinvf, void, env)
-DEF_HELPER_3(ginvt, void, env, tl, i32)
 #endif /* !CONFIG_USER_ONLY */
 DEF_HELPER_1(rdhwr_cpunum, tl, env)
 DEF_HELPER_1(rdhwr_synci_step, tl, env)
