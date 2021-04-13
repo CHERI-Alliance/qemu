@@ -32,7 +32,6 @@ mips_tcg_ss.add(files(
   'op_helper.c',
   'op_helper_beri.c',
   'rel6_translate.c',
-  'tlb_helper.c',
   'translate.c',
   'translate_addr_const.c',
   'txx9_translate.c',
