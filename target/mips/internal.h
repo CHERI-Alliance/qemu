@@ -91,7 +91,6 @@ int mips_gdb_set_cheri_reg(CPUMIPSState *env, uint8_t *mem_buf, int n);
 int mips_gdb_get_sys_reg(CPUMIPSState *env, GByteArray *buf, int n);
 int mips_gdb_set_sys_reg(CPUMIPSState *env, uint8_t *mem_buf, int n);
 
-bool mips_cpu_exec_interrupt(CPUState *cpu, int int_req);
 int mips_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
 int mips_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 void mips_cpu_do_unaligned_access(CPUState *cpu, vaddr addr,
@@ -489,19 +488,6 @@ static inline void compute_hflags(CPUMIPSState *env)
 void sync_c0_status(CPUMIPSState *env, CPUMIPSState *cpu, int tc);
 void cpu_mips_store_status(CPUMIPSState *env, target_ulong val);
 void cpu_mips_store_cause(CPUMIPSState *env, target_ulong val);
-
-const char *mips_exception_name(int32_t exception);
-
-void QEMU_NORETURN do_raise_exception_err(CPUMIPSState *env, MipsExcp exception,
-                                          int error_code, uintptr_t pc);
-
-static inline void QEMU_NORETURN do_raise_exception(CPUMIPSState *env,
-                                                    MipsExcp exception,
-                                                    uintptr_t pc)
-{
-    /* NOTE: pc is a HOST program counter (from GETPC()) and not a MIPS guest pc */
-    do_raise_exception_err(env, exception, env->error_code & EXCP_INST_NOTAVAIL, pc);
-}
 
 static inline void check_hwrena(CPUMIPSState *env, int reg, uintptr_t pc) {
     if ((env->hflags & MIPS_HFLAG_CP0) || (env->CP0_HWREna & (1 << reg))) {
