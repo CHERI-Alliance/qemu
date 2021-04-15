@@ -130,11 +130,18 @@ static inline void
 store_byte_and_clear_tag(CPUMIPSState *env, target_ulong vaddr, uint8_t val,
                          MemOpIdx oi, uintptr_t retaddr)
 {
+#ifdef TARGET_CHERI
+    tag_writer_lock_t lock = NULL;
+    cheri_lock_for_tag_invalidate(env, vaddr, 1, retaddr, get_mmuidx(oi), &lock,
+                                  NULL);
+    cheri_tag_writer_push_free_on_exception(env, lock);
+#endif
     cpu_stb_mmu(env, vaddr, val, oi, retaddr);
 #ifdef TARGET_CHERI
+    cheri_tag_writer_pop_free_on_exception(env);
     // If we returned (i.e. write was successful) we also need to invalidate the
     // tags bit to ensure we are consistent with sb
-    cheri_tag_invalidate(env, vaddr, 1, retaddr, cpu_mmu_index(env, false));
+    cheri_tag_invalidate(env, vaddr, 1, retaddr, get_mmuidx(oi), &lock, NULL);
 #endif
 }
 
@@ -142,6 +149,13 @@ static inline void
 store_u32_and_clear_tag(CPUMIPSState *env, target_ulong vaddr, uint32_t val,
                          MemOpIdx oi, uintptr_t retaddr)
 {
+#ifdef TARGET_CHERI
+    tag_writer_lock_t lock = NULL;
+    tag_writer_lock_t lock2 = NULL;
+    cheri_lock_for_tag_invalidate(env, vaddr, 4, retaddr, get_mmuidx(oi), &lock,
+                                  &lock2);
+    cheri_tag_writer_push_free_on_exception(env, lock);
+#endif
 #ifdef TARGET_WORDS_BIGENDIAN
     cpu_stw_be_mmu(env, vaddr, val, oi, retaddr);
 #else
@@ -149,9 +163,10 @@ store_u32_and_clear_tag(CPUMIPSState *env, target_ulong vaddr, uint32_t val,
 #endif
 
 #ifdef TARGET_CHERI
+    cheri_tag_writer_pop_free_on_exception(env);
     // If we returned (i.e. write was successful) we also need to invalidate the
     // tags bit to ensure we are consistent with sb
-    cheri_tag_invalidate(env, vaddr, 4, retaddr, cpu_mmu_index(env, false));
+    cheri_tag_invalidate(env, vaddr, 4, retaddr, get_mmuidx(oi), &lock, &lock2);
 #endif
 }
 
