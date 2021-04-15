@@ -7,5 +7,5 @@ INCLUDE_WORKAROUND=riscv64-softmmu.mak
 TARGET_XML_FILES= gdb-xml/riscv-64bit-cpu.xml gdb-xml/riscv-32bit-fpu.xml gdb-xml/riscv-64bit-fpu.xml gdb-xml/riscv-64bit-virtual.xml gdb-xml/riscv-64bit-cheri.xml
 TARGET_CHERI=y
 TARGET_CHERI_RISCV_V9=y
-# Capability loads/stores+tagged memory don't work with MTTCG
-TARGET_SUPPORTS_MTTCG=n
+# Capability loads/stores+tagged memory work with MTTCG
+TARGET_SUPPORTS_MTTCG=y
