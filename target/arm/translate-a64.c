@@ -572,7 +572,7 @@ gen_mte_and_cheri_check1_mmuidx(DisasContext *s, TCGv_i64 addr, bool is_read,
         tcg_desc = tcg_const_i32(desc);
 
         ret = new_tmp_a64(s);
-        gen_helper_mte_check1(ret, cpu_env, tcg_desc, addr);
+        gen_helper_mte_check(ret, cpu_env, tcg_desc, addr);
         tcg_temp_free_i32(tcg_desc);
 
         return arm_bounds_checked(s, ret, (1 << log2_size), base_reg, is_read,
@@ -617,7 +617,7 @@ TCGv_cap_checked_ptr gen_mte_and_cheri_checkN(DisasContext *s, TCGv_i64 addr,
             tcg_desc = tcg_const_i32(desc);
 
             ret = new_tmp_a64(s);
-            gen_helper_mte_checkN(ret, cpu_env, tcg_desc, addr);
+            gen_helper_mte_check(ret, cpu_env, tcg_desc, addr);
             tcg_temp_free_i32(tcg_desc);
 
             return arm_bounds_checked(s, ret, total_size, base_reg, is_read,
