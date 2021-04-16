@@ -24,7 +24,6 @@
 
 #include "qemu/cutils.h"
 #include "qemu/cacheflush.h"
-#include "cpu.h"
 
 #ifdef CONFIG_TCG
 #include "hw/core/tcg-cpu-ops.h"
