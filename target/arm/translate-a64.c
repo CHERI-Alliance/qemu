@@ -568,7 +568,7 @@ gen_mte_and_cheri_check1_mmuidx(DisasContext *s, TCGv_i64 addr, bool is_read,
         desc = FIELD_DP32(desc, MTEDESC, TBI, s->tbid);
         desc = FIELD_DP32(desc, MTEDESC, TCMA, s->tcma);
         desc = FIELD_DP32(desc, MTEDESC, WRITE, is_write);
-        desc = FIELD_DP32(desc, MTEDESC, ESIZE, 1 << log2_size);
+        desc = FIELD_DP32(desc, MTEDESC, SIZEM1, (1 << log2_size) - 1);
         tcg_desc = tcg_const_i32(desc);
 
         ret = new_tmp_a64(s);
@@ -613,8 +613,7 @@ TCGv_cap_checked_ptr gen_mte_and_cheri_checkN(DisasContext *s, TCGv_i64 addr,
             desc = FIELD_DP32(desc, MTEDESC, TBI, s->tbid);
             desc = FIELD_DP32(desc, MTEDESC, TCMA, s->tcma);
             desc = FIELD_DP32(desc, MTEDESC, WRITE, is_write);
-            desc = FIELD_DP32(desc, MTEDESC, ESIZE, 1 << log2_esize);
-            desc = FIELD_DP32(desc, MTEDESC, TSIZE, total_size);
+            desc = FIELD_DP32(desc, MTEDESC, SIZEM1, total_size - 1);
             tcg_desc = tcg_const_i32(desc);
 
             ret = new_tmp_a64(s);
