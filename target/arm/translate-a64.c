@@ -598,38 +598,33 @@ TCGv_cap_checked_ptr gen_mte_and_cheri_check1(DisasContext *s, TCGv_i64 addr,
  */
 TCGv_cap_checked_ptr gen_mte_and_cheri_checkN(DisasContext *s, TCGv_i64 addr,
                                               bool is_read, bool is_write,
-                                              bool tag_checked, int log2_esize,
-                                              int total_size, int base_reg,
+                                              bool tag_checked, int size,
+                                              int base_reg,
                                               bool alternate_base,
                                               bool ddc_base)
 {
-    if (total_size != (1 << log2_esize)) {
-        if (tag_checked && s->mte_active[0]) {
-            TCGv_i32 tcg_desc;
-            TCGv_i64 ret;
-            int desc = 0;
+    if (tag_checked && s->mte_active[0]) {
+        TCGv_i32 tcg_desc;
+        TCGv_i64 ret;
+        int desc = 0;
 
-            desc = FIELD_DP32(desc, MTEDESC, MIDX, get_mem_index(s));
-            desc = FIELD_DP32(desc, MTEDESC, TBI, s->tbid);
-            desc = FIELD_DP32(desc, MTEDESC, TCMA, s->tcma);
-            desc = FIELD_DP32(desc, MTEDESC, WRITE, is_write);
-            desc = FIELD_DP32(desc, MTEDESC, SIZEM1, total_size - 1);
-            tcg_desc = tcg_const_i32(desc);
+        desc = FIELD_DP32(desc, MTEDESC, MIDX, get_mem_index(s));
+        desc = FIELD_DP32(desc, MTEDESC, TBI, s->tbid);
+        desc = FIELD_DP32(desc, MTEDESC, TCMA, s->tcma);
+        desc = FIELD_DP32(desc, MTEDESC, WRITE, is_write);
+        desc = FIELD_DP32(desc, MTEDESC, SIZEM1, size - 1);
+        tcg_desc = tcg_const_i32(desc);
 
-            ret = new_tmp_a64(s);
-            gen_helper_mte_check(ret, cpu_env, tcg_desc, addr);
-            tcg_temp_free_i32(tcg_desc);
+        ret = new_tmp_a64(s);
+        gen_helper_mte_check(ret, cpu_env, tcg_desc, addr);
+        tcg_temp_free_i32(tcg_desc);
 
-            return arm_bounds_checked(s, ret, total_size, base_reg, is_read,
-                                      is_write, alternate_base, ddc_base);
-        } else {
-            clean_data_tbi_and_cheri(s, addr, is_read, is_write, total_size,
-                                     base_reg, alternate_base, ddc_base);
-        }
+        return arm_bounds_checked(s, ret, size, base_reg, is_read,
+                                  is_write, alternate_base, ddc_base);
+    } else {
+        return clean_data_tbi_and_cheri(s, addr, is_read, is_write, size,
+                                 base_reg, alternate_base, ddc_base);
     }
-    return gen_mte_and_cheri_check1(s, addr, is_read, is_write, tag_checked,
-                                    log2_esize, base_reg, alternate_base,
-                                    ddc_base);
 }
 
 typedef struct DisasCompare64 {
@@ -3593,7 +3588,7 @@ static void disas_ldst_pair(DisasContext *s, uint32_t insn)
     }
 
     clean_addr = gen_mte_and_cheri_checkN(s, dirty_addr, is_load, !is_load,
-                                          (wback || rn != 31) && !set_tag, size,
+                                          (wback || rn != 31) && !set_tag,
                                           2 << size, rn, false, true);
 
     if (is_vector) {
@@ -4360,7 +4355,7 @@ static void disas_ldst_multiple_struct(DisasContext *s, uint32_t insn)
      * promote consecutive little-endian elements below.
      */
     clean_addr = gen_mte_and_cheri_checkN(s, tcg_rn, !is_store, is_store,
-                                          is_postidx || rn != 31, size, total,
+                                          is_postidx || rn != 31, total,
                                           rn, false, true);
 
     /*
@@ -4519,7 +4514,7 @@ static void disas_ldst_single_struct(DisasContext *s, uint32_t insn)
     tcg_rn = cpu_reg_sp(s, rn);
 
     clean_addr = gen_mte_and_cheri_checkN(s, tcg_rn, is_load, !is_load,
-                                          is_postidx || rn != 31, scale, total,
+                                          is_postidx || rn != 31, total,
                                           rn, false, true);
 
     tcg_ebytes = tcg_const_i64(1 << scale);
