@@ -497,14 +497,8 @@ const char * const mips_cpu_mode_names[QEMU_LOG_INSTR_CPU_MODE_MAX] = {
 static void mips_cpu_set_pc(CPUState *cs, vaddr value)
 {
     MIPSCPU *cpu = MIPS_CPU(cs);
-    CPUMIPSState *env = &cpu->env;
 
-    mips_update_pc(env, value & ~(target_ulong)1, /*can_be_unrepresentable=*/false);
-    if (value & 1) {
-        env->hflags |= MIPS_HFLAG_M16;
-    } else {
-        env->hflags &= ~(MIPS_HFLAG_M16);
-    }
+    mips_env_set_pc(&cpu->env, value);
 }
 
 #ifdef CONFIG_TCG
