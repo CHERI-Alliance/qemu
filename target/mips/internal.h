@@ -261,9 +261,6 @@ void cpu_mips_stop_count(CPUMIPSState *env);
 uint64_t cpu_mips_get_rtc64 (CPUMIPSState *env);
 void cpu_mips_set_rtc64 (CPUMIPSState *env, uint64_t value);
 
-/* helper.c */
-void mmu_init(CPUMIPSState *env, const mips_def_t *def);
-
 static inline void mips_env_set_pc(CPUMIPSState *env, target_ulong value)
 {
     mips_update_pc(env, value & ~(target_ulong)1, /*can_be_unrepresentable=*/false);
