@@ -1083,8 +1083,6 @@ static inline void set_badinstr_registers(CPUMIPSState *env)
     }
 }
 
-#endif /* !CONFIG_USER_ONLY */
-
 static inline void mips_update_pc_for_exc_handler(CPUMIPSState *env,
                                                   target_ulong new_pc)
 {
@@ -1099,7 +1097,6 @@ static inline void mips_update_pc_for_exc_handler(CPUMIPSState *env,
 
 void mips_cpu_do_interrupt(CPUState *cs)
 {
-#if !defined(CONFIG_USER_ONLY)
     MIPSCPU *cpu = MIPS_CPU(cs);
     CPUMIPSState *env = &cpu->env;
     tcg_debug_assert(pc_is_current(env));
@@ -1475,7 +1472,6 @@ void mips_cpu_do_interrupt(CPUState *cs)
             env->CP0_Status, env->CP0_Cause, env->CP0_BadVAddr,
             env->CP0_DEPC);
     }
-#endif /* ! CONFIG_USER_ONLY */
     cs->exception_index = EXCP_NONE;
 
 #ifdef CONFIG_TCG_LOG_INSTR
@@ -1483,7 +1479,6 @@ void mips_cpu_do_interrupt(CPUState *cs)
 #endif
 }
 
-#if !defined(CONFIG_USER_ONLY)
 bool r4k_lookup_tlb(CPUMIPSState *env, int *matching, bool use_extra)
 {
     bool mi = !!((env->CP0_Config5 >> CP0C5_MI) & 1);
