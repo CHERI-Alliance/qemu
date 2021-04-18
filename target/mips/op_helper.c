@@ -1244,6 +1244,8 @@ void helper_deret(CPUMIPSState *env)
     env->hflags &= ~MIPS_HFLAG_DM;
     compute_hflags(env);
 
+    /* TODO: Review that we did not break the eret functionality during the
+       v6.1.0 merge. */
     set_pc_for_eret(env, env->CP0_DEPC);
 
     debug_post_eret(env);
