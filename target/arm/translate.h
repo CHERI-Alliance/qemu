@@ -403,7 +403,7 @@ typedef void AtomicThreeOpFn(TCGv_i64, TCGv_cap_checked_ptr, TCGv_i64, TCGArg,
  */
 static inline CPUARMTBFlags arm_tbflags_from_tb(const TranslationBlock *tb)
 {
-    return (CPUARMTBFlags){ tb->flags };
+    return (CPUARMTBFlags){ tb->flags, tb->cs_base };
 }
 
 /*
