@@ -13834,9 +13834,11 @@ static inline void assert_hflags_rebuild_correctly(CPUARMState *env)
 #endif
     CPUARMTBFlags r = rebuild_hflags_internal(env);
 
-    if (unlikely(c.flags != r.flags)) {
-        fprintf(stderr, "TCG hflags mismatch (current:0x%08x rebuilt:0x%08x)\n",
-                c.flags, r.flags);
+    if (unlikely(c.flags != r.flags || c.flags2 != r.flags2)) {
+        fprintf(stderr, "TCG hflags mismatch "
+                        "(current:(0x%08x,0x" TARGET_FMT_lx ")"
+                        " rebuilt:(0x%08x,0x" TARGET_FMT_lx ")\n",
+                c.flags, c.flags2, r.flags, r.flags2);
         abort();
     }
 #ifdef TARGET_CHERI
@@ -13856,7 +13858,6 @@ void aarch_cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
 {
     CPUARMTBFlags flags;
 
-    *cs_base = 0;
     assert_hflags_rebuild_correctly(env);
     flags = env->hflags;
 
@@ -13935,6 +13936,7 @@ void aarch_cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
     }
 
     *pflags = flags.flags;
+    *cs_base = flags.flags2;
 }
 
 #ifdef TARGET_AARCH64
