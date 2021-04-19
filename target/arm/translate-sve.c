@@ -5011,7 +5011,7 @@ static bool trans_LD1R_zpri(DisasContext *s, arg_rpri_load *a)
                                           a->rn, false, true);
 
     tcg_gen_qemu_ld_i64_with_checked_addr(temp, clean_addr, get_mem_index(s),
-                                          s->be_data | dtype_mop[a->dtype]);
+                                          finalize_memop(s, dtype_mop[a->dtype]));
 
     /* Broadcast to *all* elements.  */
     tcg_gen_gvec_dup_i64(esz, vec_full_reg_offset(s, a->rd),
