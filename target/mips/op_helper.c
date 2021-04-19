@@ -310,21 +310,6 @@ target_ulong helper_rotx(target_ulong rs, uint32_t shift, uint32_t shiftx,
 
 #ifndef CONFIG_USER_ONLY
 
-hwaddr do_translate_address(CPUMIPSState *env, target_ulong address,
-                            MMUAccessType access_type, uintptr_t retaddr)
-{
-    hwaddr paddr;
-    CPUState *cs = env_cpu(env);
-
-    paddr = cpu_mips_translate_address(env, address, access_type);
-
-    if (paddr == -1LL) {
-        cpu_loop_exit_restore(cs, retaddr);
-    } else {
-        return paddr;
-    }
-}
-
 #define HELPER_LD_ATOMIC(name, insn, almask, do_cast)                         \
 target_ulong helper_##name(CPUMIPSState *env, target_ulong arg, int mem_idx)  \
 {                                                                             \
@@ -334,7 +319,8 @@ target_ulong helper_##name(CPUMIPSState *env, target_ulong arg, int mem_idx)  \
         }                                                                     \
         do_raise_exception(env, EXCP_AdEL, GETPC());                          \
     }                                                                         \
-    env->CP0_LLAddr = do_translate_address(env, arg, MMU_DATA_LOAD, GETPC()); \
+    env->CP0_LLAddr = cpu_mips_translate_address(env, arg, MMU_DATA_LOAD,     \
+                                                 GETPC());                    \
     env->lladdr = arg;                                                        \
     env->llval = do_cast cpu_##insn##_mmuidx_ra(env, arg, mem_idx, GETPC());  \
     return env->llval;                                                        \
@@ -1847,7 +1833,7 @@ static bool do_magic_memset(CPUMIPSState *env, uint64_t ra, uint pattern_length)
             len_nitems -= l_adj_nitems;
         } else {
             // First try address_space_write and if that fails fall back to bytewise setting
-            hwaddr paddr = do_translate_address(env, dest, MMU_DATA_STORE, ra);
+            hwaddr paddr = cpu_mips_translate_address(env, dest, MMU_DATA_STORE, ra);
             // Note: address_space_write will also clear the tag bits!
             MemTxResult result = MEMTX_ERROR;
             if (value == 0) {
