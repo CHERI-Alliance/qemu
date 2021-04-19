@@ -1294,30 +1294,36 @@ static void do_fp_st(DisasContext *s, int srcidx, TCGv_cap_checked_ptr tcg_addr,
                      int size)
 {
     /* This writes the bottom N bits of a 128 bit wide vector to memory */
-    TCGv_i64 tmp = tcg_temp_new_i64();
-
-    MemOp memop = s->be_data;
+    TCGv_i64 tmplo = tcg_temp_new_i64();
+    MemOp mop;
     MemOp align = memop_align_sctlr_size(s, size);
-    tcg_gen_ld_i64(tmp, cpu_env, fp_reg_offset(s, srcidx, MO_64));
+
+    tcg_gen_ld_i64(tmplo, cpu_env, fp_reg_offset(s, srcidx, MO_64));
+
     if (size < 4) {
-        tcg_gen_qemu_st_i64_with_checked_addr(tmp, tcg_addr, get_mem_index(s),
-                                              memop + size | align);
+        mop = finalize_memop(s, size);
+        tcg_gen_qemu_st_i64_with_checked_addr(tmplo, tcg_addr, get_mem_index(s),
+                                              mop | align);
     } else {
         bool be = s->be_data == MO_BE;
         TCGv_cap_checked_ptr tcg_hiaddr = tcg_temp_new_cap_checked();
+        TCGv_i64 tmphi = tcg_temp_new_i64();
 
-        tcg_gen_addi_i64((TCGv_i64)tcg_hiaddr, (TCGv_i64)tcg_addr, 8);
         // If the first load is correctly aligned, so will the second
-        tcg_gen_qemu_st_i64_with_checked_addr(tmp, be ? tcg_hiaddr : tcg_addr,
+        tcg_gen_ld_i64(tmphi, cpu_env, fp_reg_hi_offset(s, srcidx));
+
+        mop = s->be_data | MO_Q;
+        tcg_gen_qemu_st_i64_with_checked_addr(be ? tmphi : tmplo, tcg_addr,
                                               get_mem_index(s),
-                                              memop | MO_Q | align);
-        tcg_gen_ld_i64(tmp, cpu_env, fp_reg_hi_offset(s, srcidx));
-        tcg_gen_qemu_st_i64_with_checked_addr(tmp, be ? tcg_addr : tcg_hiaddr,
-                                              get_mem_index(s), memop | MO_Q);
+                                              mop | (s->align_mem ? MO_ALIGN_16 : 0) | align);
+        tcg_gen_addi_i64((TCGv_i64)tcg_hiaddr, (TCGv_i64)tcg_addr, 8);
+        tcg_gen_qemu_st_i64_with_checked_addr(be ? tmplo : tmphi, tcg_hiaddr,
+                                              get_mem_index(s), mop);
         tcg_temp_free_cap_checked(tcg_hiaddr);
+        tcg_temp_free_i64(tmphi);
     }
 
-    tcg_temp_free_i64(tmp);
+    tcg_temp_free_i64(tmplo);
 }
 
 /*
@@ -1329,13 +1335,13 @@ static void do_fp_ld(DisasContext *s, int destidx,
     /* This always zero-extends and writes to a full 128 bit wide vector */
     TCGv_i64 tmplo = tcg_temp_new_i64();
     TCGv_i64 tmphi = NULL;
-
-    MemOp memop = s->be_data;
+    MemOp mop;
     MemOp align = memop_align_sctlr_size(s, size);
 
     if (size < 4) {
+        mop = finalize_memop(s, size);
         tcg_gen_qemu_ld_i64_with_checked_addr(tmplo, tcg_addr, get_mem_index(s),
-                                              memop + size | align);
+                                              mop | align);
     } else {
         bool be = s->be_data == MO_BE;
         TCGv_cap_checked_ptr tcg_hiaddr;
@@ -1343,12 +1349,15 @@ static void do_fp_ld(DisasContext *s, int destidx,
         tmphi = tcg_temp_new_i64();
         tcg_hiaddr = tcg_temp_new_cap_checked();
 
-        tcg_gen_addi_i64((TCGv_i64)tcg_hiaddr, (TCGv_i64)tcg_addr, 8);
-        tcg_gen_qemu_ld_i64_with_checked_addr(tmplo, be ? tcg_hiaddr : tcg_addr,
+        mop = s->be_data | MO_Q;
+        /* TODO: Review the alignment settings here and in do_fp_st. Have I
+           broken them during the v6.1.0 merge? */
+        tcg_gen_qemu_ld_i64_with_checked_addr(be ? tmphi : tmplo, tcg_addr,
                                               get_mem_index(s),
-                                              memop | MO_Q | align);
-        tcg_gen_qemu_ld_i64_with_checked_addr(tmphi, be ? tcg_addr : tcg_hiaddr,
-                                              get_mem_index(s), memop | MO_Q);
+                                              mop | (s->align_mem ? MO_ALIGN_16 : 0) | align);
+        tcg_gen_addi_i64((TCGv_i64)tcg_hiaddr, (TCGv_i64)tcg_addr, 8);
+        tcg_gen_qemu_ld_i64_with_checked_addr(be ? tmplo : tmphi, tcg_hiaddr,
+                                              get_mem_index(s), mop);
         tcg_temp_free_cap_checked(tcg_hiaddr);
     }
 
