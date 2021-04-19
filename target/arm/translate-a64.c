@@ -4466,6 +4466,7 @@ static void disas_ldst_single_struct(DisasContext *s, uint32_t insn)
     int xs, total;
     TCGv_cap_checked_ptr clean_addr;
     TCGv_i64 tcg_rn, tcg_ebytes;
+    MemOp mop;
 
     if (extract32(insn, 31, 1)) {
         unallocated_encoding(s);
@@ -4528,6 +4529,7 @@ static void disas_ldst_single_struct(DisasContext *s, uint32_t insn)
     clean_addr = gen_mte_and_cheri_checkN(s, tcg_rn, is_load, !is_load,
                                           is_postidx || rn != 31, total,
                                           rn, false, true);
+    mop = finalize_memop(s, scale);
 
     tcg_ebytes = tcg_const_i64(1 << scale);
     for (xs = 0; xs < selem; xs++) {
@@ -4536,7 +4538,7 @@ static void disas_ldst_single_struct(DisasContext *s, uint32_t insn)
             TCGv_i64 tcg_tmp = tcg_temp_new_i64();
 
             tcg_gen_qemu_ld_i64_with_checked_addr(
-                tcg_tmp, clean_addr, get_mem_index(s), s->be_data + scale);
+                tcg_tmp, clean_addr, get_mem_index(s), mop);
             tcg_gen_gvec_dup_i64(scale, vec_full_reg_offset(s, rt),
                                  (is_q + 1) * 8, vec_full_reg_size(s),
                                  tcg_tmp);
@@ -4544,9 +4546,9 @@ static void disas_ldst_single_struct(DisasContext *s, uint32_t insn)
         } else {
             /* Load/store one element per register */
             if (is_load) {
-                do_vec_ld(s, rt, index, clean_addr, scale | s->be_data);
+                do_vec_ld(s, rt, index, clean_addr, mop);
             } else {
-                do_vec_st(s, rt, index, clean_addr, scale | s->be_data);
+                do_vec_st(s, rt, index, clean_addr, mop);
             }
         }
         tcg_gen_add_i64((TCGv_i64)clean_addr, (TCGv_i64)clean_addr, tcg_ebytes);
