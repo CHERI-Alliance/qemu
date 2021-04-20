@@ -2092,6 +2092,10 @@ static inline void check_eva(DisasContext *ctx)
         gen_reserved_instruction(ctx);
     }
 }
+#else
+static inline void check_eva(DisasContext *ctx)
+{
+}
 #endif // !TARGET_CHERI
 
 
@@ -21726,6 +21730,8 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                     gen_ld(ctx, OPC_LHUE, rt, rs, s);
                     break;
                 case NM_CACHEE:
+                    check_eva(ctx);
+                    check_cp0_enabled(ctx);
                     check_nms_dl_il_sl_tl_l2c(ctx);
                     gen_cache_operation(ctx, rt, rs, s);
                     break;
@@ -25316,11 +25322,11 @@ static void decode_opc_special3(CPUMIPSState *env, DisasContext *ctx)
             gen_st_cond(ctx, rt, rs, imm, MO_TESL, true, OPC_SCE);
             return;
         case OPC_CACHEE:
+            check_eva(ctx);
             check_cp0_enabled(ctx);
             if (ctx->hflags & MIPS_HFLAG_ITC_CACHE) {
                 gen_cache_operation(ctx, rt, rs, imm);
             }
-            /* Treat as NOP. */
             return;
         case OPC_PREFE:
             check_cp0_enabled(ctx);
