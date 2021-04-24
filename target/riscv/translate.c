@@ -607,6 +607,12 @@ EX_SH(12)
     }                              \
 } while (0)
 
+#define REQUIRE_64BIT(ctx) do { \
+    if (is_32bit(ctx)) {        \
+        return false;           \
+    }                           \
+} while (0)
+
 static int ex_rvc_register(DisasContext *ctx, int reg)
 {
     return 8 + reg;
@@ -616,6 +622,11 @@ static int ex_rvc_shifti(DisasContext *ctx, int imm)
 {
     /* For RV128 a shamt of 0 means a shift by 64. */
     return imm ? imm : 64;
+}
+
+static bool pred_rv64(DisasContext *ctx)
+{
+    return !is_32bit(ctx);
 }
 
 static bool pred_capmode(DisasContext *ctx)
@@ -677,7 +688,6 @@ static bool gen_arith_imm_tl(DisasContext *ctx, arg_i *a,
     return true;
 }
 
-#ifdef TARGET_RISCV64
 static void gen_addw(TCGv ret, TCGv arg1, TCGv arg2)
 {
     tcg_gen_add_tl(ret, arg1, arg2);
@@ -737,8 +747,6 @@ static bool gen_arith_div_uw(DisasContext *ctx, arg_r *a,
     tcg_temp_free(source2);
     return true;
 }
-
-#endif
 
 static bool gen_arith(DisasContext *ctx, arg_r *a,
                       void(*func)(TCGv, TCGv, TCGv))
@@ -889,6 +897,9 @@ TRANS_STUB(lc)
 TRANS_STUB(sc)
 TRANS_STUB(caddi)
 TRANS_STUB(cadd)
+TRANS_STUB(lr_c)
+TRANS_STUB(sc_c)
+TRANS_STUB(amoswap_c)
 #endif
 
 static void decode_opc(CPURISCVState *env, DisasContext *ctx)

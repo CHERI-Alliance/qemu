@@ -7,18 +7,18 @@ gen32 = [
 
 gen64 = [
   decodetree.process('insn16.decode', extra_args: [dir / 'insn16-64.decode', '--static-decode=decode_insn16', '--insnwidth=16']),
-  decodetree.process('insn32.decode', extra_args: [dir / 'insn32-64.decode', '--static-decode=decode_insn32']),
+  decodetree.process('insn32.decode', extra_args: '--static-decode=decode_insn32'),
 ]
 
 # FIXME: would be nice to avoid this duplication but I don't see an easy way to
 # do this since the TARGET_CHERI check is evaulated later.
 gen32_cheri = [
   decodetree.process('insn16.decode', extra_args: [dir / 'insn16-32.decode', '--static-decode=decode_insn16', '--insnwidth=16']),
-  decodetree.process('insn32.decode', extra_args: [dir / 'insn32-cheri.decode', dir / 'insn32-cheri-32.decode', '--static-decode=decode_insn32']),
+  decodetree.process('insn32.decode', extra_args: [dir / 'insn32-cheri.decode', '--static-decode=decode_insn32']),
 ]
 gen64_cheri = [
   decodetree.process('insn16.decode', extra_args: [dir / 'insn16-64.decode', '--static-decode=decode_insn16', '--insnwidth=16']),
-  decodetree.process('insn32.decode', extra_args: [dir / 'insn32-64.decode', dir / 'insn32-cheri.decode', dir / 'insn32-cheri-64.decode', '--static-decode=decode_insn32']),
+  decodetree.process('insn32.decode', extra_args: [dir / 'insn32-cheri.decode', dir / 'insn32-cheri-64.decode', '--static-decode=decode_insn32']),
 ]
 
 riscv32_ss = ss.source_set()
