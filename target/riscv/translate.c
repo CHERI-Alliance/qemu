@@ -84,12 +84,6 @@ typedef struct DisasContext {
     CPUState *cs;
 } DisasContext;
 
-#ifdef TARGET_RISCV64
-#define CASE_OP_32_64(X) case X: case glue(X, W)
-#else
-#define CASE_OP_32_64(X) case X
-#endif
-
 #ifdef CONFIG_DEBUG_TCG
 #define gen_mark_pc_updated() tcg_gen_movi_tl(_pc_is_current, 1)
 #else
