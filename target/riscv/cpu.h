@@ -780,7 +780,11 @@ static inline bool cpu_in_user_mode(CPURISCVState *env)
 
 static inline unsigned cpu_get_asid(CPURISCVState *env, target_ulong pc)
 {
-    return get_field(env->satp, SATP_ASID);
+    if (riscv_cpu_is_32bit(env)) {
+        return get_field(env->satp, SATP32_ASID);
+    } else {
+        return get_field(env->satp, SATP64_ASID);
+    }
 }
 
 static inline const char *cpu_get_mode_name(qemu_log_instr_cpu_mode_t mode)
