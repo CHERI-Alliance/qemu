@@ -990,16 +990,27 @@ static RISCVException read_satp(CPURISCVState *env, int csrno,
 static RISCVException write_satp(CPURISCVState *env, int csrno,
                                  target_ulong val)
 {
+    int vm, mask, asid;
+
     if (!riscv_feature(env, RISCV_FEATURE_MMU)) {
         return RISCV_EXCP_NONE;
     }
-    if (validate_vm(env, get_field(val, SATP_MODE)) &&
-        ((val ^ env->satp) & (SATP_MODE | SATP_ASID | SATP_PPN)))
-    {
+
+    if (riscv_cpu_is_32bit(env)) {
+        vm = validate_vm(env, get_field(val, SATP32_MODE));
+        mask = (val ^ env->satp) & (SATP32_MODE | SATP32_ASID | SATP32_PPN);
+        asid = (val ^ env->satp) & SATP32_ASID;
+    } else {
+        vm = validate_vm(env, get_field(val, SATP64_MODE));
+        mask = (val ^ env->satp) & (SATP64_MODE | SATP64_ASID | SATP64_PPN);
+        asid = (val ^ env->satp) & SATP64_ASID;
+    }
+
+    if (vm && mask) {
         if (env->priv == PRV_S && get_field(env->mstatus, MSTATUS_TVM)) {
             return RISCV_EXCP_ILLEGAL_INST;
         } else {
-            if ((val ^ env->satp) & SATP_ASID) {
+            if (asid) {
                 tlb_flush(env_cpu(env));
             }
             env->satp = val;
@@ -1598,7 +1609,8 @@ static inline int64_t SignExtend64(uint64_t X, unsigned B)
 
 
 static inline uint8_t topbit_for_address_mode(CPUArchState *env){
-    uint64_t vm = get_field(env->vsatp, SATP_MODE);
+    uint64_t vm = get_field(env->vsatp,
+            riscv_cpu_is_32bit(env) ? SATP32_MODE : SATP64_MODE);
     uint8_t checkbit = 0;
     switch (vm) {
     case VM_1_10_SV32:
@@ -1636,7 +1648,7 @@ static inline bool is_address_valid_for_cap(CPUArchState *env,
 #ifdef TARGET_RISCV32
     return true;
 #endif
-    uint64_t vm = get_field(env->vsatp, SATP_MODE);
+    uint64_t vm = get_field(env->vsatp, SATP64_MODE);
     if (vm == VM_1_10_MBARE || vm == VM_1_10_SV32) {
         return true;
     }
@@ -1661,7 +1673,8 @@ This is implementation dependant and depends on the address translation mode
 static inline target_ulong get_valid_cap_address(CPUArchState *env,
                                                  target_ulong addr)
 {
-    uint64_t vm = get_field(env->vsatp, SATP_MODE);
+    uint64_t vm = get_field(env->vsatp,
+            riscv_cpu_is_32bit(env) ? SATP32_MODE : SATP64_MODE);
     if (vm == VM_1_10_MBARE || vm == VM_1_10_SV32) {
         return addr;
     }
