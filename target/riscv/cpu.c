@@ -696,7 +696,11 @@ void rvfi_dii_communicate(CPUState* cs, CPURISCVState* env, bool was_trap) {
             env->rvfi_dii_have_injected_insn = true;
             env->rvfi_dii_trace.PC.rvfi_pc_rdata = GET_SPECIAL_REG_ARCH(env, pc, PCC);
             env->rvfi_dii_trace.INST.rvfi_mode = env->priv;
-            env->rvfi_dii_trace.INST.rvfi_ixl = get_field(env->misa, MISA_MXL);
+            if (riscv_cpu_is_32bit(env)) {
+                env->rvfi_dii_trace.INST.rvfi_ixl = get_field(env->misa, MISA32_MXL);
+            } else {
+                env->rvfi_dii_trace.INST.rvfi_ixl = get_field(env->misa, MISA64_MXL);
+            }
             resume_all_vcpus();
             cpu_resume(cs);
             env->rvfi_dii_trace.PC.rvfi_pc_wdata = -1; // Will be set after single-step trap
@@ -747,7 +751,7 @@ static void riscv_cpu_reset(DeviceState *dev)
     env->mcause = 0;
     env->two_stage_lookup = false;
 #if defined(TARGET_RISCV64)
-    target_ulong mxl = get_field(env->misa, MISA_MXL);
+    target_ulong mxl = get_field(env->misa, MISA64_MXL);
     env->mstatus = set_field(env->mstatus, MSTATUS64_SXL, mxl);
     env->mstatus = set_field(env->mstatus, MSTATUS64_UXL, mxl);
 #endif
