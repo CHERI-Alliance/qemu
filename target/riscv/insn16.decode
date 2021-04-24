@@ -39,6 +39,10 @@
 %imm_addi16sp  12:s1 3:2 5:1 2:1 6:1 !function=ex_shift_4
 %imm_lui       12:s1 2:5             !function=ex_shift_12
 
+%uimm_cl_q     10:1 5:2 11:2      !function=ex_shift_4
+
+%uimm_6bit_lq 2:4 12:1 6:1           !function=ex_shift_4
+%uimm_6bit_sq 7:4 11:2               !function=ex_shift_4
 
 # Argument sets imported from insn32.decode:
 &empty                  !extern
@@ -90,7 +94,11 @@
 
 @c_andi         ... . .. ... ..... .. &i imm=%imm_ci rs1=%rs1_3 rd=%rs1_3
 
+@cl_q      ... ... ... .. ... .. &i      imm=%uimm_cl_q   rs1=%rs1_3  rd=%rs2_3
+@cs_q      ... ... ... .. ... .. &s      imm=%uimm_cl_q   rs1=%rs1_3  rs2=%rs2_3
 
+@c_lqsp    ... . .....  ..... .. &i      imm=%uimm_6bit_lq rs1=2 %rd
+@c_sqsp    ... . .....  ..... .. &s      imm=%uimm_6bit_sq rs1=2 rs2=%rs2_5
 
 # *** RV32/64C Standard Extension (Quadrant 0) ***
 {
@@ -101,6 +109,28 @@
 }
 lw                010  ... ... .. ... 00 @cl_w
 sw                110  ... ... .. ... 00 @cs_w
+
+# *** RV32C and RV64C specific Standard Extension (Quadrant 0) ***
+{
+  ld              011  ... ... .. ... 00 @cl_d ?pred_rv64
+  flw             011  ... ... .. ... 00 @cl_w ?!pred_capmode
+  lc              011  ... ... .. ... 00 @cl_d ?pred_capmode ?!pred_rv64
+}
+{
+  fld             001  ... ... .. ... 00 @cl_d ?!pred_rv64
+  fld             001  ... ... .. ... 00 @cl_d ?!pred_capmode ?pred_rv64
+  lc              001  ... ... .. ... 00 @cl_q ?pred_capmode ?pred_rv64
+}
+{
+  sd              111  ... ... .. ... 00 @cs_d ?pred_rv64
+  fsw             111  ... ... .. ... 00 @cs_w ?!pred_capmode ?!pred_rv64
+  sc              111  ... ... .. ... 00 @cs_d ?pred_capmode ?!pred_rv64
+}
+{
+  fsd             101  ... ... .. ... 00 @cs_d ?!pred_rv64
+  fsd             101  ... ... .. ... 00 @cs_d ?!pred_capmode ?pred_rv64
+  sc              101  ... ... .. ... 00 @cs_q ?pred_capmode ?pred_rv64
+}
 
 # *** RV32/64C Standard Extension (Quadrant 1) ***
 {
@@ -131,6 +161,15 @@ jal               101     ........... 01 @cj    rd=0  # C.J
 beq               110  ... ...  ..... 01 @cb_z
 bne               111  ... ...  ..... 01 @cb_z
 
+# *** RV64C and RV32C specific Standard Extension (Quadrant 1) ***
+{
+  c64_illegal     001 -  00000  ----- 01 # c.addiw, RES rd=0
+  addiw           001 .  .....  ..... 01 @ci
+  jal             001     ........... 01 @cj    rd=1  # C.JAL
+}
+subw              100 1 11 ... 00 ... 01 @cs_2
+addw              100 1 11 ... 01 ... 01 @cs_2
+
 # *** RV32/64C Standard Extension (Quadrant 2) ***
 {
   c_hint          000 0  .....  00000 10 @c_hintshift2  # c.slli64 is a HINT for rv32/64
@@ -152,3 +191,28 @@ bne               111  ... ...  ..... 01 @cb_z
   add             100 1  .....  ..... 10 @cr
 }
 sw                110 .  .....  ..... 10 @c_swsp
+
+# *** RV32C and RV64C specific Standard Extension (Quadrant 2) ***
+{
+  fld             001 .  .....  ..... 10 @c_ldsp ?!pred_rv64
+  fld             001 .  .....  ..... 10 @c_ldsp ?!pred_capmode ?pred_rv64
+  illegal         001 -  00000  ----- 10         ?pred_capmode ?pred_rv64 # RES rd=0
+  lc              001 .  .....  ..... 10 @c_lqsp ?pred_capmode ?pred_rv64
+}
+{
+  c64_illegal     011 -  00000  ----- 10 # c.ldsp, RES rd=0
+  ld              011 .  .....  ..... 10 @c_ldsp ?pred_rv64
+  flw             011 .  .....  ..... 10 @c_lwsp ?!pred_capmode ?!pred_rv64
+  illegal         011 -  00000  ----- 10         ?pred_capmode ?!pred_rv64 # RES rd=0
+  lc              011 .  .....  ..... 10 @c_ldsp ?pred_capmode ?!pred_rv64
+}
+{
+  fsd             101   ......  ..... 10 @c_sdsp ?!pred_rv64
+  fsd             101   ......  ..... 10 @c_sdsp ?!pred_capmode ?pred_rv64
+  sc              101   ......  ..... 10 @c_sqsp ?pred_capmode ?pred_rv64
+}
+{
+  sd              111 .  .....  ..... 10 @c_sdsp ?pred_rv64
+  fsw             111 .  .....  ..... 10 @c_swsp ?!pred_capmode ?!pred_rv64
+  sc              111 .  .....  ..... 10 @c_sdsp ?pred_capmode ?!pred_rv64
+}

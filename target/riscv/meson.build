@@ -1,32 +1,19 @@
 # FIXME extra_args should accept files()
 dir = meson.current_source_dir()
-gen32 = [
-  decodetree.process('insn16.decode', extra_args: [dir / 'insn16-32.decode', '--static-decode=decode_insn16', '--insnwidth=16']),
-  decodetree.process('insn32.decode', extra_args: '--static-decode=decode_insn32'),
-]
 
-gen64 = [
-  decodetree.process('insn16.decode', extra_args: [dir / 'insn16-64.decode', '--static-decode=decode_insn16', '--insnwidth=16']),
-  decodetree.process('insn32.decode', extra_args: '--static-decode=decode_insn32'),
-]
+gen16 = decodetree.process('insn16.decode', extra_args: ['--static-decode=decode_insn16', '--insnwidth=16'])
 
-# FIXME: would be nice to avoid this duplication but I don't see an easy way to
-# do this since the TARGET_CHERI check is evaulated later.
-gen32_cheri = [
-  decodetree.process('insn16.decode', extra_args: [dir / 'insn16-32.decode', '--static-decode=decode_insn16', '--insnwidth=16']),
-  decodetree.process('insn32.decode', extra_args: [dir / 'insn32-cheri.decode', '--static-decode=decode_insn32']),
-]
-gen64_cheri = [
-  decodetree.process('insn16.decode', extra_args: [dir / 'insn16-64.decode', '--static-decode=decode_insn16', '--insnwidth=16']),
-  decodetree.process('insn32.decode', extra_args: [dir / 'insn32-cheri.decode', dir / 'insn32-cheri-64.decode', '--static-decode=decode_insn32']),
-]
+gen32 = decodetree.process('insn32.decode', extra_args: '--static-decode=decode_insn32')
+gen32_cheri = decodetree.process('insn32.decode', extra_args: [dir / 'insn32-cheri.decode', '--static-decode=decode_insn32'])
+gen64_cheri = decodetree.process('insn32.decode', extra_args: [dir / 'insn32-cheri.decode', dir / 'insn32-cheri-64.decode', '--static-decode=decode_insn32'])
 
 riscv32_ss = ss.source_set()
 riscv64_ss = ss.source_set()
 riscv32_ss.add(when: 'TARGET_CHERI', if_true: gen32_cheri, if_false: gen32)
-riscv64_ss.add(when: 'TARGET_CHERI', if_true: gen64_cheri, if_false: gen64)
+riscv64_ss.add(when: 'TARGET_CHERI', if_true: gen64_cheri, if_false: gen32)
 
 riscv_ss = ss.source_set()
+riscv_ss.add(gen16)
 riscv_ss.add_all(when: 'TARGET_RISCV32', if_true: riscv32_ss)
 riscv_ss.add_all(when: 'TARGET_RISCV64', if_true: riscv64_ss)
 
