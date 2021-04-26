@@ -370,7 +370,7 @@ long do_rt_sigreturn(CPUMIPSState *env)
     set_sigmask(&blocked);
 
     restore_sigcontext(env, &frame->rs_uc.tuc_mcontext);
-    target_restore_altstack(&frame->rs_uc.tuc_stack, get_sp_from_cpustate(env));
+    target_restore_altstack(&frame->rs_uc.tuc_stack, env);
 
     mips_update_pc(env, env->CP0_EPC, /*can_be_unrepresentable=*/false);
     mips_set_hflags_isa_mode_from_pc(env);
