@@ -692,7 +692,7 @@ static void virt_machine_init(MachineState *machine)
             /* Use a purecap BBL as the BIOS for CHERI. */
             "bbl-riscv32cheri-virt-fw_jump.bin",
 #else
-            "opensbi-riscv32-generic-fw_dynamic.bin",
+            RISCV32_BIOS_BIN,
 #endif
             start_addr, NULL);
     } else {
@@ -702,7 +702,7 @@ static void virt_machine_init(MachineState *machine)
             /* Use a purecap BBL as the BIOS for CHERI. */
             "bbl-riscv64cheri-virt-fw_jump.bin",
 #else
-            "opensbi-riscv64-generic-fw_dynamic.bin",
+            RISCV64_BIOS_BIN,
 #endif
             start_addr, NULL);
     }

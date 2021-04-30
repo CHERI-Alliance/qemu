@@ -24,6 +24,11 @@
 #include "hw/loader.h"
 #include "hw/riscv/riscv_hart.h"
 
+#define RISCV32_BIOS_BIN    "opensbi-riscv32-generic-fw_dynamic.bin"
+#define RISCV32_BIOS_ELF    "opensbi-riscv32-generic-fw_dynamic.elf"
+#define RISCV64_BIOS_BIN    "opensbi-riscv64-generic-fw_dynamic.bin"
+#define RISCV64_BIOS_ELF    "opensbi-riscv64-generic-fw_dynamic.elf"
+
 bool riscv_is_32bit(RISCVHartArrayState *harts);
 
 char *riscv_plic_hart_config_string(int hart_count);
