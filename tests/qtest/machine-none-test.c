@@ -51,7 +51,6 @@ static struct arch2cpu cpus_map[] = {
     { "sparc", "LEON2" },
     { "sparc64", "Fujitsu Sparc64" },
     { "tricore", "tc1796" },
-    { "unicore32", "UniCore-II" },
     { "xtensa", "dc233c" },
     { "xtensaeb", "fsf" },
     { "hppa", "hppa" },
