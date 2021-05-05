@@ -35,8 +35,6 @@
 # Most of the fields and formats are there.
 
 %cs2       20:5
-%cs1       15:5
-%cd         7:5
 
 ### Three operand instructions
 @rcc     .......   ..... ..... ... ..... ....... &rcc     %rs2 %cs1 %cd
@@ -69,13 +67,6 @@ gcperm      0001000  00001 ..... 000 ..... 0110011 @cr ?pred_cre
 gchi        0001000  00100 ..... 000 ..... 0110011 @cr ?pred_cre
 gcbase      0001000  00101 ..... 000 ..... 0110011 @cr ?pred_cre
 gclen       0001000  00110 ..... 000 ..... 0110011 @cr ?pred_cre
-
-# We have to add a new i format with unsigned immediate for scbndsi
-%imm_i_unsigned    20:5
-%imm_scale         25:1
-@is_unsigned  ...... . ..... ..... ... ..... ....... scal=%imm_scale imm=%imm_i_unsigned     %cs1 %cd
-
-scbndsi  000001 . ..... ..... 101 ..... 0010011 @is_unsigned ?pred_cre
 
 @icc     ............    ..... ... ..... ....... &icc     imm=%imm_i %cs1 %cd
 caddi         ............     ..... 010 ..... 0011011 @icc ?pred_cre
