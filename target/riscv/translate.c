@@ -645,12 +645,14 @@ static bool pred_hybrid(DisasContext *ctx)
 }
 #endif
 
-#ifdef TARGET_CHERI
 static bool pred_cre(DisasContext *ctx)
 {
+#ifdef TARGET_CHERI
     return ctx->cre;
-}
+#else
+    return false;
 #endif
+}
 
 /* Include the auto-generated decoder for 32 bit insn */
 #include "decode-insn32.c.inc"
@@ -900,6 +902,7 @@ TRANS_STUB(cadd)
 TRANS_STUB(lr_c)
 TRANS_STUB(sc_c)
 TRANS_STUB(amoswap_c)
+TRANS_STUB(scbndsi)
 #endif
 
 static void decode_opc(CPURISCVState *env, DisasContext *ctx)
