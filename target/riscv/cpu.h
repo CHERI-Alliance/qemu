@@ -88,6 +88,7 @@ enum {
 #define PRIV_VERSION_1_10_0 0x00011000
 #define PRIV_VERSION_1_11_0 0x00011100
 
+#define BEXT_VERSION_0_93_0 0x00009300
 #define VEXT_VERSION_0_07_1 0x00000701
 
 enum {
@@ -348,6 +349,7 @@ struct CPURISCVState {
 #endif
 
     target_ulong priv_ver;
+    target_ulong bext_ver;
     target_ulong vext_ver;
     // TODO: we should probably re-compute these instead of preserving
     //  in case misa becomes writable
@@ -444,6 +446,7 @@ struct RISCVCPU {
 #endif
         char *priv_spec;
         char *user_spec;
+        char *bext_spec;
         char *vext_spec;
         uint16_t vlen;
         uint16_t elen;
