@@ -467,8 +467,6 @@ static inline bool riscv_feature(CPURISCVState *env, int feature)
 
 extern const char * const riscv_int_regnames[];
 extern const char * const riscv_fpr_regnames[];
-extern const char * const riscv_excp_names[];
-extern const char * const riscv_intr_names[];
 #ifdef TARGET_CHERI
 /* Needed for cheri-common logging */
 extern const char * const cheri_gp_regnames[];
