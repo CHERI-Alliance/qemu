@@ -74,7 +74,7 @@ const char * const riscv_fpr_regnames[] = {
 };
 
 // See Table 3.6 In privileged ISA spec (20190608-Priv-MSU-Ratified)
-const char * const riscv_excp_names[] = {
+static const char * const riscv_excp_names[] = {
     "misaligned_fetch",
     "fault_fetch",
     "illegal_instruction",
@@ -113,7 +113,7 @@ const char * const riscv_excp_names[] = {
     // >64 Reserved for future standard use
 };
 
-const char * const riscv_intr_names[] = {
+static const char * const riscv_intr_names[] = {
     "u_software",
     "s_software",
     "vs_software",
