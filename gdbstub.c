@@ -473,6 +473,15 @@ int use_gdb_syscalls(void)
     return gdb_syscall_mode == GDB_SYS_ENABLED;
 }
 
+static bool stub_can_reverse(void)
+{
+#ifdef CONFIG_USER_ONLY
+    return false;
+#else
+    return replay_mode == REPLAY_MODE_PLAY;
+#endif
+}
+
 /* Resume execution.  */
 static inline void gdb_continue(void)
 {
@@ -1888,7 +1897,7 @@ static void handle_step(GArray *params, void *user_ctx)
 
 static void handle_backward(GArray *params, void *user_ctx)
 {
-    if (replay_mode != REPLAY_MODE_PLAY) {
+    if (!stub_can_reverse()) {
         put_packet("E22");
     }
     if (params->len == 1) {
@@ -2161,7 +2170,7 @@ static void handle_query_supported(GArray *params, void *user_ctx)
         g_string_append(gdbserver_state.str_buf, ";qXfer:features:read+");
     }
 
-    if (replay_mode == REPLAY_MODE_PLAY) {
+    if (stub_can_reverse()) {
         g_string_append(gdbserver_state.str_buf,
             ";ReverseStep+;ReverseContinue+");
     }
