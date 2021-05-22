@@ -12892,8 +12892,8 @@ static void gen_branch(DisasContext *ctx, int insn_bytes)
             break;
 #endif /* TARGET_CHERI */
         default:
-            fprintf(stderr, "unknown branch 0x%x\n", proc_hflags);
-            abort();
+            LOG_DISAS("unknown branch 0x%x\n", proc_hflags);
+            gen_reserved_instruction(ctx);
         }
     }
 }
