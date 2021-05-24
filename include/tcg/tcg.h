@@ -52,7 +52,6 @@
 
 #include "cpu.h"
 #include "exec/memop.h"
-#include "exec/tb-context.h"
 #include "qemu/bitops.h"
 #include "qemu/plugin.h"
 #include "qemu/queue.h"

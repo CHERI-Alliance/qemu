@@ -36,7 +36,6 @@
 bool cpu_restore_state(CPUState *cpu, uintptr_t searched_pc, bool will_exit);
 
 #include "cpu.h"
-#include "exec/tb-context.h"
 #ifdef CONFIG_TCG
 #include "exec/cpu_ldst.h"
 #endif
