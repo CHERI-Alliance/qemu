@@ -31,6 +31,7 @@
 #include "qemu/rcu.h"
 #include "exec/tb-hash.h"
 #include "exec/tb-lookup.h"
+#include "exec/tb-context.h"
 #include "exec/log.h"
 #include "exec/log_instr.h"
 #include "qemu/main-loop.h"
