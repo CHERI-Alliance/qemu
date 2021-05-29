@@ -22367,14 +22367,6 @@ static int decode_nanomips_opc(CPUMIPSState *env, DisasContext *ctx)
 
 #endif // !TARGET_CHERI
 
-/* SmartMIPS extension to MIPS32 */
-
-#if defined(TARGET_MIPS64)
-
-/* MDMX extension to MIPS64 */
-
-#endif
-
 /* MIPSDSP functions. */
 static void gen_mipsdsp_ld(DisasContext *ctx, uint32_t opc,
                            int rd, int base, int offset)
