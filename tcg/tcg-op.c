@@ -1021,7 +1021,8 @@ void tcg_gen_ext16u_i32(TCGv_i32 ret, TCGv_i32 arg)
 void tcg_gen_bswap16_i32(TCGv_i32 ret, TCGv_i32 arg)
 {
     if (TCG_TARGET_HAS_bswap16_i32) {
-        tcg_gen_op2_i32(INDEX_op_bswap16_i32, ret, arg);
+        tcg_gen_op3i_i32(INDEX_op_bswap16_i32, ret, arg,
+                         TCG_BSWAP_IZ | TCG_BSWAP_OZ);
     } else {
         TCGv_i32 t0 = tcg_temp_new_i32();
 
@@ -1036,7 +1037,7 @@ void tcg_gen_bswap16_i32(TCGv_i32 ret, TCGv_i32 arg)
 void tcg_gen_bswap32_i32(TCGv_i32 ret, TCGv_i32 arg)
 {
     if (TCG_TARGET_HAS_bswap32_i32) {
-        tcg_gen_op2_i32(INDEX_op_bswap32_i32, ret, arg);
+        tcg_gen_op3i_i32(INDEX_op_bswap32_i32, ret, arg, 0);
     } else {
         TCGv_i32 t0 = tcg_temp_new_i32();
         TCGv_i32 t1 = tcg_temp_new_i32();
@@ -1683,7 +1684,8 @@ void tcg_gen_bswap16_i64(TCGv_i64 ret, TCGv_i64 arg)
         tcg_gen_bswap16_i32(TCGV_LOW(ret), TCGV_LOW(arg));
         tcg_gen_movi_i32(TCGV_HIGH(ret), 0);
     } else if (TCG_TARGET_HAS_bswap16_i64) {
-        tcg_gen_op2_i64(INDEX_op_bswap16_i64, ret, arg);
+        tcg_gen_op3i_i64(INDEX_op_bswap16_i64, ret, arg,
+                         TCG_BSWAP_IZ | TCG_BSWAP_OZ);
     } else {
         TCGv_i64 t0 = tcg_temp_new_i64();
 
@@ -1702,7 +1704,8 @@ void tcg_gen_bswap32_i64(TCGv_i64 ret, TCGv_i64 arg)
         tcg_gen_bswap32_i32(TCGV_LOW(ret), TCGV_LOW(arg));
         tcg_gen_movi_i32(TCGV_HIGH(ret), 0);
     } else if (TCG_TARGET_HAS_bswap32_i64) {
-        tcg_gen_op2_i64(INDEX_op_bswap32_i64, ret, arg);
+        tcg_gen_op3i_i64(INDEX_op_bswap32_i64, ret, arg,
+                         TCG_BSWAP_IZ | TCG_BSWAP_OZ);
     } else {
         TCGv_i64 t0 = tcg_temp_new_i64();
         TCGv_i64 t1 = tcg_temp_new_i64();
@@ -1739,7 +1742,7 @@ void tcg_gen_bswap64_i64(TCGv_i64 ret, TCGv_i64 arg)
         tcg_temp_free_i32(t0);
         tcg_temp_free_i32(t1);
     } else if (TCG_TARGET_HAS_bswap64_i64) {
-        tcg_gen_op2_i64(INDEX_op_bswap64_i64, ret, arg);
+        tcg_gen_op3i_i64(INDEX_op_bswap64_i64, ret, arg, 0);
     } else {
         TCGv_i64 t0 = tcg_temp_new_i64();
         TCGv_i64 t1 = tcg_temp_new_i64();
