@@ -468,6 +468,7 @@ typedef void AtomicThreeOpFn(TCGv_i64, TCGv_cap_checked_ptr, TCGv_i64, TCGArg,
 typedef void WideShiftImmFn(TCGv_i64, TCGv_i64, int64_t shift);
 typedef void WideShiftFn(TCGv_i64, TCGv_ptr, TCGv_i64, TCGv_i32);
 typedef void ShiftImmFn(TCGv_i32, TCGv_i32, int32_t shift);
+typedef void ShiftFn(TCGv_i32, TCGv_ptr, TCGv_i32, TCGv_i32);
 
 /**
  * arm_tbflags_from_tb:
