@@ -184,6 +184,36 @@ static inline TranslationBlock *tb_lookup(CPUState *cpu, target_ulong pc,
     return tb;
 }
 
+static inline void log_cpu_exec(target_ulong pc, CPUState *cpu,
+                                const TranslationBlock *tb)
+{
+    if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_CPU | CPU_LOG_EXEC))
+        && qemu_log_in_addr_range(pc)) {
+
+        qemu_log_mask_and_addr(CPU_LOG_EXEC, pc,
+                               "Chain %d: %p [" TARGET_FMT_lx "/" TARGET_FMT_lx
+                               "/" TARGET_FMT_lx "-" TARGET_FMT_lx "/%#x/%#x] %s\n",
+                               cpu->cpu_index, tb->tc.ptr, tb->cs_base, tb->pcc_base,
+                               tb->pcc_top, tb->cheri_flags, tb->flags, lookup_symbol(pc));
+
+#if defined(DEBUG_DISAS)
+        if (qemu_loglevel_mask(CPU_LOG_TB_CPU)) {
+            FILE *logfile = qemu_log_lock();
+            int flags = 0;
+
+            if (qemu_loglevel_mask(CPU_LOG_TB_FPU)) {
+                flags |= CPU_DUMP_FPU;
+            }
+#if defined(TARGET_I386)
+            flags |= CPU_DUMP_CCOP;
+#endif
+            log_cpu_state(cpu, flags);
+            qemu_log_unlock(logfile);
+        }
+#endif /* DEBUG_DISAS */
+    }
+}
+
 /**
  * helper_lookup_tb_ptr: quick check for next tb
  * @env: current cpu state
@@ -208,11 +238,9 @@ const void *HELPER(lookup_tb_ptr)(CPUArchState *env)
     if (tb == NULL) {
         return tcg_code_gen_epilogue;
     }
-    qemu_log_mask_and_addr(CPU_LOG_EXEC, pc,
-                           "Chain %d: %p [" TARGET_FMT_lx "/" TARGET_FMT_lx
-                           "/" TARGET_FMT_lx "-" TARGET_FMT_lx "/%#x/%#x] %s\n",
-                           cpu->cpu_index, tb->tc.ptr, cs_base, pc, pcc_base,
-                           pcc_top, cheri_flags, flags, lookup_symbol(pc));
+
+    log_cpu_exec(pc, cpu, tb);
+
     return tb->tc.ptr;
 }
 
@@ -234,12 +262,7 @@ cpu_tb_exec(CPUState *cpu, TranslationBlock *itb, int *tb_exit)
     TranslationBlock *last_tb;
     const void *tb_ptr = itb->tc.ptr;
 
-    qemu_log_mask_and_addr(CPU_LOG_EXEC, itb->pc,
-                           "Trace %d: %p [" TARGET_FMT_lx "/" TARGET_FMT_lx
-                           "/" TARGET_FMT_lx "-" TARGET_FMT_lx "/%#x/%#x] %s\n",
-                           cpu->cpu_index, itb->tc.ptr, itb->cs_base, itb->pc,
-                           itb->pcc_base, itb->pcc_top, itb->cheri_flags,
-                           itb->flags, lookup_symbol(itb->pc));
+    log_cpu_exec(itb->pc, cpu, itb);
 
 #if defined(DEBUG_DISAS)
     if (qemu_loglevel_mask(CPU_LOG_TB_CPU)
