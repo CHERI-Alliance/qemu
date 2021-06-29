@@ -32,7 +32,6 @@
 #include "semihosting/semihost.h"
 
 #include "trace.h"
-#include "trace-tcg.h"
 #include "exec/translator.h"
 #include "exec/log.h"
 #include "exec/log_instr.h"

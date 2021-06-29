@@ -36,7 +36,6 @@
 #include "exec/log.h"
 #include "exec/log_instr.h"
 
-#include "trace-tcg.h"
 #include "translate-a64.h"
 #include "qemu/atomic128.h"
 
