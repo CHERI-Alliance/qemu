@@ -192,7 +192,7 @@ static inline void log_cpu_exec(target_ulong pc, CPUState *cpu,
 
         qemu_log_mask_and_addr(CPU_LOG_EXEC, pc,
                                "Chain %d: %p [" TARGET_FMT_lx "/" TARGET_FMT_lx
-                               "/" TARGET_FMT_lx "-" TARGET_FMT_lx "/%#x/%#x] %s\n",
+                              "/" TARGET_FMT_lx "/%08x/%08x] %s\n",
                                cpu->cpu_index, tb->tc.ptr, tb->cs_base, tb->pcc_base,
                                tb->pcc_top, tb->cheri_flags, tb->flags, lookup_symbol(pc));
 
