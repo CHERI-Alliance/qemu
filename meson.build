@@ -1557,14 +1557,14 @@ foreach target : target_dirs
   endif
 
   actual_target_dirs += target
-  config_target += keyval.load('default-configs/targets' / target + '.mak')
+  config_target += keyval.load('configs/targets' / target + '.mak')
   # Meson keyval does not support including other files, so do it manually (only 1 file right now)
   if 'INCLUDE_WORKAROUND' in config_target
     message('Loading base config ' + config_target['INCLUDE_WORKAROUND'])
-    base_config_target = keyval.load('default-configs/targets' / config_target['INCLUDE_WORKAROUND'])
+    base_config_target = keyval.load('configs/targets' / config_target['INCLUDE_WORKAROUND'])
     config_target = base_config_target + config_target
   endif
-  message('Loaded default-configs/targets' / target + '.mak')
+  message('Loaded configs/targets' / target + '.mak')
   foreach k, v: config_target
     message(k + '=' + v)
   endforeach
@@ -1618,7 +1618,7 @@ foreach target : target_dirs
   if target.endswith('-softmmu')
     config_devices_mak = target + '-config-devices.mak'
     config_devices_mak = configure_file(
-      input: ['default-configs/devices' / target + '.mak', 'Kconfig'],
+      input: ['configs/devices' / target / 'default.mak', 'Kconfig'],
       output: config_devices_mak,
       depfile: config_devices_mak + '.d',
       capture: true,
