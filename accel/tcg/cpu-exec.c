@@ -359,8 +359,7 @@ void cpu_exec_step_atomic(CPUState *cpu)
     TranslationBlock *tb;
     target_ulong cs_base, pcc_base = 0, pcc_top = 0, pc;
     uint32_t cheri_flags = 0;
-    uint32_t flags;
-    uint32_t cflags = (curr_cflags(cpu) & ~CF_PARALLEL) | 1;
+    uint32_t flags, cflags;
     int tb_exit;
 
     if (sigsetjmp(cpu->jmp_env, 0) == 0) {
@@ -371,9 +370,15 @@ void cpu_exec_step_atomic(CPUState *cpu)
 
         cpu_get_tb_cpu_state_ext(env, &pc, &cs_base, &pcc_base, &pcc_top,
                                  &cheri_flags, &flags);
+
+        cflags = curr_cflags(cpu);
+        /* Execute in a serial context. */
+        cflags &= ~CF_PARALLEL;
+        /* After 1 insn, return and release the exclusive lock. */
+        cflags |= CF_NO_GOTO_TB | CF_NO_GOTO_PTR | 1;
+
         tb = tb_lookup(cpu, pc, cs_base, pcc_base, pcc_top, cheri_flags, flags,
                        cflags);
-
         if (tb == NULL) {
             mmap_lock();
             tb = tb_gen_code(cpu, pc, cs_base, pcc_base, pcc_top, cheri_flags,
