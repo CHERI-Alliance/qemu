@@ -1436,7 +1436,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu, target_ulong pc,
     }
     QEMU_BUILD_BUG_ON(CF_COUNT_MASK + 1 != TCG_MAX_INSNS);
 
-    if (cpu->singlestep_enabled || singlestep) {
+    if (cpu->singlestep_enabled) {
         max_insns = 1;
     }
 
