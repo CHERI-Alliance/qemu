@@ -25,6 +25,7 @@
 #include "disas/disas.h"
 #include "exec/exec-all.h"
 #include "tcg/tcg.h"
+#include "tcg/tcg-op.h"
 #include "qemu/atomic.h"
 #include "qemu/compiler.h"
 #include "qemu/timer.h"
@@ -272,6 +273,15 @@ static bool check_for_breakpoints(CPUState *cpu, target_ulong pc,
             }
 
             if (match_bp) {
+#if defined(TARGET_RISCV) && defined(CONFIG_DEBUG_TCG)
+                /*
+                 * This imitates gen_mark_pc_updated.
+                 *
+                 * Our pc is exactly at the breakpoint, this was the condition
+                 * for _pc_is_current update in the cheri code for <= v6.0.
+                 */
+                tcg_gen_movi_tl(_pc_is_current, 1);
+#endif
                 cpu->exception_index = EXCP_DEBUG;
                 return true;
             }
