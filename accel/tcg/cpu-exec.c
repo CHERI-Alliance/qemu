@@ -231,6 +231,76 @@ static inline void log_cpu_exec(target_ulong pc, CPUState *cpu,
     }
 }
 
+static bool check_for_breakpoints(CPUState *cpu, target_ulong pc,
+                                  uint32_t *cflags)
+{
+    CPUBreakpoint *bp;
+    bool match_page = false;
+
+    if (likely(QTAILQ_EMPTY(&cpu->breakpoints))) {
+        return false;
+    }
+
+    /*
+     * Singlestep overrides breakpoints.
+     * This requirement is visible in the record-replay tests, where
+     * we would fail to make forward progress in reverse-continue.
+     *
+     * TODO: gdb singlestep should only override gdb breakpoints,
+     * so that one could (gdb) singlestep into the guest kernel's
+     * architectural breakpoint handler.
+     */
+    if (cpu->singlestep_enabled) {
+        return false;
+    }
+
+    QTAILQ_FOREACH(bp, &cpu->breakpoints, entry) {
+        /*
+         * If we have an exact pc match, trigger the breakpoint.
+         * Otherwise, note matches within the page.
+         */
+        if (pc == bp->pc) {
+            bool match_bp = false;
+
+            if (bp->flags & BP_GDB) {
+                match_bp = true;
+            } else if (bp->flags & BP_CPU) {
+#ifdef CONFIG_USER_ONLY
+                g_assert_not_reached();
+#else
+                CPUClass *cc = CPU_GET_CLASS(cpu);
+                assert(cc->tcg_ops->debug_check_breakpoint);
+                match_bp = cc->tcg_ops->debug_check_breakpoint(cpu);
+#endif
+            }
+
+            if (match_bp) {
+                cpu->exception_index = EXCP_DEBUG;
+                return true;
+            }
+        } else if (((pc ^ bp->pc) & TARGET_PAGE_MASK) == 0) {
+            match_page = true;
+        }
+    }
+
+    /*
+     * Within the same page as a breakpoint, single-step,
+     * returning to helper_lookup_tb_ptr after each insn looking
+     * for the actual breakpoint.
+     *
+     * TODO: Perhaps better to record all of the TBs associated
+     * with a given virtual page that contains a breakpoint, and
+     * then invalidate them when a new overlapping breakpoint is
+     * set on the page.  Non-overlapping TBs would not be
+     * invalidated, nor would any TB need to be invalidated as
+     * breakpoints are removed.
+     */
+    if (match_page) {
+        *cflags = (*cflags & ~CF_COUNT_MASK) | CF_NO_GOTO_TB | 1;
+    }
+    return false;
+}
+
 /**
  * helper_lookup_tb_ptr: quick check for next tb
  * @env: current cpu state
@@ -245,10 +315,15 @@ const void *HELPER(lookup_tb_ptr)(CPUArchState *env)
     TranslationBlock *tb;
     target_ulong cs_base, pcc_base = 0, pcc_top = 0, pc;
     uint32_t cheri_flags = 0;
-    uint32_t flags;
+    uint32_t flags, cflags;
 
     cpu_get_tb_cpu_state_ext(env, &pc, &cs_base, &pcc_base, &pcc_top,
                              &cheri_flags, &flags);
+
+    cflags = curr_cflags(cpu);
+    if (check_for_breakpoints(cpu, pc, &cflags)) {
+        cpu_loop_exit(cpu);
+    }
 
     tb = tb_lookup(cpu, pc, cs_base, pcc_base, pcc_top, cheri_flags, flags,
                    curr_cflags(cpu));
@@ -376,6 +451,12 @@ void cpu_exec_step_atomic(CPUState *cpu)
         cflags &= ~CF_PARALLEL;
         /* After 1 insn, return and release the exclusive lock. */
         cflags |= CF_NO_GOTO_TB | CF_NO_GOTO_PTR | 1;
+        /*
+         * No need to check_for_breakpoints here.
+         * We only arrive in cpu_exec_step_atomic after beginning execution
+         * of an insn that includes an atomic operation we can't handle.
+         * Any breakpoint for this insn will have been recognized earlier.
+         */
 
         tb = tb_lookup(cpu, pc, cs_base, pcc_base, pcc_top, cheri_flags, flags,
                        cflags);
@@ -877,6 +958,9 @@ int cpu_exec(CPUState *cpu)
             uint32_t cheri_flags = 0;
             uint32_t flags, cflags;
 
+            cpu_get_tb_cpu_state_ext(cpu->env_ptr, &pc, &cs_base, &pcc_base, &pcc_top,
+                                     &cheri_flags, &flags);
+
             /*
              * When requested, use an exact setting for cflags for the next
              * execution.  This is used for icount, precise smc, and stop-
@@ -891,8 +975,9 @@ int cpu_exec(CPUState *cpu)
                 cpu->cflags_next_tb = -1;
             }
 
-            cpu_get_tb_cpu_state_ext(cpu->env_ptr, &pc, &cs_base, &pcc_base, &pcc_top,
-                                     &cheri_flags, &flags);
+            if (check_for_breakpoints(cpu, pc, &cflags)) {
+                break;
+            }
 
             tb = tb_lookup(cpu, pc, cs_base, pcc_base, pcc_top, cheri_flags, flags,
                            cflags);
