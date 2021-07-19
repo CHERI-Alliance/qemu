@@ -41,11 +41,6 @@ bool translator_use_goto_tb(DisasContextBase *db, target_ulong dest)
         return false;
     }
 
-    /* Suppress goto_tb in the case of single-steping.  */
-    if (db->singlestep_enabled) {
-        return false;
-    }
-
     /* Check for the dest on the same page as the start of the TB.  */
     return ((db->pc_first ^ dest) & TARGET_PAGE_MASK) == 0;
 }
@@ -71,7 +66,7 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
     db->is_jmp = DISAS_NEXT;
     db->num_insns = 0;
     db->max_insns = max_insns;
-    db->singlestep_enabled = cpu->singlestep_enabled;
+    db->singlestep_enabled = cflags & CF_SINGLE_STEP;
 #ifdef TARGET_CHERI
     db->pcc_base = tb->cs_base;
     db->pcc_top = tb->cs_top;
