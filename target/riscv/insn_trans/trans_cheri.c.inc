@@ -242,7 +242,7 @@ static void gen_cjalr(DisasContext *ctx, int rd, int rs1, target_ulong imm)
     tcg_temp_free_i32(source_regnum);
     tcg_temp_free_i32(dest_regnum);
 
-    lookup_and_goto_ptr(ctx);
+    tcg_gen_lookup_and_goto_ptr();
     // PC has been updated -> exit translation block
     ctx->base.is_jmp = DISAS_NORETURN;
 }
@@ -413,7 +413,7 @@ static inline bool trans_modesw(DisasContext *ctx, arg_modesw *a)
     /* TODO: Why do we have to update tcg's pc manually in this case? */
     gen_update_cpu_pc(ctx->pc_succ_insn);
     /* create tcg instruction to exit the tb */
-    exit_tb(ctx);
+    tcg_gen_exit_tb(NULL, 0);
     /* This indicates to riscv_tr_tb_stop that no cleanup is needed. */
     ctx->base.is_jmp = DISAS_NORETURN;
 

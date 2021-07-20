@@ -79,7 +79,7 @@ static bool trans_sret(DisasContext *ctx, arg_sret *a)
     if (has_ext(ctx, RVS)) {
         gen_helper_sret(cpu_pc, cpu_env, cpu_pc);
         gen_mark_pc_updated();
-        exit_tb(ctx); /* no chaining */
+        tcg_gen_exit_tb(NULL, 0); /* no chaining */
         ctx->base.is_jmp = DISAS_NORETURN;
     } else {
         return false;
@@ -96,7 +96,7 @@ static bool trans_mret(DisasContext *ctx, arg_mret *a)
     gen_update_cpu_pc(ctx->base.pc_next);
     gen_helper_mret(cpu_pc, cpu_env, cpu_pc);
     gen_mark_pc_updated();
-    exit_tb(ctx); /* no chaining */
+    tcg_gen_exit_tb(NULL, 0); /* no chaining */
     ctx->base.is_jmp = DISAS_NORETURN;
     return true;
 #else
