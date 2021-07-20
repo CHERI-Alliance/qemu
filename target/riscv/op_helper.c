@@ -148,9 +148,11 @@ static void do_cbo_zero(CPURISCVState *env, target_ulong address)
         RAMBlock *r;
         ram_addr_t offs;
 
-        /* TODO: Memory update and tag change must be atomic. */
-        assert(!qemu_tcg_mttcg_enabled() ||
-                cpu_in_exclusive_context(env_cpu(env)));
+        /* TODO: Memory update and tag change should be atomic. 
+         * However no mechanism exists just now. But we expect this is benign
+         * We first invalidate all the tags, which will ensure no valid
+         * tags are read and associated with capabilities of unknown provenance
+         * */
 
         rcu_read_lock(); /* protect r from changes while we use it */
         r = qemu_ram_block_from_host(mem, /* round to page? */ false, &offs);
