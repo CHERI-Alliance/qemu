@@ -2254,14 +2254,12 @@ static inline uint64_t cpu_load_helper_no_log(CPUArchState *env, abi_ptr addr,
                                               MemOp op,
                                               FullLoadHelper *full_load)
 {
-    uint16_t meminfo;
-    MemOpIdx oi;
+    MemOpIdx oi = make_memop_idx(op, mmu_idx);
+    uint16_t meminfo = trace_mem_get_info(oi, false);
     uint64_t ret;
 
-    meminfo = trace_mem_get_info(op, mmu_idx, false);
     trace_guest_mem_before_exec(env_cpu(env), addr, meminfo);
 
-    oi = make_memop_idx(op, mmu_idx);
     ret = full_load(env, addr, oi, retaddr);
 
     qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, meminfo);
@@ -2740,13 +2738,11 @@ static inline void QEMU_ALWAYS_INLINE
 cpu_store_helper_no_log(CPUArchState *env, target_ulong addr, uint64_t val,
                         int mmu_idx, uintptr_t retaddr, MemOp op)
 {
-    MemOpIdx oi;
-    uint16_t meminfo;
+    MemOpIdx oi = make_memop_idx(op, mmu_idx);
+    uint16_t meminfo = trace_mem_get_info(oi, true);
 
-    meminfo = trace_mem_get_info(op, mmu_idx, true);
     trace_guest_mem_before_exec(env_cpu(env), addr, meminfo);
 
-    oi = make_memop_idx(op, mmu_idx);
     store_helper(env, addr, val, oi, retaddr, op);
 
     qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, meminfo);

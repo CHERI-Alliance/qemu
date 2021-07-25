@@ -2897,7 +2897,7 @@ static inline uint64_t memop_rvfi_mask(MemOp op) {
 void tcg_gen_qemu_ld_i32_with_checked_addr(TCGv_i32 val, TCGv_cap_checked_ptr addr, TCGArg idx, MemOp memop)
 {
     MemOp orig_memop;
-    uint16_t info = trace_mem_get_info(memop, idx, 0);
+    uint16_t info = trace_mem_get_info(make_memop_idx(memop, idx), 0);
 
     tcg_gen_req_mo(TCG_MO_LD_LD | TCG_MO_ST_LD);
     memop = tcg_canonicalize_memop(memop, 0, 0);
@@ -2975,7 +2975,7 @@ static void tcg_gen_qemu_st_i32_with_checked_addr_cond_invalidate(
     bool invalidate)
 {
     TCGv_i32 swap = NULL;
-    uint16_t info = trace_mem_get_info(memop, idx, 1);
+    uint16_t info = trace_mem_get_info(make_memop_idx(memop, idx), 1);
 
     tcg_gen_req_mo(TCG_MO_LD_ST | TCG_MO_ST_ST);
     memop = tcg_canonicalize_memop(memop, 0, 1);
@@ -3055,7 +3055,7 @@ void tcg_gen_qemu_ld_i64_with_checked_addr(TCGv_i64 val, TCGv_cap_checked_ptr ad
 
     tcg_gen_req_mo(TCG_MO_LD_LD | TCG_MO_ST_LD);
     memop = tcg_canonicalize_memop(memop, 1, 0);
-    info = trace_mem_get_info(memop, idx, 0);
+    info = trace_mem_get_info(make_memop_idx(memop, idx), 0);
     trace_guest_mem_before_tcg(tcg_ctx->cpu, cpu_env, (TCGv)addr, info);
 
     orig_memop = memop;
@@ -3128,7 +3128,7 @@ void tcg_gen_qemu_st_i64_with_checked_addr_cond_invalidate(
 
     tcg_gen_req_mo(TCG_MO_LD_ST | TCG_MO_ST_ST);
     memop = tcg_canonicalize_memop(memop, 1, 1);
-    info = trace_mem_get_info(memop, idx, 1);
+    info = trace_mem_get_info(make_memop_idx(memop, idx), 1);
     trace_guest_mem_before_tcg(tcg_ctx->cpu, cpu_env, (TCGv)addr, info);
 
     if (!TCG_TARGET_HAS_MEMORY_BSWAP && (memop & MO_BSWAP)) {
