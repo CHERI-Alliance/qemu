@@ -2819,7 +2819,7 @@ static inline MemOp tcg_canonicalize_memop(MemOp op, bool is64, bool st)
 static void gen_ldst_i32(TCGOpcode opc, TCGv_i32 val, TCGv_cap_checked_ptr addr,
                          MemOp memop, TCGArg idx)
 {
-    TCGMemOpIdx oi = make_memop_idx(memop, idx);
+    MemOpIdx oi = make_memop_idx(memop, idx);
 #if TARGET_LONG_BITS == 32
     tcg_gen_op3i_i32(opc, val, (TCGv)addr, oi);
 #else
@@ -2834,7 +2834,7 @@ static void gen_ldst_i32(TCGOpcode opc, TCGv_i32 val, TCGv_cap_checked_ptr addr,
 static void gen_ldst_i64(TCGOpcode opc, TCGv_i64 val, TCGv_cap_checked_ptr addr,
                          MemOp memop, TCGArg idx)
 {
-    TCGMemOpIdx oi = make_memop_idx(memop, idx);
+    MemOpIdx oi = make_memop_idx(memop, idx);
 #if TARGET_LONG_BITS == 32
     if (TCG_TARGET_REG_BITS == 32) {
         tcg_gen_op4i_i32(opc, TCGV_LOW(val), TCGV_HIGH(val), (TCGv)addr, oi);
@@ -3295,7 +3295,7 @@ void tcg_gen_atomic_cmpxchg_i32_with_checked_addr(
     } else {
         ASSERT_IF_CHERI();
         gen_atomic_cx_i32 gen;
-        TCGMemOpIdx oi;
+        MemOpIdx oi;
 
         gen = table_cmpxchg[memop & (MO_SIZE | MO_BSWAP)];
         tcg_debug_assert(gen != NULL);
@@ -3348,7 +3348,7 @@ void tcg_gen_atomic_cmpxchg_i64_with_checked_addr(
         ASSERT_IF_CHERI();
 #ifdef CONFIG_ATOMIC64
         gen_atomic_cx_i64 gen;
-        TCGMemOpIdx oi;
+        MemOpIdx oi;
 
         gen = table_cmpxchg[memop & (MO_SIZE | MO_BSWAP)];
         tcg_debug_assert(gen != NULL);
@@ -3436,7 +3436,7 @@ static void do_atomic_op_i32(TCGv_i32 ret, TCGv_cap_checked_ptr checked_addr,
 {
     ASSERT_IF_CHERI();
     gen_atomic_op_i32 gen;
-    TCGMemOpIdx oi;
+    MemOpIdx oi;
 
     memop = tcg_canonicalize_memop(memop, 0, 0);
 
@@ -3490,7 +3490,7 @@ static void do_atomic_op_i64(TCGv_i64 ret, TCGv_cap_checked_ptr checked_addr,
     if ((memop & MO_SIZE) == MO_64) {
 #ifdef CONFIG_ATOMIC64
         gen_atomic_op_i64 gen;
-        TCGMemOpIdx oi;
+        MemOpIdx oi;
 
         gen = table[memop & (MO_SIZE | MO_BSWAP)];
         tcg_debug_assert(gen != NULL);
