@@ -34,7 +34,6 @@
 #include "qemu/atomic128.h"
 #include "exec/translate-all.h"
 #include "trace/trace-root.h"
-#include "trace/mem.h"
 #include "cheri_tagmem.h"
 #include "tb-hash.h"
 #include "internal.h"
@@ -2255,10 +2254,9 @@ static inline uint64_t cpu_load_helper_no_log(CPUArchState *env, abi_ptr addr,
                                               FullLoadHelper *full_load)
 {
     MemOpIdx oi = make_memop_idx(op, mmu_idx);
-    uint16_t meminfo = trace_mem_get_info(oi, false);
     uint64_t ret;
 
-    trace_guest_mem_before_exec(env_cpu(env), addr, meminfo);
+    trace_guest_ld_before_exec(env_cpu(env), addr, oi);
 
     ret = full_load(env, addr, oi, retaddr);
 
@@ -2739,9 +2737,8 @@ cpu_store_helper_no_log(CPUArchState *env, target_ulong addr, uint64_t val,
                         int mmu_idx, uintptr_t retaddr, MemOp op)
 {
     MemOpIdx oi = make_memop_idx(op, mmu_idx);
-    uint16_t meminfo = trace_mem_get_info(oi, true);
 
-    trace_guest_mem_before_exec(env_cpu(env), addr, meminfo);
+    trace_guest_st_before_exec(env_cpu(env), addr, oi);
 
     store_helper(env, addr, val, oi, retaddr, op);
 
