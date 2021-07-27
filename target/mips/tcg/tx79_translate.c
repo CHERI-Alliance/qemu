@@ -64,7 +64,7 @@ bool decode_ext_tx79(DisasContext *ctx, uint32_t insn)
  * MTLO1   rs                Move To LO1 Register
  */
 
-static bool trans_MFHI1(DisasContext *ctx, arg_rtype *a)
+static bool trans_MFHI1(DisasContext *ctx, arg_r *a)
 {
     gen_store_gpr(cpu_HI[1], a->rd);
     gen_log_instr_gpr_update(ctx, a->rd);
@@ -72,7 +72,7 @@ static bool trans_MFHI1(DisasContext *ctx, arg_rtype *a)
     return true;
 }
 
-static bool trans_MFLO1(DisasContext *ctx, arg_rtype *a)
+static bool trans_MFLO1(DisasContext *ctx, arg_r *a)
 {
     gen_store_gpr(cpu_LO[1], a->rd);
     gen_log_instr_gpr_update(ctx, a->rd);
@@ -80,14 +80,14 @@ static bool trans_MFLO1(DisasContext *ctx, arg_rtype *a)
     return true;
 }
 
-static bool trans_MTHI1(DisasContext *ctx, arg_rtype *a)
+static bool trans_MTHI1(DisasContext *ctx, arg_r *a)
 {
     gen_load_gpr(cpu_HI[1], a->rs);
 
     return true;
 }
 
-static bool trans_MTLO1(DisasContext *ctx, arg_rtype *a)
+static bool trans_MTLO1(DisasContext *ctx, arg_r *a)
 {
     gen_load_gpr(cpu_LO[1], a->rs);
 
@@ -118,7 +118,7 @@ static bool trans_MTLO1(DisasContext *ctx, arg_rtype *a)
  * PSUBUW  rd, rs, rt        Parallel Subtract with Unsigned saturation Word
  */
 
-static bool trans_parallel_arith(DisasContext *ctx, arg_rtype *a,
+static bool trans_parallel_arith(DisasContext *ctx, arg_r *a,
                                  void (*gen_logic_i64)(TCGv_i64, TCGv_i64, TCGv_i64))
 {
     TCGv_i64 ax, bx;
@@ -148,19 +148,19 @@ static bool trans_parallel_arith(DisasContext *ctx, arg_rtype *a,
 }
 
 /* Parallel Subtract Byte */
-static bool trans_PSUBB(DisasContext *ctx, arg_rtype *a)
+static bool trans_PSUBB(DisasContext *ctx, arg_r *a)
 {
     return trans_parallel_arith(ctx, a, tcg_gen_vec_sub8_i64);
 }
 
 /* Parallel Subtract Halfword */
-static bool trans_PSUBH(DisasContext *ctx, arg_rtype *a)
+static bool trans_PSUBH(DisasContext *ctx, arg_r *a)
 {
     return trans_parallel_arith(ctx, a, tcg_gen_vec_sub16_i64);
 }
 
 /* Parallel Subtract Word */
-static bool trans_PSUBW(DisasContext *ctx, arg_rtype *a)
+static bool trans_PSUBW(DisasContext *ctx, arg_r *a)
 {
     return trans_parallel_arith(ctx, a, tcg_gen_vec_sub32_i64);
 }
@@ -191,25 +191,25 @@ static bool trans_PSUBW(DisasContext *ctx, arg_rtype *a)
  */
 
 /* Parallel And */
-static bool trans_PAND(DisasContext *ctx, arg_rtype *a)
+static bool trans_PAND(DisasContext *ctx, arg_r *a)
 {
     return trans_parallel_arith(ctx, a, tcg_gen_and_i64);
 }
 
 /* Parallel Or */
-static bool trans_POR(DisasContext *ctx, arg_rtype *a)
+static bool trans_POR(DisasContext *ctx, arg_r *a)
 {
     return trans_parallel_arith(ctx, a, tcg_gen_or_i64);
 }
 
 /* Parallel Exclusive Or */
-static bool trans_PXOR(DisasContext *ctx, arg_rtype *a)
+static bool trans_PXOR(DisasContext *ctx, arg_r *a)
 {
     return trans_parallel_arith(ctx, a, tcg_gen_xor_i64);
 }
 
 /* Parallel Not Or */
-static bool trans_PNOR(DisasContext *ctx, arg_rtype *a)
+static bool trans_PNOR(DisasContext *ctx, arg_r *a)
 {
     return trans_parallel_arith(ctx, a, tcg_gen_nor_i64);
 }
@@ -239,7 +239,7 @@ static bool trans_PNOR(DisasContext *ctx, arg_rtype *a)
  * PCEQW   rd, rs, rt        Parallel Compare for Equal Word
  */
 
-static bool trans_parallel_compare(DisasContext *ctx, arg_rtype *a,
+static bool trans_parallel_compare(DisasContext *ctx, arg_r *a,
                                    TCGCond cond, unsigned wlen)
 {
     TCGv_i64 c0, c1, ax, bx, t0, t1, t2;
@@ -288,37 +288,37 @@ static bool trans_parallel_compare(DisasContext *ctx, arg_rtype *a,
 }
 
 /* Parallel Compare for Greater Than Byte */
-static bool trans_PCGTB(DisasContext *ctx, arg_rtype *a)
+static bool trans_PCGTB(DisasContext *ctx, arg_r *a)
 {
     return trans_parallel_compare(ctx, a, TCG_COND_GE, 8);
 }
 
 /* Parallel Compare for Equal Byte */
-static bool trans_PCEQB(DisasContext *ctx, arg_rtype *a)
+static bool trans_PCEQB(DisasContext *ctx, arg_r *a)
 {
     return trans_parallel_compare(ctx, a, TCG_COND_EQ, 8);
 }
 
 /* Parallel Compare for Greater Than Halfword */
-static bool trans_PCGTH(DisasContext *ctx, arg_rtype *a)
+static bool trans_PCGTH(DisasContext *ctx, arg_r *a)
 {
     return trans_parallel_compare(ctx, a, TCG_COND_GE, 16);
 }
 
 /* Parallel Compare for Equal Halfword */
-static bool trans_PCEQH(DisasContext *ctx, arg_rtype *a)
+static bool trans_PCEQH(DisasContext *ctx, arg_r *a)
 {
     return trans_parallel_compare(ctx, a, TCG_COND_EQ, 16);
 }
 
 /* Parallel Compare for Greater Than Word */
-static bool trans_PCGTW(DisasContext *ctx, arg_rtype *a)
+static bool trans_PCGTW(DisasContext *ctx, arg_r *a)
 {
     return trans_parallel_compare(ctx, a, TCG_COND_GE, 32);
 }
 
 /* Parallel Compare for Equal Word */
-static bool trans_PCEQW(DisasContext *ctx, arg_rtype *a)
+static bool trans_PCEQW(DisasContext *ctx, arg_r *a)
 {
     return trans_parallel_compare(ctx, a, TCG_COND_EQ, 32);
 }
@@ -336,7 +336,7 @@ static bool trans_PCEQW(DisasContext *ctx, arg_rtype *a)
  * SQ      rt, offset(base)  Store Quadword
  */
 
-static bool trans_LQ(DisasContext *ctx, arg_itype *a)
+static bool trans_LQ(DisasContext *ctx, arg_i *a)
 {
 #if !defined(TARGET_CHERI)
     TCGv_i64 t0;
@@ -375,7 +375,7 @@ static bool trans_LQ(DisasContext *ctx, arg_itype *a)
 #endif
 }
 
-static bool trans_SQ(DisasContext *ctx, arg_itype *a)
+static bool trans_SQ(DisasContext *ctx, arg_i *a)
 {
 #if !defined(TARGET_CHERI)
     TCGv_i64 t0 = tcg_temp_new_i64();
@@ -447,7 +447,7 @@ static bool trans_SQ(DisasContext *ctx, arg_itype *a)
  */
 
 /* Parallel Pack to Word */
-static bool trans_PPACW(DisasContext *ctx, arg_rtype *a)
+static bool trans_PPACW(DisasContext *ctx, arg_r *a)
 {
     TCGv_i64 a0, b0, t0;
 
@@ -483,7 +483,7 @@ static void gen_pextw(TCGv_i64 dl, TCGv_i64 dh, TCGv_i64 a, TCGv_i64 b)
     tcg_gen_deposit_i64(dh, a, b, 0, 32);
 }
 
-static bool trans_PEXTLx(DisasContext *ctx, arg_rtype *a, unsigned wlen)
+static bool trans_PEXTLx(DisasContext *ctx, arg_r *a, unsigned wlen)
 {
     TCGv_i64 ax, bx;
 
@@ -524,19 +524,19 @@ static bool trans_PEXTLx(DisasContext *ctx, arg_rtype *a, unsigned wlen)
 }
 
 /* Parallel Extend Lower from Byte */
-static bool trans_PEXTLB(DisasContext *ctx, arg_rtype *a)
+static bool trans_PEXTLB(DisasContext *ctx, arg_r *a)
 {
     return trans_PEXTLx(ctx, a, 8);
 }
 
 /* Parallel Extend Lower from Halfword */
-static bool trans_PEXTLH(DisasContext *ctx, arg_rtype *a)
+static bool trans_PEXTLH(DisasContext *ctx, arg_r *a)
 {
     return trans_PEXTLx(ctx, a, 16);
 }
 
 /* Parallel Extend Lower from Word */
-static bool trans_PEXTLW(DisasContext *ctx, arg_rtype *a)
+static bool trans_PEXTLW(DisasContext *ctx, arg_r *a)
 {
     TCGv_i64 ax, bx;
 
@@ -559,7 +559,7 @@ static bool trans_PEXTLW(DisasContext *ctx, arg_rtype *a)
 }
 
 /* Parallel Extend Upper from Word */
-static bool trans_PEXTUW(DisasContext *ctx, arg_rtype *a)
+static bool trans_PEXTUW(DisasContext *ctx, arg_r *a)
 {
     TCGv_i64 ax, bx;
 
@@ -603,7 +603,7 @@ static bool trans_PEXTUW(DisasContext *ctx, arg_rtype *a)
  */
 
 /* Parallel Copy Halfword */
-static bool trans_PCPYH(DisasContext *s, arg_rtype *a)
+static bool trans_PCPYH(DisasContext *s, arg_r *a)
 {
     if (a->rd == 0) {
         /* nop */
@@ -625,7 +625,7 @@ static bool trans_PCPYH(DisasContext *s, arg_rtype *a)
 }
 
 /* Parallel Copy Lower Doubleword */
-static bool trans_PCPYLD(DisasContext *s, arg_rtype *a)
+static bool trans_PCPYLD(DisasContext *s, arg_r *a)
 {
     if (a->rd == 0) {
         /* nop */
@@ -648,7 +648,7 @@ static bool trans_PCPYLD(DisasContext *s, arg_rtype *a)
 }
 
 /* Parallel Copy Upper Doubleword */
-static bool trans_PCPYUD(DisasContext *s, arg_rtype *a)
+static bool trans_PCPYUD(DisasContext *s, arg_r *a)
 {
     if (a->rd == 0) {
         /* nop */
@@ -667,7 +667,7 @@ static bool trans_PCPYUD(DisasContext *s, arg_rtype *a)
 }
 
 /* Parallel Rotate 3 Words Left */
-static bool trans_PROT3W(DisasContext *ctx, arg_rtype *a)
+static bool trans_PROT3W(DisasContext *ctx, arg_r *a)
 {
     TCGv_i64 ax;
 
