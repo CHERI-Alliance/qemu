@@ -810,10 +810,10 @@ static void decode_opc(CPURISCVState *env, DisasContext *ctx)
     // the PC could point somewhere invalid.
     uint16_t opcode = env->rvfi_dii_have_injected_insn
                           ? env->rvfi_dii_injected_insn
-                          : translator_lduw(env, ctx->base.pc_next);
+                          : translator_lduw(env, &ctx->base, ctx->base.pc_next);
     gen_rvfi_dii_set_field_const_i64(PC, pc_rdata, ctx->base.pc_next);
 #else
-    uint16_t opcode = translator_lduw(env, ctx->base.pc_next);
+    uint16_t opcode = translator_lduw(env, &ctx->base, ctx->base.pc_next);
 #endif
     /* check for compressed insn */
     if (extract16(opcode, 0, 2) != 3) {
@@ -834,9 +834,9 @@ static void decode_opc(CPURISCVState *env, DisasContext *ctx)
         // the PC could point somewhere invalid.
         uint16_t next_16 = env->rvfi_dii_have_injected_insn
                           ? (env->rvfi_dii_injected_insn >> 16)
-                          : translator_lduw(env, ctx->base.pc_next + 2);
+                          : translator_lduw(env, &ctx->base, ctx->base.pc_next + 2);
 #else
-        uint16_t next_16 = translator_lduw(env, ctx->base.pc_next + 2);
+        uint16_t next_16 = translator_lduw(env, &ctx->base, ctx->base.pc_next + 2);
 #endif
         uint32_t opcode32 = opcode;
         opcode32 = deposit32(opcode32, 16, 16, next_16);
