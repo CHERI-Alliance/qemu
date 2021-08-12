@@ -1491,12 +1491,6 @@ static TCGv cpu_statcounters_icount_kernel, cpu_statcounters_icount_user;
     tcg_temp_free_i32(helper_tmp);                                \
     } while (0)
 
-#define gen_helper_0e3i(name, arg1, arg2, arg3, arg4) do {        \
-    TCGv_i32 helper_tmp = tcg_const_i32(arg4);                    \
-    gen_helper_##name(cpu_env, arg1, arg2, arg3, helper_tmp);     \
-    tcg_temp_free_i32(helper_tmp);                                \
-    } while (0)
-
 
 #define gen_helper_2_consti32(name, arg, arg2) do {               \
     TCGv_i32 helper_tmp = tcg_const_i32(arg);                     \
