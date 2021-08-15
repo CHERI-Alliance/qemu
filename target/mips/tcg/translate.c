@@ -1467,10 +1467,6 @@ static TCGv cpu_statcounters_icount_kernel, cpu_statcounters_icount_user;
     gen_helper_##name(ret, cpu_env, tcg_constant_i32(arg1));      \
     } while (0)
 
-#define gen_helper_1e1i(name, ret, arg1, arg2) do {               \
-    gen_helper_##name(ret, cpu_env, arg1, tcg_constant_i32(arg2));\
-    } while (0)
-
 #define gen_helper_0e2i(name, arg1, arg2, arg3) do {              \
     gen_helper_##name(cpu_env, arg1, arg2, tcg_constant_i32(arg3));\
     } while (0)
@@ -2275,7 +2271,7 @@ static inline void op_ld_##insn(TCGv ret, TCGv arg1, int mem_idx,          \
 #define OP_LD_ATOMIC(insn, fname)                                          \
 static inline void op_ld_##insn(TCGv ret, TCGv_cap_checked_ptr arg1,       \
                                 int mem_idx, DisasContext *ctx) {          \
-    gen_helper_1e1i(insn, ret, arg1, mem_idx);                             \
+    gen_helper_##insn(ret, cpu_env, arg1, tcg_constant_i32(mem_idx));      \
 }
 #endif
 OP_LD_ATOMIC(ll, ld32s);
