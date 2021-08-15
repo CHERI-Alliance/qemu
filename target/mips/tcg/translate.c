@@ -1455,10 +1455,6 @@ static TCGv cpu_statcounters_icount_kernel, cpu_statcounters_icount_user;
 
 #include "exec/gen-icount.h"
 
-#define gen_helper_0e0i(name, arg) do {                           \
-    gen_helper_##name(cpu_env, tcg_constant_i32(arg));            \
-    } while (0)
-
 #define gen_helper_0e1i(name, arg1, arg2) do {                    \
     gen_helper_##name(cpu_env, arg1, tcg_constant_i32(arg2));     \
     } while (0)
@@ -1640,7 +1636,7 @@ void generate_exception_err(DisasContext *ctx, MipsExcp excp, int err)
 
 void generate_exception(DisasContext *ctx, int excp)
 {
-    gen_helper_0e0i(raise_exception, excp);
+    gen_helper_raise_exception(cpu_env, tcg_constant_i32(excp));
 }
 
 void generate_exception_end(DisasContext *ctx, int excp)
@@ -12539,7 +12535,7 @@ static void gen_branch(DisasContext *ctx, int insn_bytes)
 
             if (ctx->base.singlestep_enabled) {
                 save_cpu_state(ctx, 0);
-                gen_helper_0e0i(raise_exception, EXCP_DEBUG);
+                gen_helper_raise_exception(cpu_env, tcg_constant_i32(EXCP_DEBUG));
             }
             tcg_gen_exit_tb(NULL, 0);
             break;
@@ -14931,7 +14927,7 @@ static void decode_opc_special(CPUMIPSState *env, DisasContext *ctx)
         MIPS_INVAL("PMON / selsl");
         gen_reserved_instruction(ctx);
 #else
-        gen_helper_0e0i(pmon, sa);
+        gen_helper_pmon(cpu_env, tcg_constant_i32(sa));
 #endif
         break;
     case OPC_SYSCALL:
