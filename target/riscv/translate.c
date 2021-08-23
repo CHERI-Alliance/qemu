@@ -426,7 +426,6 @@ static void gen_jal(DisasContext *ctx, int rd, target_ulong imm)
 
 static void gen_jalr(DisasContext *ctx, int rd, int rs1, target_ulong imm)
 {
-    /* no chaining with JALR */
     TCGLabel *misaligned = NULL;
     // Note: We need to use tcg_temp_local_new() for t0 since
     // gen_check_branch_target_dynamic() inserts branches.
@@ -450,6 +449,8 @@ static void gen_jalr(DisasContext *ctx, int rd, int rs1, target_ulong imm)
 
     /* For CHERI ISAv8 the result is an offset relative to PCC.base */
     gen_set_gpr_const(ctx, rd, ctx->pc_succ_insn - pcc_reloc(ctx));
+
+    /* No chaining with JALR. */
     lookup_and_goto_ptr(ctx);
 
     if (misaligned) {
