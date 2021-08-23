@@ -1123,17 +1123,12 @@ static RISCVException write_hcounteren(CPURISCVState *env, int csrno,
     return RISCV_EXCP_NONE;
 }
 
-static RISCVException read_hgeie(CPURISCVState *env, int csrno,
-                                 target_ulong *val)
-{
-    qemu_log_mask(LOG_UNIMP, "No support for a non-zero GEILEN.");
-    return RISCV_EXCP_NONE;
-}
-
 static RISCVException write_hgeie(CPURISCVState *env, int csrno,
                                   target_ulong val)
 {
-    qemu_log_mask(LOG_UNIMP, "No support for a non-zero GEILEN.");
+    if (val) {
+        qemu_log_mask(LOG_UNIMP, "No support for a non-zero GEILEN.");
+    }
     return RISCV_EXCP_NONE;
 }
 
@@ -1164,17 +1159,12 @@ static RISCVException write_htinst(CPURISCVState *env, int csrno,
     return RISCV_EXCP_NONE;
 }
 
-static RISCVException read_hgeip(CPURISCVState *env, int csrno,
-                                 target_ulong *val)
-{
-    qemu_log_mask(LOG_UNIMP, "No support for a non-zero GEILEN.");
-    return RISCV_EXCP_NONE;
-}
-
 static RISCVException write_hgeip(CPURISCVState *env, int csrno,
                                   target_ulong val)
 {
-    qemu_log_mask(LOG_UNIMP, "No support for a non-zero GEILEN.");
+    if (val) {
+        qemu_log_mask(LOG_UNIMP, "No support for a non-zero GEILEN.");
+    }
     return RISCV_EXCP_NONE;
 }
 
@@ -2138,10 +2128,10 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_HIP] =                 CSR_OP_RMW(hmode, hip),
     [CSR_HIE] =                 CSR_OP_RW(hmode, hie),
     [CSR_HCOUNTEREN] =          CSR_OP_RW(hmode, hcounteren),
-    [CSR_HGEIE] =               CSR_OP_RW(hmode, hgeie),
+    [CSR_HGEIE] =               CSR_OP_FN_RW(hmode, read_zero, write_hgeie, "hgeie"),
     [CSR_HTVAL] =               CSR_OP_RW(hmode, htval),
     [CSR_HTINST] =              CSR_OP_RW(hmode, htinst),
-    [CSR_HGEIP] =               CSR_OP_RW(hmode, hgeip),
+    [CSR_HGEIP] =               CSR_OP_FN_RW(hmode, read_zero, write_hgeip, "hgeip"),
     [CSR_HGATP] =               CSR_OP_RW(hmode, hgatp),
     [CSR_HTIMEDELTA] =          CSR_OP_RW(hmode, htimedelta),
     [CSR_HTIMEDELTAH] =         CSR_OP_RW(hmode32, htimedeltah),
