@@ -331,7 +331,7 @@ static bool trans_fcvt_d_w(DisasContext *ctx, arg_fcvt_d_w *a)
     REQUIRE_EXT(ctx, RVD);
 
     TCGv t0 = tcg_temp_new();
-    gen_get_gpr(t0, a->rs1);
+    gen_get_gpr(ctx, t0, a->rs1);
 
     gen_set_rm(ctx, a->rm);
     gen_helper_fcvt_d_w(cpu_fpr[a->rd], cpu_env, t0);
@@ -347,7 +347,7 @@ static bool trans_fcvt_d_wu(DisasContext *ctx, arg_fcvt_d_wu *a)
     REQUIRE_EXT(ctx, RVD);
 
     TCGv t0 = tcg_temp_new();
-    gen_get_gpr(t0, a->rs1);
+    gen_get_gpr(ctx, t0, a->rs1);
 
     gen_set_rm(ctx, a->rm);
     gen_helper_fcvt_d_wu(cpu_fpr[a->rd], cpu_env, t0);
@@ -406,7 +406,7 @@ static bool trans_fcvt_d_l(DisasContext *ctx, arg_fcvt_d_l *a)
     REQUIRE_EXT(ctx, RVD);
 
     TCGv t0 = tcg_temp_new();
-    gen_get_gpr(t0, a->rs1);
+    gen_get_gpr(ctx, t0, a->rs1);
 
     gen_set_rm(ctx, a->rm);
     gen_helper_fcvt_d_l(cpu_fpr[a->rd], cpu_env, t0);
@@ -422,7 +422,7 @@ static bool trans_fcvt_d_lu(DisasContext *ctx, arg_fcvt_d_lu *a)
     REQUIRE_EXT(ctx, RVD);
 
     TCGv t0 = tcg_temp_new();
-    gen_get_gpr(t0, a->rs1);
+    gen_get_gpr(ctx, t0, a->rs1);
 
     gen_set_rm(ctx, a->rm);
     gen_helper_fcvt_d_lu(cpu_fpr[a->rd], cpu_env, t0);
@@ -439,7 +439,7 @@ static bool trans_fmv_d_x(DisasContext *ctx, arg_fmv_d_x *a)
 
 #ifdef TARGET_RISCV64
     TCGv t0 = tcg_temp_new();
-    gen_get_gpr(t0, a->rs1);
+    gen_get_gpr(ctx, t0, a->rs1);
 
     tcg_gen_mov_tl(cpu_fpr[a->rd], t0);
     tcg_temp_free(t0);

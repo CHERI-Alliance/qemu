@@ -86,8 +86,8 @@ static bool gen_branch(DisasContext *ctx, arg_b *a, TCGCond cond)
     TCGv source1, source2;
     source1 = tcg_temp_new();
     source2 = tcg_temp_new();
-    gen_get_gpr(source1, a->rs1);
-    gen_get_gpr(source2, a->rs2);
+    gen_get_gpr(ctx, source1, a->rs1);
+    gen_get_gpr(ctx, source2, a->rs2);
 
     tcg_gen_brcond_tl(cond, source1, source2, l);
     /* Branch not taken, CHERI PCC bounds check done on next ifetch. */
@@ -149,7 +149,7 @@ static bool gen_load(DisasContext *ctx, arg_lb *a, MemOp memop)
 #endif
     TCGv t0 = tcg_temp_new();
     TCGv t1 = tcg_temp_new();
-    gen_get_gpr(t0, a->rs1);
+    gen_get_gpr(ctx, t0, a->rs1);
     tcg_gen_addi_tl(t0, t0, a->imm);
 
     gen_ddc_interposed_ld_tl(ctx, t1, /* Update addr in-place */ NULL, t0,
@@ -195,9 +195,9 @@ static bool gen_store(DisasContext *ctx, arg_sb *a, MemOp memop)
 #endif
     TCGv t0 = tcg_temp_new();
     TCGv dat = tcg_temp_new();
-    gen_get_gpr(t0, a->rs1);
+    gen_get_gpr(ctx, t0, a->rs1);
     tcg_gen_addi_tl(t0, t0, a->imm);
-    gen_get_gpr(dat, a->rs2);
+    gen_get_gpr(ctx, dat, a->rs2);
 
     gen_ddc_interposed_st_tl(ctx, dat, /* Update addr in-place */ NULL, t0,
                              ctx->mem_idx, memop);
@@ -405,7 +405,7 @@ static bool trans_srliw(DisasContext *ctx, arg_srliw *a)
 {
     REQUIRE_64BIT(ctx);
     TCGv t = tcg_temp_new();
-    gen_get_gpr(t, a->rs1);
+    gen_get_gpr(ctx, t, a->rs1);
     tcg_gen_extract_tl(t, t, a->shamt, 32 - a->shamt);
     /* sign-extend for W instructions */
     tcg_gen_ext32s_tl(t, t);
@@ -418,7 +418,7 @@ static bool trans_sraiw(DisasContext *ctx, arg_sraiw *a)
 {
     REQUIRE_64BIT(ctx);
     TCGv t = tcg_temp_new();
-    gen_get_gpr(t, a->rs1);
+    gen_get_gpr(ctx, t, a->rs1);
     tcg_gen_sextract_tl(t, t, a->shamt, 32 - a->shamt);
     gen_set_gpr(ctx, a->rd, t);
     tcg_temp_free(t);
@@ -443,8 +443,8 @@ static bool trans_sllw(DisasContext *ctx, arg_sllw *a)
     TCGv source1 = tcg_temp_new();
     TCGv source2 = tcg_temp_new();
 
-    gen_get_gpr(source1, a->rs1);
-    gen_get_gpr(source2, a->rs2);
+    gen_get_gpr(ctx, source1, a->rs1);
+    gen_get_gpr(ctx, source2, a->rs2);
 
     tcg_gen_andi_tl(source2, source2, 0x1F);
     tcg_gen_shl_tl(source1, source1, source2);
@@ -462,8 +462,8 @@ static bool trans_srlw(DisasContext *ctx, arg_srlw *a)
     TCGv source1 = tcg_temp_new();
     TCGv source2 = tcg_temp_new();
 
-    gen_get_gpr(source1, a->rs1);
-    gen_get_gpr(source2, a->rs2);
+    gen_get_gpr(ctx, source1, a->rs1);
+    gen_get_gpr(ctx, source2, a->rs2);
 
     /* clear upper 32 */
     tcg_gen_ext32u_tl(source1, source1);
@@ -483,8 +483,8 @@ static bool trans_sraw(DisasContext *ctx, arg_sraw *a)
     TCGv source1 = tcg_temp_new();
     TCGv source2 = tcg_temp_new();
 
-    gen_get_gpr(source1, a->rs1);
-    gen_get_gpr(source2, a->rs2);
+    gen_get_gpr(ctx, source1, a->rs1);
+    gen_get_gpr(ctx, source2, a->rs2);
 
     /*
      * first, trick to get it to act like working on 32 bits (get rid of
@@ -529,7 +529,7 @@ static bool trans_fence_i(DisasContext *ctx, arg_fence_i *a)
     csr_store = tcg_temp_new(); \
     dest = tcg_temp_new(); \
     rs1_pass = tcg_temp_new(); \
-    gen_get_gpr(source1, a->rs1); \
+    gen_get_gpr(ctx, source1, a->rs1); \
     gen_update_cpu_pc(ctx->base.pc_next); \
     tcg_gen_movi_tl(rs1_pass, a->rs1); \
     tcg_gen_movi_tl(csr_store, a->csr); \
