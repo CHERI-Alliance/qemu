@@ -193,7 +193,7 @@ static void gen_exception_inst_addr_mis(DisasContext *ctx)
 /* Wrapper for getting reg values - need to check of reg is zero since
  * cpu_gpr[0] is not actually allocated
  */
-static inline void _gen_get_gpr(TCGv t, int reg_num)
+static inline void _gen_get_gpr(DisasContext *ctx, TCGv t, int reg_num)
 {
     if (reg_num == 0) {
         tcg_gen_movi_tl(t, 0);
@@ -208,17 +208,17 @@ static inline void _gen_get_gpr(TCGv t, int reg_num)
 
 #ifdef CONFIG_RVFI_DII
 /*
-#define gen_get_gpr(t, reg_num, field_prefix)                                  \
+#define gen_get_gpr(ctx, t, reg_num, field_prefix)                            \
    do {                                                                       \
-       _gen_get_gpr(t, reg_num);                                              \
+       _gen_get_gpr(ctx, t, reg_num);                                         \
        gen_rvfi_dii_set_field(field_prefix##_data, t);                        \
        gen_rvfi_dii_set_field_const(field_prefix##_addr, reg_num);            \
    } while (0)
 */
 #else
-// #define gen_get_gpr(t, reg_num, field) _gen_get_gpr(t, reg_num)
+// #define gen_get_gpr(ctx, t, reg_num, field) _gen_get_gpr(ctx, t, reg_num)
 #endif
-#define gen_get_gpr(t, reg_num) _gen_get_gpr(t, reg_num)
+#define gen_get_gpr(ctx, t, reg_num) _gen_get_gpr(ctx, t, reg_num)
 
 #include "cheri-translate-utils.h"
 
@@ -486,7 +486,7 @@ static void gen_jalr(DisasContext *ctx, int rd, int rs1, target_ulong imm)
     // gen_check_branch_target_dynamic() inserts branches.
     TCGv t0 = tcg_temp_local_new();
 
-    gen_get_gpr(t0, rs1);
+    gen_get_gpr(ctx, t0, rs1);
     /* For CHERI ISAv8 the destination is an offset relative to PCC.base. */
     tcg_gen_addi_tl(t0, t0, imm + pcc_reloc(ctx));
     tcg_gen_andi_tl(t0, t0, (target_ulong)-2);
@@ -637,7 +637,7 @@ static bool gen_arith_imm_fn(DisasContext *ctx, arg_i *a,
     TCGv source1;
     source1 = tcg_temp_new();
 
-    gen_get_gpr(source1, a->rs1);
+    gen_get_gpr(ctx, source1, a->rs1);
 
     (*func)(source1, source1, a->imm);
 
@@ -653,7 +653,7 @@ static bool gen_arith_imm_tl(DisasContext *ctx, arg_i *a,
     source1 = tcg_temp_new();
     source2 = tcg_temp_new();
 
-    gen_get_gpr(source1, a->rs1);
+    gen_get_gpr(ctx, source1, a->rs1);
     tcg_gen_movi_tl(source2, a->imm);
 
     (*func)(source1, source1, source2);
@@ -689,8 +689,8 @@ static bool gen_arith_div_w(DisasContext *ctx, arg_r *a,
     source1 = tcg_temp_new();
     source2 = tcg_temp_new();
 
-    gen_get_gpr(source1, a->rs1);
-    gen_get_gpr(source2, a->rs2);
+    gen_get_gpr(ctx, source1, a->rs1);
+    gen_get_gpr(ctx, source2, a->rs2);
     tcg_gen_ext32s_tl(source1, source1);
     tcg_gen_ext32s_tl(source2, source2);
 
@@ -710,8 +710,8 @@ static bool gen_arith_div_uw(DisasContext *ctx, arg_r *a,
     source1 = tcg_temp_new();
     source2 = tcg_temp_new();
 
-    gen_get_gpr(source1, a->rs1);
-    gen_get_gpr(source2, a->rs2);
+    gen_get_gpr(ctx, source1, a->rs1);
+    gen_get_gpr(ctx, source2, a->rs2);
     tcg_gen_ext32u_tl(source1, source1);
     tcg_gen_ext32u_tl(source2, source2);
 
@@ -808,7 +808,7 @@ static bool gen_grevi(DisasContext *ctx, arg_grevi *a)
     TCGv source1 = tcg_temp_new();
     TCGv source2;
 
-    gen_get_gpr(source1, a->rs1);
+    gen_get_gpr(ctx, source1, a->rs1);
 
     if (a->shamt == (TARGET_LONG_BITS - 8)) {
         /* rev8, byte swaps */
@@ -954,8 +954,8 @@ static bool gen_arith(DisasContext *ctx, arg_r *a,
     source1 = tcg_temp_new();
     source2 = tcg_temp_new();
 
-    gen_get_gpr(source1, a->rs1);
-    gen_get_gpr(source2, a->rs2);
+    gen_get_gpr(ctx, source1, a->rs1);
+    gen_get_gpr(ctx, source2, a->rs2);
 
     (*func)(source1, source1, source2);
 
@@ -971,8 +971,8 @@ static bool gen_shift(DisasContext *ctx, arg_r *a,
     TCGv source1 = tcg_temp_new();
     TCGv source2 = tcg_temp_new();
 
-    gen_get_gpr(source1, a->rs1);
-    gen_get_gpr(source2, a->rs2);
+    gen_get_gpr(ctx, source1, a->rs1);
+    gen_get_gpr(ctx, source2, a->rs2);
 
     tcg_gen_andi_tl(source2, source2, TARGET_LONG_BITS - 1);
     (*func)(source1, source1, source2);
@@ -1002,7 +1002,7 @@ static bool gen_shifti(DisasContext *ctx, arg_shift *a,
     TCGv source1 = tcg_temp_new();
     TCGv source2 = tcg_temp_new();
 
-    gen_get_gpr(source1, a->rs1);
+    gen_get_gpr(ctx, source1, a->rs1);
 
     tcg_gen_movi_tl(source2, a->shamt);
     (*func)(source1, source1, source2);
@@ -1019,8 +1019,8 @@ static bool gen_shiftw(DisasContext *ctx, arg_r *a,
     TCGv source1 = tcg_temp_new();
     TCGv source2 = tcg_temp_new();
 
-    gen_get_gpr(source1, a->rs1);
-    gen_get_gpr(source2, a->rs2);
+    gen_get_gpr(ctx, source1, a->rs1);
+    gen_get_gpr(ctx, source2, a->rs2);
 
     tcg_gen_andi_tl(source2, source2, 31);
     (*func)(source1, source1, source2);
@@ -1038,7 +1038,7 @@ static bool gen_shiftiw(DisasContext *ctx, arg_shift *a,
     TCGv source1 = tcg_temp_new();
     TCGv source2 = tcg_temp_new();
 
-    gen_get_gpr(source1, a->rs1);
+    gen_get_gpr(ctx, source1, a->rs1);
     tcg_gen_movi_tl(source2, a->shamt);
 
     (*func)(source1, source1, source2);
@@ -1065,7 +1065,7 @@ static bool gen_unary(DisasContext *ctx, arg_r2 *a,
 {
     TCGv source = tcg_temp_new();
 
-    gen_get_gpr(source, a->rs1);
+    gen_get_gpr(ctx, source, a->rs1);
 
     (*func)(source, source);
 
@@ -1103,7 +1103,7 @@ static inline TCGv_cap_checked_ptr _get_capmode_dependent_addr(
                                                  mop, check_ddc);
     }
 #else
-    gen_get_gpr(result, reg_num);
+    gen_get_gpr(ctx, result, reg_num);
     if (!__builtin_constant_p(regoffs) || regoffs != 0) {
         tcg_gen_addi_tl(result, result, regoffs);
     }

@@ -74,7 +74,7 @@ static inline bool gen_sc_impl(DisasContext *ctx, TCGv_cap_checked_ptr addr,
     }
 
     tcg_gen_brcond_cap_checked(TCG_COND_NE, load_res, addr, l1);
-    gen_get_gpr(src2, a->rs2);
+    gen_get_gpr(ctx, src2, a->rs2);
     /*
      * Note that the TCG atomic primitives are SC,
      * so we can ignore AQ/RL along this path.
@@ -142,7 +142,7 @@ static bool gen_amo(DisasContext *ctx, arg_atomic *a,
         tcg_temp_free_i32(tmop);
     }
     TCGv src2 = tcg_temp_new();
-    gen_get_gpr(src2, a->rs2);
+    gen_get_gpr(ctx, src2, a->rs2);
 
     (*func)(src2, src1, src2, ctx->mem_idx, mop);
 

@@ -73,7 +73,7 @@ gen_cheri_cap_int_plus_imm(DisasContext *ctx __attribute__((unused)),
 {
     TCGv_i32 dest_regnum = tcg_const_i32(cd);
     TCGv gpr_value = tcg_temp_new();
-    gen_get_gpr(gpr_value, rs);
+    gen_get_gpr(ctx, gpr_value, rs);
     tcg_gen_addi_tl(gpr_value, gpr_value, imm);
     gen_func(cpu_env, dest_regnum, gpr_value);
     tcg_temp_free(gpr_value);
@@ -87,7 +87,7 @@ static inline bool gen_cheri_int_int(DisasContext *ctx, int rd, int rs,
 {
     TCGv result = tcg_temp_new();
     TCGv gpr_src_value = tcg_temp_new();
-    gen_get_gpr(gpr_src_value, rs);
+    gen_get_gpr(ctx, gpr_src_value, rs);
     gen_func(result, cpu_env, gpr_src_value);
     gen_set_gpr(ctx, rd, result);
     tcg_temp_free(gpr_src_value);
@@ -119,7 +119,7 @@ gen_cheri_cap_cap_int_plus_imm(DisasContext *ctx __attribute__((unused)),
     TCGv_i32 dest_regnum = tcg_const_i32(cd);
     TCGv_i32 source_regnum = tcg_const_i32(cs1);
     TCGv gpr_value = tcg_temp_new();
-    gen_get_gpr(gpr_value, rs2);
+    gen_get_gpr(ctx, gpr_value, rs2);
     if (imm != 0) {
         tcg_gen_addi_tl(gpr_value, gpr_value, imm);
     }
@@ -289,7 +289,7 @@ static inline bool gen_cap_store_mem_idx(DisasContext *ctx, int32_t addr_regnum,
     generate_cap_store_check_imm(vaddr, addr_regnum, offset, op);
 
     TCGv value = tcg_temp_new();
-    gen_get_gpr(value, val_regnum);
+    gen_get_gpr(ctx, value, val_regnum);
     tcg_gen_qemu_st_tl_with_checked_addr(value, vaddr, mem_idx, op);
     tcg_temp_free(value);
     tcg_temp_free_cap_checked(vaddr);
@@ -499,7 +499,7 @@ static bool trans_cadd(DisasContext *ctx, arg_cadd *a)
     dest_regnum = tcg_const_i32(a->cd);
     source_regnum = tcg_const_i32(a->cs1);
     gpr_value = tcg_temp_new();
-    gen_get_gpr(gpr_value, a->rs2);
+    gen_get_gpr(ctx, gpr_value, a->rs2);
 
     gen_helper_caddi(cpu_env, dest_regnum, source_regnum, gpr_value);
 

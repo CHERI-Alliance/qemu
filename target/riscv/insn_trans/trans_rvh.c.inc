@@ -42,7 +42,7 @@ static bool gen_hlv(DisasContext *ctx, int rs1, int rd, MemOp memop)
     TCGv t0 = tcg_temp_new();
     TCGv t1 = tcg_temp_new();
 
-    gen_get_gpr(t0, rs1);
+    gen_get_gpr(ctx, t0, rs1);
 
     gen_ddc_interposed_ld_tl(ctx, t1, /* Update addr in-place */ NULL, t0,
         ctx->mem_idx | TB_FLAGS_PRIV_HYP_ACCESS_MASK, memop);
@@ -71,8 +71,8 @@ static bool gen_hsv(DisasContext *ctx, int rs1, int rs2, MemOp memop)
     TCGv t0 = tcg_temp_new();
     TCGv dat = tcg_temp_new();
 
-    gen_get_gpr(t0, rs1);
-    gen_get_gpr(dat, rs2);
+    gen_get_gpr(ctx, t0, rs1);
+    gen_get_gpr(ctx, dat, rs2);
 
     gen_ddc_interposed_st_tl(ctx, dat, /* Update addr in-place */ NULL, t0,
         ctx->mem_idx | TB_FLAGS_PRIV_HYP_ACCESS_MASK, memop);
@@ -152,7 +152,7 @@ static bool trans_hlvx_hu(DisasContext *ctx, arg_hlvx_hu *a)
     TCGv t0 = tcg_temp_new();
     TCGv t1 = tcg_temp_new();
 
-    gen_get_gpr(t0, a->rs1);
+    gen_get_gpr(ctx, t0, a->rs1);
 
     gen_helper_hyp_hlvx_hu(t1, cpu_env, t0);
     gen_set_gpr(ctx, a->rd, t1);
@@ -174,7 +174,7 @@ static bool trans_hlvx_wu(DisasContext *ctx, arg_hlvx_wu *a)
     TCGv t0 = tcg_temp_new();
     TCGv t1 = tcg_temp_new();
 
-    gen_get_gpr(t0, a->rs1);
+    gen_get_gpr(ctx, t0, a->rs1);
 
     gen_helper_hyp_hlvx_wu(t1, cpu_env, t0);
     gen_set_gpr(ctx, a->rd, t1);
