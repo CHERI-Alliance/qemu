@@ -48,9 +48,7 @@ static inline bool gen_lr(DisasContext *ctx, arg_atomic *a, MemOp mop)
 static inline bool gen_sc_impl(DisasContext *ctx, TCGv_cap_checked_ptr addr,
                                arg_atomic *a, MemOp mop)
 {
-    TCGv src1 = tcg_temp_new();
-    TCGv src2 = tcg_temp_new();
-    TCGv dat = tcg_temp_new();
+    TCGv dest, src2;
     TCGLabel *l1 = gen_new_label();
     TCGLabel *l2 = gen_new_label();
 
@@ -74,20 +72,21 @@ static inline bool gen_sc_impl(DisasContext *ctx, TCGv_cap_checked_ptr addr,
     }
 
     tcg_gen_brcond_cap_checked(TCG_COND_NE, load_res, addr, l1);
-    gen_get_gpr(ctx, src2, a->rs2);
     /*
      * Note that the TCG atomic primitives are SC,
      * so we can ignore AQ/RL along this path.
      */
-    tcg_gen_atomic_cmpxchg_tl_with_checked_addr(src1, load_res, load_val, src2,
+    dest = dest_gpr(ctx, a->rd);
+    src2 = get_gpr(ctx, a->rs2, EXT_NONE);
+    tcg_gen_atomic_cmpxchg_tl_with_checked_addr(dest, load_res, load_val, src2,
                                                 ctx->mem_idx, mop);
     /*
      * cmpxchg will perform a read and therefore update mem_rmask, but to match
      * sail we should report that this was just a store.
      */
     gen_rvfi_dii_set_field_const_i32(MEM, mem_rmask, 0);
-    tcg_gen_setcond_tl(TCG_COND_NE, dat, src1, load_val);
-    gen_set_gpr(ctx, a->rd, dat);
+    tcg_gen_setcond_tl(TCG_COND_NE, dest, dest, load_val);
+    gen_set_gpr(ctx, a->rd, dest);
     tcg_gen_br(l2);
 
     gen_set_label(l1);
@@ -96,8 +95,7 @@ static inline bool gen_sc_impl(DisasContext *ctx, TCGv_cap_checked_ptr addr,
      * provide the memory barrier implied by AQ/RL.
      */
     tcg_gen_mb(TCG_MO_ALL + a->aq * TCG_BAR_LDAQ + a->rl * TCG_BAR_STRL);
-    tcg_gen_movi_tl(dat, 1);
-    gen_set_gpr(ctx, a->rd, dat);
+    gen_set_gpr(ctx, a->rd, tcg_constant_tl(1));
 
     gen_set_label(l2);
     /*
@@ -106,9 +104,6 @@ static inline bool gen_sc_impl(DisasContext *ctx, TCGv_cap_checked_ptr addr,
      */
     tcg_gen_movi_tl((TCGv)load_res, -1);
 
-    tcg_temp_free(dat);
-    tcg_temp_free(src1);
-    tcg_temp_free(src2);
     return true;
 }
 
@@ -126,7 +121,10 @@ static bool gen_amo(DisasContext *ctx, arg_atomic *a,
                     void(*func)(TCGv, TCGv_cap_checked_ptr, TCGv, TCGArg, MemOp),
                     MemOp mop)
 {
+    TCGv dest = dest_gpr(ctx, a->rd);
     TCGv_cap_checked_ptr src1 = get_capmode_dependent_rmw_addr(ctx, a->rs1, 0, mop);
+    TCGv src2 = get_gpr(ctx, a->rs2, EXT_NONE);
+
     cheri_debug_assert((mop & MO_ALIGN) && "RMW AMOs must be aligned");
     /*
      * We have to check the alignment explicitly before the tcg_gen_atomic_*
@@ -141,14 +139,11 @@ static bool gen_amo(DisasContext *ctx, arg_atomic *a,
         tcg_temp_free_i32(tcode);
         tcg_temp_free_i32(tmop);
     }
-    TCGv src2 = tcg_temp_new();
-    gen_get_gpr(ctx, src2, a->rs2);
 
-    (*func)(src2, src1, src2, ctx->mem_idx, mop);
+    func(dest, src1, src2, ctx->mem_idx, mop);
 
-    gen_set_gpr(ctx, a->rd, src2);
+    gen_set_gpr(ctx, a->rd, dest);
     tcg_temp_free_cap_checked(src1);
-    tcg_temp_free(src2);
     return true;
 }
 
