@@ -51,15 +51,25 @@ static TCGv load_val;
 
 #include "exec/gen-icount.h"
 
+/*
+ * If an operation is being performed on less than TARGET_LONG_BITS,
+ * it may require the inputs to be sign- or zero-extended; which will
+ * depend on the exact operation being performed.
+ */
+typedef enum {
+    EXT_NONE,
+    EXT_SIGN,
+    EXT_ZERO,
+} DisasExtend;
+
 typedef struct DisasContext {
     DisasContextBase base;
     /* pc_succ_insn points to the instruction following base.pc_next */
     target_ulong pc_succ_insn;
     target_ulong priv_ver;
-    bool virt_enabled;
+    target_ulong misa;
     uint32_t opcode;
     uint32_t mstatus_fs;
-    target_ulong misa;
     uint32_t mem_idx;
     /* Remember the rounding mode encoded in the previous fp instruction,
        which we have already installed into env->fp_status.  Or -1 for
@@ -67,6 +77,8 @@ typedef struct DisasContext {
        to any system register, which includes CSR_FRM, so we do not have
        to reset this known value.  */
     int frm;
+    bool w;
+    bool virt_enabled;
     bool ext_ifencei;
     bool hlsx;
 #ifdef TARGET_CHERI
@@ -81,7 +93,11 @@ typedef struct DisasContext {
     uint16_t vlen;
     uint16_t mlen;
     bool vl_eq_vlmax;
+    uint8_t ntemp;
     CPUState *cs;
+    TCGv zero;
+    /* Space for 3 operands plus 1 extra for address computation. */
+    TCGv temp[4];
 } DisasContext;
 
 #ifdef CONFIG_DEBUG_TCG
@@ -190,6 +206,49 @@ static void gen_exception_inst_addr_mis(DisasContext *ctx)
     generate_exception_mtval(ctx, RISCV_EXCP_INST_ADDR_MIS);
 }
 
+/*
+ * Wrappers for getting reg values.
+ *
+ * The $zero register does not have cpu_gpr[0] allocated -- we supply the
+ * constant zero as a source, and an uninitialized sink as destination.
+ *
+ * Further, we may provide an extension for word operations.
+ */
+static TCGv temp_new(DisasContext *ctx)
+{
+    assert(ctx->ntemp < ARRAY_SIZE(ctx->temp));
+    return ctx->temp[ctx->ntemp++] = tcg_temp_new();
+}
+
+static TCGv get_gpr(DisasContext *ctx, int reg_num, DisasExtend ext)
+{
+    TCGv i, t;
+
+    if (reg_num == 0) {
+        return ctx->zero;
+    }
+
+#ifdef TARGET_CHERI
+    i = _cpu_cursors_do_not_access_directly[reg_num];
+#else
+    i = cpu_gpr[reg_num];
+#endif
+
+    switch (ctx->w ? ext : EXT_NONE) {
+    case EXT_NONE:
+        return i;
+    case EXT_SIGN:
+        t = temp_new(ctx);
+        tcg_gen_ext32s_tl(t, i);
+        return t;
+    case EXT_ZERO:
+        t = temp_new(ctx);
+        tcg_gen_ext32u_tl(t, i);
+        return t;
+    }
+    g_assert_not_reached();
+}
+
 /* Wrapper for getting reg values - need to check of reg is zero since
  * cpu_gpr[0] is not actually allocated
  */
@@ -198,15 +257,24 @@ static inline void gen_get_gpr(DisasContext *ctx, TCGv t, int reg_num)
     if (reg_num == 0) {
         tcg_gen_movi_tl(t, 0);
     } else {
-#ifdef TARGET_CHERI
-        tcg_gen_mov_tl(t, _cpu_cursors_do_not_access_directly[reg_num]);
-#else
-        tcg_gen_mov_tl(t, cpu_gpr[reg_num]);
-#endif
+        tcg_gen_mov_tl(t, get_gpr(ctx, reg_num, EXT_NONE));
     }
 }
 
 #include "cheri-translate-utils.h"
+
+static TCGv __attribute__((unused)) dest_gpr(DisasContext *ctx, int reg_num)
+{
+    if (reg_num == 0 || ctx->w) {
+        return temp_new(ctx);
+    }
+#ifdef TARGET_CHERI
+    return _cpu_cursors_do_not_access_directly[reg_num];
+#else
+    return cpu_gpr[reg_num];
+#endif
+}
+
 
 /* Wrapper for setting reg values - need to check of reg is zero since
  * cpu_gpr[0] is not actually allocated. this is more for safety purposes,
@@ -216,15 +284,21 @@ static inline void gen_get_gpr(DisasContext *ctx, TCGv t, int reg_num)
 static inline void _gen_set_gpr(DisasContext *ctx, int reg_num_dst, TCGv t,
                                 bool clear_pesbt)
 {
+    TCGv r;
     if (reg_num_dst != 0) {
 #ifdef TARGET_CHERI
-        if (clear_pesbt)
-            gen_lazy_cap_set_int(
-                ctx, reg_num_dst); // Reset the register type to int.
-        tcg_gen_mov_tl(_cpu_cursors_do_not_access_directly[reg_num_dst], t);
+        if (clear_pesbt) {
+            gen_lazy_cap_set_int(ctx, reg_num_dst); // Reset the register type to int.
+        }
+        r = _cpu_cursors_do_not_access_directly[reg_num_dst];
 #else
-        tcg_gen_mov_tl(cpu_gpr[reg_num_dst], t);
+        r = cpu_gpr[reg_num_dst];
 #endif
+        if (ctx->w) {
+            tcg_gen_ext32s_tl(r, t);
+        } else {
+            tcg_gen_mov_tl(r, t);
+        }
         gen_rvfi_dii_set_field_const_i8(INTEGER, rd_addr, reg_num_dst);
         gen_rvfi_dii_set_field_zext_tl(INTEGER, rd_wdata, t);
 #ifdef CONFIG_TCG_LOG_INSTR
@@ -241,14 +315,20 @@ static inline void _gen_set_gpr(DisasContext *ctx, int reg_num_dst, TCGv t,
 static inline void gen_set_gpr_const(DisasContext *ctx, int reg_num_dst,
                                       target_ulong value)
 {
+    TCGv r;
     if (reg_num_dst != 0) {
 #ifdef TARGET_CHERI
-        gen_lazy_cap_set_int(ctx,
-                             reg_num_dst); // Reset the register type to int.
-        tcg_gen_movi_tl(_cpu_cursors_do_not_access_directly[reg_num_dst], value);
+        gen_lazy_cap_set_int(ctx, reg_num_dst); // Reset the register type to int.
+        r = _cpu_cursors_do_not_access_directly[reg_num_dst];
 #else
-        tcg_gen_movi_tl(cpu_gpr[reg_num_dst], value);
+        r = cpu_gpr[reg_num_dst];
 #endif
+        if (ctx->w) {
+            TCGv t = tcg_const_local_tl(value);
+            tcg_gen_ext32s_tl(r, t);
+        } else {
+            tcg_gen_movi_tl(r, value);
+        }
         gen_rvfi_dii_set_field_const_i8(INTEGER, rd_addr, reg_num_dst);
         gen_rvfi_dii_set_field_const_i64(INTEGER, rd_wdata, value);
 #ifdef CONFIG_TCG_LOG_INSTR
@@ -1254,6 +1334,11 @@ static void riscv_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->mlen = 1 << (ctx->sew  + 3 - ctx->lmul);
     ctx->vl_eq_vlmax = FIELD_EX32(tb_flags, TB_FLAGS, VL_EQ_VLMAX);
     ctx->cs = cs;
+    ctx->w = false;
+    ctx->ntemp = 0;
+    memset(ctx->temp, 0, sizeof(ctx->temp));
+
+    ctx->zero = tcg_constant_tl(0);
 }
 
 static void riscv_tr_tb_start(DisasContextBase *db, CPUState *cpu)
@@ -1274,6 +1359,14 @@ static void riscv_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
 
     decode_opc(env, ctx);
     ctx->base.pc_next = ctx->pc_succ_insn;
+    ctx->w = false;
+
+    for (int i = ctx->ntemp - 1; i >= 0; --i) {
+        tcg_temp_free(ctx->temp[i]);
+        ctx->temp[i] = NULL;
+    }
+    ctx->ntemp = 0;
+
     gen_rvfi_dii_set_field_const_i64(PC, pc_wdata, ctx->base.pc_next);
 
     if (ctx->base.is_jmp == DISAS_NEXT) {
