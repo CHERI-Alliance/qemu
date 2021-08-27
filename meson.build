@@ -1930,6 +1930,8 @@ if have_system
        int main(void) { fdt_check_full(NULL, 0); return 0; }''',
          dependencies: fdt)
       fdt_opt = 'system'
+    elif fdt_opt == 'system'
+       error('system libfdt requested, but it is too old (1.5.1 or newer required)')
     elif have_internal
       fdt_opt = 'internal'
     else
