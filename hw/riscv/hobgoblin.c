@@ -240,6 +240,7 @@ static void hobgoblin_add_interrupt_controller(HobgoblinState *s,
     DeviceState *plic = sifive_plic_create(
         mem_plic->base,
         plic_hart_config,
+        num_harts,
         hartid_base,
         HOBGOBLIN_PLIC_NUM_SOURCES,
         HOBGOBLIN_PLIC_NUM_PRIORITIES,
