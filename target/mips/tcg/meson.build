@@ -35,9 +35,6 @@ mips_ss.add(when: ['CONFIG_TCG', 'CONFIG_TCG_LOG_INSTR'], if_true: files('op_hel
 
 mips_ss.add_all(when: 'CONFIG_TCG', if_true: [mips_tcg_ss])
 
-if have_user
-  subdir('user')
-endif
 if have_system
   subdir('sysemu')
 endif
