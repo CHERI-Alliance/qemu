@@ -1226,7 +1226,6 @@
 ##
 { 'struct': 'VirtioMEMDeviceInfoWrapper',
   'data': { 'data': 'VirtioMEMDeviceInfo' } }
-
 ##
 # @MemoryDeviceInfo:
 #
@@ -1245,6 +1244,31 @@
             'virtio-pmem': 'VirtioPMEMDeviceInfoWrapper',
             'virtio-mem': 'VirtioMEMDeviceInfoWrapper'
           }
+}
+
+##
+# @SgxEPC:
+#
+# Sgx EPC cmdline information
+#
+# @memdev: memory backend linked with device
+#
+# Since: 6.2
+##
+{ 'struct': 'SgxEPC',
+  'data': { 'memdev': 'str' } }
+
+##
+# @SgxEPCProperties:
+#
+# SGX properties of machine types.
+#
+# @sgx-epc: list of ids of memory-backend-epc objects.
+#
+# Since: 6.2
+##
+{ 'struct': 'SgxEPCProperties',
+  'data': { 'sgx-epc': ['SgxEPC'] }
 }
 
 ##
