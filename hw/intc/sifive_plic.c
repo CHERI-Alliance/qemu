@@ -419,14 +419,14 @@ static void parse_hart_config(SiFivePLICState *plic)
 
 static void sifive_plic_irq_request(void *opaque, int irq, int level)
 {
-    SiFivePLICState *plic = opaque;
+    SiFivePLICState *s = opaque;
     if (RISCV_DEBUG_PLIC) {
         qemu_log("sifive_plic_irq_request: irq=%d level=%d\n", irq, level);
     }
-    sifive_plic_set_request(plic, irq, level);
+    sifive_plic_set_request(s, irq, level);
     if (level > 0) {
-        sifive_plic_set_pending(plic, irq, true);
-        sifive_plic_update(plic);
+        sifive_plic_set_pending(s, irq, true);
+        sifive_plic_update(s);
     }
 }
 
