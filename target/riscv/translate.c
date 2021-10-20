@@ -79,7 +79,7 @@ typedef struct DisasContext {
        to any system register, which includes CSR_FRM, so we do not have
        to reset this known value.  */
     int frm;
-    bool w;
+    RISCVMXL ol;
     bool virt_enabled;
     bool ext_ifencei;
     bool hlsx;
@@ -134,12 +134,17 @@ static inline int __attribute__((unused)) get_xlen(DisasContext *ctx)
     return 16 << get_xl(ctx);
 }
 
-/* The word size for this operation. */
-static inline int oper_len(DisasContext *ctx)
-{
-    return ctx->w ? 32 : TARGET_LONG_BITS;
-}
+/* The operation length, as opposed to the xlen. */
+#ifdef TARGET_RISCV32
+#define get_ol(ctx)    MXL_RV32
+#else
+#define get_ol(ctx)    ((ctx)->ol)
+#endif
 
+static inline int get_olen(DisasContext *ctx)
+{
+    return 16 << get_ol(ctx);
+}
 
 /*
  * RISC-V requires NaN-boxing of narrower width floating point values.
@@ -221,19 +226,29 @@ static TCGv get_gpr(DisasContext *ctx, int reg_num, DisasExtend ext)
     i = cpu_gpr[reg_num];
 #endif
 
-    switch (ctx->w ? ext : EXT_NONE) {
-    case EXT_NONE:
-        return i;
-    case EXT_SIGN:
-        t = temp_new(ctx);
-        tcg_gen_ext32s_tl(t, i);
-        return t;
-    case EXT_ZERO:
-        t = temp_new(ctx);
-        tcg_gen_ext32u_tl(t, i);
-        return t;
+    switch (get_ol(ctx)) {
+    case MXL_RV32:
+        switch (ext) {
+            case EXT_NONE:
+                return i;
+            case EXT_SIGN:
+                t = temp_new(ctx);
+                tcg_gen_ext32s_tl(t, i);
+                return t;
+            case EXT_ZERO:
+                t = temp_new(ctx);
+                tcg_gen_ext32u_tl(t, i);
+                return t;
+        default:
+            g_assert_not_reached();
+        }
+        break;
+    case MXL_RV64:
+        break;
+    default:
+        g_assert_not_reached();
     }
-    g_assert_not_reached();
+    return i;
 }
 
 /* Wrapper for getting reg values - need to check of reg is zero since
@@ -252,7 +267,7 @@ static inline void gen_get_gpr(DisasContext *ctx, TCGv t, int reg_num)
 
 static TCGv dest_gpr(DisasContext *ctx, int reg_num)
 {
-    if (reg_num == 0 || ctx->w) {
+    if (reg_num == 0 || get_olen(ctx) < TARGET_LONG_BITS) {
         return temp_new(ctx);
     }
 #ifdef TARGET_CHERI
@@ -281,11 +296,17 @@ static inline void _gen_set_gpr(DisasContext *ctx, int reg_num_dst, TCGv t,
 #else
         r = cpu_gpr[reg_num_dst];
 #endif
-        if (ctx->w) {
+        switch (get_ol(ctx)) {
+        case MXL_RV32:
             tcg_gen_ext32s_tl(r, t);
-        } else {
+            break;
+        case MXL_RV64:
             tcg_gen_mov_tl(r, t);
+            break;
+        default:
+            g_assert_not_reached();
         }
+
         gen_rvfi_dii_set_field_const_i8(INTEGER, rd_addr, reg_num_dst);
         gen_rvfi_dii_set_field_zext_tl(INTEGER, rd_wdata, t);
 #ifdef CONFIG_TCG_LOG_INSTR
@@ -302,7 +323,7 @@ static inline void _gen_set_gpr(DisasContext *ctx, int reg_num_dst, TCGv t,
 static inline void gen_set_gpr_const(DisasContext *ctx, int reg_num_dst,
                                       target_ulong value)
 {
-    TCGv r;
+    TCGv t, r;
     if (reg_num_dst != 0) {
 #ifdef TARGET_CHERI
         gen_lazy_cap_set_int(ctx, reg_num_dst); // Reset the register type to int.
@@ -310,11 +331,16 @@ static inline void gen_set_gpr_const(DisasContext *ctx, int reg_num_dst,
 #else
         r = cpu_gpr[reg_num_dst];
 #endif
-        if (ctx->w) {
-            TCGv t = tcg_const_local_tl(value);
+        switch (get_ol(ctx)) {
+        case MXL_RV32:
+            t = tcg_const_local_tl(value);
             tcg_gen_ext32s_tl(r, t);
-        } else {
+            break;
+        case MXL_RV64:
             tcg_gen_movi_tl(r, value);
+            break;
+        default:
+            g_assert_not_reached();
         }
         gen_rvfi_dii_set_field_const_i8(INTEGER, rd_addr, reg_num_dst);
         gen_rvfi_dii_set_field_const_i64(INTEGER, rd_wdata, value);
@@ -607,7 +633,7 @@ static bool gen_shift_imm_fn(DisasContext *ctx, arg_shift *a, DisasExtend ext,
                              void (*func)(TCGv, TCGv, target_long))
 {
     TCGv dest, src1;
-    int max_len = oper_len(ctx);
+    int max_len = get_olen(ctx);
 
     if (a->shamt >= max_len) {
         return false;
@@ -626,7 +652,7 @@ static bool gen_shift_imm_tl(DisasContext *ctx, arg_shift *a, DisasExtend ext,
                              void (*func)(TCGv, TCGv, TCGv))
 {
     TCGv dest, src1, src2;
-    int max_len = oper_len(ctx);
+    int max_len = get_olen(ctx);
 
     if (a->shamt >= max_len) {
         return false;
@@ -650,7 +676,7 @@ static bool gen_shift(DisasContext *ctx, arg_r *a, DisasExtend ext,
     TCGv src2 = get_gpr(ctx, a->rs2, EXT_NONE);
     TCGv ext2 = tcg_temp_new();
 
-    tcg_gen_andi_tl(ext2, src2, oper_len(ctx) - 1);
+    tcg_gen_andi_tl(ext2, src2, get_olen(ctx) - 1);
     func(dest, src1, ext2);
 
     gen_set_gpr(ctx, a->rd, dest);
@@ -875,7 +901,6 @@ static void riscv_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->vl_eq_vlmax = FIELD_EX32(tb_flags, TB_FLAGS, VL_EQ_VLMAX);
     ctx->xl = FIELD_EX32(tb_flags, TB_FLAGS, XL);
     ctx->cs = cs;
-    ctx->w = false;
     ctx->ntemp = 0;
     memset(ctx->temp, 0, sizeof(ctx->temp));
 
@@ -898,9 +923,9 @@ static void riscv_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
     CPURISCVState *env = cpu->env_ptr;
 
+    ctx->ol = ctx->xl;
     decode_opc(env, ctx);
     ctx->base.pc_next = ctx->pc_succ_insn;
-    ctx->w = false;
 
     for (int i = ctx->ntemp - 1; i >= 0; --i) {
         tcg_temp_free(ctx->temp[i]);
