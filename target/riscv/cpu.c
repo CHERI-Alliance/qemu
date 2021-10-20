@@ -155,16 +155,13 @@ const char *riscv_cpu_get_trap_name(target_ulong cause, bool async)
 
 bool riscv_cpu_is_32bit(CPURISCVState *env)
 {
-    if (env->misa & RV64) {
-        return false;
-    }
-
-    return true;
+    return env->misa_mxl == MXL_RV32;
 }
 
-static void set_misa(CPURISCVState *env, target_ulong misa)
+static void set_misa(CPURISCVState *env, RISCVMXL mxl, uint32_t ext)
 {
-    env->misa_mask = env->misa = misa;
+    env->misa_mxl_max = env->misa_mxl = mxl;
+    env->misa_ext_mask = env->misa_ext = ext;
 }
 
 static void set_priv_version(CPURISCVState *env, int priv_ver)
@@ -193,9 +190,9 @@ static void riscv_any_cpu_init(Object *obj)
 {
     CPURISCVState *env = &RISCV_CPU(obj)->env;
 #if defined(TARGET_RISCV32)
-    set_misa(env, RV32 | RVI | RVM | RVA | RVF | RVD | RVC | RVU);
+    set_misa(env, MXL_RV32, RVI | RVM | RVA | RVF | RVD | RVC | RVU);
 #elif defined(TARGET_RISCV64)
-    set_misa(env, RV64 | RVI | RVM | RVA | RVF | RVD | RVC | RVU);
+    set_misa(env, MXL_RV64, RVI | RVM | RVA | RVF | RVD | RVC | RVU);
 #endif
     set_priv_version(env, PRIV_VERSION_1_11_0);
 }
@@ -205,20 +202,20 @@ static void rv64_base_cpu_init(Object *obj)
 {
     CPURISCVState *env = &RISCV_CPU(obj)->env;
     /* We set this in the realise function */
-    set_misa(env, RV64);
+    set_misa(env, MXL_RV64, 0);
 }
 
 static void rv64_sifive_u_cpu_init(Object *obj)
 {
     CPURISCVState *env = &RISCV_CPU(obj)->env;
-    set_misa(env, RV64 | RVI | RVM | RVA | RVF | RVD | RVC | RVS | RVU);
+    set_misa(env, MXL_RV64, RVI | RVM | RVA | RVF | RVD | RVC | RVS | RVU);
     set_priv_version(env, PRIV_VERSION_1_10_0);
 }
 
 static void rv64_sifive_e_cpu_init(Object *obj)
 {
     CPURISCVState *env = &RISCV_CPU(obj)->env;
-    set_misa(env, RV64 | RVI | RVM | RVA | RVC | RVU);
+    set_misa(env, MXL_RV64, RVI | RVM | RVA | RVC | RVU);
     set_priv_version(env, PRIV_VERSION_1_10_0);
     qdev_prop_set_bit(DEVICE(obj), "mmu", false);
 }
@@ -231,7 +228,7 @@ static void rv64_codasip_a730_cpu_init(Object *obj)
      * qemu 6.x has no RVG definition
      * RVG == RVI | RVM | RVA | RVF | RVD
      */
-    set_misa(env, RV64 | RVI | RVM | RVA | RVF | RVD | RVC | RVS | RVU);
+    set_misa(env, MXL_RV64, RVI | RVM | RVA | RVF | RVD | RVC | RVS | RVU);
 
     /* This CPU supports priv v1.12. Qemu 6.x supports only up to 1.11. */
     set_priv_version(env, PRIV_VERSION_1_11_0);
@@ -256,20 +253,20 @@ static void rv32_base_cpu_init(Object *obj)
 {
     CPURISCVState *env = &RISCV_CPU(obj)->env;
     /* We set this in the realise function */
-    set_misa(env, RV32);
+    set_misa(env, MXL_RV32, 0);
 }
 
 static void rv32_sifive_u_cpu_init(Object *obj)
 {
     CPURISCVState *env = &RISCV_CPU(obj)->env;
-    set_misa(env, RV32 | RVI | RVM | RVA | RVF | RVD | RVC | RVS | RVU);
+    set_misa(env, MXL_RV32, RVI | RVM | RVA | RVF | RVD | RVC | RVS | RVU);
     set_priv_version(env, PRIV_VERSION_1_10_0);
 }
 
 static void rv32_sifive_e_cpu_init(Object *obj)
 {
     CPURISCVState *env = &RISCV_CPU(obj)->env;
-    set_misa(env, RV32 | RVI | RVM | RVA | RVC | RVU);
+    set_misa(env, MXL_RV32, RVI | RVM | RVA | RVC | RVU);
     set_priv_version(env, PRIV_VERSION_1_10_0);
     qdev_prop_set_bit(DEVICE(obj), "mmu", false);
 }
@@ -277,7 +274,7 @@ static void rv32_sifive_e_cpu_init(Object *obj)
 static void rv32_ibex_cpu_init(Object *obj)
 {
     CPURISCVState *env = &RISCV_CPU(obj)->env;
-    set_misa(env, RV32 | RVI | RVM | RVC | RVU);
+    set_misa(env, MXL_RV32, RVI | RVM | RVC | RVU);
     set_priv_version(env, PRIV_VERSION_1_10_0);
     qdev_prop_set_bit(DEVICE(obj), "mmu", false);
     qdev_prop_set_bit(DEVICE(obj), "x-epmp", true);
@@ -286,7 +283,7 @@ static void rv32_ibex_cpu_init(Object *obj)
 static void rv32_imafcu_nommu_cpu_init(Object *obj)
 {
     CPURISCVState *env = &RISCV_CPU(obj)->env;
-    set_misa(env, RV32 | RVI | RVM | RVA | RVF | RVC | RVU);
+    set_misa(env, MXL_RV32, RVI | RVM | RVA | RVF | RVC | RVU);
     set_priv_version(env, PRIV_VERSION_1_10_0);
     set_resetvec(env, DEFAULT_RSTVEC);
     qdev_prop_set_bit(DEVICE(obj), "mmu", false);
@@ -699,11 +696,7 @@ void rvfi_dii_communicate(CPUState* cs, CPURISCVState* env, bool was_trap) {
             env->rvfi_dii_have_injected_insn = true;
             env->rvfi_dii_trace.PC.rvfi_pc_rdata = GET_SPECIAL_REG_ARCH(env, pc, PCC);
             env->rvfi_dii_trace.INST.rvfi_mode = env->priv;
-            if (riscv_cpu_is_32bit(env)) {
-                env->rvfi_dii_trace.INST.rvfi_ixl = get_field(env->misa, MISA32_MXL);
-            } else {
-                env->rvfi_dii_trace.INST.rvfi_ixl = get_field(env->misa, MISA64_MXL);
-            }
+            env->rvfi_dii_trace.INST.rvfi_ixl = env->misa_mxl;
             resume_all_vcpus();
             cpu_resume(cs);
             env->rvfi_dii_trace.PC.rvfi_pc_wdata = -1; // Will be set after single-step trap
@@ -749,14 +742,14 @@ static void riscv_cpu_reset(DeviceState *dev)
 
     mcc->parent_reset(dev);
 #ifndef CONFIG_USER_ONLY
+    env->misa_mxl = env->misa_mxl_max;
     env->priv = PRV_M;
     env->mstatus &= ~(MSTATUS_MIE | MSTATUS_MPRV);
     env->mcause = 0;
     env->two_stage_lookup = false;
 #if defined(TARGET_RISCV64)
-    target_ulong mxl = get_field(env->misa, MISA64_MXL);
-    env->mstatus = set_field(env->mstatus, MSTATUS64_SXL, mxl);
-    env->mstatus = set_field(env->mstatus, MSTATUS64_UXL, mxl);
+    env->mstatus = set_field(env->mstatus, MSTATUS64_SXL, env->misa_mxl);
+    env->mstatus = set_field(env->mstatus, MSTATUS64_UXL, env->misa_mxl);
 #endif
 #endif
 
@@ -832,7 +825,6 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
     CPURISCVState *env = &cpu->env;
     RISCVCPUClass *mcc = RISCV_CPU_GET_CLASS(dev);
     int priv_version = 0;
-    target_ulong target_misa = env->misa;
     Error *local_err = NULL;
 
     cpu_exec_realizefn(cs, &local_err);
@@ -878,8 +870,23 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
 
     set_resetvec(env, cpu->cfg.resetvec);
 
-    /* If only XLEN is set for misa, then set misa from properties */
-    if (env->misa == RV32 || env->misa == RV64) {
+    /* Validate that MISA_MXL is set properly. */
+    switch (env->misa_mxl_max) {
+#ifdef TARGET_RISCV64
+    case MXL_RV64:
+        break;
+#endif
+    case MXL_RV32:
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    assert(env->misa_mxl_max == env->misa_mxl);
+
+    /* If only MISA_EXT is unset for misa, then set it from properties */
+    if (env->misa_ext == 0) {
+        uint32_t ext = 0;
+
         /* Do some ISA extension error checking */
         if (cpu->cfg.ext_i && cpu->cfg.ext_e) {
             error_setg(errp,
@@ -906,38 +913,38 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
 
         /* Set the ISA extensions, checks should have happened above */
         if (cpu->cfg.ext_i) {
-            target_misa |= RVI;
+            ext |= RVI;
         }
         if (cpu->cfg.ext_e) {
-            target_misa |= RVE;
+            ext |= RVE;
         }
         if (cpu->cfg.ext_m) {
-            target_misa |= RVM;
+            ext |= RVM;
         }
         if (cpu->cfg.ext_a) {
-            target_misa |= RVA;
+            ext |= RVA;
         }
         if (cpu->cfg.ext_f) {
-            target_misa |= RVF;
+            ext |= RVF;
         }
         if (cpu->cfg.ext_d) {
-            target_misa |= RVD;
+            ext |= RVD;
         }
         if (cpu->cfg.ext_c) {
-            target_misa |= RVC;
+            ext |= RVC;
         }
         if (cpu->cfg.ext_s) {
-            target_misa |= RVS;
+            ext |= RVS;
         }
         if (cpu->cfg.ext_u) {
-            target_misa |= RVU;
+            ext |= RVU;
         }
         if (cpu->cfg.ext_h) {
-            target_misa |= RVH;
+            ext |= RVH;
         }
         if (cpu->cfg.ext_v) {
             int vext_version = VEXT_VERSION_0_07_1;
-            target_misa |= RVV;
+            ext |= RVV;
             if (!is_power_of_2(cpu->cfg.vlen)) {
                 error_setg(errp,
                         "Vector extension VLEN must be power of 2");
@@ -975,18 +982,18 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
             }
             set_vext_version(env, vext_version);
         }
+
+        set_misa(env, env->misa_mxl, ext);
     }
 
 #ifdef TARGET_CHERI
     // Non-standard extensions present
-    target_misa |= RV('X');
+    set_misa(env, env->misa_mxl, env->misa_ext | RVX);
     set_feature(env, RISCV_FEATURE_CHERI_PURECAP);
     if (!cpu->cfg.ext_cheri_purecap) {
         set_feature(env, RISCV_FEATURE_CHERI_HYBRID);
     }
 #endif
-
-    set_misa(env, target_misa);
 
     riscv_cpu_register_gdb_regs_for_features(cs);
 
@@ -1190,7 +1197,7 @@ char *riscv_isa_string(RISCVCPU *cpu)
     char *isa_str = g_new(char, maxlen);
     char *p = isa_str + snprintf(isa_str, maxlen, "rv%d", TARGET_LONG_BITS);
     for (i = 0; i < sizeof(riscv_exts); i++) {
-        if (cpu->env.misa & RV(riscv_exts[i])) {
+        if (cpu->env.misa_ext & RV(riscv_exts[i])) {
             *p++ = qemu_tolower(riscv_exts[i]);
         }
     }
