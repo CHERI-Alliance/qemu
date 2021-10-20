@@ -35,7 +35,7 @@
 
 bool riscv_is_32bit(RISCVHartArrayState *harts)
 {
-    return riscv_cpu_is_32bit(&harts->harts[0].env);
+    return harts->harts[0].env.misa_mxl_max == MXL_RV32;
 }
 
 /*

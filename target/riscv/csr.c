@@ -162,7 +162,7 @@ static RISCVException ctr(CPURISCVState *env, int csrno)
             }
             break;
         }
-        if (riscv_cpu_is_32bit(env)) {
+        if (riscv_cpu_mxl(env) == MXL_RV32) {
             switch (csrno) {
             case CSR_CYCLEH:
                 if (!get_field(env->hcounteren, COUNTEREN_CY) &&
@@ -197,7 +197,7 @@ static RISCVException ctr(CPURISCVState *env, int csrno)
 
 static RISCVException ctr32(CPURISCVState *env, int csrno)
 {
-    if (!riscv_cpu_is_32bit(env)) {
+    if (riscv_cpu_mxl(env) != MXL_RV32) {
         return RISCV_EXCP_ILLEGAL_INST;
     }
 
@@ -212,7 +212,7 @@ static RISCVException any(CPURISCVState *env, int csrno)
 
 static RISCVException any32(CPURISCVState *env, int csrno)
 {
-    if (!riscv_cpu_is_32bit(env)) {
+    if (riscv_cpu_mxl(env) != MXL_RV32) {
         return RISCV_EXCP_ILLEGAL_INST;
     }
 
@@ -247,7 +247,7 @@ static RISCVException hmode(CPURISCVState *env, int csrno)
 
 static RISCVException hmode32(CPURISCVState *env, int csrno)
 {
-    if (!riscv_cpu_is_32bit(env)) {
+    if (riscv_cpu_mxl(env) != MXL_RV32) {
         if (riscv_cpu_virt_enabled(env)) {
             return RISCV_EXCP_ILLEGAL_INST;
         } else {
@@ -571,7 +571,7 @@ static RISCVException read_mstatus(CPURISCVState *env, int csrno,
 
 static int validate_vm(CPURISCVState *env, target_ulong vm)
 {
-    if (riscv_cpu_is_32bit(env)) {
+    if (riscv_cpu_mxl(env) == MXL_RV32) {
         return valid_vm_1_10_32[vm & 0xf];
     } else {
         return valid_vm_1_10_64[vm & 0xf];
@@ -595,7 +595,7 @@ static RISCVException write_mstatus(CPURISCVState *env, int csrno,
         MSTATUS_MPP | MSTATUS_MXR | MSTATUS_TVM | MSTATUS_TSR |
         MSTATUS_TW;
 
-    if (!riscv_cpu_is_32bit(env)) {
+    if (riscv_cpu_mxl(env) != MXL_RV32) {
         /*
          * RV32: MPV and GVA are not in mstatus. The current plan is to
          * add them to mstatush. For now, we just don't support it.
@@ -609,7 +609,7 @@ static RISCVException write_mstatus(CPURISCVState *env, int csrno,
 
     dirty = ((mstatus & MSTATUS_FS) == MSTATUS_FS) |
             ((mstatus & MSTATUS_XS) == MSTATUS_XS);
-    if (riscv_cpu_is_32bit(env)) {
+    if (riscv_cpu_mxl(env) == MXL_RV32) {
         mstatus = set_field(mstatus, MSTATUS32_SD, dirty);
     } else {
         mstatus = set_field(mstatus, MSTATUS64_SD, dirty);
@@ -844,7 +844,7 @@ static RISCVException read_sstatus(CPURISCVState *env, int csrno,
 {
     target_ulong mask = (sstatus_v1_10_mask);
 
-    if (riscv_cpu_is_32bit(env)) {
+    if (riscv_cpu_mxl(env) == MXL_RV32) {
         mask |= SSTATUS32_SD;
     } else {
         mask |= SSTATUS64_SD;
@@ -1005,7 +1005,7 @@ static RISCVException write_satp(CPURISCVState *env, int csrno,
         return RISCV_EXCP_NONE;
     }
 
-    if (riscv_cpu_is_32bit(env)) {
+    if (riscv_cpu_mxl(env) == MXL_RV32) {
         vm = validate_vm(env, get_field(val, SATP32_MODE));
         mask = (val ^ env->satp) & (SATP32_MODE | SATP32_ASID | SATP32_PPN);
         asid = (val ^ env->satp) & SATP32_ASID;
@@ -1033,7 +1033,7 @@ static RISCVException read_hstatus(CPURISCVState *env, int csrno,
                                    target_ulong *val)
 {
     *val = env->hstatus;
-    if (!riscv_cpu_is_32bit(env)) {
+    if (riscv_cpu_mxl(env) != MXL_RV32) {
         /* We only support 64-bit VSXL */
         *val = set_field(*val, HSTATUS_VSXL, 2);
     }
@@ -1046,7 +1046,7 @@ static RISCVException write_hstatus(CPURISCVState *env, int csrno,
                                     target_ulong val)
 {
     env->hstatus = val;
-    if (!riscv_cpu_is_32bit(env) && get_field(val, HSTATUS_VSXL) != 2) {
+    if (riscv_cpu_mxl(env) != MXL_RV32 && get_field(val, HSTATUS_VSXL) != 2) {
         qemu_log_mask(LOG_UNIMP, "QEMU does not support mixed HSXLEN options.");
     }
     if (get_field(val, HSTATUS_VSBE) != 0) {
@@ -1214,7 +1214,7 @@ static RISCVException write_htimedelta(CPURISCVState *env, int csrno,
         return RISCV_EXCP_ILLEGAL_INST;
     }
 
-    if (riscv_cpu_is_32bit(env)) {
+    if (riscv_cpu_mxl(env) == MXL_RV32) {
         env->htimedelta = deposit64(env->htimedelta, 0, 32, (uint64_t)val);
     } else {
         env->htimedelta = val;
@@ -1611,7 +1611,7 @@ static inline int64_t SignExtend64(uint64_t X, unsigned B)
 
 static inline uint8_t topbit_for_address_mode(CPUArchState *env){
     uint64_t vm = get_field(env->vsatp,
-            riscv_cpu_is_32bit(env) ? SATP32_MODE : SATP64_MODE);
+            riscv_cpu_mxl(env) == MXL_RV32 ? SATP32_MODE : SATP64_MODE);
     uint8_t checkbit = 0;
     switch (vm) {
     case VM_1_10_SV32:
@@ -1675,7 +1675,7 @@ static inline target_ulong get_valid_cap_address(CPUArchState *env,
                                                  target_ulong addr)
 {
     uint64_t vm = get_field(env->vsatp,
-            riscv_cpu_is_32bit(env) ? SATP32_MODE : SATP64_MODE);
+            riscv_cpu_mxl(env) == MXL_RV32 ? SATP32_MODE : SATP64_MODE);
     if (vm == VM_1_10_MBARE || vm == VM_1_10_SV32) {
         return addr;
     }
