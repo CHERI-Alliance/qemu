@@ -740,12 +740,16 @@ static void riscv_cpu_reset(DeviceState *dev)
     env->misa_mxl = env->misa_mxl_max;
     env->priv = PRV_M;
     env->mstatus &= ~(MSTATUS_MIE | MSTATUS_MPRV);
+    if (env->misa_mxl > MXL_RV32) {
+        /*
+         * The reset status of SXL/UXL is undefined, but mstatus is WARL
+         * and we must ensure that the value after init is valid for read.
+         */
+        env->mstatus = set_field(env->mstatus, MSTATUS64_SXL, env->misa_mxl);
+        env->mstatus = set_field(env->mstatus, MSTATUS64_UXL, env->misa_mxl);
+    }
     env->mcause = 0;
     env->two_stage_lookup = false;
-#if defined(TARGET_RISCV64)
-    env->mstatus = set_field(env->mstatus, MSTATUS64_SXL, env->misa_mxl);
-    env->mstatus = set_field(env->mstatus, MSTATUS64_UXL, env->misa_mxl);
-#endif
 #endif
 
     cs->exception_index = RISCV_EXCP_NONE;
