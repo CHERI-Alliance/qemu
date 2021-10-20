@@ -707,7 +707,14 @@ FIELD(TB_FLAGS, VILL, 9, 1)
 FIELD(TB_FLAGS, HLSX, 10, 1)
 FIELD(TB_FLAGS, MSTATUS_HS_FS, 11, 2)
 
-bool riscv_cpu_is_32bit(CPURISCVState *env);
+#ifdef TARGET_RISCV32
+#define riscv_cpu_mxl(env)  ((void)(env), MXL_RV32)
+#else
+static inline RISCVMXL riscv_cpu_mxl(CPURISCVState *env)
+{
+    return env->misa_mxl;
+}
+#endif
 
 /*
  * A simplification for VLMAX
@@ -739,7 +746,7 @@ static inline bool cpu_in_user_mode(CPURISCVState *env)
 
 static inline unsigned cpu_get_asid(CPURISCVState *env, target_ulong pc)
 {
-    if (riscv_cpu_is_32bit(env)) {
+    if (riscv_cpu_mxl(env) == MXL_RV32) {
         return get_field(env->satp, SATP32_ASID);
     } else {
         return get_field(env->satp, SATP64_ASID);
