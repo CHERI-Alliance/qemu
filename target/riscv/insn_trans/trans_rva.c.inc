@@ -26,6 +26,7 @@ static inline bool gen_lr_impl(DisasContext *ctx, TCGv_cap_checked_ptr addr,
         tcg_gen_mb(TCG_MO_ALL | TCG_BAR_STRL);
     }
     cheri_debug_assert((mop & MO_ALIGN) && "load-reserved must be aligned");
+    addr = gen_pm_adjust_address(ctx, addr);
     tcg_gen_qemu_ld_tl_with_checked_addr(load_val, addr, ctx->mem_idx, mop);
     if (a->aq) {
         tcg_gen_mb(TCG_MO_ALL | TCG_BAR_LDAQ);
@@ -71,6 +72,7 @@ static inline bool gen_sc_impl(DisasContext *ctx, TCGv_cap_checked_ptr addr,
         tcg_temp_free_i32(tmop);
     }
 
+    addr = gen_pm_adjust_address(ctx, addr);
     tcg_gen_brcond_cap_checked(TCG_COND_NE, load_res, addr, l1);
     /*
      * Note that the TCG atomic primitives are SC,
@@ -140,6 +142,7 @@ static bool gen_amo(DisasContext *ctx, arg_atomic *a,
         tcg_temp_free_i32(tmop);
     }
 
+    src1 = gen_pm_adjust_address(ctx, src1);
     func(dest, src1, src2, ctx->mem_idx, mop);
 
     gen_set_gpr(ctx, a->rd, dest);
