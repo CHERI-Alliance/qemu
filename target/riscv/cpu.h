@@ -68,6 +68,7 @@
 #define RVS RV('S')
 #define RVU RV('U')
 #define RVH RV('H')
+#define RVJ RV('J')
 #define RVX RV('X')
 
 /* S extension denotes that Supervisor mode exists, however it is possible
@@ -438,6 +439,7 @@ struct RISCVCPU {
         bool ext_s;
         bool ext_u;
         bool ext_h;
+        bool ext_j;
         bool ext_v;
         bool ext_zba;
         bool ext_zbb;
