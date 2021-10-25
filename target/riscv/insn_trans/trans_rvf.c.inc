@@ -30,6 +30,7 @@ static bool trans_flw(DisasContext *ctx, arg_flw *a)
     const MemOp mop = MO_TEUL;
     TCGv_cap_checked_ptr t0 =
         get_capmode_dependent_load_addr(ctx, a->rs1, a->imm, mop);
+    t0 = gen_pm_adjust_address(ctx, t0);
     tcg_gen_qemu_ld_i64_with_checked_addr(cpu_fpr[a->rd], t0, ctx->mem_idx,
                                           mop);
     gen_nanbox_s(cpu_fpr[a->rd], cpu_fpr[a->rd]);
@@ -46,6 +47,7 @@ static bool trans_fsw(DisasContext *ctx, arg_fsw *a)
     const MemOp mop = MO_TEUL;
     TCGv_cap_checked_ptr t0 =
         get_capmode_dependent_store_addr(ctx, a->rs1, a->imm, mop);
+    t0 = gen_pm_adjust_address(ctx, t0);
     tcg_gen_qemu_st_i64_with_checked_addr(cpu_fpr[a->rs2], t0, ctx->mem_idx,
                                           mop);
     tcg_temp_free_cap_checked(t0);

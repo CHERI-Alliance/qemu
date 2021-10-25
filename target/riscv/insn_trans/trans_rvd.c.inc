@@ -25,6 +25,7 @@ static bool trans_fld(DisasContext *ctx, arg_fld *a)
     const MemOp mop = MO_TEQ;
     TCGv_cap_checked_ptr t0 =
         get_capmode_dependent_load_addr(ctx, a->rs1, a->imm, mop);
+    t0 = gen_pm_adjust_address(ctx, t0);
     tcg_gen_qemu_ld_i64_with_checked_addr(cpu_fpr[a->rd], t0, ctx->mem_idx,
                                           mop);
 
@@ -40,6 +41,7 @@ static bool trans_fsd(DisasContext *ctx, arg_fsd *a)
     const MemOp mop = MO_TEQ;
     TCGv_cap_checked_ptr t0 =
         get_capmode_dependent_store_addr(ctx, a->rs1, a->imm, mop);
+    t0 = gen_pm_adjust_address(ctx, t0);
     tcg_gen_qemu_st_i64_with_checked_addr(cpu_fpr[a->rs2], t0, ctx->mem_idx,
                                           mop);
     tcg_temp_free_cap_checked(t0);

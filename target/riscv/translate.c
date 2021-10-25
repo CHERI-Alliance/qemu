@@ -467,6 +467,25 @@ static void gen_jalr(DisasContext *ctx, int rd, int rs1, target_ulong imm)
     tcg_temp_free(t0);
 }
 
+/*
+ * Temp stub: generates address adjustment for PointerMasking
+ */
+#ifdef TARGET_CHERI
+/*
+ * Use void* here. Depending on the caller, src is either a TCGv or
+ * a TCGv_cap_checked_ptr.
+ */
+static void *gen_pm_adjust_address(DisasContext *s, void *src)
+{
+    return src;
+}
+#else
+static TCGv gen_pm_adjust_address(DisasContext *s, TCGv src)
+{
+    return src;
+}
+#endif
+
 #ifndef CONFIG_USER_ONLY
 /* The states of mstatus_fs are:
  * 0 = disabled, 1 = initial, 2 = clean, 3 = dirty
