@@ -455,6 +455,7 @@ typedef struct {
     bool ext_counters;
     bool ext_ifencei;
     bool ext_icsr;
+    bool ext_zfh;
     bool ext_icbom;
     bool ext_icboz;
 #ifdef TARGET_CHERI
