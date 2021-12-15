@@ -614,7 +614,7 @@ static void hobgoblin_add_sd(HobgoblinState *s)
 {
     /* create SD Card in SPI mode */
     DeviceState *sd_card_spi = qdev_new(TYPE_SD_CARD);
-    DriveInfo *dinfo = drive_get_next(IF_SD);
+    DriveInfo *dinfo = drive_get(IF_SD, 0, 0);
     BlockBackend *blk = dinfo ? blk_by_legacy_dinfo(dinfo) : NULL;
     qdev_prop_set_drive_err(sd_card_spi, "drive", blk, &error_fatal);
     qdev_prop_set_bit(sd_card_spi, "spi", true);
