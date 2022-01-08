@@ -917,7 +917,7 @@ TCG_LD_HELPER(ld32u, MO_TEUL)
 TCG_LD_HELPER(ld32s, MO_TESL)
 static inline void tcg_gen_qemu_ld64(TCGv_i64 ret, TCGv addr, int mem_index)
 {
-    tcg_gen_qemu_ld_i64(ret, addr, mem_index, MO_TEQ);
+    tcg_gen_qemu_ld_i64(ret, addr, mem_index, MO_TEUQ);
 }
 #define TCG_ST_HELPER(name, memop)                                             \
     static inline void tcg_gen_qemu_##name(TCGv ret, TCGv addr,                \
@@ -929,7 +929,7 @@ TCG_ST_HELPER(st16, MO_TEUW)
 TCG_ST_HELPER(st32, MO_TEUL)
 static inline void tcg_gen_qemu_st64(TCGv_i64 ret, TCGv addr, int mem_index)
 {
-    tcg_gen_qemu_st_i64(ret, addr, mem_index, MO_TEQ);
+    tcg_gen_qemu_st_i64(ret, addr, mem_index, MO_TEUQ);
 }
 #endif
 // The same as tcg_gen_qemu_st_i64_with_checked_addr but takes a boolean option

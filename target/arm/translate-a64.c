@@ -1275,7 +1275,7 @@ static void do_fp_st(DisasContext *s, int srcidx, TCGv_cap_checked_ptr tcg_addr,
 
         tcg_gen_ld_i64(tmphi, cpu_env, fp_reg_hi_offset(s, srcidx));
 
-        mop = s->be_data | MO_Q;
+        mop = s->be_data | MO_UQ;
         tcg_gen_qemu_st_i64_with_checked_addr(be ? tmphi : tmplo, tcg_addr, get_mem_index(s),
                             mop | (s->align_mem ? MO_ALIGN_16 : 0));
         tcg_gen_addi_i64((TCGv_i64)tcg_hiaddr, (TCGv_i64)tcg_addr, 8);
@@ -1311,7 +1311,7 @@ static void do_fp_ld(DisasContext *s, int destidx,
         tmphi = tcg_temp_new_i64();
         tcg_hiaddr = tcg_temp_new_cap_checked();
 
-        mop = s->be_data | MO_Q;
+        mop = s->be_data | MO_UQ;
         tcg_gen_qemu_ld_i64_with_checked_addr(
             be ? tmphi : tmplo, tcg_addr, get_mem_index(s),
             mop | (s->align_mem ? MO_ALIGN_16 : 0));
@@ -4746,11 +4746,11 @@ static void disas_ldst_tag(DisasContext *s, uint32_t insn)
         int mem_index = get_mem_index(s);
 
         tcg_gen_qemu_st_i64_with_checked_addr(tcg_zero, clean_addr, mem_index,
-                                              MO_Q | MO_ALIGN_16);
+                                              MO_UQ | MO_ALIGN_16);
         for (i = 8; i < n; i += 8) {
             tcg_gen_addi_i64((TCGv_i64)clean_addr, (TCGv_i64)clean_addr, 8);
             tcg_gen_qemu_st_i64_with_checked_addr(
-                tcg_zero, (TCGv_cap_checked_ptr)clean_addr, mem_index, MO_Q);
+                tcg_zero, (TCGv_cap_checked_ptr)clean_addr, mem_index, MO_UQ);
         }
         tcg_temp_free_i64(tcg_zero);
     }

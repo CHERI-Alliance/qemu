@@ -1,9 +1,9 @@
 # FIXME extra_args should accept files()
 dir = meson.current_source_dir()
 
-gen = [
+gen_nocheri = [
   decodetree.process('insn16.decode', extra_args: ['--static-decode=decode_insn16', '--insnwidth=16']),
-  decodetree.process('insn32.decode', extra_args: '--static-decode=decode_insn32'),
+  decodetree.process('insn32.decode', extra_args: [dir / 'insn32-rv128.decode', '--static-decode=decode_insn32']),
 ]
 
 # FIXME: would be nice to avoid this duplication but I don't see an easy way to
@@ -40,7 +40,7 @@ cheri_ss.add(when: ['TARGET_CHERI_RISCV_V9', 'TARGET_RISCV64'], if_true: gen_xch
 cheri_ss.add(when: 'TARGET_CHERI_RISCV_STD', if_true: gen_stdcheri)
 
 riscv_ss = ss.source_set()
-riscv_ss.add(when: 'TARGET_CHERI', if_false: gen)
+riscv_ss.add(when: 'TARGET_CHERI', if_false: gen_nocheri)
 riscv_ss.add_all(when: 'TARGET_CHERI', if_true: cheri_ss)
 
 riscv_ss.add(files(
@@ -53,6 +53,7 @@ riscv_ss.add(files(
   'vector_helper.c',
   'bitmanip_helper.c',
   'translate.c',
+  'm128_helper.c'
 ))
 riscv_ss.add(when: 'TARGET_CHERI', if_true: files('op_helper_cheri.c'))
 riscv_ss.add(when: ['CONFIG_TCG', 'CONFIG_TCG_LOG_INSTR'], if_true: files('op_helper_log_instr.c'))

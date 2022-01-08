@@ -26,6 +26,7 @@
 #include "qemu/units.h"
 #include "fpu/softfloat-types.h"
 #include "qom/object.h"
+#include "qemu/int128.h"
 #include "cpu_bits.h"
 #include "rvfi_dii.h"
 
@@ -40,6 +41,7 @@
 #define TYPE_RISCV_CPU_ANY              RISCV_CPU_TYPE_NAME("any")
 #define TYPE_RISCV_CPU_BASE32           RISCV_CPU_TYPE_NAME("rv32")
 #define TYPE_RISCV_CPU_BASE64           RISCV_CPU_TYPE_NAME("rv64")
+#define TYPE_RISCV_CPU_BASE128          RISCV_CPU_TYPE_NAME("x-rv128")
 #define TYPE_RISCV_CPU_IBEX             RISCV_CPU_TYPE_NAME("lowrisc-ibex")
 #define TYPE_RISCV_CPU_SHAKTI_C         RISCV_CPU_TYPE_NAME("shakti-c")
 #define TYPE_RISCV_CPU_SIFIVE_E31       RISCV_CPU_TYPE_NAME("sifive-e31")
@@ -133,6 +135,7 @@ struct CPURISCVState {
     struct GPCapRegs gpcapregs;
 #else
     target_ulong gpr[32];
+    target_ulong gprh[32]; /* 64 top bits of the 128-bit registers */
 #endif
     uint64_t fpr[32]; /* assume both F and D extensions */
 
@@ -164,6 +167,8 @@ struct CPURISCVState {
     target_ulong frm;
 
     target_ulong badaddr;
+    uint32_t bins;
+
     target_ulong guest_phys_fault_addr;
 
 #ifdef TARGET_CHERI
@@ -180,6 +185,9 @@ struct CPURISCVState {
 #ifdef TARGET_CHERI_RISCV_STD_093
     /* Cheri093CapExcType */ uint8_t last_cap_type; /* To populate xtval2 */
 #endif
+#else
+    /* 128-bit helpers upper part return value */
+    target_ulong retxh;
 #endif
 
 #ifdef CONFIG_USER_ONLY
@@ -252,6 +260,10 @@ struct CPURISCVState {
     cap_register_t vsscratchc;
     cap_register_t vsepcc;
 #else
+    /* Upper 64-bits of 128-bit CSRs */
+    uint64_t mscratchh;
+    uint64_t sscratchh;
+
     target_ulong vstvec;
     target_ulong vsepc;
     target_ulong vsscratch;
@@ -392,8 +404,7 @@ struct CPURISCVState {
     target_ulong priv_ver;
     target_ulong bext_ver;
     target_ulong vext_ver;
-    // TODO: we should probably re-compute these instead of preserving
-    //  in case misa becomes writable
+
     /* RISCVMXL, but uint32_t for vmstate migration */
     uint32_t misa_mxl;      /* current mxl */
     uint32_t misa_mxl_max;  /* max mxl for this cpu */
@@ -407,6 +418,7 @@ struct CPURISCVState {
 #ifdef CONFIG_USER_ONLY
     uint32_t elf_flags;
 #endif
+
 
     /* Fields from here on are preserved across CPU reset. */
     QEMUTimer *timer; /* Internal timer */
@@ -523,6 +535,7 @@ static inline bool riscv_feature(CPURISCVState *env, int feature)
 #include "cpu_user.h"
 
 extern const char * const riscv_int_regnames[];
+extern const char * const riscv_int_regnamesh[];
 extern const char * const riscv_fpr_regnames[];
 #ifdef TARGET_CHERI
 /* Needed for cheri-common logging */
@@ -855,8 +868,8 @@ static inline const char *cpu_get_mode_name(qemu_log_instr_cpu_mode_t mode)
 }
 #endif
 
-RISCVException riscv_csr_accessible(CPURISCVState *env, int csrno,
-                                    bool is_write);
+RISCVException riscv_csrrw_check(CPURISCVState *env, int csrno, bool write_mask,
+                                 RISCVCPU *cpu);
 RISCVException riscv_csrrw(CPURISCVState *env, int csrno, target_ulong *ret_value,
                            target_ulong new_value, target_ulong write_mask,
                            uintptr_t retpc);
@@ -889,12 +902,24 @@ typedef RISCVException (*riscv_csr_op_fn)(CPURISCVState *env, int csrno,
 typedef void (*riscv_csr_log_update_fn)(CPURISCVState *env, int csrno,
                                         target_ulong new_value);
 
+RISCVException riscv_csrrw_i128(CPURISCVState *env, int csrno,
+                                Int128 *ret_value,
+                                Int128 new_value, Int128 write_mask,
+                                uintptr_t retpc);
+
+typedef RISCVException (*riscv_csr_read128_fn)(CPURISCVState *env, int csrno,
+                                               Int128 *ret_value);
+typedef RISCVException (*riscv_csr_write128_fn)(CPURISCVState *env, int csrno,
+                                             Int128 new_value);
+
 typedef struct {
     const char *name;
     riscv_csr_predicate_fn predicate;
     riscv_csr_read_fn read;
     riscv_csr_write_fn write;
     riscv_csr_op_fn op;
+    riscv_csr_read128_fn read128;
+    riscv_csr_write128_fn write128;
     riscv_csr_log_update_fn log_update;
     /* The default priv spec version should be PRIV_VERSION_1_10_0 (i.e 0) */
     uint32_t min_priv_ver;

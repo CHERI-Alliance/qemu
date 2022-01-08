@@ -1471,6 +1471,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
 
     RISCVCPU *cpu = RISCV_CPU(cs);
     CPURISCVState *env = &cpu->env;
+    bool write_gva = false;
     tcg_debug_assert(pc_is_current(env));
     uint64_t s;
 
@@ -1480,7 +1481,6 @@ void riscv_cpu_do_interrupt(CPUState *cs)
     bool async = !!(cs->exception_index & RISCV_EXCP_INT_FLAG);
     target_ulong cause = cs->exception_index & RISCV_EXCP_INT_MASK;
     target_ulong deleg = async ? env->mideleg : env->medeleg;
-    bool write_tval = false;
     target_ulong tval = 0;
     target_ulong htval = 0;
     target_ulong mtval2 = 0;
@@ -1516,13 +1516,14 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         case RISCV_EXCP_LOAD_CAP_PAGE_FAULT:
         case RISCV_EXCP_STORE_AMO_CAP_PAGE_FAULT:
 #endif
-        case RISCV_EXCP_ILLEGAL_INST:
-            write_tval  = true;
+            write_gva = true;
             tval = env->badaddr;
+            break;
+        case RISCV_EXCP_ILLEGAL_INST:
+            tval = env->bins;
             break;
 #ifdef TARGET_CHERI
         case RISCV_EXCP_CHERI:
-            write_tval  = true;
             qemu_log_instr_or_mask_msg(
                 env, CPU_LOG_INT, "Got CHERI trap %s, caused by register %d\n",
                 cheri_cause_str(env->last_cap_cause), env->last_cap_index);
@@ -1577,18 +1578,6 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         if (riscv_has_ext(env, RVH)) {
             target_ulong hdeleg = async ? env->hideleg : env->hedeleg;
 
-            if (env->two_stage_lookup && write_tval) {
-                /*
-                 * If we are writing a guest virtual address to stval, set
-                 * this to 1. If we are trapping to VS we will set this to 0
-                 * later.
-                 */
-                env->hstatus = set_field(env->hstatus, HSTATUS_GVA, 1);
-            } else {
-                /* For other HS-mode traps, we set this to 0. */
-                env->hstatus = set_field(env->hstatus, HSTATUS_GVA, 0);
-            }
-
             if (riscv_cpu_virt_enabled(env) && ((hdeleg >> cause) & 1)) {
                 /* Trap to VS mode */
                 /*
@@ -1599,7 +1588,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
                     cause == IRQ_VS_EXT) {
                     cause = cause - 1;
                 }
-                env->hstatus = set_field(env->hstatus, HSTATUS_GVA, 0);
+                write_gva = false;
             } else if (riscv_cpu_virt_enabled(env)) {
                 /* Trap into HS mode, from virt */
                 riscv_cpu_swap_hypervisor_regs(env, /*hs_mode_trap*/true);
@@ -1608,6 +1597,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
                 env->hstatus = set_field(env->hstatus, HSTATUS_SPV,
                                          riscv_cpu_virt_enabled(env));
 
+
                 htval = env->guest_phys_fault_addr;
 
                 riscv_cpu_set_virt_enabled(env, 0);
@@ -1615,7 +1605,9 @@ void riscv_cpu_do_interrupt(CPUState *cs)
                 /* Trap into HS mode */
                 env->hstatus = set_field(env->hstatus, HSTATUS_SPV, false);
                 htval = env->guest_phys_fault_addr;
+                write_gva = false;
             }
+            env->hstatus = set_field(env->hstatus, HSTATUS_GVA, write_gva);
         }
         riscv_log_instr_csr_changed(env, CSR_HSTATUS);
 
@@ -1637,7 +1629,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         riscv_log_instr_csr_changed(env, CSR_HTVAL);
 
 #ifdef TARGET_CHERI_RISCV_STD_093
-        if (cause == RISCV_EXCP_CHERI || write_tval) {
+        if (cause == RISCV_EXCP_CHERI) {
             env->stval2 = cheri_exc_info;
             riscv_log_instr_csr_changed(env, CSR_STVAL2);
         }

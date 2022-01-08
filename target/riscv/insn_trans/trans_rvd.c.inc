@@ -24,7 +24,7 @@ static bool trans_fld(DisasContext *ctx, arg_fld *a)
 
     REQUIRE_FPU;
     REQUIRE_EXT(ctx, RVD);
-    const MemOp mop = MO_TEQ;
+    const MemOp mop = MO_TEUQ;
     addr = get_capmode_dependent_load_addr(ctx, a->rs1, a->imm, mop);
 
     tcg_gen_qemu_ld_i64_with_checked_addr(cpu_fpr[a->rd], addr, ctx->mem_idx,
@@ -41,7 +41,7 @@ static bool trans_fsd(DisasContext *ctx, arg_fsd *a)
 
     REQUIRE_FPU;
     REQUIRE_EXT(ctx, RVD);
-    const MemOp mop = MO_TEQ;
+    const MemOp mop = MO_TEUQ;
     addr = get_capmode_dependent_store_addr(ctx, a->rs1, a->imm, mop);
 
     tcg_gen_qemu_st_i64_with_checked_addr(cpu_fpr[a->rs2], addr, ctx->mem_idx,

@@ -53,7 +53,8 @@ static void check_csr_cap_permissions(CPURISCVState *env, uint32_t csrno,
                                       riscv_csr_cap_ops *csr_cap_info,
                                       uintptr_t hostpc)
 {
-    RISCVException exc = riscv_csr_accessible(env, csrno, write_access);
+    RISCVException exc = riscv_csrrw_check(env, csrno, write_access ? -1L : 0,
+                                       env_archcpu(env));
     if (exc != RISCV_EXCP_NONE && (csr_cap_info->flags & CSR_OP_REQUIRE_CRE) &&
         !riscv_cpu_mode_cre(env)) {
         exc = RISCV_EXCP_ILLEGAL_INST;

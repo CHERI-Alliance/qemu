@@ -139,6 +139,10 @@ DEF_HELPER_4(csrrc_cap, void, env, i32, i32, i32)
 DEF_HELPER_4(csrrwi_cap, void, env, i32, i32, i32)
 DEF_HELPER_4(csrrsi_cap, void, env, i32, i32, i32)
 DEF_HELPER_4(csrrci_cap, void, env, i32, i32, i32)
+#else
+DEF_HELPER_2(csrr_i128, tl, env, int)
+DEF_HELPER_4(csrw_i128, void, env, int, tl, tl)
+DEF_HELPER_6(csrrw_i128, tl, env, int, tl, tl, tl, tl)
 #endif
 #ifndef CONFIG_USER_ONLY
 DEF_HELPER_2(sret, tl, env, tl)
@@ -1145,3 +1149,11 @@ DEF_HELPER_5(vsext_vf2_d, void, ptr, ptr, ptr, env, i32)
 DEF_HELPER_5(vsext_vf4_w, void, ptr, ptr, ptr, env, i32)
 DEF_HELPER_5(vsext_vf4_d, void, ptr, ptr, ptr, env, i32)
 DEF_HELPER_5(vsext_vf8_d, void, ptr, ptr, ptr, env, i32)
+
+/* 128-bit integer multiplication and division */
+#ifndef TARGET_CHERI
+DEF_HELPER_5(divu_i128, tl, env, tl, tl, tl, tl)
+DEF_HELPER_5(divs_i128, tl, env, tl, tl, tl, tl)
+DEF_HELPER_5(remu_i128, tl, env, tl, tl, tl, tl)
+DEF_HELPER_5(rems_i128, tl, env, tl, tl, tl, tl)
+#endif

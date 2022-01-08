@@ -1956,9 +1956,9 @@ load_memop(const void *haddr, MemOp op)
         return (uint32_t)ldl_be_p(haddr);
     case MO_LEUL:
         return (uint32_t)ldl_le_p(haddr);
-    case MO_BEQ:
+    case MO_BEUQ:
         return ldq_be_p(haddr);
-    case MO_LEQ:
+    case MO_LEUQ:
         return ldq_le_p(haddr);
     default:
 #if defined(__SANITIZE_ADDRESS__) || __has_feature(address_sanitizer)
@@ -2212,16 +2212,16 @@ tcg_target_ulong helper_be_ldul_mmu(CPUArchState *env, target_ulong addr,
 uint64_t helper_le_ldq_mmu(CPUArchState *env, target_ulong addr,
                            MemOpIdx oi, uintptr_t retaddr)
 {
-    validate_memop(oi, MO_LEQ);
-    return load_helper(env, addr, oi, retaddr, MO_LEQ, false,
+    validate_memop(oi, MO_LEUQ);
+    return load_helper(env, addr, oi, retaddr, MO_LEUQ, false,
                        helper_le_ldq_mmu);
 }
 
 uint64_t helper_be_ldq_mmu(CPUArchState *env, target_ulong addr,
                            MemOpIdx oi, uintptr_t retaddr)
 {
-    validate_memop(oi, MO_BEQ);
-    return load_helper(env, addr, oi, retaddr, MO_BEQ, false,
+    validate_memop(oi, MO_BEUQ);
+    return load_helper(env, addr, oi, retaddr, MO_BEUQ, false,
                        helper_be_ldq_mmu);
 }
 
@@ -2316,7 +2316,7 @@ uint32_t cpu_ldl_be_mmu(CPUArchState *env, abi_ptr addr,
 uint64_t cpu_ldq_be_mmu(CPUArchState *env, abi_ptr addr,
                         MemOpIdx oi, uintptr_t ra)
 {
-    return cpu_load_helper(env, addr, oi, MO_BEQ, helper_be_ldq_mmu);
+    return cpu_load_helper(env, addr, oi, MO_BEUQ, helper_be_ldq_mmu);
 }
 
 uint16_t cpu_ldw_le_mmu(CPUArchState *env, abi_ptr addr,
@@ -2351,7 +2351,7 @@ target_ulong cpu_ld_cap_word_ra(CPUArchState *env, abi_ptr ptr,
     oi = make_memop_idx(MO_TEUW, cpu_mmu_index(env, false));
     full_load = MO_TE == MO_LE ? helper_le_lduw_mmu : helper_be_lduw_mmu;
 #elif TARGET_LONG_BITS == 64
-    oi = make_memop_idx(MO_TEQ, cpu_mmu_index(env, false));
+    oi = make_memop_idx(MO_TEUQ, cpu_mmu_index(env, false));
     full_load = MO_TE == MO_LE ? helper_le_ldq_mmu : helper_be_ldq_mmu;
 #else
 #error "Unhandled target long width"
@@ -2383,10 +2383,10 @@ store_memop(void *haddr, uint64_t val, MemOp op)
     case MO_LEUL:
         stl_le_p(haddr, val);
         break;
-    case MO_BEQ:
+    case MO_BEUQ:
         stq_be_p(haddr, val);
         break;
-    case MO_LEQ:
+    case MO_LEUQ:
         stq_le_p(haddr, val);
         break;
     default:
@@ -2646,15 +2646,15 @@ void helper_be_stl_mmu(CPUArchState *env, target_ulong addr, uint32_t val,
 void helper_le_stq_mmu(CPUArchState *env, target_ulong addr, uint64_t val,
                        MemOpIdx oi, uintptr_t retaddr)
 {
-    validate_memop(oi, MO_LEQ);
-    store_helper(env, addr, val, oi, retaddr, MO_LEQ);
+    validate_memop(oi, MO_LEUQ);
+    store_helper(env, addr, val, oi, retaddr, MO_LEUQ);
 }
 
 void helper_be_stq_mmu(CPUArchState *env, target_ulong addr, uint64_t val,
                        MemOpIdx oi, uintptr_t retaddr)
 {
-    validate_memop(oi, MO_BEQ);
-    store_helper(env, addr, val, oi, retaddr, MO_BEQ);
+    validate_memop(oi, MO_BEUQ);
+    store_helper(env, addr, val, oi, retaddr, MO_BEUQ);
 }
 
 /*
@@ -2748,7 +2748,7 @@ void cpu_st_cap_word_ra(CPUArchState *env, target_ulong ptr,
     oi = make_memop_idx(MO_TEUW, cpu_mmu_index(env, false));
     full_store = MO_TE == MO_LE ? full_le_stw_mmu : full_be_stw_mmu;
 #elif TARGET_LONG_BITS == 64
-    oi = make_memop_idx(MO_TEQ, cpu_mmu_index(env, false));
+    oi = make_memop_idx(MO_TEUQ, cpu_mmu_index(env, false));
     full_store = MO_TE == MO_LE ? helper_le_stq_mmu : helper_be_stq_mmu;
 #else
 #error "Unhandled target long width"
@@ -2832,11 +2832,11 @@ uint32_t cpu_ldl_code(CPUArchState *env, abi_ptr addr)
 static uint64_t full_ldq_code(CPUArchState *env, target_ulong addr,
                               MemOpIdx oi, uintptr_t retaddr)
 {
-    return load_helper(env, addr, oi, retaddr, MO_TEQ, true, full_ldq_code);
+    return load_helper(env, addr, oi, retaddr, MO_TEUQ, true, full_ldq_code);
 }
 
 uint64_t cpu_ldq_code(CPUArchState *env, abi_ptr addr)
 {
-    MemOpIdx oi = make_memop_idx(MO_TEQ, cpu_mmu_index(env, true));
+    MemOpIdx oi = make_memop_idx(MO_TEUQ, cpu_mmu_index(env, true));
     return full_ldq_code(env, addr, oi, 0);
 }

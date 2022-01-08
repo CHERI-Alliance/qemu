@@ -604,6 +604,8 @@ static uint64_t add_status_sd(RISCVMXL xl, uint64_t status)
             return status | MSTATUS32_SD;
         case MXL_RV64:
             return status | MSTATUS64_SD;
+        case MXL_RV128:
+            return MSTATUSH128_SD;
         default:
             g_assert_not_reached();
         }
@@ -662,10 +664,11 @@ static RISCVException write_mstatus(CPURISCVState *env, int csrno,
 
     mstatus = (mstatus & ~mask) | (val & mask);
 
-    if (riscv_cpu_mxl(env) == MXL_RV64) {
+    RISCVMXL xl = riscv_cpu_mxl(env);
+    if (xl > MXL_RV32) {
         /* SXL and UXL fields are for now read only */
-        mstatus = set_field(mstatus, MSTATUS64_SXL, MXL_RV64);
-        mstatus = set_field(mstatus, MSTATUS64_UXL, MXL_RV64);
+        mstatus = set_field(mstatus, MSTATUS64_SXL, xl);
+        mstatus = set_field(mstatus, MSTATUS64_UXL, xl);
     }
     env->mstatus = mstatus;
 
@@ -691,6 +694,20 @@ static RISCVException write_mstatush(CPURISCVState *env, int csrno,
 
     env->mstatus = (env->mstatus & ~mask) | (valh & mask);
 
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException read_mstatus_i128(CPURISCVState *env, int csrno,
+                                        Int128 *val)
+{
+    *val = int128_make128(env->mstatus, add_status_sd(MXL_RV128, env->mstatus));
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException read_misa_i128(CPURISCVState *env, int csrno,
+                                     Int128 *val)
+{
+    *val = int128_make128(env->misa_ext, (uint64_t)MXL_RV128 << 62);
     return RISCV_EXCP_NONE;
 }
 
@@ -885,6 +902,26 @@ static RISCVException write_mcounteren(CPURISCVState *env, int csrno,
 }
 
 /* Machine Trap Handling */
+#ifdef TARGET_CHERI
+#define read_mscratch_i128 NULL
+#define write_mscratch_i128 NULL
+#else
+static RISCVException read_mscratch_i128(CPURISCVState *env, int csrno,
+                                         Int128 *val)
+{
+    *val = int128_make128(env->mscratch, env->mscratchh);
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_mscratch_i128(CPURISCVState *env, int csrno,
+                                          Int128 val)
+{
+    env->mscratch = int128_getlo(val);
+    env->mscratchh = int128_gethi(val);
+    return RISCV_EXCP_NONE;
+}
+#endif
+
 static RISCVException read_mscratch(CPURISCVState *env, int csrno,
                                     target_ulong *val)
 {
@@ -1063,6 +1100,16 @@ static RISCVException rmw_mip(CPURISCVState *env, int csrno,
 }
 
 /* Supervisor Trap Setup */
+static RISCVException read_sstatus_i128(CPURISCVState *env, int csrno,
+                                        Int128 *val)
+{
+    uint64_t mask = sstatus_v1_10_mask;
+    uint64_t sstatus = env->mstatus & mask;
+
+    *val = int128_make128(sstatus, add_status_sd(MXL_RV128, sstatus));
+    return RISCV_EXCP_NONE;
+}
+
 static RISCVException read_sstatus(CPURISCVState *env, int csrno,
                                    target_ulong *val)
 {
@@ -1156,6 +1203,26 @@ static RISCVException write_scounteren(CPURISCVState *env, int csrno,
 }
 
 /* Supervisor Trap Handling */
+#ifdef TARGET_CHERI
+#define read_sscratch_i128 NULL
+#define write_sscratch_i128 NULL
+#else
+static RISCVException read_sscratch_i128(CPURISCVState *env, int csrno,
+                                         Int128 *val)
+{
+    *val = int128_make128(env->sscratch, env->sscratchh);
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_sscratch_i128(CPURISCVState *env, int csrno,
+                                          Int128 val)
+{
+    env->sscratch = int128_getlo(val);
+    env->sscratchh = int128_gethi(val);
+    return RISCV_EXCP_NONE;
+}
+#endif
+
 static RISCVException read_sscratch(CPURISCVState *env, int csrno,
                                     target_ulong *val)
 {
@@ -2438,18 +2505,16 @@ static RISCVException write_vstval2(CPURISCVState *env, int csrno,
  * csrrc  <->  riscv_csrrw(env, csrno, ret_value, 0, value);
  */
 
-RISCVException riscv_csr_accessible(CPURISCVState *env, int csrno,
-                                    bool is_write)
+RISCVException riscv_csrrw_check(CPURISCVState *env, int csrno, bool write_mask,
+                                 RISCVCPU *cpu)
 {
-    RISCVException ret;
-    RISCVCPU *cpu = env_archcpu(env);
+    /* check privileges and return RISCV_EXCP_ILLEGAL_INST if check fails */
     int read_only = get_field(csrno, 0xC00) == 3;
     int csr_min_priv = csr_ops[csrno].min_priv_ver;
 
     if (env->priv_ver < csr_min_priv) {
         return RISCV_EXCP_ILLEGAL_INST;
     }
-    /* check privileges and return RISCV_EXCP_ILLEGAL_INST if check fails */
 #if !defined(CONFIG_USER_ONLY)
     int effective_priv = env->priv;
 
@@ -2467,7 +2532,7 @@ RISCVException riscv_csr_accessible(CPURISCVState *env, int csrno,
         return RISCV_EXCP_ILLEGAL_INST;
     }
 #endif
-    if (is_write && read_only) {
+    if (write_mask && read_only) {
         return RISCV_EXCP_ILLEGAL_INST;
     }
 
@@ -2475,6 +2540,7 @@ RISCVException riscv_csr_accessible(CPURISCVState *env, int csrno,
     if (!cpu->cfg.ext_icsr) {
         return RISCV_EXCP_ILLEGAL_INST;
     }
+
     /* check predicate */
     if (!csr_ops[csrno].predicate) {
 #ifdef TARGET_CHERI
@@ -2487,7 +2553,7 @@ RISCVException riscv_csr_accessible(CPURISCVState *env, int csrno,
         return RISCV_EXCP_ILLEGAL_INST;
 #endif
     } else {
-        ret = csr_ops[csrno].predicate(env, csrno);
+        RISCVException ret = csr_ops[csrno].predicate(env, csrno);
         if (ret != RISCV_EXCP_NONE) {
             return ret;
         }
@@ -2498,7 +2564,8 @@ RISCVException riscv_csr_accessible(CPURISCVState *env, int csrno,
      * TODO: could merge this with predicate callback?
      */
 #ifdef TARGET_CHERI
-    if (!cheri_have_access_sysregs(env) && csr_needs_asr(csrno, is_write)) {
+    if (!cheri_have_access_sysregs(env) &&
+        csr_needs_asr(csrno, write_mask != 0)) {
 #if !defined(CONFIG_USER_ONLY)
         if (env->debugger) {
             return RISCV_EXCP_INST_ACCESS_FAULT;
@@ -2510,15 +2577,17 @@ RISCVException riscv_csr_accessible(CPURISCVState *env, int csrno,
     return RISCV_EXCP_NONE;
 }
 
-RISCVException riscv_csrrw(CPURISCVState *env, int csrno,
-                           target_ulong *ret_value, target_ulong new_value,
-                           target_ulong write_mask, uintptr_t retpc)
+static RISCVException riscv_csrrw_do64(CPURISCVState *env, int csrno,
+                                       target_ulong *ret_value,
+                                       target_ulong new_value,
+                                       target_ulong write_mask, uintptr_t retpc)
 {
     RISCVException ret;
+    RISCVCPU *cpu = env_archcpu(env);
     target_ulong old_value;
 
     /* check privileges and return RISCV_EXCP_ILLEGAL_INST if check fails */
-    ret = riscv_csr_accessible(env, csrno, write_mask);
+    ret = riscv_csrrw_check(env, csrno, write_mask, cpu);
     if (ret != RISCV_EXCP_NONE) {
 #ifdef TARGET_CHERI
         if (ret == RISCV_EXCP_CHERI)
@@ -2572,6 +2641,94 @@ RISCVException riscv_csrrw(CPURISCVState *env, int csrno,
     }
 
     return RISCV_EXCP_NONE;
+}
+
+RISCVException riscv_csrrw(CPURISCVState *env, int csrno,
+                           target_ulong *ret_value,
+                           target_ulong new_value, target_ulong write_mask,
+                           uintptr_t retpc)
+{
+    RISCVCPU *cpu = env_archcpu(env);
+
+    RISCVException ret = riscv_csrrw_check(env, csrno, write_mask, cpu);
+    if (ret != RISCV_EXCP_NONE) {
+        return ret;
+    }
+
+    return riscv_csrrw_do64(env, csrno, ret_value, new_value, write_mask, retpc);
+}
+
+static RISCVException riscv_csrrw_do128(CPURISCVState *env, int csrno,
+                                        Int128 *ret_value,
+                                        Int128 new_value,
+                                        Int128 write_mask)
+{
+    RISCVException ret;
+    Int128 old_value;
+
+    /* read old value */
+    ret = csr_ops[csrno].read128(env, csrno, &old_value);
+    if (ret != RISCV_EXCP_NONE) {
+        return ret;
+    }
+
+    /* write value if writable and write mask set, otherwise drop writes */
+    if (int128_nz(write_mask)) {
+        new_value = int128_or(int128_and(old_value, int128_not(write_mask)),
+                              int128_and(new_value, write_mask));
+        if (csr_ops[csrno].write128) {
+            ret = csr_ops[csrno].write128(env, csrno, new_value);
+            if (ret != RISCV_EXCP_NONE) {
+                return ret;
+            }
+        } else if (csr_ops[csrno].write) {
+            /* avoids having to write wrappers for all registers */
+            ret = csr_ops[csrno].write(env, csrno, int128_getlo(new_value));
+            if (ret != RISCV_EXCP_NONE) {
+                return ret;
+            }
+        }
+    }
+
+    /* return old value */
+    if (ret_value) {
+        *ret_value = old_value;
+    }
+
+    return RISCV_EXCP_NONE;
+}
+
+RISCVException riscv_csrrw_i128(CPURISCVState *env, int csrno,
+                                Int128 *ret_value,
+                                Int128 new_value, Int128 write_mask,
+                                uintptr_t retpc)
+{
+    RISCVException ret;
+    RISCVCPU *cpu = env_archcpu(env);
+
+    ret = riscv_csrrw_check(env, csrno, int128_nz(write_mask), cpu);
+    if (ret != RISCV_EXCP_NONE) {
+        return ret;
+    }
+
+    if (csr_ops[csrno].read128) {
+        return riscv_csrrw_do128(env, csrno, ret_value, new_value, write_mask);
+    }
+
+    /*
+     * Fall back to 64-bit version for now, if the 128-bit alternative isn't
+     * at all defined.
+     * Note, some CSRs don't need to extend to MXLEN (64 upper bits non
+     * significant), for those, this fallback is correctly handling the accesses
+     */
+    target_ulong old_value;
+    ret = riscv_csrrw_do64(env, csrno, &old_value,
+                           int128_getlo(new_value),
+                           int128_getlo(write_mask), retpc);
+    if (ret == RISCV_EXCP_NONE && ret_value) {
+        *ret_value = int128_make64(old_value);
+    }
+    return ret;
 }
 
 /*
@@ -2717,8 +2874,10 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_MHARTID] =             CSR_OP_R(any, mhartid),
 
     /* Machine Trap Setup */
-    [CSR_MSTATUS] =             CSR_OP_RW(any, mstatus),
-    [CSR_MISA] =                CSR_OP_RW(any, misa),
+    [CSR_MSTATUS]     = { "mstatus",    any,   read_mstatus,     write_mstatus, NULL,
+                                               read_mstatus_i128                   },
+    [CSR_MISA]        = { "misa",       any,   read_misa,        write_misa, NULL,
+                                               read_misa_i128                      },
     [CSR_MIDELEG] =             CSR_OP_RW(any, mideleg),
     [CSR_MEDELEG] =             CSR_OP_RW(any, medeleg),
     [CSR_MIE] =                 CSR_OP_RW(any, mie),
@@ -2728,7 +2887,8 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_MSTATUSH] =            CSR_OP_RW(any32, mstatush),
 
     /* Machine Trap Handling */
-    [CSR_MSCRATCH] =            CSR_OP_RW(any, mscratch),
+    [CSR_MSCRATCH] = { "mscratch", any,  read_mscratch,      write_mscratch, NULL,
+                                         read_mscratch_i128, write_mscratch_i128   },
     [CSR_MEPC] =                CSR_OP_RW(any, mepc),
     [CSR_MCAUSE] =              CSR_OP_RW(any, mcause),
     [CSR_MTVAL] =               CSR_OP_RW(any, mtval),
@@ -2742,14 +2902,14 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_HENVCFGH] =            CSR_OP_RW_PRIV(hmode32, henvcfgh, 1_12_0),
 
     /* Supervisor Trap Setup */
-    [CSR_SSTATUS] =             CSR_OP_RW(smode, sstatus),
-    [CSR_SIE] =                 CSR_OP_RW(smode, sie),
+    [CSR_SSTATUS]    = { "sstatus",    smode, read_sstatus,    write_sstatus, NULL,
+                                              read_sstatus_i128                 },    [CSR_SIE] =                 CSR_OP_RW(smode, sie),
     [CSR_STVEC] =               CSR_OP_RW(smode, stvec),
     [CSR_SCOUNTEREN] =          CSR_OP_RW(smode, scounteren),
 
     /* Supervisor Trap Handling */
-    [CSR_SSCRATCH] =            CSR_OP_RW(smode, sscratch),
-    [CSR_SEPC] =                CSR_OP_RW(smode, sepc),
+    [CSR_SSCRATCH] = { "sscratch", smode, read_sscratch, write_sscratch, NULL,
+                                          read_sscratch_i128, write_sscratch_i128  },    [CSR_SEPC] =                CSR_OP_RW(smode, sepc),
     [CSR_SCAUSE] =              CSR_OP_RW(smode, scause),
     [CSR_STVAL] =               CSR_OP_RW(smode, stval),
     [CSR_SIP] =                 CSR_OP_RMW(smode, sip),

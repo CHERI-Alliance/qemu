@@ -299,7 +299,7 @@ static inline void generate_cloadtags(DisasContext *ctx, int32_t rd, int32_t cb)
     tcg_gen_mb(TCG_MO_LD_LD | TCG_MO_ST_LD | TCG_BAR_SC);
 
     gen_helper_cloadtags(ttags, cpu_env, tcb);
-    tcg_gen_movi_i32(tcb, MO_TEQ);
+    tcg_gen_movi_i32(tcb, MO_TEUQ);
 #ifdef CONFIG_TCG_LOG_INSTR
     gen_helper_qemu_log_instr_load64(cpu_env, tcbc, ttags, tcb); // FIXME: not really correct
 #endif
@@ -1645,7 +1645,7 @@ static void gen_cp2 (DisasContext *ctx, uint32_t opc, int r16, int r11, int r6)
             break;
         case OPC_CSCD: /* 0x3 */
             generate_cstorecond_int(ctx, r16, r11, r6,
-                                    MO_TEQ | ctx->default_tcg_memop_mask,
+                                    MO_TEUQ | ctx->default_tcg_memop_mask,
                                     MASK_CAP4(opc));
             opn = "cscd";
             break;
@@ -1675,7 +1675,7 @@ static void gen_cp2 (DisasContext *ctx, uint32_t opc, int r16, int r11, int r6)
             break;
         case OPC_CLLD: /* 0xb */
             generate_cloadlinked_int(ctx, r16, r11,
-                                     MO_TEQ | ctx->default_tcg_memop_mask,
+                                     MO_TEUQ | ctx->default_tcg_memop_mask,
                                      MASK_CAP4(opc));
             opn = "clld";
             break;

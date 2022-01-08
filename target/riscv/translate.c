@@ -39,7 +39,7 @@
 static TCGv _cpu_cursors_do_not_access_directly[32];
 static TCGv cpu_pc;  // Note: this is PCC.cursor
 #else
-static TCGv cpu_gpr[32], cpu_pc;
+static TCGv cpu_gpr[32], cpu_gprh[32], cpu_pc;
 #endif
 #ifdef CONFIG_RVFI_DII
 TCGv_i32 cpu_rvfi_available_fields;
@@ -70,6 +70,7 @@ typedef struct DisasContext {
     /* pc_succ_insn points to the instruction following base.pc_next */
     target_ulong pc_succ_insn;
     target_ulong priv_ver;
+    RISCVMXL misa_mxl_max;
     RISCVMXL xl;
     uint32_t misa_ext;
     uint32_t opcode;
@@ -172,6 +173,13 @@ static inline int get_olen(DisasContext *ctx)
     return 16 << get_ol(ctx);
 }
 
+/* The maximum register length */
+#ifdef TARGET_RISCV32
+#define get_xl_max(ctx)    MXL_RV32
+#else
+#define get_xl_max(ctx)    ((ctx)->misa_mxl_max)
+#endif
+
 /*
  * RISC-V requires NaN-boxing of narrower width floating point values.
  * This applies when a 32-bit value is assigned to a 64-bit FP register.
@@ -231,6 +239,9 @@ static void generate_exception_mtval(DisasContext *ctx, int excp)
 
 static void gen_exception_illegal(DisasContext *ctx)
 {
+    tcg_gen_st_i32(tcg_constant_i32(ctx->opcode), cpu_env,
+                   offsetof(CPURISCVState, bins));
+
     generate_exception(ctx, RISCV_EXCP_ILLEGAL_INST);
 }
 
@@ -301,6 +312,7 @@ static TCGv get_gpr(DisasContext *ctx, int reg_num, DisasExtend ext)
         }
         break;
     case MXL_RV64:
+    case MXL_RV128:
         break;
     default:
         g_assert_not_reached();
@@ -313,6 +325,17 @@ static void gen_get_gpr(DisasContext *ctx, TCGv t, int reg_num)
     tcg_gen_mov_tl(t, get_gpr(ctx, reg_num, EXT_NONE));
 }
 
+#ifndef TARGET_CHERI
+static TCGv get_gprh(DisasContext *ctx, int reg_num)
+{
+    assert(get_xl(ctx) == MXL_RV128);
+    if (reg_num == 0) {
+        return ctx->zero;
+    }
+    return cpu_gprh[reg_num];
+}
+#endif
+
 static TCGv dest_gpr(DisasContext *ctx, int reg_num)
 {
     if (reg_num == 0 || get_olen(ctx) < TARGET_LONG_BITS) {
@@ -324,6 +347,16 @@ static TCGv dest_gpr(DisasContext *ctx, int reg_num)
     return cpu_gpr[reg_num];
 #endif
 }
+
+#ifndef TARGET_CHERI
+static TCGv dest_gprh(DisasContext *ctx, int reg_num)
+{
+    if (reg_num == 0) {
+        return temp_new(ctx);
+    }
+    return cpu_gprh[reg_num];
+}
+#endif
 
 #include "cheri-translate-utils.h"
 
@@ -345,11 +378,17 @@ static void _gen_set_gpr(DisasContext *ctx, int reg_num, TCGv t,
             tcg_gen_ext32s_tl(dest_gpr[reg_num], t);
             break;
         case MXL_RV64:
+        case MXL_RV128:
             tcg_gen_mov_tl(dest_gpr[reg_num], t);
             break;
         default:
             g_assert_not_reached();
         }
+#ifndef TARGET_CHERI
+        if (get_xl_max(ctx) == MXL_RV128) {
+            tcg_gen_sari_tl(cpu_gprh[reg_num], cpu_gpr[reg_num], 63);
+        }
+#endif
         gen_rvfi_dii_set_field_const_i8(INTEGER, rd_addr, reg_num);
         gen_rvfi_dii_set_field_zext_tl(INTEGER, rd_wdata, t);
 #ifdef CONFIG_TCG_LOG_INSTR
@@ -362,9 +401,48 @@ static void _gen_set_gpr(DisasContext *ctx, int reg_num, TCGv t,
     }
 }
 
+static void gen_set_gpri(DisasContext *ctx, int reg_num, target_long imm)
+{
+    if (reg_num != 0) {
+#ifdef TARGET_CHERI
+        TCGv *dest_gpr = _cpu_cursors_do_not_access_directly;
+        /* Reset the register type to int. */
+        gen_lazy_cap_set_int(ctx, reg_num);
+#else
+        TCGv *dest_gpr = cpu_gpr;
+#endif
+        switch (get_ol(ctx)) {
+        case MXL_RV32:
+            tcg_gen_movi_tl(dest_gpr[reg_num], (int32_t)imm);
+            break;
+        case MXL_RV64:
+        case MXL_RV128:
+            tcg_gen_movi_tl(dest_gpr[reg_num], imm);
+            break;
+        default:
+            g_assert_not_reached();
+        }
+#ifndef TARGET_CHERI
+        if (get_xl_max(ctx) == MXL_RV128) {
+            tcg_gen_movi_tl(cpu_gprh[reg_num], -(imm < 0));
+        }
+#endif
+    }
+}
+
 #define gen_set_gpr(ctx, reg_num_dst, t) _gen_set_gpr(ctx, reg_num_dst, t, true)
-#define gen_set_gpr_const(ctx, reg_num_dst, t)                  \
-    _gen_set_gpr(ctx, reg_num_dst, tcg_constant_tl(t), true)
+#define gen_set_gpr_const(ctx, reg_num_dst, t) gen_set_gpri(ctx, reg_num_dst, t)
+
+#ifndef TARGET_CHERI
+static void gen_set_gpr128(DisasContext *ctx, int reg_num, TCGv rl, TCGv rh)
+{
+    assert(get_ol(ctx) == MXL_RV128);
+    if (reg_num != 0) {
+        tcg_gen_mov_tl(cpu_gpr[reg_num], rl);
+        tcg_gen_mov_tl(cpu_gprh[reg_num], rh);
+    }
+}
+#endif
 
 #ifdef CONFIG_TCG_LOG_INSTR
 static inline void gen_riscv_log_instr(DisasContext *ctx, uint32_t opcode,
@@ -591,10 +669,22 @@ EX_SH(12)
     }                              \
 } while (0)
 
-#define REQUIRE_64BIT(ctx) do {    \
-    if (get_xl(ctx) < MXL_RV64) {  \
-        return false;              \
-    }                              \
+#define REQUIRE_64BIT(ctx) do {     \
+    if (get_xl(ctx) != MXL_RV64) {  \
+        return false;               \
+    }                               \
+} while (0)
+
+#define REQUIRE_128BIT(ctx) do {    \
+    if (get_xl(ctx) != MXL_RV128) { \
+        return false;               \
+    }                               \
+} while (0)
+
+#define REQUIRE_64_OR_128BIT(ctx) do { \
+    if (get_xl(ctx) == MXL_RV32) {     \
+        return false;                  \
+    }                                  \
 } while (0)
 
 static int ex_rvc_register(DisasContext *ctx, int reg)
@@ -654,62 +744,163 @@ static bool pred_cre(DisasContext *ctx)
 /* Include the auto-generated decoder for 32 bit insn */
 #include "decode-insn32.c.inc"
 
-static bool gen_arith_imm_fn(DisasContext *ctx, arg_i *a, DisasExtend ext,
+static bool gen_logic_imm_fn(DisasContext *ctx, arg_i *a,
                              void (*func)(TCGv, TCGv, target_long))
+{
+    TCGv dest = dest_gpr(ctx, a->rd);
+    TCGv src1 = get_gpr(ctx, a->rs1, EXT_NONE);
+
+    func(dest, src1, a->imm);
+
+    if (get_xl(ctx) == MXL_RV128) {
+#ifdef TARGET_CHERI
+        return false; /* RV128 not supported */
+#else
+        TCGv src1h = get_gprh(ctx, a->rs1);
+        TCGv desth = dest_gprh(ctx, a->rd);
+
+        func(desth, src1h, -(a->imm < 0));
+        gen_set_gpr128(ctx, a->rd, dest, desth);
+#endif
+    } else {
+        gen_set_gpr(ctx, a->rd, dest);
+    }
+
+    return true;
+}
+
+static bool gen_logic(DisasContext *ctx, arg_r *a,
+                      void (*func)(TCGv, TCGv, TCGv))
+{
+    TCGv dest = dest_gpr(ctx, a->rd);
+    TCGv src1 = get_gpr(ctx, a->rs1, EXT_NONE);
+    TCGv src2 = get_gpr(ctx, a->rs2, EXT_NONE);
+
+    func(dest, src1, src2);
+
+    if (get_xl(ctx) == MXL_RV128) {
+#ifdef TARGET_CHERI
+        return false; /* RV128 not supported */
+#else
+        TCGv src1h = get_gprh(ctx, a->rs1);
+        TCGv src2h = get_gprh(ctx, a->rs2);
+        TCGv desth = dest_gprh(ctx, a->rd);
+
+        func(desth, src1h, src2h);
+        gen_set_gpr128(ctx, a->rd, dest, desth);
+#endif
+    } else {
+        gen_set_gpr(ctx, a->rd, dest);
+    }
+
+    return true;
+}
+
+static bool gen_arith_imm_fn(DisasContext *ctx, arg_i *a, DisasExtend ext,
+                             void (*func)(TCGv, TCGv, target_long),
+                             void (*f128)(TCGv, TCGv, TCGv, TCGv, target_long))
 {
     TCGv dest = dest_gpr(ctx, a->rd);
     TCGv src1 = get_gpr(ctx, a->rs1, ext);
 
-    func(dest, src1, a->imm);
+    if (get_ol(ctx) < MXL_RV128) {
+        func(dest, src1, a->imm);
+        gen_set_gpr(ctx, a->rd, dest);
+    } else {
+        if (f128 == NULL) {
+            return false;
+        }
+#ifdef TARGET_CHERI
+        return false; /* RV128 not supported */
+#else
+        TCGv src1h = get_gprh(ctx, a->rs1);
+        TCGv desth = dest_gprh(ctx, a->rd);
 
-    gen_set_gpr(ctx, a->rd, dest);
+        f128(dest, desth, src1, src1h, a->imm);
+        gen_set_gpr128(ctx, a->rd, dest, desth);
+#endif
+    }
     return true;
 }
 
 static bool gen_arith_imm_tl(DisasContext *ctx, arg_i *a, DisasExtend ext,
-                             void (*func)(TCGv, TCGv, TCGv))
+                             void (*func)(TCGv, TCGv, TCGv),
+                             void (*f128)(TCGv, TCGv, TCGv, TCGv, TCGv, TCGv))
 {
     TCGv dest = dest_gpr(ctx, a->rd);
     TCGv src1 = get_gpr(ctx, a->rs1, ext);
     TCGv src2 = tcg_constant_tl(a->imm);
 
-    func(dest, src1, src2);
+    if (get_ol(ctx) < MXL_RV128) {
+        func(dest, src1, src2);
+        gen_set_gpr(ctx, a->rd, dest);
+    } else {
+        if (f128 == NULL) {
+            return false;
+        }
+#ifdef TARGET_CHERI
+        return false; /* RV128 not supported */
+#else
+        TCGv src1h = get_gprh(ctx, a->rs1);
+        TCGv src2h = tcg_constant_tl(-(a->imm < 0));
+        TCGv desth = dest_gprh(ctx, a->rd);
 
-    gen_set_gpr(ctx, a->rd, dest);
+        f128(dest, desth, src1, src1h, src2, src2h);
+        gen_set_gpr128(ctx, a->rd, dest, desth);
+#endif
+    }
     return true;
 }
 
 static bool gen_arith(DisasContext *ctx, arg_r *a, DisasExtend ext,
-                      void (*func)(TCGv, TCGv, TCGv))
+                      void (*func)(TCGv, TCGv, TCGv),
+                      void (*f128)(TCGv, TCGv, TCGv, TCGv, TCGv, TCGv))
 {
     TCGv dest = dest_gpr(ctx, a->rd);
     TCGv src1 = get_gpr(ctx, a->rs1, ext);
     TCGv src2 = get_gpr(ctx, a->rs2, ext);
 
-    func(dest, src1, src2);
+    if (get_ol(ctx) < MXL_RV128) {
+        func(dest, src1, src2);
+        gen_set_gpr(ctx, a->rd, dest);
+    } else {
+        if (f128 == NULL) {
+            return false;
+        }
+#ifdef TARGET_CHERI
+        return false; /* RV128 not supported */
+#else
+        TCGv src1h = get_gprh(ctx, a->rs1);
+        TCGv src2h = get_gprh(ctx, a->rs2);
+        TCGv desth = dest_gprh(ctx, a->rd);
 
-    gen_set_gpr(ctx, a->rd, dest);
+        f128(dest, desth, src1, src1h, src2, src2h);
+        gen_set_gpr128(ctx, a->rd, dest, desth);
+#endif
+    }
     return true;
 }
 
 static bool gen_arith_per_ol(DisasContext *ctx, arg_r *a, DisasExtend ext,
                              void (*f_tl)(TCGv, TCGv, TCGv),
-                             void (*f_32)(TCGv, TCGv, TCGv))
+                             void (*f_32)(TCGv, TCGv, TCGv),
+                             void (*f_128)(TCGv, TCGv, TCGv, TCGv, TCGv, TCGv))
 {
     int olen = get_olen(ctx);
 
     if (olen != TARGET_LONG_BITS) {
         if (olen == 32) {
             f_tl = f_32;
-        } else {
+        } else if (olen != 128) {
             g_assert_not_reached();
         }
     }
-    return gen_arith(ctx, a, ext, f_tl);
+    return gen_arith(ctx, a, ext, f_tl, f_128);
 }
 
 static bool gen_shift_imm_fn(DisasContext *ctx, arg_shift *a, DisasExtend ext,
-                             void (*func)(TCGv, TCGv, target_long))
+                             void (*func)(TCGv, TCGv, target_long),
+                             void (*f128)(TCGv, TCGv, TCGv, TCGv, target_long))
 {
     TCGv dest, src1;
     int max_len = get_olen(ctx);
@@ -721,26 +912,42 @@ static bool gen_shift_imm_fn(DisasContext *ctx, arg_shift *a, DisasExtend ext,
     dest = dest_gpr(ctx, a->rd);
     src1 = get_gpr(ctx, a->rs1, ext);
 
-    func(dest, src1, a->shamt);
+    if (max_len < 128) {
+        func(dest, src1, a->shamt);
+        gen_set_gpr(ctx, a->rd, dest);
+    } else {
+#ifdef TARGET_CHERI
+        return false; /* RV128 not supported */
+#else
+        TCGv src1h = get_gprh(ctx, a->rs1);
+        TCGv desth = dest_gprh(ctx, a->rd);
 
-    gen_set_gpr(ctx, a->rd, dest);
+        if (f128 == NULL) {
+            return false;
+        }
+        f128(dest, desth, src1, src1h, a->shamt);
+        gen_set_gpr128(ctx, a->rd, dest, desth);
+#endif
+    }
     return true;
 }
 
 static bool gen_shift_imm_fn_per_ol(DisasContext *ctx, arg_shift *a,
                                     DisasExtend ext,
                                     void (*f_tl)(TCGv, TCGv, target_long),
-                                    void (*f_32)(TCGv, TCGv, target_long))
+                                    void (*f_32)(TCGv, TCGv, target_long),
+                                    void (*f_128)(TCGv, TCGv, TCGv, TCGv,
+                                                  target_long))
 {
     int olen = get_olen(ctx);
     if (olen != TARGET_LONG_BITS) {
         if (olen == 32) {
             f_tl = f_32;
-        } else {
+        } else if (olen != 128) {
             g_assert_not_reached();
         }
     }
-    return gen_shift_imm_fn(ctx, a, ext, f_tl);
+    return gen_shift_imm_fn(ctx, a, ext, f_tl, f_128);
 }
 
 static bool gen_shift_imm_tl(DisasContext *ctx, arg_shift *a, DisasExtend ext,
@@ -764,34 +971,53 @@ static bool gen_shift_imm_tl(DisasContext *ctx, arg_shift *a, DisasExtend ext,
 }
 
 static bool gen_shift(DisasContext *ctx, arg_r *a, DisasExtend ext,
-                      void (*func)(TCGv, TCGv, TCGv))
+                      void (*func)(TCGv, TCGv, TCGv),
+                      void (*f128)(TCGv, TCGv, TCGv, TCGv, TCGv))
 {
-    TCGv dest = dest_gpr(ctx, a->rd);
-    TCGv src1 = get_gpr(ctx, a->rs1, ext);
     TCGv src2 = get_gpr(ctx, a->rs2, EXT_NONE);
     TCGv ext2 = tcg_temp_new();
+    int max_len = get_olen(ctx);
 
-    tcg_gen_andi_tl(ext2, src2, get_olen(ctx) - 1);
-    func(dest, src1, ext2);
+    tcg_gen_andi_tl(ext2, src2, max_len - 1);
 
-    gen_set_gpr(ctx, a->rd, dest);
+    TCGv dest = dest_gpr(ctx, a->rd);
+    TCGv src1 = get_gpr(ctx, a->rs1, ext);
+
+    if (max_len < 128) {
+        func(dest, src1, ext2);
+        gen_set_gpr(ctx, a->rd, dest);
+    } else {
+#ifdef TARGET_CHERI
+        return false; /* RV128 not supported */
+#else
+        TCGv src1h = get_gprh(ctx, a->rs1);
+        TCGv desth = dest_gprh(ctx, a->rd);
+
+        if (f128 == NULL) {
+            return false;
+        }
+        f128(dest, desth, src1, src1h, ext2);
+        gen_set_gpr128(ctx, a->rd, dest, desth);
+#endif
+    }
     tcg_temp_free(ext2);
     return true;
 }
 
 static bool gen_shift_per_ol(DisasContext *ctx, arg_r *a, DisasExtend ext,
                              void (*f_tl)(TCGv, TCGv, TCGv),
-                             void (*f_32)(TCGv, TCGv, TCGv))
+                             void (*f_32)(TCGv, TCGv, TCGv),
+                             void (*f_128)(TCGv, TCGv, TCGv, TCGv, TCGv))
 {
     int olen = get_olen(ctx);
     if (olen != TARGET_LONG_BITS) {
         if (olen == 32) {
             f_tl = f_32;
-        } else {
+        } else if (olen != 128) {
             g_assert_not_reached();
         }
     }
-    return gen_shift(ctx, a, ext, f_tl);
+    return gen_shift(ctx, a, ext, f_tl, f_128);
 }
 
 static bool gen_unary(DisasContext *ctx, arg_r2 *a, DisasExtend ext,
@@ -943,6 +1169,8 @@ TRANS_STUB(cmv)
 TRANS_STUB(lr_c)
 TRANS_STUB(sc_c)
 TRANS_STUB(amoswap_c)
+#else
+static bool trans_sq(DisasContext *ctx, arg_sq *a) { return false; }
 #endif
 
 static void decode_opc(CPURISCVState *env, DisasContext *ctx, uint16_t opcode)
@@ -955,6 +1183,7 @@ static void decode_opc(CPURISCVState *env, DisasContext *ctx, uint16_t opcode)
         if (!has_ext(ctx, RVC)) {
             gen_exception_illegal(ctx);
         } else {
+            ctx->opcode = opcode;
             ctx->pc_succ_insn = ctx->base.pc_next + 2;
             if (!decode_insn16(ctx, opcode)) {
                 gen_exception_illegal(ctx);
@@ -976,6 +1205,7 @@ static void decode_opc(CPURISCVState *env, DisasContext *ctx, uint16_t opcode)
         opcode32 = deposit32(opcode32, 16, 16, next_16);
         gen_riscv_log_instr32(ctx, opcode32);
         gen_check_pcc_bounds_next_inst(ctx, 4);
+        ctx->opcode = opcode32;
         ctx->pc_succ_insn = ctx->base.pc_next + 4;
         gen_rvfi_dii_set_field_const_i64(INST, insn, opcode32);
         if (!decode_insn32(ctx, opcode32)) {
@@ -1028,6 +1258,7 @@ static void riscv_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->lmul = sextract32(FIELD_EX32(tb_flags, TB_FLAGS, LMUL), 0, 3);
     ctx->vstart = env->vstart;
     ctx->vl_eq_vlmax = FIELD_EX32(tb_flags, TB_FLAGS, VL_EQ_VLMAX);
+    ctx->misa_mxl_max = env->misa_mxl_max;
     ctx->xl = FIELD_EX32(tb_flags, TB_FLAGS, XL);
     ctx->cs = cs;
     ctx->ntemp = 0;
@@ -1157,9 +1388,12 @@ void riscv_translate_init(void)
      * unless you specifically block reads/writes to reg 0.
      */
     cpu_gpr[0] = NULL;
+
     for (i = 1; i < 32; i++) {
         cpu_gpr[i] = tcg_global_mem_new(cpu_env,
             offsetof(CPURISCVState, gpr[i]), riscv_int_regnames[i]);
+        cpu_gprh[i] = tcg_global_mem_new(cpu_env,
+            offsetof(CPURISCVState, gprh[i]), riscv_int_regnamesh[i]);
     }
 #else
     /* CNULL cursor should never be written! */

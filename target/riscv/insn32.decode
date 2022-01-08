@@ -22,8 +22,8 @@
 %rs1       15:5
 %rd        7:5
 %sh5       20:5
+%sh6       20:6
 
-%sh6    20:6
 %csr    20:12
 %rm     12:3
 %nf     29:3                     !function=ex_plus_1
@@ -173,6 +173,8 @@ srlw     0000000 .....  ..... 101 ..... 0111011 @r
 sraw     0100000 .....  ..... 101 ..... 0111011 @r
 
 {
+  # RV128 lq conflicts with the CMO instructions
+  lq       ............   ..... 010 ..... 0001111 @i
   # The V9 previous encoding of LC conflicts with the cbo instructions.
   lc       ............   ..... 010 ..... 0001111 @i ?pred_xcheri
   [
