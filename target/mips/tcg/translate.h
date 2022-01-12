@@ -132,6 +132,7 @@ enum {
 void generate_exception(DisasContext *ctx, MipsExcp excp);
 void generate_exception_err(DisasContext *ctx, MipsExcp excp, int err);
 void generate_exception_end(DisasContext *ctx, MipsExcp excp);
+void generate_exception_break(DisasContext *ctx, MipsExcp code);
 void gen_reserved_instruction(DisasContext *ctx);
 
 void check_insn(DisasContext *ctx, uint64_t flags);
