@@ -326,7 +326,10 @@ void cheri_tag_init(MemoryRegion *mr, uint64_t memory_size);
 __attribute__((weak)) void cheri_tag_init(MemoryRegion *mr,
                                           uint64_t memory_size)
 {
-    assert(0 && "Cannot create tag memory for non-cheri targets");
+    /*
+     * No-op for non-CHERI targets. This needs to exist unconditionally since
+     * backend->cheri_tags is set in vl.c where we can't check TARGET_CHERI.
+     */
 }
 
 static void

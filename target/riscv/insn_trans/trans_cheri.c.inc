@@ -244,7 +244,7 @@ static bool trans_cspecialrw(DisasContext *ctx, arg_cspecialrw *a)
             // When DDC changes we have to exit the current translation block
             // since we cache DDC properties in the flags to optimize out
             // bounds/permission checks.
-            gen_update_cpu_pc(ctx->pc_succ_insn);
+            gen_set_pc_imm(ctx, ctx->pc_succ_insn);
             tcg_gen_exit_tb(NULL, 0);
             ctx->base.is_jmp = DISAS_NORETURN;
         }
@@ -587,7 +587,7 @@ static inline bool do_trans_modesw(DisasContext *ctx, bool to_capmode)
      * See Morello code which uses DISAS_UPDATE_EXIT.
      */
     /* create tcg instruction to exit the tb */
-    gen_update_cpu_pc(ctx->pc_succ_insn);
+    gen_set_pc_imm(ctx, ctx->pc_succ_insn);
     tcg_gen_exit_tb(NULL, 0);
     /* This indicates to riscv_tr_tb_stop that no cleanup is needed. */
     ctx->base.is_jmp = DISAS_NORETURN;

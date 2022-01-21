@@ -238,14 +238,7 @@ static bool gen_load_tl(DisasContext *ctx, arg_lb *a, MemOp memop)
     }
 #endif
     TCGv dest = dest_gpr(ctx, a->rd);
-    TCGv addr = get_gpr(ctx, a->rs1, EXT_NONE);
-
-    if (a->imm) {
-        TCGv temp = temp_new(ctx);
-        tcg_gen_addi_tl(temp, addr, a->imm);
-        addr = temp;
-    }
-    addr = gen_pm_adjust_address(ctx, addr);
+    TCGv addr = get_address(ctx, a->rs1, a->imm);
 
     gen_ddc_interposed_ld_tl(ctx, dest, /* Update addr in-place */ NULL, addr,
                              ctx->mem_idx, memop);
@@ -356,15 +349,8 @@ static bool gen_store_tl(DisasContext *ctx, arg_sb *a, MemOp memop)
     }
 #endif
 
-    TCGv addr = get_gpr(ctx, a->rs1, EXT_NONE);
+    TCGv addr = get_address(ctx, a->rs1, a->imm);
     TCGv data = get_gpr(ctx, a->rs2, EXT_NONE);
-
-    if (a->imm) {
-        TCGv temp = temp_new(ctx);
-        tcg_gen_addi_tl(temp, addr, a->imm);
-        addr = temp;
-    }
-    addr = gen_pm_adjust_address(ctx, addr);
 
     gen_ddc_interposed_st_tl(ctx, data, /* Update addr in-place */ NULL, addr,
                              ctx->mem_idx, memop);
@@ -533,7 +519,7 @@ static bool trans_slti(DisasContext *ctx, arg_slti *a)
         tcg_temp_free(tpc);
 
         if (ctx->base.is_jmp != DISAS_NEXT) {
-            gen_update_cpu_pc(ctx->pc_succ_insn);
+            gen_set_pc_imm(ctx, ctx->pc_succ_insn);
             tcg_gen_exit_tb(NULL, 0);
             return true;
         }
@@ -910,7 +896,7 @@ static bool trans_fence_i(DisasContext *ctx, arg_fence_i *a)
      * FENCE_I is a no-op in QEMU,
      * however we need to end the translation block
      */
-    gen_update_cpu_pc(ctx->pc_succ_insn);
+    gen_set_pc_imm(ctx, ctx->pc_succ_insn);
     tcg_gen_exit_tb(NULL, 0);
     ctx->base.is_jmp = DISAS_NORETURN;
     return true;
@@ -928,7 +914,7 @@ static inline bool is_cap_csr(uint32_t csrno)
 static bool do_csr_post(DisasContext *ctx)
 {
     /* We may have changed important cpu state -- exit to main loop. */
-    gen_update_cpu_pc(ctx->pc_succ_insn);
+    gen_set_pc_imm(ctx, ctx->pc_succ_insn);
     tcg_gen_exit_tb(NULL, 0);
     ctx->base.is_jmp = DISAS_NORETURN;
     return true;
@@ -1020,7 +1006,8 @@ static bool do_csrrw_i128(DisasContext *ctx, int rd, int rc,
 
 static bool trans_csrrw(DisasContext *ctx, arg_csrrw *a)
 {
-    if (get_xl(ctx) < MXL_RV128) {
+    RISCVMXL xl = get_xl(ctx);
+    if (xl < MXL_RV128) {
 #ifdef TARGET_CHERI
         if (is_cap_csr(a->csr)) {
             gen_helper_csrrw_cap(cpu_env, tcg_constant_i32(a->csr),
@@ -1038,7 +1025,8 @@ static bool trans_csrrw(DisasContext *ctx, arg_csrrw *a)
             return do_csrw(ctx, a->csr, src);
         }
 
-        TCGv mask = tcg_constant_tl(-1);
+        TCGv mask = tcg_constant_tl(xl == MXL_RV32 ? UINT32_MAX :
+                                                     (target_ulong)-1);
         return do_csrrw(ctx, a->rd, a->csr, src, mask);
     } else {
 #ifdef TARGET_CHERI
@@ -1142,7 +1130,8 @@ static bool trans_csrrc(DisasContext *ctx, arg_csrrc *a)
 
 static bool trans_csrrwi(DisasContext *ctx, arg_csrrwi *a)
 {
-    if (get_xl(ctx) < MXL_RV128) {
+    RISCVMXL xl = get_xl(ctx);
+    if (xl < MXL_RV128) {
 #ifdef TARGET_CHERI
         if (is_cap_csr(a->csr)) {
             gen_helper_csrrwi_cap(cpu_env, tcg_constant_i32(a->csr),
@@ -1161,7 +1150,8 @@ static bool trans_csrrwi(DisasContext *ctx, arg_csrrwi *a)
             return do_csrw(ctx, a->csr, src);
         }
 
-        TCGv mask = tcg_constant_tl(-1);
+        TCGv mask = tcg_constant_tl(xl == MXL_RV32 ? UINT32_MAX :
+                                                     (target_ulong)-1);
         return do_csrrw(ctx, a->rd, a->csr, src, mask);
     } else {
 #ifdef TARGET_CHERI

@@ -49,8 +49,8 @@ static TCGv_i64 cpu_fpr[32]; /* assume F and D extensions */
 static TCGv_cap_checked_ptr load_res;
 static TCGv load_val;
 /* globals for PM CSRs */
-static TCGv pm_mask[4];
-static TCGv pm_base[4];
+static TCGv pm_mask;
+static TCGv pm_base;
 
 #include "exec/gen-icount.h"
 
@@ -90,6 +90,8 @@ typedef struct DisasContext {
     bool ext_ifencei;
     bool ext_zfh;
     bool ext_zfhmin;
+    bool ext_zve32f;
+    bool ext_zve64f;
     bool hlsx;
 #ifdef TARGET_CHERI
     bool capmode;
@@ -125,9 +127,8 @@ typedef struct DisasContext {
     /* Space for 3 operands plus 1 extra for address computation. */
     TCGv temp[4];
     /* PointerMasking extension */
-    bool pm_enabled;
-    TCGv pm_mask;
-    TCGv pm_base;
+    bool pm_mask_enabled;
+    bool pm_base_enabled;
 } DisasContext;
 
 #ifdef CONFIG_DEBUG_TCG
@@ -135,12 +136,6 @@ typedef struct DisasContext {
 #else
 #define gen_mark_pc_updated() ((void)0)
 #endif
-
-static inline void gen_update_cpu_pc(target_ulong new_pc)
-{
-    tcg_gen_movi_tl(cpu_pc, new_pc);
-    gen_mark_pc_updated();
-}
 
 static inline bool has_ext(DisasContext *ctx, uint32_t ext)
 {
@@ -222,16 +217,35 @@ static void gen_check_nanbox_s(TCGv_i64 out, TCGv_i64 in)
     tcg_gen_movcond_i64(TCG_COND_GEU, out, in, t_max, in, t_nan);
 }
 
+static void gen_set_pc_imm(DisasContext *ctx, target_ulong dest)
+{
+    if (get_xl(ctx) == MXL_RV32) {
+        dest = (int32_t)dest;
+    }
+    tcg_gen_movi_tl(cpu_pc, dest);
+    gen_mark_pc_updated();
+}
+
+static void gen_set_pc(DisasContext *ctx, TCGv dest)
+{
+    if (get_xl(ctx) == MXL_RV32) {
+        tcg_gen_ext32s_tl(cpu_pc, dest);
+    } else {
+        tcg_gen_mov_tl(cpu_pc, dest);
+    }
+    gen_mark_pc_updated();
+}
+
 static void generate_exception(DisasContext *ctx, int excp)
 {
-    gen_update_cpu_pc(ctx->base.pc_next);
+    gen_set_pc_imm(ctx, ctx->base.pc_next);
     gen_helper_raise_exception(cpu_env, tcg_constant_i32(excp));
     ctx->base.is_jmp = DISAS_NORETURN;
 }
 
 static void generate_exception_mtval(DisasContext *ctx, int excp)
 {
-    gen_update_cpu_pc(ctx->base.pc_next);
+    gen_set_pc_imm(ctx, ctx->base.pc_next);
     tcg_gen_st_tl(cpu_pc, cpu_env, offsetof(CPURISCVState, badaddr));
     gen_helper_raise_exception(cpu_env, tcg_constant_i32(excp));
     ctx->base.is_jmp = DISAS_NORETURN;
@@ -259,10 +273,10 @@ static void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest,
 
     if (translator_use_goto_tb(&ctx->base, dest)) {
         tcg_gen_goto_tb(n);
-        gen_update_cpu_pc(dest);
+        gen_set_pc_imm(ctx, dest);
         tcg_gen_exit_tb(ctx->base.tb, n);
     } else {
-        gen_update_cpu_pc(dest);
+        gen_set_pc_imm(ctx, dest);
         tcg_gen_lookup_and_goto_ptr();
     }
 }
@@ -468,8 +482,12 @@ static inline void gen_riscv_log_instr(DisasContext *ctx, uint32_t opcode,
     gen_riscv_log_instr(ctx, opcode, sizeof(uint32_t))
 
 
-void cheri_tcg_save_pc(DisasContextBase *db) { gen_update_cpu_pc(db->pc_next); }
-// We have to call gen_update_cpu_pc() before setting DISAS_NORETURN (see
+void cheri_tcg_save_pc(DisasContextBase *db)
+{
+    DisasContext *ctx = container_of(db, DisasContext, base);
+    gen_set_pc_imm(ctx, db->pc_next);
+}
+// We have to call gen_set_pc_imm() before setting DISAS_NORETURN (see
 // generate_exception())
 void cheri_tcg_prepare_for_unconditional_exception(DisasContextBase *db)
 {
@@ -513,8 +531,7 @@ static void gen_jalr(DisasContext *ctx, int rd, int rs1, target_ulong imm)
     gen_check_branch_target_dynamic(ctx, t0);
     // Note: Only update cpu_pc after a successful bounds check to avoid
     // representability issues caused by directly modifying PCC.cursor.
-    tcg_gen_mov_tl(cpu_pc, t0);
-    gen_mark_pc_updated();
+    gen_set_pc(ctx, t0);
 
     if (!has_ext(ctx, RVC)) {
         misaligned = gen_new_label();
@@ -523,8 +540,7 @@ static void gen_jalr(DisasContext *ctx, int rd, int rs1, target_ulong imm)
     }
 
     /* For CHERI ISAv8 the result is an offset relative to PCC.base */
-    gen_set_gpr_const(ctx, rd, ctx->pc_succ_insn - pcc_reloc(ctx));
-
+    gen_set_gpri(ctx, rd, ctx->pc_succ_insn - pcc_reloc(ctx));
     /* No chaining with JALR. */
     tcg_gen_lookup_and_goto_ptr();
 
@@ -537,21 +553,22 @@ static void gen_jalr(DisasContext *ctx, int rd, int rs1, target_ulong imm)
     tcg_temp_free(t0);
 }
 
-/*
- * Generates address adjustment for PointerMasking
- */
-static TCGv gen_pm_adjust_address(DisasContext *s, TCGv src)
+/* Compute a canonical address from a register plus offset. */
+static TCGv get_address(DisasContext *ctx, int rs1, int imm)
 {
-    TCGv temp;
-    if (!s->pm_enabled) {
-        /* Load unmodified address */
-        return src;
-    } else {
-        temp = temp_new(s);
-        tcg_gen_andc_tl(temp, src, s->pm_mask);
-        tcg_gen_or_tl(temp, temp, s->pm_base);
-        return temp;
+    TCGv addr = temp_new(ctx);
+    TCGv src1 = get_gpr(ctx, rs1, EXT_NONE);
+
+    tcg_gen_addi_tl(addr, src1, imm);
+    if (ctx->pm_mask_enabled) {
+        tcg_gen_and_tl(addr, addr, pm_mask);
+    } else if (get_xl(ctx) == MXL_RV32) {
+        tcg_gen_ext32u_tl(addr, addr);
     }
+    if (ctx->pm_base_enabled) {
+        tcg_gen_or_tl(addr, addr, pm_base);
+    }
+    return addr;
 }
 
 #ifndef CONFIG_USER_ONLY
@@ -1087,11 +1104,8 @@ static inline TCGv_cap_checked_ptr _get_capmode_dependent_addr(
                                                  mop, check_ddc);
     }
 #else
-    gen_get_gpr(ctx, result, reg_num);
-    result = gen_pm_adjust_address(ctx, result);
-    if (!__builtin_constant_p(regoffs) || regoffs != 0) {
-        tcg_gen_addi_tl(result, result, regoffs);
-    }
+    TCGv tmp = get_address(ctx, reg_num, regoffs);
+    tcg_gen_mov_cap_checked(result, (TCGv_cap_checked_ptr)tmp);
 #endif
     return result;
 }
@@ -1248,6 +1262,8 @@ static void riscv_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->ext_ifencei = cpu->cfg.ext_ifencei;
     ctx->ext_zfh = cpu->cfg.ext_zfh;
     ctx->ext_zfhmin = cpu->cfg.ext_zfhmin;
+    ctx->ext_zve32f = cpu->cfg.ext_zve32f;
+    ctx->ext_zve64f = cpu->cfg.ext_zve64f;
     ctx->vlen = cpu->cfg.vlen;
     ctx->elen = cpu->cfg.elen;
     ctx->mstatus_hs_fs = FIELD_EX32(tb_flags, TB_FLAGS, MSTATUS_HS_FS);
@@ -1263,11 +1279,8 @@ static void riscv_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->cs = cs;
     ctx->ntemp = 0;
     memset(ctx->temp, 0, sizeof(ctx->temp));
-    ctx->pm_enabled = FIELD_EX32(tb_flags, TB_FLAGS, PM_ENABLED);
-    int priv = tb_flags & TB_FLAGS_PRIV_MMU_MASK;
-    ctx->pm_mask = pm_mask[priv];
-    ctx->pm_base = pm_base[priv];
-
+    ctx->pm_mask_enabled = FIELD_EX32(tb_flags, TB_FLAGS, PM_MASK_ENABLED);
+    ctx->pm_base_enabled = FIELD_EX32(tb_flags, TB_FLAGS, PM_BASE_ENABLED);
     ctx->zero = tcg_constant_tl(0);
 }
 
@@ -1441,21 +1454,11 @@ void riscv_translate_init(void)
         cpu_env, offsetof(CPURISCVState, load_res), "load_res");
     load_val = tcg_global_mem_new(cpu_env, offsetof(CPURISCVState, load_val),
                              "load_val");
-#ifndef CONFIG_USER_ONLY
     /* Assign PM CSRs to tcg globals */
-    pm_mask[PRV_U] =
-      tcg_global_mem_new(cpu_env, offsetof(CPURISCVState, upmmask), "upmmask");
-    pm_base[PRV_U] =
-      tcg_global_mem_new(cpu_env, offsetof(CPURISCVState, upmbase), "upmbase");
-    pm_mask[PRV_S] =
-      tcg_global_mem_new(cpu_env, offsetof(CPURISCVState, spmmask), "spmmask");
-    pm_base[PRV_S] =
-      tcg_global_mem_new(cpu_env, offsetof(CPURISCVState, spmbase), "spmbase");
-    pm_mask[PRV_M] =
-      tcg_global_mem_new(cpu_env, offsetof(CPURISCVState, mpmmask), "mpmmask");
-    pm_base[PRV_M] =
-      tcg_global_mem_new(cpu_env, offsetof(CPURISCVState, mpmbase), "mpmbase");
-#endif
+    pm_mask = tcg_global_mem_new(cpu_env, offsetof(CPURISCVState, cur_pmmask),
+                                 "pmmask");
+    pm_base = tcg_global_mem_new(cpu_env, offsetof(CPURISCVState, cur_pmbase),
+                                 "pmbase");
 }
 
 void gen_cheri_break_loadlink(TCGv_cap_checked_ptr out_addr)
