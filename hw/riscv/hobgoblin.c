@@ -886,7 +886,7 @@ static char *custom_riscv_isa_string(RISCVCPU *cpu, bool is_32_bit)
         { &cpu->cfg.ext_v, "v" }
     };
 
-    ext_map_t multi_exts[] = {};
+    ext_map_t multi_exts[] = {{ &cpu->cfg.ext_svpbmt, "_svpbmt" } };
 
     GString *result = (is_32_bit) ? g_string_new("rv32") : g_string_new("rv64");
 

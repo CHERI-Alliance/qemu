@@ -795,6 +795,8 @@ restart:
             qemu_log_mask(CPU_LOG_MMU, "%s Translate fail: V not set\n",
                           __func__);
             return TRANSLATE_FAIL;
+        } else if (!cpu->cfg.ext_svpbmt && (pte & PTE_PBMT)) {
+            return TRANSLATE_FAIL;
         } else if (!(pte & (PTE_R | PTE_W | PTE_X))) {
             /* Inner PTE, continue walking */
 #if defined(TARGET_CHERI_RISCV_STD_093) && !defined(TARGET_RISCV32)
@@ -805,7 +807,7 @@ restart:
                 return TRANSLATE_FAIL;
             }
 #endif
-            if (pte & (PTE_D | PTE_A | PTE_U | PTE_N)) {
+            if (pte & (PTE_D | PTE_A | PTE_U | PTE_ATTR)) {
                 return TRANSLATE_FAIL;
             }
             base = ppn << PGSHIFT;
