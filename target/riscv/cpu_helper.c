@@ -803,6 +803,9 @@ restart:
                 return TRANSLATE_FAIL;
             }
 #endif
+            if (pte & (PTE_D | PTE_A | PTE_U)) {
+                return TRANSLATE_FAIL;
+            }
             base = ppn << PGSHIFT;
         } else if ((pte & (PTE_R | PTE_W | PTE_X)) == PTE_W) {
             /* Reserved leaf PTE flags: PTE_W */
