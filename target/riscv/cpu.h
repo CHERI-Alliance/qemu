@@ -455,6 +455,8 @@ typedef struct {
     bool ext_counters;
     bool ext_ifencei;
     bool ext_icsr;
+    bool ext_svnapot;
+    bool ext_svpbmt;
     bool ext_zfh;
     bool ext_zfhmin;
     bool ext_icbom;
@@ -785,6 +787,19 @@ FIELD(TB_FLAGS, PM_ENABLED, 22, 1)
 static inline RISCVMXL riscv_cpu_mxl(CPURISCVState *env)
 {
     return env->misa_mxl;
+}
+#endif
+
+#ifdef TARGET_RISCV32
+#define riscv_cpu_sxl(env)  ((void)(env), MXL_RV32)
+#else
+static inline RISCVMXL riscv_cpu_sxl(CPURISCVState *env)
+{
+#ifdef CONFIG_USER_ONLY
+    return env->misa_mxl;
+#else
+    return get_field(env->mstatus, MSTATUS64_SXL);
+#endif
 }
 #endif
 

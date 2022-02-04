@@ -585,6 +585,11 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
     MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
     int mode = mmu_idx & TB_FLAGS_PRIV_MMU_MASK;
     bool use_background = false;
+    hwaddr ppn;
+    RISCVCPU *cpu = env_archcpu(env);
+#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
+    bool pte_cheri_error = false;
+#endif
 #ifdef CONFIG_RVFI_DII
     if (env->rvfi_dii_have_injected_insn && access_type == MMU_INST_FETCH) {
         /*
@@ -691,9 +696,6 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
     }
 
     CPUState *cs = env_cpu(env);
-#if defined(TARGET_CHERI_RISCV_STD_093) && !defined(TARGET_RISCV32)
-    RISCVCPU *cpu = env_archcpu(env);
-#endif
     int va_bits = PGSHIFT + levels * ptidxbits + widened;
     target_ulong mask, masked_msbs;
 
@@ -775,16 +777,16 @@ restart:
             return TRANSLATE_FAIL;
         }
 
-#if !defined(TARGET_RISCV32)
-        /*
-         * The top ten bits of the PTE are reserved.  While there may
-         * eventually be a RISCV system with more than 44 bits of ppn (that is,
-         * a 56-bit physical address space, or 64 PiB), we aren't one, yet.
-         */
-        hwaddr ppn = (pte & ~0xFFC0000000000000ULL) >> PTE_PPN_SHIFT;
-#else
-        hwaddr ppn = pte >> PTE_PPN_SHIFT;
-#endif
+        if (riscv_cpu_sxl(env) == MXL_RV32) {
+            ppn = pte >> PTE_PPN_SHIFT;
+        } else if (cpu->cfg.ext_svpbmt || cpu->cfg.ext_svnapot) {
+            ppn = (pte & (target_ulong)PTE_PPN_MASK) >> PTE_PPN_SHIFT;
+        } else {
+            ppn = pte >> PTE_PPN_SHIFT;
+            if ((pte & ~(target_ulong)PTE_PPN_MASK) >> PTE_PPN_SHIFT) {
+                return TRANSLATE_FAIL;
+            }
+        }
 
         if (!(pte & PTE_V)) {
             /* Invalid PTE */
