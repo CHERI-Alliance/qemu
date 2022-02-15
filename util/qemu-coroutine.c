@@ -21,12 +21,14 @@
 #include "qemu/coroutine-tls.h"
 #include "block/aio.h"
 
+/** Initial batch size is 64, and is increased on demand */
 enum {
-    POOL_BATCH_SIZE = 64,
+    POOL_INITIAL_BATCH_SIZE = 64,
 };
 
 /** Free list to speed up creation */
 static QSLIST_HEAD(, Coroutine) release_pool = QSLIST_HEAD_INITIALIZER(pool);
+static unsigned int pool_batch_size = POOL_INITIAL_BATCH_SIZE;
 static unsigned int release_pool_size;
 
 typedef QSLIST_HEAD(, Coroutine) CoroutineQSList;
@@ -55,7 +57,7 @@ Coroutine *qemu_coroutine_create(CoroutineEntry *entry, void *opaque)
 
         co = QSLIST_FIRST(alloc_pool);
         if (!co) {
-            if (release_pool_size > POOL_BATCH_SIZE) {
+            if (release_pool_size > qatomic_read(&pool_batch_size)) {
                 /* Slow path; a good place to register the destructor, too.  */
                 Notifier *notifier = get_ptr_coroutine_pool_cleanup_notifier();
                 if (!notifier->notify) {
@@ -93,12 +95,12 @@ static void coroutine_delete(Coroutine *co)
     co->caller = NULL;
 
     if (CONFIG_COROUTINE_POOL) {
-        if (release_pool_size < POOL_BATCH_SIZE * 2) {
+        if (release_pool_size < qatomic_read(&pool_batch_size) * 2) {
             QSLIST_INSERT_HEAD_ATOMIC(&release_pool, co, pool_next);
             qatomic_inc(&release_pool_size);
             return;
         }
-        if (get_alloc_pool_size() < POOL_BATCH_SIZE) {
+        if (get_alloc_pool_size() < qatomic_read(&pool_batch_size)) {
             QSLIST_INSERT_HEAD(get_ptr_alloc_pool(), co, pool_next);
             set_alloc_pool_size(get_alloc_pool_size() + 1);
             return;
@@ -208,4 +210,14 @@ bool qemu_coroutine_entered(Coroutine *co)
 AioContext *coroutine_fn qemu_coroutine_get_aio_context(Coroutine *co)
 {
     return co->ctx;
+}
+
+void qemu_coroutine_increase_pool_batch_size(unsigned int additional_pool_size)
+{
+    qatomic_add(&pool_batch_size, additional_pool_size);
+}
+
+void qemu_coroutine_decrease_pool_batch_size(unsigned int removing_pool_size)
+{
+    qatomic_sub(&pool_batch_size, removing_pool_size);
 }
