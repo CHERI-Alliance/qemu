@@ -31,6 +31,7 @@
 #include "sysemu/replay.h"
 #include "qemu/main-loop.h"
 #include "qemu/guest-random.h"
+#include "qemu/log.h"
 #include "exec/exec-all.h"
 
 #include "tcg-accel-ops.h"

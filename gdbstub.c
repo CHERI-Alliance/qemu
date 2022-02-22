@@ -29,6 +29,7 @@
 #include "qemu/error-report.h"
 #include "qemu/ctype.h"
 #include "qemu/cutils.h"
+#include "qemu/log.h"
 #include "qemu/module.h"
 #include "trace/trace-root.h"
 #include "exec/gdbstub.h"
