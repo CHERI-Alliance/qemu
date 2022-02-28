@@ -967,8 +967,6 @@ int cpu_exec(CPUState *cpu)
     /* prepare setjmp context for exception handling */
     if (sigsetjmp(cpu->jmp_env, 0) != 0) {
 
-        cheri_tag_locks_exception_thrown(cpu);
-
 #if defined(__clang__)
         /* Some compilers wrongly smash all local variables after
          * siglongjmp. There were bug reports for gcc 4.5.0 and clang.
@@ -987,6 +985,9 @@ int cpu_exec(CPUState *cpu)
             mmap_unlock();
         }
 #endif
+
+        cheri_tag_locks_exception_thrown(cpu);
+
         if (qemu_mutex_iothread_locked()) {
             qemu_mutex_unlock_iothread();
         }
