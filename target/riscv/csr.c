@@ -2603,6 +2603,8 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_MIMPID] =              CSR_OP_FN_R(any, read_zero, "mimppid"),
     [CSR_MHARTID] =             CSR_OP_R(any, mhartid),
 
+    [CSR_MCONFIGPTR]  = { "mconfigptr", any,   read_zero,
+                                        .min_priv_ver = PRIV_VERSION_1_12_0 },
     /* Machine Trap Setup */
     [CSR_MSTATUS] =             CSR_OP_RW(any, mstatus),
     [CSR_MISA] =                CSR_OP_RW(any, misa),
