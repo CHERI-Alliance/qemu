@@ -343,6 +343,7 @@ struct CPURISCVState {
     target_ulong upmmask;
     target_ulong upmbase;
 
+    /* CSRs for execution enviornment configuration */
     uint64_t menvcfg;
     target_ulong senvcfg;
     uint64_t henvcfg;

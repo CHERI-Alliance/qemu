@@ -916,6 +916,101 @@ static RISCVException write_mtval(CPURISCVState *env, int csrno,
     return RISCV_EXCP_NONE;
 }
 
+/* Execution environment configuration setup */
+static RISCVException read_menvcfg(CPURISCVState *env, int csrno,
+                                 target_ulong *val)
+{
+    *val = env->menvcfg;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_menvcfg(CPURISCVState *env, int csrno,
+                                  target_ulong val)
+{
+    uint64_t mask = MENVCFG_FIOM | MENVCFG_CBIE | MENVCFG_CBCFE | MENVCFG_CBZE | MENVCFG_CRE;
+
+    if (riscv_cpu_mxl(env) == MXL_RV64) {
+        mask |= MENVCFG_PBMTE | MENVCFG_STCE;
+    }
+    env->menvcfg = (env->menvcfg & ~mask) | (val & mask);
+
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException read_menvcfgh(CPURISCVState *env, int csrno,
+                                 target_ulong *val)
+{
+    *val = env->menvcfg >> 32;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_menvcfgh(CPURISCVState *env, int csrno,
+                                  target_ulong val)
+{
+    uint64_t mask = MENVCFG_PBMTE | MENVCFG_STCE;
+    uint64_t valh = (uint64_t)val << 32;
+
+    env->menvcfg = (env->menvcfg & ~mask) | (valh & mask);
+
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException read_senvcfg(CPURISCVState *env, int csrno,
+                                 target_ulong *val)
+{
+    *val = env->senvcfg;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_senvcfg(CPURISCVState *env, int csrno,
+                                  target_ulong val)
+{
+    uint64_t mask = SENVCFG_FIOM | SENVCFG_CBIE | SENVCFG_CBCFE | SENVCFG_CBZE | SENVCFG_CRE;
+
+    env->senvcfg = (env->senvcfg & ~mask) | (val & mask);
+
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException read_henvcfg(CPURISCVState *env, int csrno,
+                                 target_ulong *val)
+{
+    *val = env->henvcfg;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_henvcfg(CPURISCVState *env, int csrno,
+                                  target_ulong val)
+{
+    uint64_t mask = HENVCFG_FIOM | HENVCFG_CBIE | HENVCFG_CBCFE | HENVCFG_CBZE | HENVCFG_CRE;
+
+    if (riscv_cpu_mxl(env) == MXL_RV64) {
+        mask |= HENVCFG_PBMTE | HENVCFG_STCE;
+    }
+
+    env->henvcfg = (env->henvcfg & ~mask) | (val & mask);
+
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException read_henvcfgh(CPURISCVState *env, int csrno,
+                                 target_ulong *val)
+{
+    *val = env->henvcfg >> 32;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_henvcfgh(CPURISCVState *env, int csrno,
+                                  target_ulong val)
+{
+    uint64_t mask = HENVCFG_PBMTE | HENVCFG_STCE;
+    uint64_t valh = (uint64_t)val << 32;
+
+    env->henvcfg = (env->henvcfg & ~mask) | (valh & mask);
+
+    return RISCV_EXCP_NONE;
+}
+
 static RISCVException rmw_mip(CPURISCVState *env, int csrno,
                               target_ulong *ret_value,
                               target_ulong new_value, target_ulong write_mask)
@@ -1519,34 +1614,6 @@ static RISCVException write_mtinst(CPURISCVState *env, int csrno,
                                    target_ulong val)
 {
     env->mtinst = val;
-    return RISCV_EXCP_NONE;
-}
-
-static RISCVException read_menvcfg(CPURISCVState *env, int csrno,
-                                   target_ulong *val)
-{
-    *val = env->menvcfg;
-    return RISCV_EXCP_NONE;
-}
-
-static RISCVException write_menvcfg(CPURISCVState *env, int csrno,
-                                    target_ulong val)
-{
-    env->menvcfg = val;
-    return RISCV_EXCP_NONE;
-}
-
-static RISCVException read_senvcfg(CPURISCVState *env, int csrno,
-                                   target_ulong *val)
-{
-    *val = env->senvcfg;
-    return RISCV_EXCP_NONE;
-}
-
-static RISCVException write_senvcfg(CPURISCVState *env, int csrno,
-                                    target_ulong val)
-{
-    env->senvcfg = val;
     return RISCV_EXCP_NONE;
 }
 
@@ -2631,6 +2698,13 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_MTVAL] =               CSR_OP_RW(any, mtval),
     [CSR_MIP] =                 CSR_OP_RMW(any, mip),
 
+    /* Execution environment configuration */
+    [CSR_MENVCFG]  =            CSR_OP_RW_PRIV(any, menvcfg, 1_12_0),
+    [CSR_MENVCFGH] =            CSR_OP_RW_PRIV(any32, menvcfgh, 1_12_0),
+    [CSR_SENVCFG]  =            CSR_OP_RW_PRIV(smode, senvcfg, 1_12_0),
+    [CSR_HENVCFG]  =            CSR_OP_RW_PRIV(hmode, henvcfg, 1_12_0),
+    [CSR_HENVCFGH] =            CSR_OP_RW_PRIV(hmode32, henvcfgh, 1_12_0),
+
     /* Supervisor Trap Setup */
     [CSR_SSTATUS] =             CSR_OP_RW(smode, sstatus),
     [CSR_SIE] =                 CSR_OP_RW(smode, sie),
@@ -2693,8 +2767,6 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_MCCSR] =               CSR_OP_FN_RW(any, read_ccsr, write_ccsr, "mccsr"),
 #endif
 
-    [CSR_SENVCFG] =             CSR_OP_RW(any, senvcfg),
-    [CSR_MENVCFG] =             CSR_OP_RW(any, menvcfg),
     /* Physical Memory Protection */
     [CSR_MSECCFG] =             CSR_OP_RW_PRIV(epmp_or_cheri093, mseccfg,1_12_0),
     [CSR_PMPCFG0]    = CSR_OP_FN_RW(pmp, read_pmpcfg, write_pmpcfg, "pmpcfg0"),
