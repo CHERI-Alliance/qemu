@@ -2481,28 +2481,49 @@ static void log_changed_csr_fn(CPURISCVState *env, int csrno,
 #define log_changed_csr_fn (NULL)
 #endif
 
+/* Internal use only */
+#define _CSR_OP_FN_RW(pred, readfn, writefn, logfn, csr_name, priv)    \
+    {.predicate=pred, .read=readfn, .write=writefn,                \
+     .op=NULL, .log_update=logfn, .name=csr_name,                      \
+     .min_priv_ver = priv}
+
 /* Define csr_ops entry for read-only CSR register */
-#define CSR_OP_FN_R(pred, readfn, csr_name)                        \
-    {.predicate=pred, .read=readfn, .write=NULL, .op=NULL,         \
-     .log_update=NULL, .name=csr_name}
+#define CSR_OP_FN_R(pred, readfn, name)                            \
+    _CSR_OP_FN_RW(pred, readfn, NULL, NULL, name, 0)
+
+#define CSR_OP_FN_R_PRIV(pred, readfn, name, priv)                 \
+    _CSR_OP_FN_RW(pred, readfn, NULL, NULL, name,                  \
+                  glue(PRIV_VERSION_, priv))
 
 /* Shorthand for functions following the read_<csr> pattern */
 #define CSR_OP_R(pred, name)                                    \
     CSR_OP_FN_R(pred, glue(read_, name), stringify(name))
 
-/* Internal - use CSR_OP_FN_RW, CSR_OP_RW and CSR_OP_NOLOG_RW */
-#define _CSR_OP_FN_RW(pred, readfn, writefn, logfn, csr_name)      \
-    {.predicate=pred, .read=readfn, .write=writefn,                \
-     .op=NULL, .log_update=logfn, .name=csr_name}
+/* Shorthand for functions following the read_<csr> pattern
+ * but which need to specify the privilage spec version. */
+#define CSR_OP_R_PRIV(pred, name, priv)                            \
+    _CSR_OP_FN_RW(pred, glue(read_, name), NULL, NULL,             \
+                  stringify(name), glue(PRIV_VERSION_, priv))
 
 /* Define csr_ops entry for read-write CSR register */
 #define CSR_OP_FN_RW(pred, readfn, writefn, name)                  \
-    _CSR_OP_FN_RW(pred, readfn, writefn, log_changed_csr_fn, name)
+    _CSR_OP_FN_RW(pred, readfn, writefn, log_changed_csr_fn, name, 0)
+
+#define CSR_OP_FN_RW_PRIV(pred, readfn, writefn, name, priv)       \
+    _CSR_OP_FN_RW(pred, readfn, writefn, log_changed_csr_fn, name, \
+                  glue(PRIV_VERSION_, priv))
 
 /* Shorthand for functions following the read/write_<csr> pattern */
 #define CSR_OP_RW(pred, name)                                      \
     CSR_OP_FN_RW(pred, glue(read_, name), glue(write_, name),      \
                  stringify(name))
+
+/* Shorthand for functions following the read/write_<csr> pattern
+ * but which need to specify the privilage spec version */
+#define CSR_OP_RW_PRIV(pred, name, priv)                            \
+    _CSR_OP_FN_RW(pred, glue(read_, name), glue(write_, name),      \
+                  log_changed_csr_fn, stringify(name),              \
+                  glue(PRIV_VERSION_, priv))
 
 /*
  * Shorthand for functions following the read/write_<csr> pattern,
@@ -2510,9 +2531,15 @@ static void log_changed_csr_fn(CPURISCVState *env, int csrno,
  */
 #define CSR_OP_NOLOG_RW(pred, name)                                \
     _CSR_OP_FN_RW(pred, glue(read_, name), glue(write_, name),     \
-                  NULL, stringify(name))
+                  NULL, stringify(name), 0)
 
-#define CSR_OP_NOLOG_FN_RW(pred, readfn, writefn, name)         \
+#define CSR_OP_RMW_PRIV(pred, csr_name, priv)                          \
+    {.predicate=pred, .read=NULL, .write=NULL,                     \
+     .op=glue(rmw_, csr_name), .log_update=log_changed_csr_fn,         \
+     .name=stringify(csr_name),                                    \
+     .min_priv_ver = glue(PRIV_VERSION_, priv)}
+
+#define CSR_OP_NOLOG_FN_RW(pred, readfn, writefn, name)            \
     _CSR_OP_FN_RW(pred, readfn, writefn, NULL, stringify(name))
 
 /* Define csr_ops entry for read-modify-write CSR register */
@@ -2529,11 +2556,11 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_FCSR] =                CSR_OP_RW(fs, fcsr),
 
     /* Vector CSRs */
-    [CSR_VSTART] =              CSR_OP_RW(vs, vstart),
-    [CSR_VXSAT] =               CSR_OP_RW(vs, vxsat),
-    [CSR_VXRM] =                CSR_OP_RW(vs, vxrm),
-    [CSR_VL] =                  CSR_OP_R(vs, vl),
-    [CSR_VTYPE] =               CSR_OP_R(vs, vtype),
+    [CSR_VSTART] =              CSR_OP_RW_PRIV(vs, vstart, 1_12_0),
+    [CSR_VXSAT] =               CSR_OP_RW_PRIV(vs, vxsat, 1_12_0),
+    [CSR_VXRM] =                CSR_OP_RW_PRIV(vs, vxrm, 1_12_0),
+    [CSR_VL] =                  CSR_OP_R_PRIV(vs, vl, 1_12_0),
+    [CSR_VTYPE] =               CSR_OP_R_PRIV(vs, vtype, 1_12_0),
     /* User Timers and Counters */
     [CSR_CYCLE] =               CSR_OP_FN_R(ctr, read_instret, "cycle"),
     [CSR_INSTRET] =             CSR_OP_FN_R(ctr, read_instret, "instret"),
@@ -2594,37 +2621,37 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     /* Supervisor Protection and Translation */
     [CSR_SATP] =                CSR_OP_RW(smode, satp),
 
-    [CSR_HSTATUS] =             CSR_OP_RW(hmode, hstatus),
-    [CSR_HEDELEG] =             CSR_OP_RW(hmode, hedeleg),
-    [CSR_HIDELEG] =             CSR_OP_RW(hmode, hideleg),
-    [CSR_HVIP] =                CSR_OP_RMW(hmode, hvip),
-    [CSR_HIP] =                 CSR_OP_RMW(hmode, hip),
-    [CSR_HIE] =                 CSR_OP_RW(hmode, hie),
-    [CSR_HCOUNTEREN] =          CSR_OP_RW(hmode, hcounteren),
-    [CSR_HGEIE] =               CSR_OP_FN_RW(hmode, read_zero, write_hgeie, "hgeie"),
-    [CSR_HTVAL] =               CSR_OP_RW(hmode, htval),
-    [CSR_HTINST] =              CSR_OP_RW(hmode, htinst),
-    [CSR_HGEIP] =               CSR_OP_FN_RW(hmode, read_zero, write_hgeip, "hgeip"),
-    [CSR_HGATP] =               CSR_OP_RW(hmode, hgatp),
-    [CSR_HTIMEDELTA] =          CSR_OP_RW(hmode, htimedelta),
-    [CSR_HTIMEDELTAH] =         CSR_OP_RW(hmode32, htimedeltah),
+    [CSR_HSTATUS] =             CSR_OP_RW_PRIV(hmode, hstatus, 1_12_0),
+    [CSR_HEDELEG] =             CSR_OP_RW_PRIV(hmode, hedeleg, 1_12_0),
+    [CSR_HIDELEG] =             CSR_OP_RW_PRIV(hmode, hideleg, 1_12_0),
+    [CSR_HVIP] =                CSR_OP_RMW_PRIV(hmode, hvip, 1_12_0),
+    [CSR_HIP] =                 CSR_OP_RMW_PRIV(hmode, hip, 1_12_0),
+    [CSR_HIE] =                 CSR_OP_RW_PRIV(hmode, hie, 1_12_0),
+    [CSR_HCOUNTEREN] =          CSR_OP_RW_PRIV(hmode, hcounteren, 1_12_0),
+    [CSR_HGEIE] =               CSR_OP_FN_RW_PRIV(hmode, read_zero, write_hgeie, "hgeie", 1_12_0),
+    [CSR_HTVAL] =               CSR_OP_RW_PRIV(hmode, htval, 1_12_0),
+    [CSR_HTINST] =              CSR_OP_RW_PRIV(hmode, htinst, 1_12_0),
+    [CSR_HGEIP] =               CSR_OP_FN_RW_PRIV(hmode, read_zero, write_hgeip, "hgeip", 1_12_0),
+    [CSR_HGATP] =               CSR_OP_RW_PRIV(hmode, hgatp, 1_12_0),
+    [CSR_HTIMEDELTA] =          CSR_OP_RW_PRIV(hmode, htimedelta, 1_12_0),
+    [CSR_HTIMEDELTAH] =         CSR_OP_RW_PRIV(hmode32, htimedeltah, 1_12_0),
 
-    [CSR_VSSTATUS] =            CSR_OP_RW(hmode, vsstatus),
-    [CSR_VSIP] =                CSR_OP_RMW(hmode, vsip),
-    [CSR_VSIE] =                CSR_OP_RW(hmode, vsie),
-    [CSR_VSTVEC] =              CSR_OP_RW(hmode, vstvec),
-    [CSR_VSSCRATCH] =           CSR_OP_RW(hmode, vsscratch),
-    [CSR_VSEPC] =               CSR_OP_RW(hmode, vsepc),
-    [CSR_VSCAUSE] =             CSR_OP_RW(hmode, vscause),
-    [CSR_VSTVAL] =              CSR_OP_RW(hmode, vstval),
-    [CSR_VSATP] =               CSR_OP_RW(hmode, vsatp),
+    [CSR_VSSTATUS] =            CSR_OP_RW_PRIV(hmode, vsstatus, 1_12_0),
+    [CSR_VSIP] =                CSR_OP_RMW_PRIV(hmode, vsip, 1_12_0),
+    [CSR_VSIE] =                CSR_OP_RW_PRIV(hmode, vsie, 1_12_0),
+    [CSR_VSTVEC] =              CSR_OP_RW_PRIV(hmode, vstvec, 1_12_0),
+    [CSR_VSSCRATCH] =           CSR_OP_RW_PRIV(hmode, vsscratch, 1_12_0),
+    [CSR_VSEPC] =               CSR_OP_RW_PRIV(hmode, vsepc, 1_12_0),
+    [CSR_VSCAUSE] =             CSR_OP_RW_PRIV(hmode, vscause, 1_12_0),
+    [CSR_VSTVAL] =              CSR_OP_RW_PRIV(hmode, vstval, 1_12_0),
+    [CSR_VSATP] =               CSR_OP_RW_PRIV(hmode, vsatp, 1_12_0),
 
 #ifdef TARGET_CHERI_RISCV_STD_093
-    [CSR_MTVAL2] =              CSR_OP_RW(any, mtval2),
+    [CSR_MTVAL2] =              CSR_OP_RW_PRIV(any, mtval2, 1_12_0),
 #else
-    [CSR_MTVAL2] =              CSR_OP_RW(hmode, mtval2),
+    [CSR_MTVAL2] =              CSR_OP_RW_PRIV(hmode, mtval2, 1_12_0),
 #endif
-    [CSR_MTINST] =              CSR_OP_RW(hmode, mtinst),
+    [CSR_MTINST] =              CSR_OP_RW_PRIV(hmode, mtinst, 1_12_0),
 
 #ifdef TARGET_CHERI_RISCV_STD_093
     [CSR_STVAL2] =              CSR_OP_RW(any, stval2),
@@ -2643,7 +2670,7 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_SENVCFG] =             CSR_OP_RW(any, senvcfg),
     [CSR_MENVCFG] =             CSR_OP_RW(any, menvcfg),
     /* Physical Memory Protection */
-    [CSR_MSECCFG] =             CSR_OP_RW(epmp_or_cheri093, mseccfg),
+    [CSR_MSECCFG] =             CSR_OP_RW_PRIV(epmp_or_cheri093, mseccfg,1_12_0),
     [CSR_PMPCFG0]    = CSR_OP_FN_RW(pmp, read_pmpcfg, write_pmpcfg, "pmpcfg0"),
     [CSR_PMPCFG1]    = CSR_OP_FN_RW(pmp, read_pmpcfg, write_pmpcfg, "pmpcfg1"),
     [CSR_PMPCFG2]    = CSR_OP_FN_RW(pmp, read_pmpcfg, write_pmpcfg, "pmpcfg2"),
