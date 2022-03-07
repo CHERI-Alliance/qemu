@@ -161,7 +161,7 @@ void do_raise_exception_err(CPUMIPSState *env, MipsExcp exception,
     cpu_loop_exit_restore(cs, pc);
 }
 
-void helper_check_breakcount(struct CPUMIPSState* env)
+void helper_check_breakcount(CPUArchState *env)
 {
     CPUState *cs = env_cpu(env);
     /* Decrement the startup breakcount, if set. */

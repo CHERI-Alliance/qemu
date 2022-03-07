@@ -14,6 +14,7 @@
 #include "exec/log_instr.h"
 #include "tcg/tcg-internal.h"
 #endif
+#include "cpu.h"
 
 
 /*
@@ -165,14 +166,14 @@ struct r4k_tlb_t {
 struct CPUMIPSTLBContext {
     uint32_t nb_tlb;
     uint32_t tlb_in_use;
-    int (*map_address)(struct CPUMIPSState *env, hwaddr *physical, int *prot,
+    int (*map_address)(CPUMIPSState *env, hwaddr *physical, int *prot,
                        target_ulong address, MMUAccessType access_type);
-    void (*helper_tlbwi)(struct CPUMIPSState *env, uintptr_t retpc);
-    void (*helper_tlbwr)(struct CPUMIPSState *env, uintptr_t retpc);
-    void (*helper_tlbp)(struct CPUMIPSState *env);
-    void (*helper_tlbr)(struct CPUMIPSState *env);
-    void (*helper_tlbinv)(struct CPUMIPSState *env);
-    void (*helper_tlbinvf)(struct CPUMIPSState *env);
+    void (*helper_tlbwi)(CPUMIPSState *env, uintptr_t retpc);
+    void (*helper_tlbwr)(CPUMIPSState *env, uintptr_t retpc);
+    void (*helper_tlbp)(CPUMIPSState *env);
+    void (*helper_tlbr)(CPUMIPSState *env);
+    void (*helper_tlbinv)(CPUMIPSState *env);
+    void (*helper_tlbinvf)(CPUMIPSState *env);
     union {
         struct {
             r4k_tlb_t tlb[MIPS_TLB_MAX];
@@ -315,7 +316,7 @@ static inline int mips_vp_active(CPUMIPSState *env)
     return 1;
 }
 
-static inline bool can_access_cp0(CPUMIPSState* env) {
+static inline bool can_access_cp0(CPUArchState *env) {
     if (((env->CP0_Status & (1 << CP0St_CU0)) &&
         !(env->insn_flags & ISA_MIPS_R6)) ||
         !(env->hflags & MIPS_HFLAG_KSU)) {
@@ -331,7 +332,7 @@ static inline bool can_access_cp0(CPUMIPSState* env) {
     return false;
 }
 
-static inline void update_cp0_access_for_pc(CPUMIPSState* env) {
+static inline void update_cp0_access_for_pc(CPUArchState *env) {
     if (can_access_cp0(env)) {
         if ((env->hflags & MIPS_HFLAG_CP0) == 0) {
             qemu_maybe_log_instr_extra(env, "%s: restoring access to CP0 since "

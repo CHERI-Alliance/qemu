@@ -256,7 +256,7 @@ typedef struct CPUARMTBFlags {
     target_ulong flags2;
 } CPUARMTBFlags;
 
-typedef struct CPUARMState {
+typedef struct CPUArchState {
     /* Regs for current mode.  */
     uint32_t regs[16];
 
@@ -859,7 +859,7 @@ typedef struct ARMISARegisters ARMISARegisters;
  *
  * An ARM CPU core.
  */
-struct ARMCPU {
+struct ArchCPU {
     /*< private >*/
     CPUState parent_obj;
     /*< public >*/
@@ -3614,9 +3614,6 @@ static inline bool arm_cpu_data_is_big_endian(CPUARMState *env)
         return arm_cpu_data_is_big_endian_a64(cur_el, sctlr);
     }
 }
-
-typedef CPUARMState CPUArchState;
-typedef ARMCPU ArchCPU;
 
 #include "exec/cpu-all.h"
 #include "exec/log_instr.h"

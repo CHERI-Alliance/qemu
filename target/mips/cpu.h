@@ -584,8 +584,7 @@ enum CP2HWR {
 #endif
 
 struct MIPSITUState;
-typedef struct CPUMIPSState CPUMIPSState;
-struct CPUMIPSState {
+typedef struct CPUArchState {
     TCState active_tc;
     CPUMIPSFPUContext active_fpu;
 
@@ -1297,7 +1296,7 @@ struct CPUMIPSState {
     QEMUTimer *timer; /* Internal timer */
     target_ulong exception_base; /* ExceptionBase input to the core */
     uint64_t cp0_count_ns; /* CP0_Count clock period (in nanoseconds) */
-};
+} CPUMIPSState;
 
 /**
  * MIPSCPU:
@@ -1308,7 +1307,7 @@ struct CPUMIPSState {
  *
  * A MIPS CPU.
  */
-struct MIPSCPU {
+struct ArchCPU {
     /*< private >*/
     CPUState parent_obj;
     /*< public >*/
@@ -1352,9 +1351,6 @@ static inline int cpu_mmu_index(CPUMIPSState *env, bool ifetch)
 {
     return hflags_mmu_index(env->hflags);
 }
-
-typedef CPUMIPSState CPUArchState;
-typedef MIPSCPU ArchCPU;
 
 #include "exec/cpu-all.h"
 #include "cpu_cheri.h"

@@ -26,6 +26,7 @@
 #include "internal.h"
 #ifdef TARGET_CHERI
 #include "cheri_utils.h"
+#include "qemu/timer.h"
 #endif
 #include "kvm_mips.h"
 #include "qemu/error-report.h"

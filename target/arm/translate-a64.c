@@ -262,7 +262,7 @@ static void gen_a64_set_link_register(DisasContext *s)
 
     if (c64) {
         // Move PCC to 30
-        gen_move_cap_gp_sp(s, 30, offsetof(struct CPUARMState, pc));
+        gen_move_cap_gp_sp(s, 30, offsetof(CPUArchState, pc));
         if (cctlr_set(s, CCTLR_SBL)) {
             // Need to seal as well
             gen_cap_set_type_const(s, 30, CAP_OTYPE_SENTRY, false);

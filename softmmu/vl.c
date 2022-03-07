@@ -21,8 +21,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include CONFIG_TARGET
-
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu/datadir.h"
@@ -182,12 +180,9 @@ static const char *watchdog;
 static const char *qtest_chrdev;
 static const char *qtest_log;
 
-#ifdef TARGET_CHERI
-#include "target/cheri-common/cheri_defs.h"
 bool cheri_c2e_on_unrepresentable = false;
 bool cheri_debugger_on_unrepresentable = false;
 bool cheri_debugger_on_trap = false;
-#endif
 static uint64_t cl_breakpoint = 0L;
 static uint64_t cl_breakcount = 0L;
 
@@ -889,19 +884,6 @@ static void version(void)
 #ifdef CHERI_UNALIGNED
     printf("Built with support for unaligned loads/stores\n");
 #endif
-#ifdef TARGET_CHERI
-#ifdef TARGET_MIPS64
-    printf("Compiled for MIPS64 (with CHERI)\n");
-#elif defined(TARGET_RISCV32)
-    printf("Compiled for RISCV32 (with CHERI)\n");
-#elif defined(TARGET_RISCV64)
-    printf("Compiled for RISCV64 (with CHERI)\n");
-#elif defined(TARGET_AARCH64)
-    printf("Compiled for AARCH64 (with CHERI)\n");
-#else
-#error "INVALID CHERI target"
-#endif
-#endif  // TARGET_CHERI
 #if defined(CONFIG_TCG_LOG_INSTR)
     printf("Built with instruction logging enabled\n");
 #endif
@@ -2520,13 +2502,8 @@ static void create_default_memdev(MachineState *ms, const char *path)
         object_property_set_str(obj, "mem-path", path, &error_fatal);
     }
     object_property_set_int(obj, "size", ms->ram_size, &error_fatal);
-#ifdef TARGET_CHERI
-    // Possibly this should be inherited from ms, but I doubt any CHERI
-    // platform would not have a tagged default memdev
+    /* FIXME: should only turn this on for CHERI machines */
     object_property_set_bool(obj, "cheri-tags", true, &error_fatal);
-#else
-    object_property_set_bool(obj, "cheri-tags", false, &error_fatal);
-#endif
     object_property_add_child(object_get_objects_root(), mc->default_ram_id,
                               obj);
     /* Ensure backend's memory region name is equal to mc->default_ram_id */
@@ -2930,10 +2907,7 @@ void qemu_init(int argc, char **argv, char **envp)
     error_init(argv[0]);
     qemu_init_exec_dir(argv[0]);
 
-#ifdef CONFIG_MODULES
-    module_init_info(qemu_modinfo);
-    module_allow_arch(TARGET_NAME);
-#endif
+    qemu_init_arch_modules();
 
     qemu_init_subsystems();
 
@@ -3635,8 +3609,6 @@ void qemu_init(int argc, char **argv, char **envp)
                 qemu_log_instr_set_buffer_size(strtoul(optarg, NULL, 0));
                 break;
 #endif /* CONFIG_TCG_LOG_INSTR */
-
-#ifdef TARGET_CHERI
             case QEMU_OPTION_cheri_c2e_on_unrepresentable:
                 cheri_c2e_on_unrepresentable = true;
                 break;
@@ -3646,7 +3618,6 @@ void qemu_init(int argc, char **argv, char **envp)
             case QEMU_OPTION_cheri_debugger_on_trap:
                 cheri_debugger_on_trap = true;
                 break;
-#endif /* TARGET_CHERI */
 #ifdef CONFIG_RVFI_DII
             case QEMU_OPTION_rvfi_dii_debug:
                 rvfi_debug_output = true;

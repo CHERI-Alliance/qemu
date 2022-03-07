@@ -435,7 +435,7 @@ static void cpu_exec_exit(CPUState *cpu)
 
 void cpu_exec_step_atomic(CPUState *cpu)
 {
-    CPUArchState *env = (CPUArchState *)cpu->env_ptr;
+    CPUArchState *env = cpu->env_ptr;
     TranslationBlock *tb;
     target_ulong cs_base, pcc_base = 0, pcc_top = 0, pc;
     uint32_t cheri_flags = 0;
@@ -553,7 +553,7 @@ TranslationBlock *tb_htable_lookup(CPUState *cpu, target_ulong pc,
     struct tb_desc desc;
     uint32_t h;
 
-    desc.env = (CPUArchState *)cpu->env_ptr;
+    desc.env = cpu->env_ptr;
     desc.cs_base = cs_base;
     desc.pcc_base = pcc_base;
     desc.pcc_top = pcc_top;

@@ -23,6 +23,7 @@
 #include "cpu.h"
 #include "qemu/main-loop.h"
 #include "exec/exec-all.h"
+#include "sysemu/cpu-timers.h"
 #include "exec/log_instr.h"
 #ifdef TARGET_CHERI
 #include "cheri-helper-utils.h"

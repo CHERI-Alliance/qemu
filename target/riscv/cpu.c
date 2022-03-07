@@ -776,8 +776,8 @@ static void riscv_debug_excp_handler(CPUState *cs)
      * Also happens for singlestep events
      */
 #ifdef CONFIG_RVFI_DII
-    struct RISCVCPU *cpu = RISCV_CPU(cs);
-    struct CPURISCVState *env = &cpu->env;
+    ArchCPU *cpu = RISCV_CPU(cs);
+    CPUArchState *env = &cpu->env;
     if (rvfi_client_fd && cs->singlestep_enabled) {
         rvfi_dii_communicate(cs, env, false);
         return;
