@@ -6,21 +6,12 @@ fsdev_ss.add(when: ['CONFIG_FSDEV_9P'], if_true: files(
   '9p-marshal.c',
   'qemu-fsdev.c',
 ), if_false: files('qemu-fsdev-dummy.c'))
-
-if host_machine.system() == 'darwin' or host_machine.system() == 'linux'
-  softmmu_ss.add_all(fsdev_ss)
-endif
+softmmu_ss.add_all(when: 'CONFIG_LINUX', if_true: fsdev_ss)
+softmmu_ss.add_all(when: 'CONFIG_DARWIN', if_true: fsdev_ss)
 
 if have_virtfs_proxy_helper
-  virtfs_proxy_helper_extra_sources = []
-  if host_machine.system() == 'darwin'
-    virtfs_proxy_helper_extra_sources = files('../hw/9pfs/9p-util-darwin.c')
-  elif host_machine.system() == 'linux'
-    virtfs_proxy_helper_extra_sources = files('../hw/9pfs/9p-util-linux.c')
-  endif
-  virtfs_prox_helper_sources = files('virtfs-proxy-helper.c', '9p-marshal.c', '9p-iov-marshal.c')
   executable('virtfs-proxy-helper',
-             virtfs_prox_helper_sources + virtfs_proxy_helper_extra_sources,
+             files('virtfs-proxy-helper.c', '9p-marshal.c', '9p-iov-marshal.c'),
              dependencies: [qemuutil, libattr, libcap_ng],
              install: true,
              install_dir: get_option('libexecdir'))

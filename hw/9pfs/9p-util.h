@@ -36,12 +36,6 @@ static inline int qemu_lsetxattr(const char *path, const char *name,
 #define qemu_lsetxattr lsetxattr
 #endif
 
-/* Compatibility with old SDK Versions for Darwin */
-#if defined(CONFIG_DARWIN) && !defined(UTIME_NOW)
-#define UTIME_NOW -1
-#define UTIME_OMIT -2
-#endif
-
 static inline void close_preserve_errno(int fd)
 {
     int serrno = errno;
@@ -60,13 +54,13 @@ static inline int openat_file(int dirfd, const char *name, int flags,
 {
     int fd, serrno, ret;
 
-#ifdef O_NOATIME
+#ifndef CONFIG_DARWIN
 again:
 #endif
     fd = openat(dirfd, name, flags | O_NOFOLLOW | O_NOCTTY | O_NONBLOCK,
                 mode);
     if (fd == -1) {
-#ifdef O_NOATIME
+#ifndef CONFIG_DARWIN
         if (errno == EPERM && (flags & O_NOATIME)) {
             /*
              * The client passed O_NOATIME but we lack permissions to honor it.
@@ -104,9 +98,62 @@ ssize_t flistxattrat_nofollow(int dirfd, const char *filename,
                               char *list, size_t size);
 ssize_t fremovexattrat_nofollow(int dirfd, const char *filename,
                                 const char *name);
-int utimensat_nofollow(int dirfd, const char *filename,
-                       const struct timespec times[2]);
 
+/*
+ * Darwin has d_seekoff, which appears to function similarly to d_off.
+ * However, it does not appear to be supported on all file systems,
+ * so ensure it is manually injected earlier and call here when
+ * needed.
+ */
+static inline off_t qemu_dirent_off(struct dirent *dent)
+{
+#ifdef CONFIG_DARWIN
+    return dent->d_seekoff;
+#else
+    return dent->d_off;
+#endif
+}
+
+/**
+ * qemu_dirent_dup() - Duplicate directory entry @dent.
+ *
+ * @dent: original directory entry to be duplicated
+ * Return: duplicated directory entry which should be freed with g_free()
+ *
+ * It is highly recommended to use this function instead of open coding
+ * duplication of dirent objects, because the actual struct dirent
+ * size may be bigger or shorter than sizeof(struct dirent) and correct
+ * handling is platform specific (see gitlab issue #841).
+ */
+static inline struct dirent *qemu_dirent_dup(struct dirent *dent)
+{
+    size_t sz = 0;
+#if defined _DIRENT_HAVE_D_RECLEN
+    /* Avoid use of strlen() if platform supports d_reclen. */
+    sz = dent->d_reclen;
+#endif
+    /*
+     * Test sz for zero even if d_reclen is available
+     * because some drivers may set d_reclen to zero.
+     */
+    if (sz == 0) {
+        /* Fallback to the most portable way. */
+        sz = offsetof(struct dirent, d_name) +
+                      strlen(dent->d_name) + 1;
+    }
+    return g_memdup(dent, sz);
+}
+
+/*
+ * As long as mknodat is not available on macOS, this workaround
+ * using pthread_fchdir_np is needed. qemu_mknodat is defined in
+ * os-posix.c. pthread_fchdir_np is weakly linked here as a guard
+ * in case it disappears in future macOS versions, because it is
+ * is a private API.
+ */
+#if defined CONFIG_DARWIN && defined CONFIG_PTHREAD_FCHDIR_NP
+int pthread_fchdir_np(int fd) __attribute__((weak_import));
+#endif
 int qemu_mknodat(int dirfd, const char *filename, mode_t mode, dev_t dev);
 
 #endif

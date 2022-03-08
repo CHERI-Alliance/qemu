@@ -61,12 +61,7 @@ int fsetxattrat_nofollow(int dirfd, const char *filename, const char *name,
     ret = lsetxattr(proc_path, name, value, size, flags);
     g_free(proc_path);
     return ret;
-}
 
-int utimensat_nofollow(int dirfd, const char *filename,
-                       const struct timespec times[2])
-{
-    return utimensat(dirfd, filename, times, AT_SYMLINK_NOFOLLOW);
 }
 
 int qemu_mknodat(int dirfd, const char *filename, mode_t mode, dev_t dev)

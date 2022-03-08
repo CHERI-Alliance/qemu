@@ -19,7 +19,7 @@
 #include "qemu/coroutine.h"
 #include "9p.h"
 
-/**
+/*
  * we want to use bottom half because we want to make sure the below
  * sequence of events.
  *
@@ -29,7 +29,7 @@
  * we cannot swap step 1 and 2, because that would imply worker thread
  * can enter coroutine while step1 is still running
  *
- * @b PERFORMANCE @b CONSIDERATIONS: As a rule of thumb, keep in mind
+ * PERFORMANCE CONSIDERATIONS: As a rule of thumb, keep in mind
  * that hopping between threads adds @b latency! So when handling a
  * 9pfs request, avoid calling v9fs_co_run_in_worker() too often, because
  * this might otherwise sum up to a significant, huge overall latency for
@@ -109,24 +109,5 @@ int coroutine_fn v9fs_co_name_to_path(V9fsPDU *, V9fsPath *,
                                       const char *, V9fsPath *);
 int coroutine_fn v9fs_co_st_gen(V9fsPDU *pdu, V9fsPath *path, mode_t,
                                 V9fsStatDotl *v9stat);
-
-/**
- * Get the seek offset of a dirent. If not available from the structure itself,
- * obtain it by calling telldir.
- */
-static inline int v9fs_dent_telldir(V9fsPDU *pdu, V9fsFidState *fidp,
-    struct dirent *dent)
-{
-#ifdef CONFIG_DARWIN
-    /*
-     * Darwin has d_seekoff, which appears to function similarly to d_off.
-     * However, it does not appear to be supported on all file systems,
-     * so use telldir for correctness.
-     */
-    return v9fs_co_telldir(pdu, fidp);
-#else
-    return dent->d_off;
-#endif
-}
 
 #endif
