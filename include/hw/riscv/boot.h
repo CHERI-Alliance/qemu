@@ -43,7 +43,7 @@ char *riscv_plic_hart_config_string(int hart_count);
 
 target_ulong riscv_calc_kernel_start_addr(RISCVHartArrayState *harts,
                                           target_ulong firmware_end_addr);
-QEMU_WARN_UNUSED_RESULT
+G_GNUC_WARN_UNUSED_RESULT
 target_ulong riscv_find_and_load_firmware(MachineState *machine,
                                           const char *default_machine_firmware,
                                           hwaddr firmware_load_addr,
