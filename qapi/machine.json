@@ -111,7 +111,6 @@
 #                 "socket-id": 0
 #             },
 #             "qom-path": "/machine/unattached/device[0]",
-#             "arch":"x86",
 #             "target":"x86_64",
 #             "cpu-index": 0
 #         },
@@ -123,7 +122,6 @@
 #                 "socket-id": 1
 #             },
 #             "qom-path": "/machine/unattached/device[2]",
-#             "arch":"x86",
 #             "target":"x86_64",
 #             "cpu-index": 1
 #         }
@@ -843,6 +841,7 @@
 #          "merge": false,
 #          "dump": true,
 #          "prealloc": false,
+#          "share": false,
 #          "host-nodes": [0, 1],
 #          "policy": "bind"
 #        },
@@ -851,6 +850,7 @@
 #          "merge": false,
 #          "dump": true,
 #          "prealloc": true,
+#          "share": false,
 #          "host-nodes": [2, 3],
 #          "policy": "preferred"
 #        }
