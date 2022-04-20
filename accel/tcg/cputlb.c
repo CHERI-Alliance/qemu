@@ -2775,7 +2775,6 @@ void cpu_st_cap_word_ra(CPUArchState *env, target_ulong ptr,
     glue(glue(glue(cpu_atomic_ ## X, SUFFIX), END), _mmu)
 
 #define ATOMIC_MMU_CLEANUP
-#define ATOMIC_MMU_IDX   get_mmuidx(oi)
 
 #include "atomic_common.c.inc"
 
