@@ -744,7 +744,7 @@ void CHERI_HELPER_IMPL(copy_cap_btarget_to_pcc(CPUArchState *env))
 
 target_ulong CHERI_HELPER_IMPL(ccheck_load_right(CPUArchState *env, target_ulong offset, uint32_t len))
 {
-#ifndef TARGET_WORDS_BIGENDIAN
+#if TARGET_BIG_ENDIAN == 0
 #error "This check is only valid for big endian targets, for little endian the load/store left instructions need to be checked"
 #endif
     // For lwr/ldr we load all bytes if offset & 3/7 == 0 we load only the first byte, if all low bits are set we load the full amount
