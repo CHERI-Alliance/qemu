@@ -834,7 +834,7 @@ void cheri_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf, int f
 
 void CHERI_HELPER_IMPL(mtc2_dumpcstate(CPUArchState *env, target_ulong arg1))
 {
-    FILE *logfile = qemu_log_lock();
+    FILE *logfile = qemu_log_trylock();
     cheri_dump_state(env_cpu(env), logfile ? logfile : stderr, fprintf,
                      CPU_DUMP_CODE);
     qemu_log_unlock(logfile);

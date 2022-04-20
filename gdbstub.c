@@ -2838,10 +2838,11 @@ static int gdb_handle_packet(const char *line_buf)
 void gdb_set_stop_cpu(CPUState *cpu)
 {
     if (!gdbserver_state.init) {
+        FILE *logfile = qemu_log_trylock();
         qemu_log_mask(CPU_LOG_INSTR | CPU_LOG_INT | CPU_LOG_EXEC, "Reached breakpoint!\n");
         error_report("No debugger is attached");  /* XXX should drop into
                                                      monitor? */
-        qemu_log_flush();
+        qemu_log_unlock(logfile);
         exit(-1);
     }
     GDBProcess *p = gdb_get_cpu_process(cpu);

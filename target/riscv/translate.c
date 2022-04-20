@@ -1530,7 +1530,8 @@ static void riscv_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
     }
 }
 
-static void riscv_tr_disas_log(const DisasContextBase *dcbase, CPUState *cpu)
+static void riscv_tr_disas_log(const DisasContextBase *dcbase, CPUState *cpu,
+                               FILE *logfile)
 {
 #ifndef CONFIG_USER_ONLY
     RISCVCPU *rvcpu = RISCV_CPU(cpu);
@@ -1540,7 +1541,7 @@ static void riscv_tr_disas_log(const DisasContextBase *dcbase, CPUState *cpu)
 #ifdef CONFIG_RVFI_DII
     if (env->rvfi_dii_have_injected_insn) {
         assert(dcbase->num_insns == 1);
-        FILE *logfile = qemu_log_lock();
+        FILE *logfile = qemu_log_trylock();
         uint32_t insn = env->rvfi_dii_injected_insn;
         if (logfile) {
             fprintf(logfile, "IN: %s\n", lookup_symbol(dcbase->pc_first));
@@ -1549,11 +1550,12 @@ static void riscv_tr_disas_log(const DisasContextBase *dcbase, CPUState *cpu)
         qemu_log_unlock(logfile);
     }
 #else
-    qemu_log("IN: %s\n", lookup_symbol(dcbase->pc_first));
+    fprintf(logfile, "IN: %s\n", lookup_symbol(dcbase->pc_first));
 #ifndef CONFIG_USER_ONLY
-    qemu_log("Priv: "TARGET_FMT_ld"; Virt: "TARGET_FMT_ld"\n", env->priv, env->virt);
+    fprintf(logfile, "Priv: " TARGET_FMT_ld "; Virt: " TARGET_FMT_ld "\n",
+            env->priv, env->virt);
 #endif
-    log_target_disas(cpu, dcbase->pc_first, dcbase->tb->size);
+    target_disas(logfile, cpu, dcbase->pc_first, dcbase->tb->size);
 #endif
 }
 

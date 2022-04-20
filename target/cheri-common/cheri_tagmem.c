@@ -405,7 +405,7 @@ void cheri_tag_invalidate(CPUArchState *env, target_ulong vaddr, int32_t size,
                     size, vaddr);
     }
 #else
-    qemu_log_flush();
+    FILE *logfile = qemu_log_trylock();
     error_report("FATAL: %s: " TARGET_FMT_lx
                  "+%d crosses a page boundary\r",
                  __func__, vaddr, size);
@@ -418,6 +418,7 @@ void cheri_tag_invalidate(CPUArchState *env, target_ulong vaddr, int32_t size,
     fclose(f);
     buffer[sizeof(buffer) - 1] = '\0';
     error_report("%s", buffer);
+    qemu_log_unlock(logfile);
     exit(1);
 #endif
 #endif
