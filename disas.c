@@ -126,7 +126,7 @@ static void initialize_debug_target(CPUDebug *s, CPUState *cpu)
     s->cpu = cpu;
     s->info.read_memory_func = target_read_memory;
     s->info.print_address_func = print_address;
-#ifdef TARGET_WORDS_BIGENDIAN
+#if TARGET_BIG_ENDIAN
     s->info.endian = BFD_ENDIAN_BIG;
 #else
     s->info.endian = BFD_ENDIAN_LITTLE;
@@ -144,7 +144,7 @@ static void initialize_debug_host(CPUDebug *s)
 
     s->info.read_memory_func = host_read_memory;
     s->info.print_address_func = host_print_address;
-#ifdef HOST_WORDS_BIGENDIAN
+#if HOST_BIG_ENDIAN
     s->info.endian = BFD_ENDIAN_BIG;
 #else
     s->info.endian = BFD_ENDIAN_LITTLE;
@@ -271,7 +271,7 @@ void target_disas_buf(FILE *out, CPUState *cpu, void *code, unsigned long size,
     s.info.buffer_vma = vma;
     s.info.buffer_length = size;
 
-#ifdef TARGET_WORDS_BIGENDIAN
+#if TARGET_BIG_ENDIAN
     s.info.endian = BFD_ENDIAN_BIG;
 #else
     s.info.endian = BFD_ENDIAN_LITTLE;

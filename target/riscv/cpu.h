@@ -24,7 +24,7 @@
 #include "hw/registerfields.h"
 #include "exec/cpu-defs.h"
 #include "qemu/units.h"
-#include "fpu/softfloat-types.h"
+#include "qemu/cpu-float.h"
 #include "qom/object.h"
 #include "qemu/int128.h"
 #include "cpu_bits.h"
