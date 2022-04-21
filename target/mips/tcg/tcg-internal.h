@@ -18,16 +18,17 @@
 void mips_tcg_init(void);
 
 void mips_cpu_synchronize_from_tb(CPUState *cs, const TranslationBlock *tb);
-void mips_cpu_do_unaligned_access(CPUState *cpu, vaddr addr,
-                                  MMUAccessType access_type, int mmu_idx,
-                                  uintptr_t retaddr) QEMU_NORETURN;
+G_NORETURN void mips_cpu_do_unaligned_access(CPUState *cpu, vaddr addr,
+                                             MMUAccessType access_type, int mmu_idx,
+                                             uintptr_t retaddr);
 
 const char *mips_exception_name(int32_t exception);
 
-void QEMU_NORETURN do_raise_exception_err(CPUMIPSState *env, MipsExcp exception,
+G_NORETURN void do_raise_exception_err(CPUMIPSState *env, MipsExcp exception,
                                           int error_code, uintptr_t pc);
 
-static inline void QEMU_NORETURN do_raise_exception(CPUMIPSState *env,
+static inline G_NORETURN
+void do_raise_exception(CPUMIPSState *env,
                                                     MipsExcp exception,
                                                     uintptr_t pc)
 {

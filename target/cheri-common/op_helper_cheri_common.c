@@ -1747,7 +1747,7 @@ target_ulong CHERI_HELPER_IMPL(cloadtags(CPUArchState *env, uint32_t cb))
     return result;
 }
 
-QEMU_NORETURN static inline void
+G_NORETURN static inline void
 raise_pcc_fault(CPUArchState *env, CheriCapExcCause cause, target_ulong addr)
 {
     cheri_debug_assert(pc_is_current(env));

@@ -303,7 +303,7 @@ static inline uint32_t min_perms_for_store(CPUArchState *env, uint32_t cs)
     return perms;
 }
 
-typedef void QEMU_NORETURN (*unaligned_memaccess_handler)(CPUArchState *env,
+typedef void G_NORETURN (*unaligned_memaccess_handler)(CPUArchState *env,
                                                           target_ulong addr,
                                                           uintptr_t retpc);
 /* Do all the permission and bounds checks for loads/stores on cbp.
