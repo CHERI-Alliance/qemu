@@ -1155,7 +1155,7 @@ void HELPER(dc_zva)(CPUARMState *env, target_ulong vaddr_in)
     memset(mem, 0, blocklen);
 }
 
-void QEMU_NORETURN helper_alignment_fault_exception(CPUArchState *env,
+void G_NORETURN helper_alignment_fault_exception(CPUArchState *env,
                                                     uint64_t addr)
 {
     GET_HOST_RETPC();
@@ -1164,7 +1164,7 @@ void QEMU_NORETURN helper_alignment_fault_exception(CPUArchState *env,
                                 _host_return_address);
 }
 
-void QEMU_NORETURN helper_sp_alignment_exception(CPUArchState *env)
+void G_NORETURN helper_sp_alignment_exception(CPUArchState *env)
 {
     env->exception.vaddress = 0;
     uint32_t syn = syn_sp_alignment(false);

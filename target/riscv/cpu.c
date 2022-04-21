@@ -28,7 +28,6 @@
 #include "exec/log_instr.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
-#include "qemu-common.h"
 #include "qemu/cutils.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
