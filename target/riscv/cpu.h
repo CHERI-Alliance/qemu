@@ -84,6 +84,7 @@ enum {
     RISCV_FEATURE_EPMP,
     RISCV_FEATURE_MISA,
     RISCV_FEATURE_AIA,
+    RISCV_FEATURE_DEBUG,
     RISCV_FEATURE_CHERI,
     RISCV_FEATURE_CHERI_HYBRID,
     RISCV_FEATURE_STID,
@@ -120,6 +121,7 @@ typedef struct CPUArchState CPURISCVState;
 
 #if !defined(CONFIG_USER_ONLY)
 #include "pmp.h"
+#include "debug.h"
 #endif
 
 #define RV_VLEN_MAX 1024
@@ -210,6 +212,14 @@ struct CPUArchState {
     uint64_t mstatus;
 
     uint64_t mip;
+    /*
+     * MIP contains the software writable version of SEIP ORed with the
+     * external interrupt value. The MIP register is always up-to-date.
+     * To keep track of the current source, we also save booleans of the values
+     * here.
+     */
+    bool external_seip;
+    bool software_seip;
 
     uint64_t miclaim;
 
@@ -363,6 +373,14 @@ struct CPUArchState {
     pmp_table_t pmp_state;
     target_ulong mseccfg;
 
+    /* trigger module */
+    target_ulong trigger_cur;
+    type2_trigger_t type2_trig[TRIGGER_TYPE2_NUM];
+
+    /* machine specific rdtime callback */
+    uint64_t (*rdtime_fn)(void *);
+    void *rdtime_fn_arg;
+
     /* machine specific AIA ireg read-modify-write callback */
 #define AIA_MAKE_IREG(__isel, __priv, __virt, __vgein, __xlen) \
     ((((__xlen) & 0xff) << 24) | \
@@ -418,9 +436,6 @@ struct CPUArchState {
     /* Fields up to this point are cleared by a TestRIG reset */
     struct {} end_testrig_reset_fields;
 
-    /* machine specific rdtime callback */
-    uint64_t (*rdtime_fn)(uint32_t);
-    uint32_t rdtime_fn_arg;
 
 #ifdef CONFIG_RVFI_DII
     struct {
@@ -568,6 +583,7 @@ struct RISCVCPUConfig {
     bool pmp;
     bool epmp;
     bool aia;
+    bool debug;
     uint64_t resetvec;
 };
 
@@ -827,8 +843,8 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env, bool hs_mode_trap);
 int riscv_cpu_claim_interrupts(RISCVCPU *cpu, uint64_t interrupts);
 uint64_t riscv_cpu_update_mip(RISCVCPU *cpu, uint64_t mask, uint64_t value);
 #define BOOL_TO_MASK(x) (-!!(x)) /* helper for riscv_cpu_update_mip value */
-void riscv_cpu_set_rdtime_fn(CPURISCVState *env, uint64_t (*fn)(uint32_t),
-                             uint32_t arg);
+void riscv_cpu_set_rdtime_fn(CPURISCVState *env, uint64_t (*fn)(void *),
+                             void *arg);
 void riscv_cpu_set_aia_ireg_rmw_fn(CPURISCVState *env, uint32_t priv,
                                    int (*rmw_fn)(void *arg,
                                                  target_ulong reg,
