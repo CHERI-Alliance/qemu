@@ -156,14 +156,14 @@ typedef enum {
     rv_codec_css_swsp,
     rv_codec_css_sdsp,
     rv_codec_css_sqsp,
+    rv_codec_k_bs,
+    rv_codec_k_rnum,
     rv_codec_scbndsi,
     rv_codec_cbo_rs1,
     rv_codec_zcb_ext,
     rv_codec_zcb_mul,
     rv_codec_zcb_lb,
     rv_codec_zcb_lh,
-    rv_codec_k_bs,
-    rv_codec_k_rnum,
 } rv_codec;
 
 typedef enum {
@@ -833,10 +833,10 @@ static const char rv_freg_name_sym[32][5] = {
 #define rv_fmt_cd_rs1                 "O\tC0,1"
 #define rv_fmt_rs1_offset             "O\t1,o"
 #define rv_fmt_rs2_offset             "O\t2,o"
-#define rv_fmt_cbo_rs1                "O\t1"
-#define rv_fmt_cbo_cs1                "O\tC1"
 #define rv_fmt_rs1_rs2_bs             "O\t1,2,b"
 #define rv_fmt_rd_rs1_rnum            "O\t0,1,n"
+#define rv_fmt_cbo_rs1                "O\t1"
+#define rv_fmt_cbo_cs1                "O\tC1"
 
 #define rv_fmt_rs1_rs2_zce_ldst       "O\t2,i(1)"
 /* pseudo-instruction constraints */
@@ -3082,6 +3082,16 @@ static uint32_t operand_cimmq(rv_inst inst)
         ((inst << 57) >> 62) << 6;
 }
 
+static uint32_t operand_bs(rv_inst inst)
+{
+    return (inst << 32) >> 62;
+}
+
+static uint32_t operand_rnum(rv_inst inst)
+{
+    return (inst << 40) >> 60;
+}
+
 static uint32_t operand_scaled(rv_inst inst)
 {
     return (inst << 38) >> 63;
@@ -3101,16 +3111,6 @@ static uint32_t operand_uimm_c_lb(rv_inst inst)
 static uint32_t operand_uimm_c_lh(rv_inst inst)
 {
     return (((inst << 58) >> 63) << 1);
-}
-
-static uint32_t operand_bs(rv_inst inst)
-{
-    return (inst << 32) >> 62;
-}
-
-static uint32_t operand_rnum(rv_inst inst)
-{
-    return (inst << 40) >> 60;
 }
 
 /* decode operands */
@@ -3392,6 +3392,16 @@ static void decode_inst_operands(rv_decode *dec)
         dec->rs2 = operand_crs2(inst);
         dec->imm = operand_cimmsqsp(inst);
         break;
+    case rv_codec_k_bs:
+        dec->rs1 = operand_rs1(inst);
+        dec->rs2 = operand_rs2(inst);
+        dec->bs = operand_bs(inst);
+        break;
+    case rv_codec_k_rnum:
+        dec->rd = operand_rd(inst);
+        dec->rs1 = operand_rs1(inst);
+        dec->rnum = operand_rnum(inst);
+        break;
     case rv_codec_scbndsi:
         dec->rd = operand_rd(inst);
         dec->rs1 = operand_rs1(inst);
@@ -3417,16 +3427,6 @@ static void decode_inst_operands(rv_decode *dec)
     case rv_codec_zcb_mul:
         dec->rd = operand_crs1rdq(inst) + 8;
         dec->rs2 = operand_crs2q(inst) + 8;
-        break;
-    case rv_codec_k_bs:
-        dec->rs1 = operand_rs1(inst);
-        dec->rs2 = operand_rs2(inst);
-        dec->bs = operand_bs(inst);
-        break;
-    case rv_codec_k_rnum:
-        dec->rd = operand_rd(inst);
-        dec->rs1 = operand_rs1(inst);
-        dec->rnum = operand_rnum(inst);
         break;
     };
 }

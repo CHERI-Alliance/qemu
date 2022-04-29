@@ -523,11 +523,23 @@ struct RISCVCPUConfig {
     bool ext_zbb;
     bool ext_zbc;
     bool ext_zbkb;
+    bool ext_zbkc;
+    bool ext_zbkx;
     bool ext_zbs;
     bool ext_zca;
     bool ext_zcb;
     bool ext_zcd;
     bool ext_zcf;
+    bool ext_zk;
+    bool ext_zkn;
+    bool ext_zknd;
+    bool ext_zkne;
+    bool ext_zknh;
+    bool ext_zkr;
+    bool ext_zks;
+    bool ext_zksed;
+    bool ext_zksh;
+    bool ext_zkt;
     bool ext_counters;
     bool ext_ifencei;
     bool ext_zihintpause;
@@ -567,6 +579,9 @@ struct RISCVCPUConfig {
 #endif
 #endif
 
+    uint32_t mvendorid;
+    uint64_t marchid;
+    uint64_t mipid;
 
     /* Vendor-specific custom extensions */
     bool ext_XVentanaCondOps;

@@ -1310,6 +1310,7 @@ get_capmode_dependent_rmw_addr(DisasContext *ctx, int reg_num,
 #include "insn_trans/trans_rvb.c.inc"
 #include "insn_trans/trans_rvzicbo.c.inc"
 #include "insn_trans/trans_rvzfh.c.inc"
+#include "insn_trans/trans_rvk.c.inc"
 #include "insn_trans/trans_privileged.c.inc"
 #include "insn_trans/trans_svinval.c.inc"
 #include "insn_trans/trans_xventanacondops.c.inc"
