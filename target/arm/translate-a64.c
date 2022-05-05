@@ -27,15 +27,14 @@
 #include "translate.h"
 #include "internals.h"
 #include "qemu/host-utils.h"
-
 #include "semihosting/semihost.h"
 #include "exec/gen-icount.h"
-
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
 #include "exec/log.h"
 #include "exec/log_instr.h"
 
+#include "cpregs.h"
 #include "translate-a64.h"
 #include "qemu/atomic128.h"
 
@@ -2280,7 +2279,9 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
     TCGv_cap_checked_ptr clean_addr;
 
     /* Handle special cases first */
-    switch (ri->type & ~(ARM_CP_FLAG_MASK & ~ARM_CP_SPECIAL)) {
+    switch (ri->type & ARM_CP_SPECIAL_MASK) {
+    case 0:
+        break;
     case ARM_CP_NOP:
         return;
     case ARM_CP_NZCV:
@@ -2378,7 +2379,7 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
         }
         return;
     default:
-        break;
+        g_assert_not_reached();
     }
     if ((ri->type & ARM_CP_FPU) && !fp_access_check(s)) {
         return;
@@ -6848,7 +6849,7 @@ static void handle_fp_1src_half(DisasContext *s, int opcode, int rd, int rn)
         gen_helper_advsimd_rinth(tcg_res, tcg_op, fpst);
         break;
     default:
-        abort();
+        g_assert_not_reached();
     }
 
     write_fp_sreg(s, rd, tcg_res);
@@ -7089,7 +7090,7 @@ static void handle_fp_fcvt(DisasContext *s, int opcode,
         break;
     }
     default:
-        abort();
+        g_assert_not_reached();
     }
 }
 
