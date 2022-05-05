@@ -200,8 +200,11 @@ static int rvfi_dii_socket_init(uint16_t port) {
         error_report("RVFI-DII failed to create socket on port %d: %s (%d)\n", port, strerror(errno), errno);
         exit(EXIT_FAILURE);
     }
-
-    qemu_set_block(rvfi_listen_fd);
+    if (!g_unix_set_fd_nonblocking(rvfi_listen_fd, false, NULL)) {
+        error_report("RVFI-DII failed to set FD nonblocking: %s (%d)\n",
+                     strerror(errno), errno);
+        exit(EXIT_FAILURE);
+    }
     int reuseaddr = 1;
     if (setsockopt(rvfi_listen_fd, SOL_SOCKET, SO_REUSEADDR, &reuseaddr, sizeof(int)) == -1) {
         error_report("RVFI-DII SO_REUSEADDR failed: %s (%d)\n", strerror(errno), errno);
