@@ -2971,7 +2971,6 @@ if have_system
     'hw/char',
     'hw/display',
     'hw/dma',
-    'hw/hppa',
     'hw/hyperv',
     'hw/i2c',
     'hw/i386',
