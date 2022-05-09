@@ -110,8 +110,20 @@ enum {
     /* Flag: Do not expose in gdb sysreg xml. */
     ARM_CP_NO_GDB                = 1 << 15,
 
-    ARM_CP_CAP                   = 1 << 16,
-    ARM_CP_CAP_ONLY              = (ARM_CP_CAP | (1 << 17)),
+    /*
+     * Flags: If EL3 but not EL2...
+     *   - UNDEF: discard the cpreg,
+     *   -  KEEP: retain the cpreg as is,
+     *   -  C_NZ: set const on the cpreg, but retain resetvalue,
+     *   -  else: set const on the cpreg, zero resetvalue, aka RES0.
+     * See rule RJFFP in section D1.1.3 of DDI0487H.a.
+     */
+    ARM_CP_EL3_NO_EL2_UNDEF      = 1 << 16,
+    ARM_CP_EL3_NO_EL2_KEEP       = 1 << 17,
+    ARM_CP_EL3_NO_EL2_C_NZ       = 1 << 18,
+
+    ARM_CP_CAP                   = 1 << 19,
+    ARM_CP_CAP_ONLY              = (ARM_CP_CAP | (1 << 20)),
 };
 
 /* Mask of only the flag bits in a type field */
