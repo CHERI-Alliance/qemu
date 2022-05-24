@@ -51,7 +51,7 @@
 #define RISCV_CPU_MARCHID   ((QEMU_VERSION_MAJOR << 16) | \
                              (QEMU_VERSION_MINOR << 8)  | \
                              (QEMU_VERSION_MICRO))
-#define RISCV_CPU_MIPID     RISCV_CPU_MARCHID
+#define RISCV_CPU_MIMPID    RISCV_CPU_MARCHID
 
 static const char riscv_single_letter_exts[] = "IEMAFDQCPVH";
 
@@ -515,6 +515,7 @@ void restore_state_to_opc(CPURISCVState *env, TranslationBlock *tb,
 #endif
     RISCVMXL xl = FIELD_EX32(tb->flags, TB_FLAGS, XL);
     riscv_update_pc(env, data[0], xl, /*can_be_unrepresentable=*/false);
+    env->bins = data[1];
 }
 
 
@@ -843,6 +844,7 @@ static void riscv_cpu_reset(DeviceState *dev)
     }
     env->mcause = 0;
     env->miclaim = MIP_SGEIP;
+    env->bins = 0;
     env->two_stage_lookup = false;
 
     /* Initialized default priorities of local interrupts. */
@@ -1039,6 +1041,20 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
         uint32_t ext = 0;
 
         /* Do some ISA extension error checking */
+        if (cpu->cfg.ext_g && !(cpu->cfg.ext_i && cpu->cfg.ext_m &&
+                                cpu->cfg.ext_a && cpu->cfg.ext_f &&
+                                cpu->cfg.ext_d &&
+                                cpu->cfg.ext_icsr && cpu->cfg.ext_ifencei)) {
+            warn_report("Setting G will also set IMAFD_Zicsr_Zifencei");
+            cpu->cfg.ext_i = true;
+            cpu->cfg.ext_m = true;
+            cpu->cfg.ext_a = true;
+            cpu->cfg.ext_f = true;
+            cpu->cfg.ext_d = true;
+            cpu->cfg.ext_icsr = true;
+            cpu->cfg.ext_ifencei = true;
+        }
+
         if (cpu->cfg.ext_i && cpu->cfg.ext_e) {
             error_setg(errp,
                        "I and E extensions are incompatible");
@@ -1051,20 +1067,47 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
             return;
         }
 
-        if (cpu->cfg.ext_g && !(cpu->cfg.ext_i & cpu->cfg.ext_m &
-                                cpu->cfg.ext_a & cpu->cfg.ext_f &
-                                cpu->cfg.ext_d)) {
-            warn_report("Setting G will also set IMAFD");
-            cpu->cfg.ext_i = true;
-            cpu->cfg.ext_m = true;
-            cpu->cfg.ext_a = true;
-            cpu->cfg.ext_f = true;
-            cpu->cfg.ext_d = true;
+        if (cpu->cfg.ext_f && !cpu->cfg.ext_icsr) {
+            error_setg(errp, "F extension requires Zicsr");
+            return;
         }
 
+        if ((cpu->cfg.ext_zfh || cpu->cfg.ext_zfhmin) && !cpu->cfg.ext_f) {
+            error_setg(errp, "Zfh/Zfhmin extensions require F extension");
+            return;
+        }
+
+        if (cpu->cfg.ext_d && !cpu->cfg.ext_f) {
+            error_setg(errp, "D extension requires F extension");
+            return;
+        }
+
+        if (cpu->cfg.ext_v && !cpu->cfg.ext_d) {
+            error_setg(errp, "V extension requires D extension");
+            return;
+        }
+
+        if ((cpu->cfg.ext_zve32f || cpu->cfg.ext_zve64f) && !cpu->cfg.ext_f) {
+            error_setg(errp, "Zve32f/Zve64f extensions require F extension");
+            return;
+        }
+
+        /* Set the ISA extensions, checks should have happened above */
         if (cpu->cfg.ext_zdinx || cpu->cfg.ext_zhinx ||
             cpu->cfg.ext_zhinxmin) {
             cpu->cfg.ext_zfinx = true;
+        }
+
+        if (cpu->cfg.ext_zfinx) {
+            if (!cpu->cfg.ext_icsr) {
+                error_setg(errp, "Zfinx extension requires Zicsr");
+                return;
+            }
+            if (cpu->cfg.ext_f) {
+                error_setg(errp,
+                    "Zfinx cannot be supported together with F extension");
+                return;
+            }
         }
 
         if (cpu->cfg.ext_c) {
@@ -1097,7 +1140,7 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
             error_setg(errp, "Zcf/Zcd/Zcb extensions require Zca "
                              "extension");
             return;
-             }
+        }
 
         if (cpu->cfg.ext_zk) {
             cpu->cfg.ext_zkn = true;
@@ -1122,7 +1165,6 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
             cpu->cfg.ext_zksh = true;
         }
 
-        /* Set the ISA extensions, checks should have happened above */
         if (cpu->cfg.ext_i) {
             ext |= RVI;
         }
@@ -1193,19 +1235,8 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
             }
             set_vext_version(env, vext_version);
         }
-        if ((cpu->cfg.ext_zve32f || cpu->cfg.ext_zve64f) && !cpu->cfg.ext_f) {
-            error_setg(errp, "Zve32f/Zve64f extension depends upon RVF.");
-            return;
-        }
         if (cpu->cfg.ext_j) {
             ext |= RVJ;
-        }
-        if (cpu->cfg.ext_zfinx && ((ext & (RVF | RVD)) || cpu->cfg.ext_zfh ||
-                                   cpu->cfg.ext_zfhmin)) {
-            error_setg(errp,
-                    "'Zfinx' cannot be supported together with 'F', 'D', 'Zfh',"
-                    " 'Zfhmin'");
-            return;
         }
 
         set_misa(env, env->misa_mxl, ext);
@@ -1349,7 +1380,7 @@ static Property riscv_cpu_properties[] = {
     /* Defaults for standard extensions */
     DEFINE_PROP_BOOL("i", RISCVCPU, cfg.ext_i, true),
     DEFINE_PROP_BOOL("e", RISCVCPU, cfg.ext_e, false),
-    DEFINE_PROP_BOOL("g", RISCVCPU, cfg.ext_g, true),
+    DEFINE_PROP_BOOL("g", RISCVCPU, cfg.ext_g, false),
     DEFINE_PROP_BOOL("m", RISCVCPU, cfg.ext_m, true),
     DEFINE_PROP_BOOL("a", RISCVCPU, cfg.ext_a, true),
     DEFINE_PROP_BOOL("f", RISCVCPU, cfg.ext_f, true),
@@ -1394,7 +1425,7 @@ static Property riscv_cpu_properties[] = {
 
     DEFINE_PROP_UINT32("mvendorid", RISCVCPU, cfg.mvendorid, 0),
     DEFINE_PROP_UINT64("marchid", RISCVCPU, cfg.marchid, RISCV_CPU_MARCHID),
-    DEFINE_PROP_UINT64("mipid", RISCVCPU, cfg.mipid, RISCV_CPU_MIPID),
+    DEFINE_PROP_UINT64("mimpid", RISCVCPU, cfg.mimpid, RISCV_CPU_MIMPID),
 
     DEFINE_PROP_BOOL("svinval", RISCVCPU, cfg.ext_svinval, false),
 #if !defined(TARGET_CHERI_RISCV_V9)
@@ -1446,6 +1477,8 @@ static Property riscv_cpu_properties[] = {
     DEFINE_PROP_BOOL("x-aia", RISCVCPU, cfg.aia, false),
 
     DEFINE_PROP_UINT64("resetvec", RISCVCPU, cfg.resetvec, DEFAULT_RSTVEC),
+
+    DEFINE_PROP_BOOL("short-isa-string", RISCVCPU, cfg.short_isa_string, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1574,11 +1607,11 @@ static void riscv_isa_string_ext(RISCVCPU *cpu, char **isa_str, int max_str_len)
      *    extensions by an underscore.
      */
     struct isa_ext_data isa_edata_arr[] = {
+        ISA_EDATA_ENTRY(zicsr, ext_icsr),
+        ISA_EDATA_ENTRY(zifencei, ext_ifencei),
         ISA_EDATA_ENTRY(zfh, ext_zfh),
         ISA_EDATA_ENTRY(zfhmin, ext_zfhmin),
         ISA_EDATA_ENTRY(zfinx, ext_zfinx),
-        ISA_EDATA_ENTRY(zhinx, ext_zhinx),
-        ISA_EDATA_ENTRY(zhinxmin, ext_zhinxmin),
         ISA_EDATA_ENTRY(zdinx, ext_zdinx),
         ISA_EDATA_ENTRY(zba, ext_zba),
         ISA_EDATA_ENTRY(zbb, ext_zbb),
@@ -1605,6 +1638,8 @@ static void riscv_isa_string_ext(RISCVCPU *cpu, char **isa_str, int max_str_len)
         ISA_EDATA_ENTRY(zkt, ext_zkt),
         ISA_EDATA_ENTRY(zve32f, ext_zve32f),
         ISA_EDATA_ENTRY(zve64f, ext_zve64f),
+        ISA_EDATA_ENTRY(zhinx, ext_zhinx),
+        ISA_EDATA_ENTRY(zhinxmin, ext_zhinxmin),
         ISA_EDATA_ENTRY(svinval, ext_svinval),
 #if !defined(TARGET_CHERI_RISCV_V9)
         ISA_EDATA_ENTRY(svnapot, ext_svnapot),
@@ -1643,7 +1678,9 @@ char *riscv_isa_string(RISCVCPU *cpu)
         }
     }
     *p = '\0';
-    riscv_isa_string_ext(cpu, &isa_str, maxlen);
+    if (!cpu->cfg.short_isa_string) {
+        riscv_isa_string_ext(cpu, &isa_str, maxlen);
+    }
     return isa_str;
 }
 
