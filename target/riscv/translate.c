@@ -126,6 +126,8 @@ typedef struct DisasContext {
     /* PointerMasking extension */
     bool pm_mask_enabled;
     bool pm_base_enabled;
+    /* TCG of the current insn_start */
+    TCGOp *insn_start;
 } DisasContext;
 
 #ifdef CONFIG_DEBUG_TCG
@@ -263,9 +265,6 @@ static void generate_exception_mtval(DisasContext *ctx, int excp)
 
 static void gen_exception_illegal(DisasContext *ctx)
 {
-    tcg_gen_st_i32(tcg_constant_i32(ctx->opcode), cpu_env,
-                   offsetof(CPURISCVState, bins));
-
     generate_exception(ctx, RISCV_EXCP_ILLEGAL_INST);
 }
 
@@ -1347,6 +1346,13 @@ TRANS_STUB(amoswap_c)
 static bool trans_sq(DisasContext *ctx, arg_sq *a) { return false; }
 #endif
 
+static inline void decode_save_opc(DisasContext *ctx, target_ulong opc)
+{
+    assert(ctx->insn_start != NULL);
+    tcg_set_insn_start_param(ctx->insn_start, 1, opc);
+    ctx->insn_start = NULL;
+}
+
 static void decode_opc(CPURISCVState *env, DisasContext *ctx, uint16_t opcode)
 {
     /*
@@ -1363,6 +1369,7 @@ static void decode_opc(CPURISCVState *env, DisasContext *ctx, uint16_t opcode)
 
     /* Check for compressed insn */
     if (extract16(opcode, 0, 2) != 3) {
+        decode_save_opc(ctx, opcode);
         gen_riscv_log_instr16(ctx, opcode);
         gen_check_pcc_bounds_next_inst(ctx, 2);
         gen_rvfi_dii_set_field_const_i64(INST, insn, opcode);
@@ -1393,6 +1400,7 @@ static void decode_opc(CPURISCVState *env, DisasContext *ctx, uint16_t opcode)
 #endif
         uint32_t opcode32 = opcode;
         opcode32 = deposit32(opcode32, 16, 16, next_16);
+        decode_save_opc(ctx, opcode32);
         gen_riscv_log_instr32(ctx, opcode32);
         gen_check_pcc_bounds_next_inst(ctx, 4);
         ctx->opcode = opcode32;
@@ -1470,7 +1478,8 @@ static void riscv_tr_insn_start(DisasContextBase *dcbase, CPUState *cpu)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
-    tcg_gen_insn_start(ctx->base.pc_next);
+    tcg_gen_insn_start(ctx->base.pc_next, 0);
+    ctx->insn_start = tcg_last_op();
 }
 
 static void riscv_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
