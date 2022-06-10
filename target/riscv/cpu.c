@@ -152,6 +152,8 @@ static const char * const riscv_intr_names[] = {
     "reserved"
 };
 
+static void register_cpu_props(DeviceState *dev);
+
 #ifdef CONFIG_TCG_LOG_INSTR
 const char * const riscv_cpu_mode_names[QEMU_LOG_INSTR_CPU_MODE_MAX] = {
     "User", "Supervisor", "Hypervisor", "<invalid>", "Machine",
@@ -205,6 +207,7 @@ static void riscv_any_cpu_init(Object *obj)
     set_misa(env, MXL_RV64, RVI | RVM | RVA | RVF | RVD | RVC | RVU);
 #endif
     set_priv_version(env, PRIV_VERSION_1_12_0);
+    register_cpu_props(DEVICE(obj));
 }
 
 #if defined(TARGET_RISCV64)
@@ -213,6 +216,7 @@ static void rv64_base_cpu_init(Object *obj)
     CPURISCVState *env = &RISCV_CPU(obj)->env;
     /* We set this in the realise function */
     set_misa(env, MXL_RV64, 0);
+    register_cpu_props(DEVICE(obj));
 }
 
 static void rv64_sifive_u_cpu_init(Object *obj)
@@ -225,43 +229,51 @@ static void rv64_sifive_u_cpu_init(Object *obj)
 static void rv64_sifive_e_cpu_init(Object *obj)
 {
     CPURISCVState *env = &RISCV_CPU(obj)->env;
+    RISCVCPU *cpu = RISCV_CPU(obj);
+
     set_misa(env, MXL_RV64, RVI | RVM | RVA | RVC | RVU);
     set_priv_version(env, PRIV_VERSION_1_10_0);
-    qdev_prop_set_bit(DEVICE(obj), "mmu", false);
+    cpu->cfg.mmu = false;
 }
 
 static void rv64_codasip_a730_cpu_init(Object *obj)
 {
     CPURISCVState *env = &RISCV_CPU(obj)->env;
-
+    RISCVCPU * cpu = RISCV_CPU(obj);
     set_misa(env, MXL_RV64, RVI | RVM | RVA | RVF | RVD | RVC | RVS | RVU);
 
     set_priv_version(env, PRIV_VERSION_1_12_0);
 
-    qdev_prop_set_bit(DEVICE(obj), "mmu", true);
-    qdev_prop_set_bit(DEVICE(obj), "pmp", false);
-    qdev_prop_set_bit(DEVICE(obj), "zicbom", true);
-    qdev_prop_set_bit(DEVICE(obj), "zicboz", true);
-    qdev_prop_set_bit(DEVICE(obj), "zba", true);
-    qdev_prop_set_bit(DEVICE(obj), "zbb", true);
-    qdev_prop_set_bit(DEVICE(obj), "zbc", true);
-    qdev_prop_set_bit(DEVICE(obj), "zbs", true);
-    qdev_prop_set_bit(DEVICE(obj), "Zfhmin", true);
+    cpu->cfg.mmu = true;
+    cpu->cfg.pmp = false;
+    cpu->cfg.ext_icbom = true;
+    cpu->cfg.ext_icboz = true;
+    cpu->cfg.ext_zba =  true ;
+    cpu->cfg.ext_zbb = true;
+    cpu->cfg.ext_zbc = true;
+    cpu->cfg.ext_zbs =  true;
+    cpu->cfg.ext_zfhmin = true;
 #if !defined(TARGET_CHERI_RISCV_V9)
-    qdev_prop_set_bit(DEVICE(obj), "svnapot", true);
-    qdev_prop_set_bit(DEVICE(obj), "svpbmt", true);
+    cpu->cfg.ext_svnapot = true;
+    cpu->cfg.ext_svpbmt = true;
 #endif
-    qdev_prop_set_bit(DEVICE(obj), "svinval", true);
+    cpu->cfg.ext_svinval = true;
 #if defined(TARGET_CHERI_RISCV_STD_093)
-    qdev_prop_set_bit(DEVICE(obj), "zish4add", true);
+    cpu->cfg.ext_zish4add = true;
+    cpu->cfg.ext_zylevels1 = true;
+    cpu->cfg.cheri_pte = true;
+    cpu->cfg.ext_cheri = true;
+    cpu->cfg.ext_zyhybrid = true;
 #endif
 
-    qdev_prop_set_bit(DEVICE(obj), "zca", true);
-    qdev_prop_set_bit(DEVICE(obj), "zcb", true);
-    qdev_prop_set_bit(DEVICE(obj), "zcd", true);
-    qdev_prop_set_bit(DEVICE(obj), "zcf", true);
-    qdev_prop_set_bit(DEVICE(obj), "zbkb", true);
-    qdev_prop_set_bit(DEVICE(obj), "Zihintpause", true);
+    cpu->cfg.cbom_blocksize = 64;
+    cpu->cfg.cboz_blocksize = 64;
+    cpu->cfg.ext_zca = true;
+    cpu->cfg.ext_zcb = true;
+    cpu->cfg.ext_zcd = true;
+    cpu->cfg.ext_zcf = true;
+    cpu->cfg.ext_zbkb = true;
+    cpu->cfg.ext_zihintpause = true;
     /*
      * QEMU 6.x has no support for limiting the virtual addressing modes
      * (later versions add support for filtering certain SvXX modes)
@@ -286,6 +298,7 @@ static void rv128_base_cpu_init(Object *obj)
     CPURISCVState *env = &RISCV_CPU(obj)->env;
     /* We set this in the realise function */
     set_misa(env, MXL_RV128, 0);
+    register_cpu_props(DEVICE(obj));
 }
 #else
 static void rv32_base_cpu_init(Object *obj)
@@ -293,6 +306,7 @@ static void rv32_base_cpu_init(Object *obj)
     CPURISCVState *env = &RISCV_CPU(obj)->env;
     /* We set this in the realise function */
     set_misa(env, MXL_RV32, 0);
+    register_cpu_props(DEVICE(obj));
 }
 
 static void rv32_sifive_u_cpu_init(Object *obj)
@@ -305,33 +319,40 @@ static void rv32_sifive_u_cpu_init(Object *obj)
 static void rv32_sifive_e_cpu_init(Object *obj)
 {
     CPURISCVState *env = &RISCV_CPU(obj)->env;
+    RISCVCPU *cpu = RISCV_CPU(obj);
+
     set_misa(env, MXL_RV32, RVI | RVM | RVA | RVC | RVU);
     set_priv_version(env, PRIV_VERSION_1_10_0);
-    qdev_prop_set_bit(DEVICE(obj), "mmu", false);
+    cpu->cfg.mmu = false;
 }
 
 static void rv32_ibex_cpu_init(Object *obj)
 {
     CPURISCVState *env = &RISCV_CPU(obj)->env;
+    RISCVCPU *cpu = RISCV_CPU(obj);
+
     set_misa(env, MXL_RV32, RVI | RVM | RVC | RVU);
     set_priv_version(env, PRIV_VERSION_1_10_0);
-    qdev_prop_set_bit(DEVICE(obj), "mmu", false);
-    qdev_prop_set_bit(DEVICE(obj), "x-epmp", true);
+    cpu->cfg.mmu = false;
+    cpu->cfg.epmp = true;
 }
 
 static void rv32_imafcu_nommu_cpu_init(Object *obj)
 {
     CPURISCVState *env = &RISCV_CPU(obj)->env;
+    RISCVCPU *cpu = RISCV_CPU(obj);
+
     set_misa(env, MXL_RV32, RVI | RVM | RVA | RVF | RVC | RVU);
     set_priv_version(env, PRIV_VERSION_1_10_0);
     set_resetvec(env, DEFAULT_RSTVEC);
-    qdev_prop_set_bit(DEVICE(obj), "mmu", false);
+    cpu->cfg.mmu = false;
 }
 
 static void rv32_codasip_l730_cpu_init(Object *obj)
 {
     CPURISCVState *env = &RISCV_CPU(obj)->env;
 
+    RISCVCPU *cpu = RISCV_CPU(obj);
     /*
      * QEMU 6.x has no RVG definition
      * RVG == RVI | RVM | RVA | RVF | RVD
@@ -339,8 +360,34 @@ static void rv32_codasip_l730_cpu_init(Object *obj)
     set_misa(env, MXL_RV32, RVI | RVM | RVA | RVF | RVD | RVC | RVS | RVU);
 
     set_priv_version(env, PRIV_VERSION_1_12_0);
-    qdev_prop_set_bit(DEVICE(obj), "mmu", false);
-    qdev_prop_set_bit(DEVICE(obj), "pmp", false);
+    cpu->cfg.mmu = false;
+#ifdef TARGET_CHERI
+    cpu->cfg.pmp = false;
+#else
+    cpu->cfg.pmp = true;
+#endif
+    cpu->cfg.ext_icbom = true;
+    cpu->cfg.ext_icboz = true;
+    cpu->cfg.ext_zba =  true ;
+    cpu->cfg.ext_zbb = true;
+    cpu->cfg.ext_zbc = true;
+    cpu->cfg.ext_zbs =  true;
+    cpu->cfg.ext_zfhmin = true;
+#if defined(TARGET_CHERI_RISCV_STD_093)
+    cpu->cfg.ext_zish4add = true;
+    cpu->cfg.ext_zylevels1 = true;
+    cpu->cfg.ext_cheri = true;
+    cpu->cfg.ext_zyhybrid = true;
+#endif
+
+    cpu->cfg.cbom_blocksize = 64;
+    cpu->cfg.cboz_blocksize = 64;
+    cpu->cfg.ext_zca = true;
+    cpu->cfg.ext_zcb = true;
+    cpu->cfg.ext_zcd = true;
+    cpu->cfg.ext_zcf = true;
+    cpu->cfg.ext_zbkb = true;
+    cpu->cfg.ext_zihintpause = true;
 }
 #endif
 
@@ -353,6 +400,7 @@ static void riscv_host_cpu_init(Object *obj)
 #elif defined(TARGET_RISCV64)
     set_misa(env, MXL_RV64, 0);
 #endif
+    register_cpu_props(DEVICE(obj));
 }
 #endif
 
@@ -496,7 +544,7 @@ static bool riscv_cpu_has_work(CPUState *cs)
      * Definition of the WFI instruction requires it to ignore the privilege
      * mode and delegation registers, but respect individual enables
      */
-    return (env->mip & env->mie) != 0;
+    return riscv_cpu_all_pending(env) != 0;
 #else
     return true;
 #endif
@@ -1055,6 +1103,11 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
             cpu->cfg.ext_ifencei = true;
         }
 
+        if (cpu->cfg.ext_m && cpu->cfg.ext_zmmul) {
+            warn_report("Zmmul will override M");
+            cpu->cfg.ext_m = false;
+        }
+
         if (cpu->cfg.ext_i && cpu->cfg.ext_e) {
             error_setg(errp,
                        "I and E extensions are incompatible");
@@ -1368,6 +1421,12 @@ static void riscv_cpu_init(Object *obj)
 {
     RISCVCPU *cpu = RISCV_CPU(obj);
 
+    cpu->cfg.ext_counters = true;
+    cpu->cfg.ext_ifencei = true;
+    cpu->cfg.ext_icsr = true;
+    cpu->cfg.mmu = true;
+    cpu->cfg.pmp = true;
+
     cpu_set_cpustate_pointers(cpu);
 
 #ifndef CONFIG_USER_ONLY
@@ -1376,7 +1435,7 @@ static void riscv_cpu_init(Object *obj)
 #endif /* CONFIG_USER_ONLY */
 }
 
-static Property riscv_cpu_properties[] = {
+static Property riscv_cpu_extensions[] = {
     /* Defaults for standard extensions */
     DEFINE_PROP_BOOL("i", RISCVCPU, cfg.ext_i, true),
     DEFINE_PROP_BOOL("e", RISCVCPU, cfg.ext_e, false),
@@ -1400,7 +1459,6 @@ static Property riscv_cpu_properties[] = {
     DEFINE_PROP_BOOL("Zve64f", RISCVCPU, cfg.ext_zve64f, false),
     DEFINE_PROP_BOOL("mmu", RISCVCPU, cfg.mmu, true),
     DEFINE_PROP_BOOL("pmp", RISCVCPU, cfg.pmp, true),
-    DEFINE_PROP_BOOL("debug", RISCVCPU, cfg.debug, true),
 
 #if defined(TARGET_CHERI_RISCV_STD_093)
     /* zish4add is part of the cheri spec, so we enable it by default */
@@ -1422,10 +1480,6 @@ static Property riscv_cpu_properties[] = {
     DEFINE_PROP_STRING("vext_spec", RISCVCPU, cfg.vext_spec),
     DEFINE_PROP_UINT16("vlen", RISCVCPU, cfg.vlen, 128),
     DEFINE_PROP_UINT16("elen", RISCVCPU, cfg.elen, 64),
-
-    DEFINE_PROP_UINT32("mvendorid", RISCVCPU, cfg.mvendorid, 0),
-    DEFINE_PROP_UINT64("marchid", RISCVCPU, cfg.marchid, RISCV_CPU_MARCHID),
-    DEFINE_PROP_UINT64("mimpid", RISCVCPU, cfg.mimpid, RISCV_CPU_MIMPID),
 
     DEFINE_PROP_BOOL("svinval", RISCVCPU, cfg.ext_svinval, false),
 #if !defined(TARGET_CHERI_RISCV_V9)
@@ -1472,13 +1526,35 @@ static Property riscv_cpu_properties[] = {
 
     /* These are experimental so mark with 'x-' */
     DEFINE_PROP_BOOL("x-j", RISCVCPU, cfg.ext_j, false),
+    DEFINE_PROP_BOOL("x-zmmul", RISCVCPU, cfg.ext_zmmul, false),
     /* ePMP 0.9.3 */
     DEFINE_PROP_BOOL("x-epmp", RISCVCPU, cfg.epmp, false),
     DEFINE_PROP_BOOL("x-aia", RISCVCPU, cfg.aia, false),
 
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void register_cpu_props(DeviceState *dev)
+{
+    Property *prop;
+
+    for (prop = riscv_cpu_extensions; prop && prop->name; prop++) {
+        qdev_property_add_static(dev, prop);
+    }
+}
+
+static Property riscv_cpu_properties[] = {
+    DEFINE_PROP_BOOL("debug", RISCVCPU, cfg.debug, true),
+
+    DEFINE_PROP_UINT32("mvendorid", RISCVCPU, cfg.mvendorid, 0),
+    DEFINE_PROP_UINT64("marchid", RISCVCPU, cfg.marchid, RISCV_CPU_MARCHID),
+    DEFINE_PROP_UINT64("mimpid", RISCVCPU, cfg.mimpid, RISCV_CPU_MIMPID),
+
     DEFINE_PROP_UINT64("resetvec", RISCVCPU, cfg.resetvec, DEFAULT_RSTVEC),
 
     DEFINE_PROP_BOOL("short-isa-string", RISCVCPU, cfg.short_isa_string, false),
+
+    DEFINE_PROP_BOOL("rvv_ta_all_1s", RISCVCPU, cfg.rvv_ta_all_1s, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1609,6 +1685,7 @@ static void riscv_isa_string_ext(RISCVCPU *cpu, char **isa_str, int max_str_len)
     struct isa_ext_data isa_edata_arr[] = {
         ISA_EDATA_ENTRY(zicsr, ext_icsr),
         ISA_EDATA_ENTRY(zifencei, ext_ifencei),
+        ISA_EDATA_ENTRY(zmmul, ext_zmmul),
         ISA_EDATA_ENTRY(zfh, ext_zfh),
         ISA_EDATA_ENTRY(zfhmin, ext_zfhmin),
         ISA_EDATA_ENTRY(zfinx, ext_zfinx),
