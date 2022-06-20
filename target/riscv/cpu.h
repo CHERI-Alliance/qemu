@@ -513,7 +513,7 @@ struct RISCVCPUConfig {
     bool ext_zcb;
     bool ext_zcd;
     bool ext_zcf;
-    bool ext_counters;
+    bool ext_pmu;
     bool ext_ifencei;
     bool ext_zihintpause;
     bool ext_icsr;
