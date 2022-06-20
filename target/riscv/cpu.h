@@ -294,6 +294,9 @@ struct CPURISCVState {
     target_ulong scounteren;
     target_ulong mcounteren;
 
+    target_ulong mcountinhibit;
+
+
 #ifdef TARGET_CHERI
     /* zstid registers */
     cap_register_t mtidc;
