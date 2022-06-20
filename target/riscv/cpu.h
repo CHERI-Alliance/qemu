@@ -453,7 +453,7 @@ typedef struct {
     bool ext_zbc;
     bool ext_zbkb;
     bool ext_zbs;
-    bool ext_counters;
+    bool ext_pmu;
     bool ext_ifencei;
     bool ext_zihintpause;
     bool ext_icsr;
