@@ -262,6 +262,15 @@ static RISCVException mctr(CPURISCVState *env, int csrno)
     return RISCV_EXCP_NONE;
 }
 
+static RISCVException mctr32(CPURISCVState *env, int csrno)
+{
+    if (riscv_cpu_mxl(env) != MXL_RV32) {
+        return RISCV_EXCP_ILLEGAL_INST;
+    }
+
+    return mctr(env, csrno);
+}
+
 static RISCVException any(CPURISCVState *env, int csrno)
 {
     return RISCV_EXCP_NONE;
@@ -545,6 +554,75 @@ static RISCVException read_timeh(CPURISCVState *env, int csrno,
 }
 
 #else /* CONFIG_USER_ONLY */
+
+static int read_mhpmevent(CPURISCVState *env, int csrno, target_ulong *val)
+{
+    int evt_index = csrno - CSR_MHPMEVENT3;
+
+    *val = env->mhpmevent_val[evt_index];
+
+    return RISCV_EXCP_NONE;
+}
+
+static int write_mhpmevent(CPURISCVState *env, int csrno, target_ulong val)
+{
+    int evt_index = csrno - CSR_MHPMEVENT3;
+
+    env->mhpmevent_val[evt_index] = val;
+
+    return RISCV_EXCP_NONE;
+}
+
+static int write_mhpmcounter(CPURISCVState *env, int csrno, target_ulong val)
+{
+    int ctr_index = csrno - CSR_MHPMCOUNTER3 + 3;
+
+    env->mhpmcounter_val[ctr_index] = val;
+
+    return RISCV_EXCP_NONE;
+}
+
+static int write_mhpmcounterh(CPURISCVState *env, int csrno, target_ulong val)
+{
+    int ctr_index = csrno - CSR_MHPMCOUNTER3H + 3;
+
+    env->mhpmcounterh_val[ctr_index] = val;
+
+    return RISCV_EXCP_NONE;
+}
+
+static int read_hpmcounter(CPURISCVState *env, int csrno, target_ulong *val)
+{
+    int ctr_index;
+
+    if (csrno >= CSR_MCYCLE && csrno <= CSR_MHPMCOUNTER31) {
+        ctr_index = csrno - CSR_MHPMCOUNTER3 + 3;
+    } else if (csrno >= CSR_CYCLE && csrno <= CSR_HPMCOUNTER31) {
+        ctr_index = csrno - CSR_HPMCOUNTER3 + 3;
+    } else {
+        return RISCV_EXCP_ILLEGAL_INST;
+    }
+    *val = env->mhpmcounter_val[ctr_index];
+
+    return RISCV_EXCP_NONE;
+}
+
+static int read_hpmcounterh(CPURISCVState *env, int csrno, target_ulong *val)
+{
+    int ctr_index;
+
+    if (csrno >= CSR_MCYCLEH && csrno <= CSR_MHPMCOUNTER31H) {
+        ctr_index = csrno - CSR_MHPMCOUNTER3H + 3;
+    } else if (csrno >= CSR_CYCLEH && csrno <= CSR_HPMCOUNTER31H) {
+        ctr_index = csrno - CSR_HPMCOUNTER3H + 3;
+    } else {
+        return RISCV_EXCP_ILLEGAL_INST;
+    }
+    *val = env->mhpmcounterh_val[ctr_index];
+
+    return RISCV_EXCP_NONE;
+}
+
 
 static RISCVException read_time(CPURISCVState *env, int csrno,
                                 target_ulong *val)
@@ -2902,13 +2980,21 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_SPMBASE] =    { "spmbase", pointer_masking, read_spmbase, write_spmbase },
 
     /* Performance Counters */
-    [CSR_HPMCOUNTER3   ... CSR_HPMCOUNTER31] =    CSR_OP_FN_R(ctr, read_zero, "hpmcounterN"),
-    [CSR_MHPMCOUNTER3  ... CSR_MHPMCOUNTER31] =   CSR_OP_FN_R(any, read_zero, "mhpmcounterN"),
-    [CSR_MCOUNTINHIBIT] =       CSR_OP_RW_PRIV(any, mcountinhibit, 1_11_0),
+    [CSR_HPMCOUNTER3   ... CSR_HPMCOUNTER31] =
+        CSR_OP_FN_R(ctr, read_hpmcounter, "hpmcounterN"),
 
-    [CSR_MHPMEVENT3    ... CSR_MHPMEVENT31] =     CSR_OP_FN_R(any, read_zero, "mhpmeventN"),
-    [CSR_HPMCOUNTER3H  ... CSR_HPMCOUNTER31H] =   CSR_OP_FN_R(ctr, read_zero, "hpmcounterNh"),
-    [CSR_MHPMCOUNTER3H ... CSR_MHPMCOUNTER31H] =  CSR_OP_FN_R(mctr, read_zero, "mhpmcounterNh"),
+    [CSR_MHPMCOUNTER3  ... CSR_MHPMCOUNTER31] =
+        CSR_OP_FN_RW(any, read_hpmcounter, write_mhpmcounter , "mhpmcounterN"),
+
+    [CSR_MCOUNTINHIBIT] = CSR_OP_RW_PRIV(any, mcountinhibit, 1_11_0),
+
+    [CSR_MHPMEVENT3    ... CSR_MHPMEVENT31] =
+        CSR_OP_FN_RW(any, read_mhpmevent, write_mhpmevent,  "mhpmeventN"),
+    [CSR_HPMCOUNTER3H  ... CSR_HPMCOUNTER31H] =
+        CSR_OP_FN_R(ctr, read_hpmcounterh, "hpmcounterNh"),
+    [CSR_MHPMCOUNTER3H ... CSR_MHPMCOUNTER31H] =
+        CSR_OP_FN_RW(mctr32, read_hpmcounterh,
+                     write_mhpmcounterh, "mhpmcounterNh"),
 
 #if !defined(TARGET_CHERI)
     [CSR_MTID] =                CSR_OP_RW(stid, mtid),

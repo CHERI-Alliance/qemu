@@ -120,6 +120,8 @@ typedef struct CPURISCVState CPURISCVState;
 #endif
 
 #define RV_VLEN_MAX 256
+#define RV_MAX_MHPMEVENTS 29
+#define RV_MAX_MHPMCOUNTERS 32
 
 FIELD(VTYPE, VLMUL, 0, 3)
 FIELD(VTYPE, VSEW, 3, 3)
@@ -300,6 +302,15 @@ struct CPURISCVState {
     target_ulong mcounteren;
 
     target_ulong mcountinhibit;
+
+    /* PMU counter configured values */
+    target_ulong mhpmcounter_val[RV_MAX_MHPMCOUNTERS];
+
+    /* for RV32 */
+    target_ulong mhpmcounterh_val[RV_MAX_MHPMCOUNTERS];
+
+    /* PMU event selector configured values */
+    target_ulong mhpmevent_val[RV_MAX_MHPMEVENTS];
 
 
 #ifdef TARGET_CHERI
