@@ -20,6 +20,7 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "cpu.h"
+#include "pmu.h"
 #include "qemu/main-loop.h"
 #include "exec/exec-all.h"
 #include "exec/log_instr.h"
@@ -508,34 +509,28 @@ static RISCVException write_vstart(CPURISCVState *env, int csrno,
 }
 
 /* User Timers and Counters */
-static RISCVException read_instret(CPURISCVState *env, int csrno,
-                                   target_ulong *val)
+static target_ulong get_ticks(bool shift)
 {
-#if !defined(CONFIG_USER_ONLY)
-    if (icount_enabled()) {
-        *val = icount_get();
-    } else {
-        *val = cpu_get_host_ticks();
-    }
-#else
-    *val = cpu_get_host_ticks();
-#endif
-    return RISCV_EXCP_NONE;
-}
+    int64_t val;
+    target_ulong result;
 
-static RISCVException read_instreth(CPURISCVState *env, int csrno,
-                                    target_ulong *val)
-{
 #if !defined(CONFIG_USER_ONLY)
     if (icount_enabled()) {
-        *val = icount_get() >> 32;
+        val = icount_get();
     } else {
-        *val = cpu_get_host_ticks() >> 32;
+        val = cpu_get_host_ticks();
     }
 #else
-    *val = cpu_get_host_ticks() >> 32;
+    val = cpu_get_host_ticks();
 #endif
-    return RISCV_EXCP_NONE;
+
+    if (shift) {
+        result = val >> 32;
+    } else {
+        result = val;
+    }
+
+    return result;
 }
 
 #if defined(CONFIG_USER_ONLY)
@@ -553,11 +548,23 @@ static RISCVException read_timeh(CPURISCVState *env, int csrno,
     return RISCV_EXCP_NONE;
 }
 
+static int read_hpmcounter(CPURISCVState *env, int csrno, target_ulong *val)
+{
+    *val = get_ticks(false);
+    return RISCV_EXCP_NONE;
+}
+
+static int read_hpmcounterh(CPURISCVState *env, int csrno, target_ulong *val)
+{
+    *val = get_ticks(true);
+    return RISCV_EXCP_NONE;
+}
+
 #else /* CONFIG_USER_ONLY */
 
 static int read_mhpmevent(CPURISCVState *env, int csrno, target_ulong *val)
 {
-    int evt_index = csrno - CSR_MHPMEVENT3;
+    int evt_index = csrno - CSR_MCOUNTINHIBIT;
 
     *val = env->mhpmevent_val[evt_index];
 
@@ -566,7 +573,7 @@ static int read_mhpmevent(CPURISCVState *env, int csrno, target_ulong *val)
 
 static int write_mhpmevent(CPURISCVState *env, int csrno, target_ulong val)
 {
-    int evt_index = csrno - CSR_MHPMEVENT3;
+    int evt_index = csrno - CSR_MCOUNTINHIBIT;
 
     env->mhpmevent_val[evt_index] = val;
 
@@ -575,54 +582,104 @@ static int write_mhpmevent(CPURISCVState *env, int csrno, target_ulong val)
 
 static int write_mhpmcounter(CPURISCVState *env, int csrno, target_ulong val)
 {
-    int ctr_index = csrno - CSR_MHPMCOUNTER3 + 3;
+    int ctr_idx = csrno - CSR_MCYCLE;
+    PMUCTRState *counter = &env->pmu_ctrs[ctr_idx];
 
-    env->mhpmcounter_val[ctr_index] = val;
+    counter->mhpmcounter_val = val;
+    if (riscv_pmu_ctr_monitor_cycles(env, ctr_idx) ||
+        riscv_pmu_ctr_monitor_instructions(env, ctr_idx)) {
+        counter->mhpmcounter_prev = get_ticks(false);
+    } else {
+        /* Other counters can keep incrementing from the given value */
+        counter->mhpmcounter_prev = val;
+    }
 
     return RISCV_EXCP_NONE;
 }
 
 static int write_mhpmcounterh(CPURISCVState *env, int csrno, target_ulong val)
 {
-    int ctr_index = csrno - CSR_MHPMCOUNTER3H + 3;
+    int ctr_idx = csrno - CSR_MCYCLEH;
+    PMUCTRState *counter = &env->pmu_ctrs[ctr_idx];
 
-    env->mhpmcounterh_val[ctr_index] = val;
+    counter->mhpmcounterh_val = val;
+    if (riscv_pmu_ctr_monitor_cycles(env, ctr_idx) ||
+        riscv_pmu_ctr_monitor_instructions(env, ctr_idx)) {
+        counter->mhpmcounterh_prev = get_ticks(true);
+    } else {
+        counter->mhpmcounterh_prev = val;
+    }
+
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException riscv_pmu_read_ctr(CPURISCVState *env, target_ulong *val,
+                                         bool upper_half, uint32_t ctr_idx)
+{
+    PMUCTRState counter = env->pmu_ctrs[ctr_idx];
+    target_ulong ctr_prev = upper_half ? counter.mhpmcounterh_prev :
+                                         counter.mhpmcounter_prev;
+    target_ulong ctr_val = upper_half ? counter.mhpmcounterh_val :
+                                        counter.mhpmcounter_val;
+
+    if (get_field(env->mcountinhibit, BIT(ctr_idx))) {
+        /**
+         * Counter should not increment if inhibit bit is set. We can't really
+         * stop the icount counting. Just return the counter value written by
+         * the supervisor to indicate that counter was not incremented.
+         */
+        if (!counter.started) {
+            *val = ctr_val;
+            return RISCV_EXCP_NONE;
+        } else {
+            /* Mark that the counter has been stopped */
+            counter.started = false;
+        }
+    }
+
+    /**
+     * The kernel computes the perf delta by subtracting the current value from
+     * the value it initialized previously (ctr_val).
+     */
+    if (riscv_pmu_ctr_monitor_cycles(env, ctr_idx) ||
+        riscv_pmu_ctr_monitor_instructions(env, ctr_idx)) {
+        *val = get_ticks(upper_half) - ctr_prev + ctr_val;
+    } else {
+        *val = ctr_val;
+    }
 
     return RISCV_EXCP_NONE;
 }
 
 static int read_hpmcounter(CPURISCVState *env, int csrno, target_ulong *val)
 {
-    int ctr_index;
+    uint16_t ctr_index;
 
     if (csrno >= CSR_MCYCLE && csrno <= CSR_MHPMCOUNTER31) {
-        ctr_index = csrno - CSR_MHPMCOUNTER3 + 3;
+        ctr_index = csrno - CSR_MCYCLE;
     } else if (csrno >= CSR_CYCLE && csrno <= CSR_HPMCOUNTER31) {
-        ctr_index = csrno - CSR_HPMCOUNTER3 + 3;
+        ctr_index = csrno - CSR_CYCLE;
     } else {
         return RISCV_EXCP_ILLEGAL_INST;
     }
-    *val = env->mhpmcounter_val[ctr_index];
 
-    return RISCV_EXCP_NONE;
+    return riscv_pmu_read_ctr(env, val, false, ctr_index);
 }
 
 static int read_hpmcounterh(CPURISCVState *env, int csrno, target_ulong *val)
 {
-    int ctr_index;
+    uint16_t ctr_index;
 
     if (csrno >= CSR_MCYCLEH && csrno <= CSR_MHPMCOUNTER31H) {
-        ctr_index = csrno - CSR_MHPMCOUNTER3H + 3;
+        ctr_index = csrno - CSR_MCYCLEH;
     } else if (csrno >= CSR_CYCLEH && csrno <= CSR_HPMCOUNTER31H) {
-        ctr_index = csrno - CSR_HPMCOUNTER3H + 3;
+        ctr_index = csrno - CSR_CYCLEH;
     } else {
         return RISCV_EXCP_ILLEGAL_INST;
     }
-    *val = env->mhpmcounterh_val[ctr_index];
 
-    return RISCV_EXCP_NONE;
+    return riscv_pmu_read_ctr(env, val, true, ctr_index);
 }
-
 
 static RISCVException read_time(CPURISCVState *env, int csrno,
                                 target_ulong *val)
@@ -1011,11 +1068,23 @@ static RISCVException read_mcountinhibit(CPURISCVState *env, int csrno,
 static RISCVException write_mcountinhibit(CPURISCVState *env, int csrno,
                                           target_ulong val)
 {
+    int cidx;
+    PMUCTRState *counter;
+
     if (env->priv_ver < PRIV_VERSION_1_11_0) {
         return RISCV_EXCP_ILLEGAL_INST;
     }
 
     env->mcountinhibit = val;
+
+    /* Check if any other counter is also monitoring cycles/instructions */
+    for (cidx = 0; cidx < RV_MAX_MHPMCOUNTERS; cidx++) {
+        if (!get_field(env->mcountinhibit, BIT(cidx))) {
+            counter = &env->pmu_ctrs[cidx];
+            counter->started = true;
+        }
+    }
+
     return RISCV_EXCP_NONE;
 }
 
@@ -2829,10 +2898,10 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_VL] =                  CSR_OP_R_PRIV(vs, vl, 1_12_0),
     [CSR_VTYPE] =               CSR_OP_R_PRIV(vs, vtype, 1_12_0),
     /* User Timers and Counters */
-    [CSR_CYCLE] =               CSR_OP_FN_R(ctr, read_instret, "cycle"),
-    [CSR_INSTRET] =             CSR_OP_FN_R(ctr, read_instret, "instret"),
-    [CSR_CYCLEH] =              CSR_OP_FN_R(ctr32, read_instreth, "cycleh"),
-    [CSR_INSTRETH] =            CSR_OP_FN_R(ctr32, read_instreth, "instreth"),
+    [CSR_CYCLE] =               CSR_OP_FN_R(ctr, read_hpmcounter, "cycle"),
+    [CSR_INSTRET] =             CSR_OP_FN_R(ctr, read_hpmcounter, "instret"),
+    [CSR_CYCLEH] =              CSR_OP_FN_R(ctr32, read_hpmcounterh, "cycleh"),
+    [CSR_INSTRETH] =            CSR_OP_FN_R(ctr32, read_hpmcounterh, "instreth"),
 
     /*
      * In privileged mode, the monitor will have to emulate TIME CSRs only if
@@ -2843,10 +2912,14 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
 
 #if !defined(CONFIG_USER_ONLY)
     /* Machine Timers and Counters */
-    [CSR_MCYCLE] =              CSR_OP_FN_R(any, read_instret, "mcycle"),
-    [CSR_MINSTRET] =            CSR_OP_FN_R(any, read_instret, "minstret"),
-    [CSR_MCYCLEH] =             CSR_OP_FN_R(any32, read_instreth, "mcycleh"),
-    [CSR_MINSTRETH] =           CSR_OP_FN_R(any32, read_instreth, "minstreth"),
+    [CSR_MCYCLE] =              CSR_OP_FN_RW(any, read_hpmcounter,
+                                             write_mhpmcounter, "mcycle"),
+    [CSR_MINSTRET] =            CSR_OP_FN_RW(any, read_hpmcounter,
+                                             write_mhpmcounter, "minstret"),
+    [CSR_MCYCLEH] =             CSR_OP_FN_RW(any32, read_hpmcounterh,
+                                             write_mhpmcounterh, "mcycleh"),
+    [CSR_MINSTRETH] =           CSR_OP_FN_RW(any32, read_hpmcounterh,
+                                             write_mhpmcounterh, "minstreth"),
 
     /* Machine Information Registers */
     [CSR_MVENDORID] =           CSR_OP_FN_R(any, read_zero, "mvendorid"),
