@@ -1839,7 +1839,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
 
     if  (cause == RISCV_EXCP_SEMIHOST) {
         if (env->priv >= PRV_S) {
-            gpr_set_int_value(env, xA0, do_common_semihosting(cs));
+            do_common_semihosting(cs);
             riscv_update_pc(env, PC_ADDR(env) + 4, env->xl,
                             /*can_be_unrepresentable=*/false);
             return;
