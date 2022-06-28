@@ -2734,7 +2734,7 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     /* Performance Counters */
     [CSR_HPMCOUNTER3   ... CSR_HPMCOUNTER31] =    CSR_OP_FN_R(ctr, read_zero, "hpmcounterN"),
     [CSR_MHPMCOUNTER3  ... CSR_MHPMCOUNTER31] =   CSR_OP_FN_R(any, read_zero, "mhpmcounterN"),
-    [CSR_MCOUNTINHIBIT] =       CSR_OP_RW(any, mcountinhibit),
+    [CSR_MCOUNTINHIBIT] =       CSR_OP_RW_PRIV(any, mcountinhibit, 1_11_0),
 
     [CSR_MHPMEVENT3    ... CSR_MHPMEVENT31] =     CSR_OP_FN_R(any, read_zero, "mhpmeventN"),
     [CSR_HPMCOUNTER3H  ... CSR_HPMCOUNTER31H] =   CSR_OP_FN_R(ctr32, read_zero, "hpmcounterNh"),
