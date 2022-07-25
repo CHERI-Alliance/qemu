@@ -455,6 +455,7 @@ typedef struct {
     bool ext_zbs;
     bool ext_counters;
     bool ext_ifencei;
+    bool ext_zihintpause;
     bool ext_icsr;
     bool ext_svinval;
     bool ext_svnapot;

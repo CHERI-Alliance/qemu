@@ -1151,6 +1151,7 @@ static Property riscv_cpu_properties[] = {
     DEFINE_PROP_BOOL("u", RISCVCPU, cfg.ext_u, true),
     DEFINE_PROP_BOOL("Counters", RISCVCPU, cfg.ext_counters, true),
     DEFINE_PROP_BOOL("Zifencei", RISCVCPU, cfg.ext_ifencei, true),
+    DEFINE_PROP_BOOL("Zihintpause", RISCVCPU, cfg.ext_zihintpause, true),
     DEFINE_PROP_BOOL("Zicsr", RISCVCPU, cfg.ext_icsr, true),
     DEFINE_PROP_BOOL("Zfh", RISCVCPU, cfg.ext_zfh, false),
     DEFINE_PROP_BOOL("Zfhmin", RISCVCPU, cfg.ext_zfhmin, false),
@@ -1340,6 +1341,7 @@ static void riscv_isa_string_ext(RISCVCPU *cpu, char **isa_str, int max_str_len)
 #ifdef TARGET_CHERI_RISCV_STD
         {"zcherihybrid", cpu->cfg.ext_zyhybrid},
         {"zcheripurecap", cpu->cfg.ext_cheri},
+        ISA_EDATA_ENTRY(zihintpause, ext_zihintpause),
         {"zcheripte", cpu->cfg.cheri_pte },
         {"zcherilevels", cpu->cfg.lvbits > 0 },
 #endif
