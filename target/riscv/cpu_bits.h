@@ -225,6 +225,9 @@
 #define CSR_SSCRATCHC       CSR_SSCRATCH
 #define CSR_SEPCC           CSR_SEPC
 #endif
+/* Sstc supervisor CSRs */
+#define CSR_STIMECMP        0x14D
+#define CSR_STIMECMPH       0x15D
 
 /* Supervisor Protection and Translation */
 #define CSR_SPTBR           0x180

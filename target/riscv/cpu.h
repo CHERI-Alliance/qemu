@@ -378,6 +378,9 @@ struct CPUArchState {
     uint64_t mfromhost;
     uint64_t mtohost;
 
+    /* Sstc CSRs */
+    uint64_t stimecmp;
+
     /* physical memory protection */
     pmp_table_t pmp_state;
     target_ulong mseccfg;
@@ -479,6 +482,7 @@ struct CPUArchState {
 
 
     /* Fields from here on are preserved across CPU reset. */
+    QEMUTimer *stimer; /* Internal timer for S-mode interrupt */
 
     hwaddr kernel_addr;
     hwaddr fdt_addr;
@@ -534,6 +538,7 @@ struct RISCVCPUConfig {
     bool ext_ifencei;
     bool ext_zihintpause;
     bool ext_icsr;
+    bool ext_sstc;
     bool ext_svinval;
 #if !defined(TARGET_CHERI_RISCV_V9)
     /* Incompatible with ISAv9 */
