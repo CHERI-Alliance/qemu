@@ -288,6 +288,7 @@ const VMStateDescription vmstate_riscv_cpu = {
                              vmstate_pmu_ctr_state, PMUCTRState),
         VMSTATE_UINTTL_ARRAY(env.mhpmevent_val, RISCVCPU, RV_MAX_MHPMEVENTS),
         VMSTATE_UINTTL_OR_CAP(env.sscratch, env.sscratchc, RISCVCPU),
+        VMSTATE_UINTTL_ARRAY(env.mhpmeventh_val, RISCVCPU, RV_MAX_MHPMEVENTS),
         VMSTATE_UINTTL_OR_CAP(env.mscratch, env.mscratchc, RISCVCPU),
         VMSTATE_UINTTL(env.mcountinhibit, RISCVCPU),
         VMSTATE_UINT64(env.mfromhost, RISCVCPU),
