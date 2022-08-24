@@ -3146,7 +3146,8 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_MHPMEVENT3    ... CSR_MHPMEVENT31] =
         CSR_OP_FN_RW(any, read_mhpmevent, write_mhpmevent,  "mhpmeventN"),
     [CSR_MHPMEVENT3H    ... CSR_MHPMEVENT31H] =
-        CSR_OP_FN_RW(sscofpmf, read_mhpmeventh, write_mhpmeventh,  "mhpmeventNh"),
+        CSR_OP_FN_RW_PRIV(sscofpmf, read_mhpmeventh, write_mhpmeventh,
+                          "mhpmeventNh", 1_12_0),
     [CSR_HPMCOUNTER3H  ... CSR_HPMCOUNTER31H] =
         CSR_OP_FN_R(ctr32, read_hpmcounterh, "hpmcounterNh"),
     [CSR_MHPMCOUNTER3H ... CSR_MHPMCOUNTER31H] =
