@@ -2080,13 +2080,10 @@ void riscv_cpu_do_interrupt(CPUState *cs)
 #endif
 
     if  (cause == RISCV_EXCP_SEMIHOST) {
-        if (env->priv >= PRV_S) {
-            do_common_semihosting(cs);
-            riscv_update_pc(env, PC_ADDR(env) + 4, env->xl,
-                            /*can_be_unrepresentable=*/false);
-            return;
-        }
-        cause = RISCV_EXCP_BREAKPOINT;
+        do_common_semihosting(cs);
+        riscv_update_pc(env, PC_ADDR(env) + 4, env->xl,
+                        /*can_be_unrepresentable=*/false);
+        return;
     }
 
     if (!async) {
