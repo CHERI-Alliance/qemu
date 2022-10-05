@@ -336,14 +336,14 @@ static inline void *get_tagmem_from_iotlb_entry(CPUArchState *env,
     CPUTLBEntry *entry = tlb_entry(env, mmu_idx, vaddr);
     g_assert(tlb_hit(isWrite ? tlb_addr_write(entry) : entry->addr_read, vaddr));
 #endif
-    CPUIOTLBEntry *iotlbentry =
-        &env_tlb(env)->d[mmu_idx].iotlb[tlb_index(env, mmu_idx, vaddr)];
+    CPUTLBEntryFull *pfull =
+        &env_tlb(env)->d[mmu_idx].fulltlb[tlb_index(env, mmu_idx, vaddr)];
     if (isWrite) {
-        *flags_out = IOTLB_GET_TAGMEM_FLAGS(iotlbentry, write);
-        return IOTLB_GET_TAGMEM(iotlbentry, write);
+        *flags_out = IOTLB_GET_TAGMEM_FLAGS(pfull, write);
+        return IOTLB_GET_TAGMEM(pfull, write);
     } else {
-        *flags_out = IOTLB_GET_TAGMEM_FLAGS(iotlbentry, read);
-        return IOTLB_GET_TAGMEM(iotlbentry, read);
+        *flags_out = IOTLB_GET_TAGMEM_FLAGS(pfull, read);
+        return IOTLB_GET_TAGMEM(pfull, read);
     }
 }
 
