@@ -613,6 +613,22 @@ static void riscv_cpu_set_pc(CPUState *cs, vaddr value)
 #endif
 }
 
+static vaddr riscv_cpu_get_pc(CPUState *cs)
+{
+    RISCVCPU *cpu = RISCV_CPU(cs);
+    CPURISCVState *env = &cpu->env;
+#ifdef TARGET_CHERI
+    vaddr pc = env->pcc._cr_cursor;
+#else
+    vaddr pc = env->pc;
+#endif
+    /* Match cpu_get_tb_cpu_state. */
+    if (env->xl == MXL_RV32) {
+        return pc & UINT32_MAX;
+    }
+    return pc;
+}
+
 static void riscv_cpu_synchronize_from_tb(CPUState *cs,
                                           const TranslationBlock *tb)
 {
@@ -620,7 +636,7 @@ static void riscv_cpu_synchronize_from_tb(CPUState *cs,
     CPURISCVState *env = &cpu->env;
     RISCVMXL xl = FIELD_EX32(tb->flags, TB_FLAGS, XL);
 
-    riscv_update_pc(env, tb->pc, xl, /*can_be_unrepresentable=*/false);
+    riscv_update_pc(env, tb_pc(tb), xl, /*can_be_unrepresentable=*/false);
 #ifdef TARGET_CHERI
     cheri_debug_assert(tb_in_capmode(tb) == cheri_in_capmode(env));
 #endif
@@ -1783,6 +1799,7 @@ static void riscv_cpu_class_init(ObjectClass *c, void *data)
     cc->has_work = riscv_cpu_has_work;
     cc->dump_state = riscv_cpu_dump_state;
     cc->set_pc = riscv_cpu_set_pc;
+    cc->get_pc = riscv_cpu_get_pc;
     cc->gdb_read_register = riscv_cpu_gdb_read_register;
     cc->gdb_write_register = riscv_cpu_gdb_write_register;
     cc->gdb_num_core_regs = 33;
