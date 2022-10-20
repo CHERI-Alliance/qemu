@@ -493,6 +493,9 @@ do_check_protect_pse36:
             error_code |= PG_ERROR_I_D_MASK;
         }
         break;
+    case MMU_DATA_CAP_LOAD:
+    case MMU_DATA_CAP_STORE:
+        g_assert_not_reached();
     }
     err->exception_index = EXCP0E_PAGE;
     err->error_code = error_code;
