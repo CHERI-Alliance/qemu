@@ -660,18 +660,21 @@ static bool riscv_cpu_has_work(CPUState *cs)
 #endif
 }
 
-void restore_state_to_opc(CPURISCVState *env, TranslationBlock *tb,
-                          target_ulong *data)
+static void riscv_restore_state_to_opc(CPUState *cs,
+                                       const TranslationBlock *tb,
+                                       const uint64_t *data)
 {
+    RISCVCPU *cpu = RISCV_CPU(cs);
+    CPURISCVState *env = &cpu->env;
+    RISCVMXL xl = FIELD_EX32(tb->flags, TB_FLAGS, XL);
 #ifdef TARGET_CHERI
     assert(cap_is_in_bounds(&env->pcc, data[0], 1));
     if (unlikely(env->pcc._cr_cursor != data[0])) {
         qemu_log_instr_or_mask_msg(env, CPU_LOG_INT,
             "%s: Updating pc from TB: " TARGET_FMT_lx " -> " TARGET_FMT_lx "\n",
-            __func__, (target_ulong)env->pcc._cr_cursor, data[0]);
+            __func__, (target_ulong)env->pcc._cr_cursor, (target_ulong)data[0]);
     }
 #endif
-    RISCVMXL xl = FIELD_EX32(tb->flags, TB_FLAGS, XL);
     riscv_update_pc(env, data[0], xl, /*can_be_unrepresentable=*/false);
     env->bins = data[1];
 }
@@ -1771,6 +1774,7 @@ static const struct TCGCPUOps riscv_tcg_ops = {
     .initialize = riscv_translate_init,
     .synchronize_from_tb = riscv_cpu_synchronize_from_tb,
     .debug_excp_handler = riscv_debug_excp_handler,
+    .restore_state_to_opc = riscv_restore_state_to_opc,
 
 #ifndef CONFIG_USER_ONLY
     .tlb_fill = riscv_cpu_tlb_fill,
@@ -1778,7 +1782,6 @@ static const struct TCGCPUOps riscv_tcg_ops = {
     .do_interrupt = riscv_cpu_do_interrupt,
     .do_transaction_failed = riscv_cpu_do_transaction_failed,
     .do_unaligned_access = riscv_cpu_do_unaligned_access,
-    .debug_excp_handler = riscv_cpu_debug_excp_handler,
     .debug_check_breakpoint = riscv_cpu_debug_check_breakpoint,
     .debug_check_watchpoint = riscv_cpu_debug_check_watchpoint,
 #endif /* !CONFIG_USER_ONLY */
