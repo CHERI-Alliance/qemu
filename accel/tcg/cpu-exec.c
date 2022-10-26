@@ -191,7 +191,7 @@ static bool tb_lookup_cmp(const void *p, const void *d)
     const struct tb_desc *desc = d;
 
     if ((TARGET_TB_PCREL || tb_pc(tb) == desc->pc) &&
-        tb->page_addr[0] == desc->page_addr0 &&
+        tb_page_addr0(tb) == desc->page_addr0 &&
         tb->cs_base == desc->cs_base &&
         tb->pcc_base == desc->pcc_base &&
         tb->pcc_top == desc->pcc_top &&
@@ -200,7 +200,8 @@ static bool tb_lookup_cmp(const void *p, const void *d)
         tb->trace_vcpu_dstate == desc->trace_vcpu_dstate &&
         tb_cflags(tb) == desc->cflags) {
         /* check next page if needed */
-        if (tb->page_addr[1] == -1) {
+        tb_page_addr_t tb_phys_page1 = tb_page_addr1(tb);
+        if (tb_phys_page1 == -1) {
             return true;
         } else {
             tb_page_addr_t phys_page1;
@@ -217,7 +218,7 @@ static bool tb_lookup_cmp(const void *p, const void *d)
              */
             virt_page1 = TARGET_PAGE_ALIGN(desc->pc);
             phys_page1 = get_page_addr_code(desc->env, virt_page1);
-            if (tb->page_addr[1] == phys_page1) {
+            if (tb_phys_page1 == phys_page1) {
                 return true;
             }
         }
@@ -323,15 +324,11 @@ static void log_cpu_exec(target_ulong pc, CPUState *cpu,
     }
 }
 
-static bool check_for_breakpoints(CPUState *cpu, target_ulong pc,
-                                  uint32_t *cflags)
+static bool check_for_breakpoints_slow(CPUState *cpu, target_ulong pc,
+                                       uint32_t *cflags)
 {
     CPUBreakpoint *bp;
     bool match_page = false;
-
-    if (likely(QTAILQ_EMPTY(&cpu->breakpoints))) {
-        return false;
-    }
 
     /*
      * Singlestep overrides breakpoints.
@@ -391,6 +388,13 @@ static bool check_for_breakpoints(CPUState *cpu, target_ulong pc,
         *cflags = (*cflags & ~CF_COUNT_MASK) | CF_NO_GOTO_TB | 1;
     }
     return false;
+}
+
+static inline bool check_for_breakpoints(CPUState *cpu, target_ulong pc,
+                                         uint32_t *cflags)
+{
+    return unlikely(!QTAILQ_EMPTY(&cpu->breakpoints)) &&
+        check_for_breakpoints_slow(cpu, pc, cflags);
 }
 
 /**
@@ -1046,7 +1050,7 @@ int cpu_exec(CPUState *cpu)
              * direct jump to a TB spanning two pages because the mapping
              * for the second page can change.
              */
-            if (tb->page_addr[1] != -1) {
+            if (tb_page_addr1(tb) != -1) {
                 last_tb = NULL;
             }
 #endif
