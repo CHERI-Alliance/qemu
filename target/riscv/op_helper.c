@@ -36,7 +36,7 @@ G_NORETURN void riscv_raise_exception(CPURISCVState *env,
     cs->exception_index = exception;
     // Expand this call to print debug info: cpu_loop_exit_restore(cs, pc);
     if (pc) {
-        cpu_restore_state(cs, pc, true);
+        cpu_restore_state(cs, pc);
     }
 #ifdef CONFIG_RVFI_DII
     if (exception == RISCV_EXCP_ILLEGAL_INST &&

@@ -412,7 +412,7 @@ void cheri_tag_invalidate(CPUArchState *env, target_ulong vaddr, int32_t size,
     char buffer[256];
     FILE *f = fmemopen(buffer, sizeof(buffer), "w");
     fprintf(f, "Probably caused by guest instruction: ");
-    target_disas(f, env_cpu(env), cpu_get_current_pc(env, pc, false),
+    target_disas(f, env_cpu(env), cpu_get_current_pc(env, pc),
                  /* Only one instr*/ -1);
     fprintf(f, "\r");
     fclose(f);

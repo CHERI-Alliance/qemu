@@ -228,7 +228,7 @@ void HELPER(cspecialrw)(CPUArchState *env, uint32_t cd, uint32_t cs,
 {
     uintptr_t _host_return_address = GETPC();
     // Ensure that env->pcc.cursor is correct:
-    cpu_restore_state(env_cpu(env), _host_return_address, false);
+    cpu_restore_state(env_cpu(env), _host_return_address);
 
     assert(index <= 31 && "Bug in translator?");
     uint32_t csrno = csr_for_cspecialrw(index);

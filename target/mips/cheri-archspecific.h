@@ -58,7 +58,7 @@ static inline G_NORETURN void do_raise_c2_exception_impl(CPUMIPSState *env,
     }
 
     if (qemu_log_instr_or_mask_enabled(env, CPU_LOG_INT)) {
-        cpu_restore_state(env_cpu(env), hostpc, true);
+        cpu_restore_state(env_cpu(env), hostpc);
         qemu_log_instr_or_mask_msg(
             env, CPU_LOG_INT,
             "C2 EXCEPTION: cause=%d(%s) reg=%d PCC=" PRINT_CAP_FMTSTR
