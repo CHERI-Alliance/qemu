@@ -215,6 +215,10 @@ bool qemu_set_log_internal(const char *filename, bool changed_name,
     /* The per-thread flag is immutable. */
     if (log_per_thread) {
         log_flags |= LOG_PER_THREAD;
+    } else {
+        if (global_filename) {
+            log_flags &= ~LOG_PER_THREAD;
+        }
     }
 
     per_thread = log_flags & LOG_PER_THREAD;
