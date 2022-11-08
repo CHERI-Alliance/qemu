@@ -388,6 +388,12 @@ static void mips_cpu_reset(DeviceState *dev)
 #else
     env->CP0_Status = (1 << CP0St_BEV) | (1 << CP0St_ERL);
 #endif
+    if (env->insn_flags & INSN_LOONGSON2F) {
+        /* Loongson-2F has those bits hardcoded to 1 */
+        env->CP0_Status |= (1 << CP0St_KX) | (1 << CP0St_SX) |
+                            (1 << CP0St_UX);
+    }
+
     /*
      * Vectored interrupts not implemented, timer on int 7,
      * no performance counters.
