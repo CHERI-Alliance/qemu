@@ -5122,7 +5122,7 @@ static int img_dd(int argc, char **argv)
 
     in.buf = g_new(uint8_t, in.bsz);
 
-    for (out_pos = 0; in_pos < size;) {
+    for (out_pos = 0; in_pos < size; ) {
         int bytes = (in_pos + in.bsz > size) ? size - in_pos : in.bsz;
 
         ret = blk_pread(blk1, in_pos, bytes, in.buf, 0);
