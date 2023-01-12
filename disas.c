@@ -296,7 +296,8 @@ void target_disas_buf(FILE *out, CPUState *cpu, void *code, unsigned long size,
     }
 }
 
-static int gstring_printf(FILE *stream, const char *fmt, ...)
+static int G_GNUC_PRINTF(2, 3)
+gstring_printf(FILE *stream, const char *fmt, ...)
 {
     /* We abuse the FILE parameter to pass a GString. */
     GString *s = (GString *)stream;
