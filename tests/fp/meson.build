@@ -47,6 +47,7 @@ tfcflags = [
   '-Wno-missing-prototypes',
   '-Wno-return-type',
   '-Wno-unused-function',
+  '-Wno-missing-format-attribute',
   '-Wno-error',
 ]
 if cc.get_id() == 'clang'
