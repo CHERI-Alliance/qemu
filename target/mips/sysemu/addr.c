@@ -23,8 +23,6 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 
-static int mips_um_ksegs;
-
 uint64_t cpu_mips_translate_elf_to_phys(void *opaque, uint64_t addr) {
 #ifdef TARGET_MIPS64
   if (addr < (UINT64_C(0xff) << 48) && (addr <= 0x80000000 || addr >= 0x9fffffff)) {
@@ -45,11 +43,6 @@ uint64_t cpu_mips_phys_to_kseg0(void *opaque, uint64_t addr)
     return addr | ~0x7fffffffll;
 }
 
-uint64_t cpu_mips_kvm_um_phys_to_kseg0(void *opaque, uint64_t addr)
-{
-    return addr | 0x40000000ll;
-}
-
 uint64_t cpu_mips_kseg1_to_phys(void *opaque, uint64_t addr)
 {
     return addr & 0x1fffffffll;
@@ -58,14 +51,4 @@ uint64_t cpu_mips_kseg1_to_phys(void *opaque, uint64_t addr)
 uint64_t cpu_mips_phys_to_kseg1(void *opaque, uint64_t addr)
 {
     return (addr & 0x1fffffffll) | 0xffffffffa0000000ll;
-}
-
-bool mips_um_ksegs_enabled(void)
-{
-    return mips_um_ksegs;
-}
-
-void mips_um_ksegs_enable(void)
-{
-    mips_um_ksegs = 1;
 }
