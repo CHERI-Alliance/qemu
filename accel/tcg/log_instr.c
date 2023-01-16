@@ -1114,6 +1114,8 @@ void qemu_log_instr_evt(CPUArchState *env, uint16_t fn, target_ulong arg0,
     /* iinfo->cv_buffer.val4 = arg3; */
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsuggest-attribute=format"
 void qemu_log_instr_extra(CPUArchState *env, const char *msg, ...)
 {
     cpu_log_instr_info_t *iinfo = get_cpu_log_instr_info(env);
@@ -1123,6 +1125,7 @@ void qemu_log_instr_extra(CPUArchState *env, const char *msg, ...)
     g_string_append_vprintf(iinfo->txt_buffer, msg, va);
     va_end(va);
 }
+#pragma GCC diagnostic pop
 
 /*
  *  A printf that takes an array of argments unioned of all possible argument

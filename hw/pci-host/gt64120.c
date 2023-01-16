@@ -26,6 +26,8 @@
 #include "qapi/error.h"
 #include "qemu/units.h"
 #include "qemu/log.h"
+#include "hw/qdev-properties.h"
+#include "hw/registerfields.h"
 #include "hw/pci/pci_device.h"
 #include "hw/pci/pci_host.h"
 #include "hw/misc/empty_slot.h"
@@ -40,6 +42,9 @@
 /* CPU Configuration */
 #define GT_CPU                  (0x000 >> 2)
 #define GT_MULTI                (0x120 >> 2)
+
+REG32(GT_CPU,                   0x000)
+FIELD(GT_CPU,                   Endianness,     12, 1)
 
 /* CPU Address Decode */
 #define GT_SCS10LD              (0x008 >> 2)
@@ -210,6 +215,17 @@
 #define GT_PCI0_CFGADDR         (0xcf8 >> 2)
 #define GT_PCI0_CFGDATA         (0xcfc >> 2)
 
+REG32(GT_PCI0_CMD,              0xc00)
+FIELD(GT_PCI0_CMD,              MByteSwap,      0,  1)
+FIELD(GT_PCI0_CMD,              SByteSwap,      16, 1)
+#define  R_GT_PCI0_CMD_ByteSwap_MASK \
+        (R_GT_PCI0_CMD_MByteSwap_MASK | R_GT_PCI0_CMD_SByteSwap_MASK)
+REG32(GT_PCI1_CMD,              0xc80)
+FIELD(GT_PCI1_CMD,              MByteSwap,      0,  1)
+FIELD(GT_PCI1_CMD,              SByteSwap,      16, 1)
+#define  R_GT_PCI1_CMD_ByteSwap_MASK \
+        (R_GT_PCI1_CMD_MByteSwap_MASK | R_GT_PCI1_CMD_SByteSwap_MASK)
+
 /* Interrupts */
 #define GT_INTRCAUSE            (0xc18 >> 2)
 #define GT_INTRMASK             (0xc1c >> 2)
@@ -241,6 +257,9 @@ struct GT64120State {
     PCI_MAPPING_ENTRY(ISD);
     MemoryRegion pci0_mem;
     AddressSpace pci0_mem_as;
+
+    /* properties */
+    bool cpu_little_endian;
 };
 
 /* Adjust range to avoid touching space which isn't mappable via PCI */
@@ -1024,11 +1043,7 @@ static void gt64120_reset(DeviceState *dev)
     /* FIXME: Malta specific hw assumptions ahead */
 
     /* CPU Configuration */
-#if TARGET_BIG_ENDIAN
-    s->regs[GT_CPU]           = 0x00000000;
-#else
-    s->regs[GT_CPU]           = 0x00001000;
-#endif
+    s->regs[GT_CPU] = s->cpu_little_endian ? R_GT_CPU_Endianness_MASK : 0;
     s->regs[GT_MULTI]         = 0x00000003;
 
     /* CPU Address decode */
@@ -1135,11 +1150,7 @@ static void gt64120_reset(DeviceState *dev)
     s->regs[GT_TC_CONTROL]    = 0x00000000;
 
     /* PCI Internal */
-#if TARGET_BIG_ENDIAN
-    s->regs[GT_PCI0_CMD]      = 0x00000000;
-#else
-    s->regs[GT_PCI0_CMD]      = 0x00010001;
-#endif
+    s->regs[GT_PCI0_CMD] = s->cpu_little_endian ? R_GT_PCI0_CMD_ByteSwap_MASK : 0;
     s->regs[GT_PCI0_TOR]      = 0x0000070f;
     s->regs[GT_PCI0_BS_SCS10] = 0x00fff000;
     s->regs[GT_PCI0_BS_SCS32] = 0x00fff000;
@@ -1156,11 +1167,7 @@ static void gt64120_reset(DeviceState *dev)
     s->regs[GT_PCI0_SSCS10_BAR] = 0x00000000;
     s->regs[GT_PCI0_SSCS32_BAR] = 0x01000000;
     s->regs[GT_PCI0_SCS3BT_BAR] = 0x1f000000;
-#if TARGET_BIG_ENDIAN
-    s->regs[GT_PCI1_CMD]      = 0x00000000;
-#else
-    s->regs[GT_PCI1_CMD]      = 0x00010001;
-#endif
+    s->regs[GT_PCI1_CMD] = s->cpu_little_endian ? R_GT_PCI1_CMD_ByteSwap_MASK : 0;
     s->regs[GT_PCI1_TOR]      = 0x0000070f;
     s->regs[GT_PCI1_BS_SCS10] = 0x00fff000;
     s->regs[GT_PCI1_BS_SCS32] = 0x00fff000;
@@ -1201,7 +1208,6 @@ static void gt64120_realize(DeviceState *dev, Error **errp)
                                 PCI_DEVFN(18, 0), TYPE_PCI_BUS);
 
     pci_create_simple(phb->bus, PCI_DEVFN(0, 0), "gt64120_pci");
-
     /*
      * The whole address space decoded by the GT-64120A doesn't generate
      * exception when accessing invalid memory. Create an empty slot to
@@ -1254,11 +1260,18 @@ static const TypeInfo gt64120_pci_info = {
     },
 };
 
+static Property gt64120_properties[] = {
+    DEFINE_PROP_BOOL("cpu-little-endian", GT64120State,
+                     cpu_little_endian, false),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void gt64120_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+    device_class_set_props(dc, gt64120_properties);
     dc->realize = gt64120_realize;
     dc->reset = gt64120_reset;
     dc->vmsd = &vmstate_gt64120;
