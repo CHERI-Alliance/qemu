@@ -607,8 +607,8 @@ target_ulong CHERI_HELPER_IMPL(cloadlinked(CPUArchState *env, uint32_t cb, uint3
         env->CP0_LLAddr = cpu_mips_translate_address(env, addr, 0, _host_return_address);
         env->lladdr = addr;
         qemu_maybe_log_instr_extra(env,
-                                   "cloadlinked: lladdr=" TARGET_FMT_plx
-                                   " CP0_LLaddr=" TARGET_FMT_plx "\n",
+                                   "cloadlinked: lladdr=" HWADDR_FMT_plx
+                                   " CP0_LLaddr=" HWADDR_FMT_plx "\n",
                                    env->lladdr, env->CP0_LLAddr);
         return addr;
     }
@@ -640,8 +640,8 @@ target_ulong CHERI_HELPER_IMPL(cstorecond(CPUArchState *env, uint32_t cb, uint32
         do_raise_c0_exception(env, EXCP_AdES, addr);
     } else {
         qemu_maybe_log_instr_extra(env, "cstorecond: addr="
-            TARGET_FMT_plx " lladdr=" TARGET_FMT_plx " CP0_LLaddr="
-            TARGET_FMT_plx "\n", addr, env->lladdr, env->CP0_LLAddr);
+            HWADDR_FMT_plx " lladdr=" HWADDR_FMT_plx " CP0_LLaddr="
+            HWADDR_FMT_plx "\n", addr, env->lladdr, env->CP0_LLAddr);
 
         // Can't do this here.  It might miss in the TLB.
         // cheri_tag_invalidate(env, addr, size);
@@ -692,8 +692,8 @@ target_ulong CHERI_HELPER_IMPL(cscc_without_tcg(CPUArchState *env, uint32_t cs, 
     uintptr_t retpc = GETPC();
     target_ulong vaddr = get_cscc_addr(env, cs, cb, retpc);
 
-    qemu_maybe_log_instr_extra(env, "cscc: addr=" TARGET_FMT_plx
-        " lladdr=" TARGET_FMT_plx " CP0_LLaddr=" TARGET_FMT_plx "\n",
+    qemu_maybe_log_instr_extra(env, "cscc: addr=" HWADDR_FMT_plx
+        " lladdr=" HWADDR_FMT_plx " CP0_LLaddr=" HWADDR_FMT_plx "\n",
         vaddr, env->lladdr, env->CP0_LLAddr);
     if (env->lladdr != vaddr)
         return 0;

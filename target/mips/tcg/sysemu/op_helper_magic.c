@@ -481,7 +481,7 @@ static bool do_magic_memset(CPUMIPSState *env, uint64_t ra, uint pattern_length)
                         assert(false && "invalid pattern length");
                 }
                 qemu_log_instr_extra(env, "%s: Set " TARGET_FMT_ld
-                    " %d-byte items to 0x%" PRIx64 " at 0x" TARGET_FMT_plx "\n",
+                    " %d-byte items to 0x%" PRIx64 " at 0x" HWADDR_FMT_plx "\n",
                     __func__, l_adj_nitems, pattern_length, value, dest);
             }
 #endif
@@ -520,7 +520,7 @@ static bool do_magic_memset(CPUMIPSState *env, uint64_t ra, uint pattern_length)
                             assert(false && "invalid pattern length");
                     }
                     qemu_log_instr_extra(env, "%s: Set " TARGET_FMT_ld
-                        " %d-byte items to 0x%" PRIx64 " at 0x" TARGET_FMT_plx "\n",
+                        " %d-byte items to 0x%" PRIx64 " at 0x" HWADDR_FMT_plx "\n",
                         __func__, l_adj_nitems, pattern_length, value, dest);
                 }
 #endif

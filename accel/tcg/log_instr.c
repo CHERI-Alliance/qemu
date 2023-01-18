@@ -284,7 +284,7 @@ static inline void emit_text_ldst(log_meminfo_t *minfo, const char *direction)
             qemu_log("    Unknown memory access width\n");
             /* fallthrough */
         case 8:
-            qemu_log("    Memory %s [" TARGET_FMT_lx "] = " TARGET_FMT_plx "\n",
+            qemu_log("    Memory %s [" TARGET_FMT_lx "] = " HWADDR_FMT_plx "\n",
                      direction, minfo->addr, minfo->value);
             break;
         case 4:
@@ -1664,7 +1664,7 @@ void helper_qemu_log_instr_store32(CPUArchState *env, target_ulong addr,
 
 void helper_log_value(CPUArchState *env, const void* ptr, uint64_t value)
 {
-    qemu_maybe_log_instr_extra(env, "%s: " TARGET_FMT_plx "\n", ptr, value);
+    qemu_maybe_log_instr_extra(env, "%s: " HWADDR_FMT_plx "\n", ptr, value);
 }
 
 static void emit_nop_start(CPUArchState *env, target_ulong pc) {}
