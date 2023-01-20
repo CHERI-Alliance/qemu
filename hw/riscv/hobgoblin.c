@@ -296,20 +296,10 @@ static int hobgoblin_load_images(HobgoblinState *s, const memmapEntry_t *dram)
         if (machine->kernel_filename) {
             kernel_start_addr = riscv_calc_kernel_start_addr(&s->soc,
                                                              firmware_end_addr);
-            kernel_entry = riscv_load_kernel(machine->kernel_filename,
-                                             kernel_start_addr, NULL);
+            kernel_entry = riscv_load_kernel(machine, kernel_start_addr, NULL);
 
             if (machine->initrd_filename) {
-                hwaddr start, end;
-                end = riscv_load_initrd(machine->initrd_filename,
-                                        machine->ram_size, kernel_entry,
-                                        &start);
-                if (machine->fdt) {
-                    qemu_fdt_setprop_cell(machine->fdt, "/chosen",
-                                          "linux,initrd-start", start);
-                    qemu_fdt_setprop_cell(machine->fdt, "/chosen",
-                                          "linux,initrd-end", end);
-                }
+                riscv_load_initrd(machine, kernel_entry);
             }
 
             if (machine->fdt && machine->kernel_cmdline &&
@@ -1048,7 +1038,7 @@ static void create_fdt_socket_memory(HobgoblinState *s,
     qemu_fdt_setprop_cells(mc->fdt, name, "reg", dram0_base >> 32, dram0_base,
                            dram1_base >> 32, dram1_base);
     qemu_fdt_setprop_string(mc->fdt, name, "device_type", "memory");
-    riscv_socket_fdt_write_id(mc, mc->fdt, name, socket);
+    riscv_socket_fdt_write_id(mc, name, socket);
     g_free(name);
 }
 
