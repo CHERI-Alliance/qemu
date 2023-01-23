@@ -4100,43 +4100,6 @@ static const ARMCPRegInfo pmsav5_cp_reginfo[] = {
       .fieldoffset = offsetof(CPUARMState, cp15.c6_region[7]) },
 };
 
-#ifdef TARGET_CHERI
-static uint64_t claim_read(CPUARMState *env, const ARMCPRegInfo *ri)
-{
-    return (uint64_t)env->claim;
-}
-
-static void claim_set_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                            uint64_t value)
-{
-    env->claim |= (value & 0xFF);
-}
-
-static void claim_clear_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                              uint64_t value)
-{
-    env->claim &= ~(value & 0xFF);
-}
-
-/* clang-format off */
-static const ARMCPRegInfo claim_cp_reginfo[] = {
-    { .name = "DBGCLAIMSET", .state = ARM_CP_STATE_BOTH,
-      .cp = 0b1110, .opc0 = 0b10, .crn = 0b0111, .opc1 = 0b000,
-      .crm = 0b1000, .opc2 = 0b110,
-      .access = PL1_RW,
-      .type = ARM_CP_SUPPRESS_TB_END,
-      .fieldoffset = offsetof(CPUARMState, claim),
-      .readfn = claim_read, .writefn = claim_set_write  },
-    { .name = "DBGCLAIMCLR", .state = ARM_CP_STATE_BOTH,
-      .cp = 0b1110, .opc0 = 0b10, .crn = 0b0111, .opc1 = 0b000,
-      .crm = 0b1001, .opc2 = 0b110,
-      .access = PL1_RW,
-      .type = ARM_CP_SUPPRESS_TB_END,
-      .fieldoffset = offsetof(CPUARMState, claim),
-      .readfn = claim_read, .writefn = claim_clear_write },
-};
-/* clang-format on */
-#endif
 
 static void vmsa_ttbcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                              uint64_t value)
@@ -6938,12 +6901,47 @@ static CPAccessResult access_esm(CPUARMState *env, const ARMCPRegInfo *ri,
     return CP_ACCESS_OK;
 }
 
+/* ResetSVEState */
+static void arm_reset_sve_state(CPUARMState *env)
+{
+    memset(env->vfp.zregs, 0, sizeof(env->vfp.zregs));
+    /* Recall that FFR is stored as pregs[16]. */
+    memset(env->vfp.pregs, 0, sizeof(env->vfp.pregs));
+    vfp_set_fpcr(env, 0x0800009f);
+}
+
+void aarch64_set_svcr(CPUARMState *env, uint64_t new, uint64_t mask)
+{
+    uint64_t change = (env->svcr ^ new) & mask;
+
+    if (change == 0) {
+        return;
+    }
+    env->svcr ^= change;
+
+    if (change & R_SVCR_SM_MASK) {
+        arm_reset_sve_state(env);
+    }
+
+    /*
+     * ResetSMEState.
+     *
+     * SetPSTATE_ZA zeros on enable and disable.  We can zero this only
+     * on enable: while disabled, the storage is inaccessible and the
+     * value does not matter.  We're not saving the storage in vmstate
+     * when disabled either.
+     */
+    if (change & new & R_SVCR_ZA_MASK) {
+        memset(env->zarray, 0, sizeof(env->zarray));
+    }
+
+    arm_rebuild_hflags(env);
+}
+
 static void svcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                        uint64_t value)
 {
-    helper_set_pstate_sm(env, FIELD_EX64(value, SVCR, SM));
-    helper_set_pstate_za(env, FIELD_EX64(value, SVCR, ZA));
-    arm_rebuild_hflags(env);
+    aarch64_set_svcr(env, value, -1);
 }
 
 static void smcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -9127,8 +9125,6 @@ void register_cp_regs_for_features(ARMCPU *cpu)
     }
 
 #ifdef TARGET_CHERI
-    // Claim is not really CHERI specific
-    define_arm_cp_regs(cpu, claim_cp_reginfo);
 
     // LETODO: Stuff to do with CPACR_ELX.CEN / EN for stopping DDC access, also
     // HCR controls a lot of these LETODO: Also have to pay attention to
