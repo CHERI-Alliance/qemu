@@ -1599,13 +1599,13 @@ static inline int rvfi_dii_check_addr(CPURISCVState *env, int ret, hwaddr *pa,
                    (*pa + size) > RVFI_DII_RAM_END) {
             if (rvfi_debug_output) {
                 fprintf(stderr,
-                        "Rejecting memory access to " TARGET_FMT_plx
+                        "Rejecting memory access to " HWADDR_FMT_plx
                         " since it is outside the RVFI-DII range",
                         address);
             }
             qemu_log_mask(CPU_LOG_MMU,
-                          "%s Translate fail: va=" TARGET_FMT_plx
-                          " pa=" TARGET_FMT_plx
+                          "%s Translate fail: va=" HWADDR_FMT_plx
+                          " pa=" HWADDR_FMT_plx
                           " is outside the RVFI-DII range\n",
                           __func__, address, *pa);
             return TRANSLATE_PMP_FAIL;
