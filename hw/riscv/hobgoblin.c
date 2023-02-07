@@ -311,9 +311,10 @@ static int hobgoblin_load_images(HobgoblinState *s, const memmapEntry_t *dram)
 
         /* Store (potentially modified) FDT into RAM */
         if (machine->fdt) {
-            fdt_load_addr = riscv_load_fdt(dram->base,
-                                           dram->size,
-                                           machine->fdt);
+            fdt_load_addr = riscv_compute_fdt_addr(dram->base,
+                                                   dram->size,
+                                                   machine);
+            riscv_load_fdt(fdt_load_addr, machine->fdt);
         }
     }
 
