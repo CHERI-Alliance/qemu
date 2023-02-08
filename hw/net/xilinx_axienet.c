@@ -32,7 +32,6 @@
 #include "net/checksum.h"
 #include "net/eth.h"
 
-#include "hw/hw.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/stream.h"
