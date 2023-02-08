@@ -32,7 +32,6 @@
 #include "semihosting/semihost.h"
 
 #include "trace.h"
-#include "exec/translator.h"
 #include "exec/log.h"
 #include "exec/log_instr.h"
 #include "qemu/qemu-print.h"
