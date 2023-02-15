@@ -13,6 +13,8 @@
 #include "qemu/timer.h"
 #include "qemu-common.h"
 
+static int verbosity_level;
+
 /* Tests only initialization so far. TODO: Replace with functional tests */
 static void nop(void)
 {
@@ -46,12 +48,16 @@ static QPCIDevice *get_device(void)
 static unsigned __attribute__((unused)) in_##name(void) \
 { \
     unsigned res = qpci_io_read##len(dev, dev_bar, (val));     \
-    g_test_message("*%s -> %x", #name, res); \
+    if (verbosity_level >= 2) { \
+        g_test_message("*%s -> %x", #name, res); \
+    } \
     return res; \
 } \
 static void out_##name(unsigned v) \
 { \
-    g_test_message("%x -> *%s", v, #name); \
+    if (verbosity_level >= 2) { \
+        g_test_message("%x -> *%s", v, #name); \
+    } \
     qpci_io_write##len(dev, dev_bar, (val), v);        \
 }
 
@@ -196,6 +202,11 @@ static void test_init(void)
 int main(int argc, char **argv)
 {
     int ret;
+    char *v_env = getenv("V");
+
+    if (v_env) {
+        verbosity_level = atoi(v_env);
+    }
 
     qtest_start("-device rtl8139");
 
