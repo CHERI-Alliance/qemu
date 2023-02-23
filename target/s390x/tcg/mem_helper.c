@@ -143,13 +143,13 @@ static int s390_probe_access(CPUArchState *env, target_ulong addr, int size,
                              bool nonfault, void **phost, uintptr_t ra)
 {
 #if defined(CONFIG_USER_ONLY)
-    return probe_access_flags(env, addr, access_type, mmu_idx,
+    return probe_access_flags(env, addr, size, access_type, mmu_idx,
                               nonfault, phost, ra);
 #else
     int flags;
 
     env->tlb_fill_exc = 0;
-    flags = probe_access_flags(env, addr, access_type, mmu_idx, nonfault, phost,
+    flags = probe_access_flags(env, addr, size, access_type, mmu_idx, nonfault, phost,
                                ra);
     if (env->tlb_fill_exc) {
         return env->tlb_fill_exc;
