@@ -324,7 +324,7 @@ static void check_zicbom_access(CPURISCVState *env,
      * size = cbomlen.
      */
 
-    ret = probe_access_flags(env, address, MMU_DATA_LOAD,
+    ret = probe_access_flags(env, address, cbomlen, MMU_DATA_LOAD,
                              mmu_idx, true, &phost, ra);
     if (ret != TLB_INVALID_MASK) {
         /* Success: readable */
