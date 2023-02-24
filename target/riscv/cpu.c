@@ -1156,6 +1156,10 @@ static Property riscv_cpu_properties[] = {
     DEFINE_PROP_BOOL("x-h", RISCVCPU, cfg.ext_h, false),
     DEFINE_PROP_BOOL("x-j", RISCVCPU, cfg.ext_j, false),
     DEFINE_PROP_BOOL("x-v", RISCVCPU, cfg.ext_v, false),
+
+    DEFINE_PROP_BOOL("zicboz", RISCVCPU, cfg.ext_icboz, true),
+    DEFINE_PROP_UINT16("cboz_blocksize", RISCVCPU, cfg.cboz_blocksize, 64),
+
 #ifdef TARGET_CHERI_RISCV_V9
     DEFINE_PROP_BOOL("Xcheri", RISCVCPU, cfg.ext_cheri, true),
     DEFINE_PROP_BOOL("Xcheri_v9", RISCVCPU, cfg.ext_cheri_v9, true),
@@ -1300,6 +1304,7 @@ static void riscv_isa_string_ext(RISCVCPU *cpu, char **isa_str, int max_str_len)
         ISA_EDATA_ENTRY(zbb, ext_zbb),
         ISA_EDATA_ENTRY(zbc, ext_zbc),
         ISA_EDATA_ENTRY(zbs, ext_zbs),
+        ISA_EDATA_ENTRY(zicboz, ext_icboz),
 #ifdef TARGET_CHERI_RISCV_STD
         {"zcherihybrid", cpu->cfg.ext_zyhybrid},
         {"zcheripurecap", cpu->cfg.ext_cheri},
