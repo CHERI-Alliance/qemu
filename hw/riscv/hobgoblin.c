@@ -296,11 +296,8 @@ static int hobgoblin_load_images(HobgoblinState *s, const memmapEntry_t *dram)
         if (machine->kernel_filename) {
             kernel_start_addr = riscv_calc_kernel_start_addr(&s->soc,
                                                              firmware_end_addr);
-            kernel_entry = riscv_load_kernel(machine, kernel_start_addr, NULL);
-
-            if (machine->initrd_filename) {
-                riscv_load_initrd(machine, kernel_entry);
-            }
+            kernel_entry = riscv_load_kernel(machine, &s->soc, kernel_start_addr,
+                    true, NULL);
 
             if (machine->fdt && machine->kernel_cmdline &&
                 *machine->kernel_cmdline) {
