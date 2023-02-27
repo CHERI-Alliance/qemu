@@ -549,7 +549,12 @@ static void hobgoblin_add_uartlite(HobgoblinState *s,
     Chardev *chardev = serial_hd(1);
     qemu_irq irq = hobgoblin_make_plic_irq(s, HIRQ(s, HOBGOBLIN_UART1_IRQ));
 
-    xilinx_uartlite_create(mem_uart->base, irq, chardev);
+    DeviceState *dev = qdev_new(TYPE_XILINX_UARTLITE);
+    qdev_prop_set_chr(dev, "chardev", chardev);
+
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, mem_uart->base);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq);
 }
 
 static void hobgoblin_gpio_1_3_event(void *opaque, int n, int level)

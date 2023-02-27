@@ -135,6 +135,10 @@ typedef struct CPUTLBEntry {
 
 QEMU_BUILD_BUG_ON(sizeof(CPUTLBEntry) != (1 << CPU_TLB_ENTRY_BITS));
 
+
+#endif  /* !CONFIG_USER_ONLY && CONFIG_TCG */
+
+#if !defined(CONFIG_USER_ONLY)
 /*
  * The full TLB entry, which is not accessed by generated TCG code,
  * so the layout is not as critical as that of CPUTLBEntry. This is
@@ -205,6 +209,7 @@ typedef struct CPUTLBEntryFull {
     TARGET_PAGE_ENTRY_EXTRA
 #endif
 } CPUTLBEntryFull;
+#endif  /* !CONFIG_USER_ONLY */
 
 #define IOTLB_GET_TAGMEM(iotlbentry, rw)                                       \
     ({                                                                         \
@@ -213,6 +218,8 @@ typedef struct CPUTLBEntryFull {
     })
 #define IOTLB_GET_TAGMEM_FLAGS(iotlbentry, rw)                                 \
     ((uintptr_t)iotlbentry->tagmem_##rw & TLBENTRYCAP_MASK);
+
+#if !defined(CONFIG_USER_ONLY) && defined(CONFIG_TCG)
 /*
  * Data elements that are per MMU mode, minus the bits accessed by
  * the TCG fast path.
