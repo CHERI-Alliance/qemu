@@ -48,7 +48,7 @@ struct PIIX4State {
     qemu_irq *isa;
     IRQState i8259_irq;
 
-    RTCState rtc;
+    MC146818RtcState rtc;
     PCIIDEState ide;
     UHCIState uhci;
     PIIX4PMState pm;
@@ -213,7 +213,7 @@ static void piix4_realize(PCIDevice *dev, Error **errp)
     s->isa = i8259_init(isa_bus, &s->i8259_irq);
 
     /* initialize ISA irqs */
-    isa_bus_irqs(isa_bus, s->isa);
+    isa_bus_register_input_irqs(isa_bus, s->isa);
 
     /* initialize pit */
     i8254_pit_init(isa_bus, 0x40, 0, NULL);
