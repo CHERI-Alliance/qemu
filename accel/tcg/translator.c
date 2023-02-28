@@ -17,7 +17,7 @@
 #include "exec/log_instr.h"
 #include "exec/translator.h"
 #include "exec/plugin-gen.h"
-#include "sysemu/replay.h"
+#include "exec/replay-core.h"
 
 #include "cheri-translate-utils-base.h"
 
