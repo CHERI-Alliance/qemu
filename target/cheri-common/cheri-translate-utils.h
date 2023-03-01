@@ -64,20 +64,17 @@ static inline void gen_cap_debug(DisasContext *ctx, int rx)
         TCGv_cap_checked_ptr resultaddr, uint32_t capreg, TCGv offset,         \
         MemOp op)                                                              \
     {                                                                          \
-        TCGv_i32 tcs = tcg_const_i32(capreg);                                  \
-        TCGv_i32 tsize = tcg_const_i32(memop_size(op));                        \
+        TCGv_i32 tcs = tcg_constant_i32(capreg);                               \
+        TCGv_i32 tsize = tcg_constant_i32(memop_size(op));                     \
         gen_helper_cap_##type##_check(resultaddr, cpu_env, tcs, offset,        \
                                       tsize);                                  \
-        tcg_temp_free_i32(tsize);                                              \
-        tcg_temp_free_i32(tcs);                                                \
     }                                                                          \
     static inline void generate_cap_##type##_check_imm(                        \
         TCGv_cap_checked_ptr resultaddr, uint32_t capreg, target_long offset,  \
         MemOp op)                                                              \
     {                                                                          \
-        TCGv toffset = tcg_const_tl(offset);                                   \
+        TCGv toffset = tcg_constant_tl(offset);                                \
         generate_cap_##type##_check(resultaddr, capreg, toffset, op);          \
-        tcg_temp_free(toffset);                                                \
     }
 
 _gen_cap_check(load)
@@ -222,7 +219,7 @@ static inline void _generate_special_checked_ptr(
         // We need a bounds check since PCC/DDC is not full address space.
 #ifdef DO_TCG_BOUNDS_CHECKS
         TCGv in_bounds = tcg_const_tl(1);
-        TCGv local_addr = tcg_temp_local_new();
+        TCGv local_addr = tcg_temp_new();
         // Save checked_addr to a local so it does not get clobbered.
         tcg_gen_mov_tl(local_addr, ((TCGv)checked_addr));
         // Then use checked_addr as a tmp.
@@ -1562,7 +1559,7 @@ static inline void gen_cap_set_cursor(DisasContext *ctx, int regnum,
 
     // Use a local value to store new_val (as we branch later)
     // new_val can be used as a tmp
-    TCGv_i64 new_val_local = tcg_temp_local_new_i64();
+    TCGv_i64 new_val_local = tcg_temp_new_i64();
     tcg_gen_mov_i64(new_val_local, new_val);
     TCGv_i64 temp0 = new_val;
 
@@ -1677,7 +1674,7 @@ static inline void gen_cap_add_fast(DisasContext *ctx, int regnum,
 
     if (!untagged) {
         // Make cocal copy of increment as decompress will kill temps
-        TCGv_i64 increment_local = tcg_temp_local_new_i64();
+        TCGv_i64 increment_local = tcg_temp_new_i64();
         tcg_gen_mov_i64(increment_local, increment);
         tmp0 = increment;
         gen_ensure_cap_decompressed(ctx, regnum);
@@ -2209,7 +2206,7 @@ static inline void gen_cap_memop_checks(DisasContext *ctx, int regnum,
 #ifdef DO_TCG_BOUNDS_CHECKS
     // We use addr as a tmp, and tmp as address because we can ensure tmp is
     // local
-    TCGv local_addr = tcg_temp_local_new();
+    TCGv local_addr = tcg_temp_new();
     TCGv result = tcg_temp_new_i64();
     tcg_gen_mov_tl(local_addr, addr);
     TCGv tmp2 = addr;

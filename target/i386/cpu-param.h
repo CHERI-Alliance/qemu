@@ -28,8 +28,5 @@
 #ifdef CONFIG_TCG_LOG_INSTR
 #define TARGET_MAX_INSN_SIZE 16
 #endif
-#ifndef CONFIG_USER_ONLY
-# define TARGET_TB_PCREL 1
-#endif
 
 #endif

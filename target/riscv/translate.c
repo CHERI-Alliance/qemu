@@ -721,7 +721,7 @@ static void gen_jalr(DisasContext *ctx, int rd, int rs1, target_ulong imm)
     TCGLabel *misaligned = NULL;
     // Note: We need to use tcg_temp_local_new() for t0 since
     // gen_check_branch_target_dynamic() inserts branches.
-    TCGv t0 = tcg_temp_local_new();
+    TCGv t0 = tcg_temp_new();
 
     gen_get_gpr(ctx, t0, rs1);
     /* For CHERI ISAv8 the destination is an offset relative to PCC.base. */
@@ -1700,7 +1700,7 @@ static const TranslatorOps riscv_tr_ops = {
     .disas_log          = riscv_tr_disas_log,
 };
 
-void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns,
+void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int *max_insns,
                            target_ulong pc, void *host_pc)
 {
     DisasContext ctx;

@@ -190,7 +190,7 @@ static TCGTemp *find_better_copy(TCGContext *s, TCGTemp *ts)
         } else if (i->kind > ts->kind) {
             if (i->kind == TEMP_GLOBAL) {
                 g = i;
-            } else if (i->kind == TEMP_LOCAL) {
+            } else if (i->kind == TEMP_TB) {
                 l = i;
             }
         }
@@ -684,6 +684,25 @@ static void copy_propagate(OptContext *ctx, TCGOp *op,
     }
 }
 
+/*
+ * WORKAROUND (QEMU 8.0 TCG Optimization Bug):
+ * Reset copy propagation state for all temporaries at basic block boundaries
+ * to prevent stale next_copy pointers from crossing EBBs after commit a38b1a741fa.
+ *
+ * NOTE FOR FUTURE MERGES:
+ * This workaround can be removed when rebasing onto QEMU 8.1+ / 9.0+, as it is
+ * superseded upstream by commit 1526855c012a ("tcg/optimize: Split out finish_bb, finish_ebb").
+ */
+static void reset_all_temps_at_bb_end(OptContext *ctx)
+{
+    memset(&ctx->temps_used, 0, sizeof(ctx->temps_used));
+    for (int i = 0; i < ctx->tcg->nb_temps; ++i) {
+        if (ctx->tcg->temps[i].state_ptr) {
+            reset_ts(&ctx->tcg->temps[i]);
+        }
+    }
+}
+
 static void finish_folding(OptContext *ctx, TCGOp *op)
 {
     const TCGOpDef *def = &tcg_op_defs[op->opc];
@@ -694,7 +713,7 @@ static void finish_folding(OptContext *ctx, TCGOp *op)
      * We do no cross-BB optimization.
      */
     if (def->flags & TCG_OPF_BB_END) {
-        memset(&ctx->temps_used, 0, sizeof(ctx->temps_used));
+        reset_all_temps_at_bb_end(ctx);
         ctx->prev_mb = NULL;
         return;
     }

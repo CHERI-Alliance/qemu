@@ -837,9 +837,9 @@ static inline void tcg_gen_plugin_cb_end(void)
 }
 
 #if TARGET_LONG_BITS == 32
+#define tcg_temp_ebb_new_tl() tcg_temp_ebb_new_i32()
 #define tcg_temp_new() tcg_temp_new_i32()
 #define tcg_global_mem_new tcg_global_mem_new_i32
-#define tcg_temp_local_new() tcg_temp_local_new_i32()
 #define tcg_temp_free tcg_temp_free_i32
 #ifndef TARGET_CHERI
 #define tcg_gen_qemu_ld_tl tcg_gen_qemu_ld_i32
@@ -848,9 +848,9 @@ static inline void tcg_gen_plugin_cb_end(void)
 #define tcg_gen_qemu_ld_tl_with_checked_addr tcg_gen_qemu_ld_i32_with_checked_addr
 #define tcg_gen_qemu_st_tl_with_checked_addr tcg_gen_qemu_st_i32_with_checked_addr
 #else
+#define tcg_temp_ebb_new_tl() tcg_temp_ebb_new_i64()
 #define tcg_temp_new() tcg_temp_new_i64()
 #define tcg_global_mem_new tcg_global_mem_new_i64
-#define tcg_temp_local_new() tcg_temp_local_new_i64()
 #define tcg_temp_free tcg_temp_free_i64
 #ifndef TARGET_CHERI
 #define tcg_gen_qemu_ld_tl tcg_gen_qemu_ld_i64
@@ -859,8 +859,8 @@ static inline void tcg_gen_plugin_cb_end(void)
 #define tcg_gen_qemu_ld_tl_with_checked_addr tcg_gen_qemu_ld_i64_with_checked_addr
 #define tcg_gen_qemu_st_tl_with_checked_addr tcg_gen_qemu_st_i64_with_checked_addr
 #endif
-#define tcg_temp_new_cap_checked() (TCGv_cap_checked_ptr)tcg_temp_new()
-#define tcg_temp_local_new_cap_checked() (TCGv_cap_checked_ptr)tcg_temp_local_new()
+#define tcg_temp_new_cap_checked() (TCGv_cap_checked_ptr)tcg_temp_ebb_new_tl()
+#define tcg_temp_local_new_cap_checked() (TCGv_cap_checked_ptr)tcg_temp_new()
 #define tcg_temp_free_cap_checked(val) tcg_temp_free((TCGv)val)
 
 /*
@@ -1360,6 +1360,11 @@ static inline void tcg_gen_addi_ptr(TCGv_ptr r, TCGv_ptr a, intptr_t b)
 static inline void tcg_gen_mov_ptr(TCGv_ptr d, TCGv_ptr s)
 {
     glue(tcg_gen_mov_,PTR)((NAT)d, (NAT)s);
+}
+
+static inline void tcg_gen_movi_ptr(TCGv_ptr d, intptr_t s)
+{
+    glue(tcg_gen_movi_,PTR)((NAT)d, s);
 }
 
 static inline void tcg_gen_brcondi_ptr(TCGCond cond, TCGv_ptr a,

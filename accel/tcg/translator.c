@@ -45,7 +45,7 @@ bool translator_use_goto_tb(DisasContextBase *db, target_ulong dest)
     return ((db->pc_first ^ dest) & TARGET_PAGE_MASK) == 0;
 }
 
-void translator_loop(CPUState *cpu, TranslationBlock *tb, int max_insns,
+void translator_loop(CPUState *cpu, TranslationBlock *tb, int *max_insns,
                      target_ulong pc, void *host_pc,
                      const TranslatorOps *ops, DisasContextBase *db)
 {
@@ -66,7 +66,7 @@ void translator_loop(CPUState *cpu, TranslationBlock *tb, int max_insns,
     db->pc_next = pc;
     db->is_jmp = DISAS_NEXT;
     db->num_insns = 0;
-    db->max_insns = max_insns;
+    db->max_insns = *max_insns;
     db->singlestep_enabled = cflags & CF_SINGLE_STEP;
 #ifdef TARGET_CHERI
     db->pcc_base = tb->pcc_base;
@@ -131,13 +131,13 @@ void translator_loop(CPUState *cpu, TranslationBlock *tb, int max_insns,
     plugin_enabled = plugin_gen_tb_start(cpu, db, cflags & CF_MEMI_ONLY);
 
     while (true) {
-        db->num_insns++;
 #ifdef CONFIG_DEBUG_TCG
         /* Mark the current PCC.cursor as outdated after first instruction. */
         if (_pc_is_current && db->num_insns > 1) {
             tcg_gen_movi_tl(_pc_is_current, 0);
         }
 #endif
+        *max_insns = ++db->num_insns;
         ops->insn_start(db, cpu);
         tcg_debug_assert(db->is_jmp == DISAS_NEXT);  /* no early exit */
 

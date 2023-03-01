@@ -329,7 +329,7 @@ static inline __attribute__((always_inline)) bool load_store_implementation(
     // There are too many places we might accidentally add DDC base, so if we
     // are going to store back, take a copy
     if ((pre_inc || post_inc)) {
-        wb = tcg_temp_local_new_i64();
+        wb = tcg_temp_new_i64();
         tcg_gen_mov_i64(wb, addr);
     }
 
@@ -841,7 +841,7 @@ static bool cvt_impl_ptr_to_cap(DisasContext *ctx, uint32_t cd, uint32_t cn,
         gen_move_cap_gp_gp(ctx, cd, cn);
     }
 
-    TCGv_i64 new_cursor = tcg_temp_local_new_i64();
+    TCGv_i64 new_cursor = tcg_temp_new_i64();
 
     TCGv_i64 temp = tcg_temp_new_i64();
 
