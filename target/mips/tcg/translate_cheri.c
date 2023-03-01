@@ -292,22 +292,21 @@ static inline void generate_cheri_cget(DisasContext *ctx, int rd, int cs,
 
 static inline void generate_cloadtags(DisasContext *ctx, int32_t rd, int32_t cb)
 {
-    TCGv_i32 tcb = tcg_const_i32(cb);
-    TCGv_cap_checked_ptr tcbc  = tcg_temp_new_cap_checked();
+    TCGv_i32 tcb = tcg_constant_i32(cb);
+    TCGv_cap_checked_ptr tcbc = tcg_temp_new_cap_checked();
     TCGv ttags = tcg_temp_new();
 
     tcg_gen_mb(TCG_MO_LD_LD | TCG_MO_ST_LD | TCG_BAR_SC);
 
+    generate_cap_load_check(tcbc, cb, tcg_constant_tl(0), MO_TEUQ);
     gen_helper_cloadtags(ttags, cpu_env, tcb);
-    tcg_gen_movi_i32(tcb, MO_TEUQ);
 #ifdef CONFIG_TCG_LOG_INSTR
-    gen_helper_qemu_log_instr_load64(cpu_env, tcbc, ttags, tcb); // FIXME: not really correct
+    gen_helper_qemu_log_instr_load64(cpu_env, tcbc, ttags, tcg_constant_i32(MO_TEUQ)); // FIXME: not really correct
 #endif
     gen_store_gpr(ttags, rd);
 
     tcg_temp_free_cap_checked(tcbc);
     tcg_temp_free(ttags);
-    tcg_temp_free_i32(tcb);
 }
 
 
@@ -866,7 +865,7 @@ static inline void generate_cstorecond_int(DisasContext *ctx, int32_t rs,
     const int size = memop_size(op);
     TCGv_cap_checked_ptr taddr = tcg_temp_local_new_cap_checked();
     TCGv t0 = tcg_temp_new();
-    TCGv tlf = tcg_temp_local_new();
+    TCGv tlf = tcg_temp_new();
     TCGLabel *l1 = gen_new_label();
 
     generate_cstorecond(taddr, cb, size);
@@ -982,7 +981,7 @@ static inline void generate_cscc(DisasContext *ctx, int32_t cs, int32_t cb,
 {
     TCGv_i32 tcs = tcg_const_i32(cs);
     TCGv_i32 tcb = tcg_const_i32(cb);
-    TCGv t0 = tcg_temp_local_new();
+    TCGv t0 = tcg_temp_new();
 
     /* Check the cap registers and compute the address. */
     gen_helper_cscc_without_tcg(t0, cpu_env, tcs, tcb);
