@@ -3029,6 +3029,7 @@ if have_system
     'hw/i2c',
     'hw/i386',
     'hw/i386/xen',
+    'hw/i386/kvm',
     'hw/ide',
     'hw/input',
     'hw/intc',
@@ -3961,6 +3962,7 @@ if have_system
   if xen.found()
     summary_info += {'xen ctrl version':  xen.version()}
   endif
+  summary_info += {'Xen emulation':     config_all.has_key('CONFIG_XEN_EMU')}
 endif
 summary_info += {'TCG support':       config_all.has_key('CONFIG_TCG')}
 if config_all.has_key('CONFIG_TCG')
