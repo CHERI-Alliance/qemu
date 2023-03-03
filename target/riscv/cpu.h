@@ -85,17 +85,6 @@
 #define RVH RV('H')
 #define RVJ RV('J')
 
-/* S extension denotes that Supervisor mode exists, however it is possible
-   to have a core that support S mode but does not have an MMU and there
-   is currently no bit in misa to indicate whether an MMU exists or not
-   so a cpu features bitfield is required, likewise for optional PMP support */
-enum {
-    RISCV_FEATURE_MMU,
-    RISCV_FEATURE_PMP,
-    RISCV_FEATURE_EPMP,
-    RISCV_FEATURE_MISA,
-    RISCV_FEATURE_DEBUG,
-};
 
 /* Privileged specification version */
 enum {
@@ -590,16 +579,18 @@ struct RISCVCPUConfig {
     bool ext_zksh;
     bool ext_zkt;
     bool ext_ifencei;
+    bool ext_zicond;
     bool ext_zihintpause;
     bool ext_icsr;
     bool ext_smstateen;
     bool ext_sstc;
+    bool ext_svadu;
     bool ext_svinval;
 #if !defined(TARGET_CHERI_RISCV_V9)
     /* Incompatible with ISAv9 */
     bool ext_svnapot;
-    bool ext_svpbmt;
 #endif
+    bool ext_svpbmt;
     bool ext_zdinx;
     bool ext_zawrs;
     bool ext_zfh;
@@ -609,7 +600,10 @@ struct RISCVCPUConfig {
     bool ext_zhinxmin;
     bool ext_zve32f;
     bool ext_zve64f;
+    bool ext_zve64d;
     bool ext_zmmul;
+    bool ext_zvfh;
+    bool ext_zvfhmin;
     bool ext_smaia;
     bool ext_ssaia;
     bool ext_sscofpmf;
@@ -667,6 +661,7 @@ struct RISCVCPUConfig {
     bool pmp;
     bool epmp;
     bool debug;
+    bool misa_w;
 
     bool short_isa_string;
 };
@@ -707,16 +702,6 @@ struct ArchCPU {
 static inline int riscv_has_ext(CPURISCVState *env, target_ulong ext)
 {
     return (env->misa_ext & ext) != 0;
-}
-
-static inline bool riscv_feature(CPURISCVState *env, int feature)
-{
-    return env->features & (1ULL << feature);
-}
-
-static inline void riscv_set_feature(CPURISCVState *env, int feature)
-{
-    env->features |= (1ULL << feature);
 }
 
 #include "cpu_user.h"
@@ -928,6 +913,11 @@ static inline RISCVMXL riscv_cpu_mxl(CPURISCVState *env)
 }
 #endif
 #define riscv_cpu_mxl_bits(env) (1UL << (4 + riscv_cpu_mxl(env)))
+
+static inline const RISCVCPUConfig *riscv_cpu_cfg(CPURISCVState *env)
+{
+    return &env_archcpu(env)->cfg;
+}
 
 #if defined(TARGET_RISCV32)
 #define cpu_recompute_xl(env)  ((void)(env), MXL_RV32)
