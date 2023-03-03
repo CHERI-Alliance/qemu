@@ -40,10 +40,11 @@ static bool require_rvf(DisasContext *s)
 
     switch (s->sew) {
     case MO_16:
+        return s->cfg_ptr->ext_zvfh;
     case MO_32:
-        return has_ext(s, RVF);
+        return s->cfg_ptr->ext_zve32f;
     case MO_64:
-        return has_ext(s, RVD);
+        return s->cfg_ptr->ext_zve64d;
     default:
         return false;
     }
@@ -57,57 +58,32 @@ static bool require_scale_rvf(DisasContext *s)
 
     switch (s->sew) {
     case MO_8:
+        return s->cfg_ptr->ext_zvfh;
     case MO_16:
-        return has_ext(s, RVF);
+        return s->cfg_ptr->ext_zve32f;
     case MO_32:
-        return has_ext(s, RVD);
+        return s->cfg_ptr->ext_zve64d;
     default:
         return false;
     }
 }
 
-static bool require_zve32f(DisasContext *s)
+static bool require_scale_rvfmin(DisasContext *s)
 {
-    /* RVV + Zve32f = RVV. */
-    if (has_ext(s, RVV)) {
-        return true;
+    if (s->mstatus_fs == 0) {
+        return false;
     }
 
-    /* Zve32f doesn't support FP64. (Section 18.2) */
-    return s->cfg_ptr->ext_zve32f ? s->sew <= MO_32 : true;
-}
-
-static bool require_scale_zve32f(DisasContext *s)
-{
-    /* RVV + Zve32f = RVV. */
-    if (has_ext(s, RVV)) {
-        return true;
+    switch (s->sew) {
+    case MO_8:
+        return s->cfg_ptr->ext_zvfhmin;
+    case MO_16:
+        return s->cfg_ptr->ext_zve32f;
+    case MO_32:
+        return s->cfg_ptr->ext_zve64d;
+    default:
+        return false;
     }
-
-    /* Zve32f doesn't support FP64. (Section 18.2) */
-    return s->cfg_ptr->ext_zve64f ? s->sew <= MO_16 : true;
-}
-
-static bool require_zve64f(DisasContext *s)
-{
-    /* RVV + Zve64f = RVV. */
-    if (has_ext(s, RVV)) {
-        return true;
-    }
-
-    /* Zve64f doesn't support FP64. (Section 18.2) */
-    return s->cfg_ptr->ext_zve64f ? s->sew <= MO_32 : true;
-}
-
-static bool require_scale_zve64f(DisasContext *s)
-{
-    /* RVV + Zve64f = RVV. */
-    if (has_ext(s, RVV)) {
-        return true;
-    }
-
-    /* Zve64f doesn't support FP64. (Section 18.2) */
-    return s->cfg_ptr->ext_zve64f ? s->sew <= MO_16 : true;
 }
 
 /* Destination vector register group cannot overlap source mask register. */
@@ -173,9 +149,7 @@ static bool do_vsetvl(DisasContext *s, int rd, int rs1, TCGv s2)
 {
     TCGv s1, dst;
 
-    if (!require_rvv(s) ||
-        !(has_ext(s, RVV) || s->cfg_ptr->ext_zve32f ||
-          s->cfg_ptr->ext_zve64f)) {
+    if (!require_rvv(s) || !s->cfg_ptr->ext_zve32f) {
         return false;
     }
 
@@ -211,9 +185,7 @@ static bool do_vsetivli(DisasContext *s, int rd, TCGv s1, TCGv s2)
 {
     TCGv dst;
 
-    if (!require_rvv(s) ||
-        !(has_ext(s, RVV) || s->cfg_ptr->ext_zve32f ||
-          s->cfg_ptr->ext_zve64f)) {
+    if (!require_rvv(s) || !s->cfg_ptr->ext_zve32f) {
         return false;
     }
 
@@ -317,13 +289,12 @@ static bool vext_check_st_index(DisasContext *s, int vd, int vs2, int nf,
                require_nf(vd, nf, s->lmul);
 
     /*
-     * All Zve* extensions support all vector load and store instructions,
-     * except Zve64* extensions do not support EEW=64 for index values
-     * when XLEN=32. (Section 18.2)
+     * V extension supports all vector load and store instructions,
+     * except V extension does not support EEW=64 for index values
+     * when XLEN=32. (Section 18.3)
      */
     if (get_xl(s) == MXL_RV32) {
-        ret &= (!has_ext(s, RVV) &&
-                s->cfg_ptr->ext_zve64f ? eew != MO_64 : true);
+        ret &= (eew != MO_64);
     }
 
     return ret;
@@ -2029,8 +2000,7 @@ static bool vmulh_vv_check(DisasContext *s, arg_rmrr *a)
      * are not included for EEW=64 in Zve64*. (Section 18.2)
      */
     return opivv_check(s, a) &&
-           (!has_ext(s, RVV) &&
-            s->cfg_ptr->ext_zve64f ? s->sew != MO_64 : true);
+           (!has_ext(s, RVV) ? s->sew != MO_64 : true);
 }
 
 static bool vmulh_vx_check(DisasContext *s, arg_rmrr *a)
@@ -2043,8 +2013,7 @@ static bool vmulh_vx_check(DisasContext *s, arg_rmrr *a)
      * are not included for EEW=64 in Zve64*. (Section 18.2)
      */
     return opivx_check(s, a) &&
-           (!has_ext(s, RVV) &&
-            s->cfg_ptr->ext_zve64f ? s->sew != MO_64 : true);
+           (!has_ext(s, RVV) ? s->sew != MO_64 : true);
 }
 
 GEN_OPIVV_GVEC_TRANS(vmul_vv,  mul)
@@ -2261,8 +2230,7 @@ static bool vsmul_vv_check(DisasContext *s, arg_rmrr *a)
      * for EEW=64 in Zve64*. (Section 18.2)
      */
     return opivv_check(s, a) &&
-           (!has_ext(s, RVV) &&
-            s->cfg_ptr->ext_zve64f ? s->sew != MO_64 : true);
+           (!has_ext(s, RVV) ? s->sew != MO_64 : true);
 }
 
 static bool vsmul_vx_check(DisasContext *s, arg_rmrr *a)
@@ -2273,8 +2241,7 @@ static bool vsmul_vx_check(DisasContext *s, arg_rmrr *a)
      * for EEW=64 in Zve64*. (Section 18.2)
      */
     return opivx_check(s, a) &&
-           (!has_ext(s, RVV) &&
-            s->cfg_ptr->ext_zve64f ? s->sew != MO_64 : true);
+           (!has_ext(s, RVV) ? s->sew != MO_64 : true);
 }
 
 GEN_OPIVV_TRANS(vsmul_vv, vsmul_vv_check)
@@ -2337,9 +2304,7 @@ static bool opfvv_check(DisasContext *s, arg_rmrr *a)
     return require_rvv(s) &&
            require_rvf(s) &&
            vext_check_isa_ill(s) &&
-           vext_check_sss(s, a->rd, a->rs1, a->rs2, a->vm) &&
-           require_zve32f(s) &&
-           require_zve64f(s);
+           vext_check_sss(s, a->rd, a->rs1, a->rs2, a->vm);
 }
 
 /* OPFVV without GVEC IR */
@@ -2427,9 +2392,7 @@ static bool opfvf_check(DisasContext *s, arg_rmrr *a)
     return require_rvv(s) &&
            require_rvf(s) &&
            vext_check_isa_ill(s) &&
-           vext_check_ss(s, a->rd, a->rs2, a->vm) &&
-           require_zve32f(s) &&
-           require_zve64f(s);
+           vext_check_ss(s, a->rd, a->rs2, a->vm);
 }
 
 /* OPFVF without GVEC IR */
@@ -2467,9 +2430,7 @@ static bool opfvv_widen_check(DisasContext *s, arg_rmrr *a)
            require_scale_rvf(s) &&
            (s->sew != MO_8) &&
            vext_check_isa_ill(s) &&
-           vext_check_dss(s, a->rd, a->rs1, a->rs2, a->vm) &&
-           require_scale_zve32f(s) &&
-           require_scale_zve64f(s);
+           vext_check_dss(s, a->rd, a->rs1, a->rs2, a->vm);
 }
 
 /* OPFVV with WIDEN */
@@ -2512,9 +2473,7 @@ static bool opfvf_widen_check(DisasContext *s, arg_rmrr *a)
            require_scale_rvf(s) &&
            (s->sew != MO_8) &&
            vext_check_isa_ill(s) &&
-           vext_check_ds(s, a->rd, a->rs2, a->vm) &&
-           require_scale_zve32f(s) &&
-           require_scale_zve64f(s);
+           vext_check_ds(s, a->rd, a->rs2, a->vm);
 }
 
 /* OPFVF with WIDEN */
@@ -2546,9 +2505,7 @@ static bool opfwv_widen_check(DisasContext *s, arg_rmrr *a)
            require_scale_rvf(s) &&
            (s->sew != MO_8) &&
            vext_check_isa_ill(s) &&
-           vext_check_dds(s, a->rd, a->rs1, a->rs2, a->vm) &&
-           require_scale_zve32f(s) &&
-           require_scale_zve64f(s);
+           vext_check_dds(s, a->rd, a->rs1, a->rs2, a->vm);
 }
 
 /* WIDEN OPFVV with WIDEN */
@@ -2591,9 +2548,7 @@ static bool opfwf_widen_check(DisasContext *s, arg_rmrr *a)
            require_scale_rvf(s) &&
            (s->sew != MO_8) &&
            vext_check_isa_ill(s) &&
-           vext_check_dd(s, a->rd, a->rs2, a->vm) &&
-           require_scale_zve32f(s) &&
-           require_scale_zve64f(s);
+           vext_check_dd(s, a->rd, a->rs2, a->vm);
 }
 
 /* WIDEN OPFVF with WIDEN */
@@ -2670,9 +2625,7 @@ static bool opfv_check(DisasContext *s, arg_rmr *a)
            require_rvf(s) &&
            vext_check_isa_ill(s) &&
            /* OPFV instructions ignore vs1 check */
-           vext_check_ss(s, a->rd, a->rs2, a->vm) &&
-           require_zve32f(s) &&
-           require_zve64f(s);
+           vext_check_ss(s, a->rd, a->rs2, a->vm);
 }
 
 static bool do_opfv(DisasContext *s, arg_rmr *a,
@@ -2737,9 +2690,7 @@ static bool opfvv_cmp_check(DisasContext *s, arg_rmrr *a)
     return require_rvv(s) &&
            require_rvf(s) &&
            vext_check_isa_ill(s) &&
-           vext_check_mss(s, a->rd, a->rs1, a->rs2) &&
-           require_zve32f(s) &&
-           require_zve64f(s);
+           vext_check_mss(s, a->rd, a->rs1, a->rs2);
 }
 
 GEN_OPFVV_TRANS(vmfeq_vv, opfvv_cmp_check)
@@ -2752,9 +2703,7 @@ static bool opfvf_cmp_check(DisasContext *s, arg_rmrr *a)
     return require_rvv(s) &&
            require_rvf(s) &&
            vext_check_isa_ill(s) &&
-           vext_check_ms(s, a->rd, a->rs2) &&
-           require_zve32f(s) &&
-           require_zve64f(s);
+           vext_check_ms(s, a->rd, a->rs2);
 }
 
 GEN_OPFVF_TRANS(vmfeq_vf, opfvf_cmp_check)
@@ -2775,9 +2724,7 @@ static bool trans_vfmv_v_f(DisasContext *s, arg_vfmv_v_f *a)
     if (require_rvv(s) &&
         require_rvf(s) &&
         vext_check_isa_ill(s) &&
-        require_align(a->rd, s->lmul) &&
-        require_zve32f(s) &&
-        require_zve64f(s)) {
+        require_align(a->rd, s->lmul)) {
         gen_set_rm(s, RISCV_FRM_DYN);
 
         TCGv_i64 t1;
@@ -2862,18 +2809,14 @@ static bool opfv_widen_check(DisasContext *s, arg_rmr *a)
 static bool opxfv_widen_check(DisasContext *s, arg_rmr *a)
 {
     return opfv_widen_check(s, a) &&
-           require_rvf(s) &&
-           require_zve32f(s) &&
-           require_zve64f(s);
+           require_rvf(s);
 }
 
 static bool opffv_widen_check(DisasContext *s, arg_rmr *a)
 {
     return opfv_widen_check(s, a) &&
-           require_scale_rvf(s) &&
-           (s->sew != MO_8) &&
-           require_scale_zve32f(s) &&
-           require_scale_zve64f(s);
+           require_scale_rvfmin(s) &&
+           (s->sew != MO_8);
 }
 
 #define GEN_OPFV_WIDEN_TRANS(NAME, CHECK, HELPER, FRM)             \
@@ -2924,9 +2867,7 @@ static bool opfxv_widen_check(DisasContext *s, arg_rmr *a)
            require_scale_rvf(s) &&
            vext_check_isa_ill(s) &&
            /* OPFV widening instructions ignore vs1 check */
-           vext_check_ds(s, a->rd, a->rs2, a->vm) &&
-           require_scale_zve32f(s) &&
-           require_scale_zve64f(s);
+           vext_check_ds(s, a->rd, a->rs2, a->vm);
 }
 
 #define GEN_OPFXV_WIDEN_TRANS(NAME)                                \
@@ -2981,18 +2922,21 @@ static bool opfxv_narrow_check(DisasContext *s, arg_rmr *a)
 {
     return opfv_narrow_check(s, a) &&
            require_rvf(s) &&
-           (s->sew != MO_64) &&
-           require_zve32f(s) &&
-           require_zve64f(s);
+           (s->sew != MO_64);
 }
 
 static bool opffv_narrow_check(DisasContext *s, arg_rmr *a)
 {
     return opfv_narrow_check(s, a) &&
+           require_scale_rvfmin(s) &&
+           (s->sew != MO_8);
+}
+
+static bool opffv_rod_narrow_check(DisasContext *s, arg_rmr *a)
+{
+    return opfv_narrow_check(s, a) &&
            require_scale_rvf(s) &&
-           (s->sew != MO_8) &&
-           require_scale_zve32f(s) &&
-           require_scale_zve64f(s);
+           (s->sew != MO_8);
 }
 
 #define GEN_OPFV_NARROW_TRANS(NAME, CHECK, HELPER, FRM)            \
@@ -3032,7 +2976,7 @@ GEN_OPFV_NARROW_TRANS(vfncvt_f_x_w, opfxv_narrow_check, vfncvt_f_x_w,
 GEN_OPFV_NARROW_TRANS(vfncvt_f_f_w, opffv_narrow_check, vfncvt_f_f_w,
                       RISCV_FRM_DYN)
 /* Reuse the helper function from vfncvt.f.f.w */
-GEN_OPFV_NARROW_TRANS(vfncvt_rod_f_f_w, opffv_narrow_check, vfncvt_f_f_w,
+GEN_OPFV_NARROW_TRANS(vfncvt_rod_f_f_w, opffv_rod_narrow_check, vfncvt_f_f_w,
                       RISCV_FRM_ROD)
 
 static bool opxfv_narrow_check(DisasContext *s, arg_rmr *a)
@@ -3041,9 +2985,7 @@ static bool opxfv_narrow_check(DisasContext *s, arg_rmr *a)
            require_scale_rvf(s) &&
            vext_check_isa_ill(s) &&
            /* OPFV narrowing instructions ignore vs1 check */
-           vext_check_sd(s, a->rd, a->rs2, a->vm) &&
-           require_scale_zve32f(s) &&
-           require_scale_zve64f(s);
+           vext_check_sd(s, a->rd, a->rs2, a->vm);
 }
 
 #define GEN_OPXFV_NARROW_TRANS(NAME, HELPER, FRM)                  \
@@ -3117,9 +3059,7 @@ GEN_OPIVV_WIDEN_TRANS(vwredsumu_vs, reduction_widen_check)
 static bool freduction_check(DisasContext *s, arg_rmrr *a)
 {
     return reduction_check(s, a) &&
-           require_rvf(s) &&
-           require_zve32f(s) &&
-           require_zve64f(s);
+           require_rvf(s);
 }
 
 GEN_OPFVV_TRANS(vfredusum_vs, freduction_check)
@@ -3546,9 +3486,7 @@ static bool trans_vfmv_f_s(DisasContext *s, arg_vfmv_f_s *a)
 {
     if (require_rvv(s) &&
         require_rvf(s) &&
-        vext_check_isa_ill(s) &&
-        require_zve32f(s) &&
-        require_zve64f(s)) {
+        vext_check_isa_ill(s)) {
         gen_set_rm(s, RISCV_FRM_DYN);
 
         unsigned int ofs = (8 << s->sew);
@@ -3574,9 +3512,7 @@ static bool trans_vfmv_s_f(DisasContext *s, arg_vfmv_s_f *a)
 {
     if (require_rvv(s) &&
         require_rvf(s) &&
-        vext_check_isa_ill(s) &&
-        require_zve32f(s) &&
-        require_zve64f(s)) {
+        vext_check_isa_ill(s)) {
         gen_set_rm(s, RISCV_FRM_DYN);
 
         /* The instructions ignore LMUL and vector register group. */
@@ -3627,17 +3563,13 @@ GEN_OPIVI_TRANS(vslidedown_vi, IMM_ZX, vslidedown_vx, slidedown_check)
 static bool fslideup_check(DisasContext *s, arg_rmrr *a)
 {
     return slideup_check(s, a) &&
-           require_rvf(s) &&
-           require_zve32f(s) &&
-           require_zve64f(s);
+           require_rvf(s);
 }
 
 static bool fslidedown_check(DisasContext *s, arg_rmrr *a)
 {
     return slidedown_check(s, a) &&
-           require_rvf(s) &&
-           require_zve32f(s) &&
-           require_zve64f(s);
+           require_rvf(s);
 }
 
 GEN_OPFVF_TRANS(vfslide1up_vf, fslideup_check)

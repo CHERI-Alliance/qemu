@@ -536,7 +536,7 @@ target_ulong helper_mret(CPURISCVState *env)
 
 #if 0
     /* FIXME: upstream diff seems wrong, the ifetch should fail not the mret */
-    if (riscv_feature(env, RISCV_FEATURE_PMP) &&
+    if (riscv_cpu_cfg(env)->pmp &&
         !pmp_get_num_rules(env) && (prev_priv != PRV_M)) {
         riscv_raise_exception(env, RISCV_EXCP_INST_ACCESS_FAULT, GETPC());
     }
