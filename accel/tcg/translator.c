@@ -21,19 +21,6 @@
 
 #include "cheri-translate-utils-base.h"
 
-/* Pairs with tcg_clear_temp_count.
-   To be called by #TranslatorOps.{translate_insn,tb_stop} if
-   (1) the target is sufficiently clean to support reporting,
-   (2) as and when all temporaries are known to be consumed.
-   For most targets, (2) is at the end of translate_insn.  */
-void translator_loop_temp_check(DisasContextBase *db)
-{
-    if (tcg_check_temp_count()) {
-        qemu_log("warning: TCG temporary leaks before "
-                 TARGET_FMT_lx "\n", db->pc_next);
-    }
-}
-
 bool translator_use_goto_tb(DisasContextBase *db, target_ulong dest)
 {
     /* Suppress goto_tb if requested. */
@@ -96,9 +83,6 @@ void translator_loop(CPUState *cpu, TranslationBlock *tb, int *max_insns,
      */
     db->log_instr_enabled = log_instr_enabled;
 #endif /* CONFIG_TCG_LOG_INSTR */
-
-    /* Reset the temp count so that we can identify leaks */
-    tcg_clear_temp_count();
 
     /* Start translating.  */
     gen_tb_start(db->tb);

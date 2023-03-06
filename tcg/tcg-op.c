@@ -88,6 +88,22 @@ void tcg_gen_op6(TCGOpcode opc, TCGArg a1, TCGArg a2, TCGArg a3,
     op->args[5] = a6;
 }
 
+/* Generic ops.  */
+
+static void add_last_as_label_use(TCGLabel *l)
+{
+    TCGLabelUse *u = tcg_malloc(sizeof(TCGLabelUse));
+
+    u->op = tcg_last_op();
+    QSIMPLEQ_INSERT_TAIL(&l->branches, u, next);
+}
+
+void tcg_gen_br(TCGLabel *l)
+{
+    tcg_gen_op1(INDEX_op_br, label_arg(l));
+    add_last_as_label_use(l);
+}
+
 void tcg_gen_mb(TCGBar mb_type)
 {
 #ifdef CONFIG_USER_ONLY
@@ -232,8 +248,8 @@ void tcg_gen_brcond_i32(TCGCond cond, TCGv_i32 arg1, TCGv_i32 arg2, TCGLabel *l)
     if (cond == TCG_COND_ALWAYS) {
         tcg_gen_br(l);
     } else if (cond != TCG_COND_NEVER) {
-        l->refs++;
         tcg_gen_op4ii_i32(INDEX_op_brcond_i32, arg1, arg2, cond, label_arg(l));
+        add_last_as_label_use(l);
     }
 }
 
@@ -1496,7 +1512,6 @@ void tcg_gen_brcond_i64(TCGCond cond, TCGv_i64 arg1, TCGv_i64 arg2, TCGLabel *l)
     if (cond == TCG_COND_ALWAYS) {
         tcg_gen_br(l);
     } else if (cond != TCG_COND_NEVER) {
-        l->refs++;
         if (TCG_TARGET_REG_BITS == 32) {
             tcg_gen_op6ii_i32(INDEX_op_brcond2_i32, TCGV_LOW(arg1),
                               TCGV_HIGH(arg1), TCGV_LOW(arg2),
@@ -1505,6 +1520,7 @@ void tcg_gen_brcond_i64(TCGCond cond, TCGv_i64 arg1, TCGv_i64 arg2, TCGLabel *l)
             tcg_gen_op4ii_i64(INDEX_op_brcond_i64, arg1, arg2, cond,
                               label_arg(l));
         }
+        add_last_as_label_use(l);
     }
 }
 
@@ -1515,12 +1531,12 @@ void tcg_gen_brcondi_i64(TCGCond cond, TCGv_i64 arg1, int64_t arg2, TCGLabel *l)
     } else if (cond == TCG_COND_ALWAYS) {
         tcg_gen_br(l);
     } else if (cond != TCG_COND_NEVER) {
-        l->refs++;
         tcg_gen_op6ii_i32(INDEX_op_brcond2_i32,
                           TCGV_LOW(arg1), TCGV_HIGH(arg1),
                           tcg_constant_i32(arg2),
                           tcg_constant_i32(arg2 >> 32),
                           cond, label_arg(l));
+        add_last_as_label_use(l);
     }
 }
 
@@ -2956,7 +2972,6 @@ static void plugin_gen_mem_callbacks(TCGv_cap_checked_ptr vaddr, MemOpIdx oi,
     if (tcg_ctx->plugin_insn != NULL) {
         qemu_plugin_meminfo_t info = make_plugin_meminfo(oi, rw);
         plugin_gen_empty_mem_callback((TCGv)vaddr, info);
-        tcg_temp_free_cap_checked(vaddr);
     }
 #endif
 }
@@ -3022,9 +3037,6 @@ void tcg_gen_qemu_ld_i32_with_checked_addr(TCGv_i32 val, TCGv_cap_checked_ptr ad
     if (tcg_ctx_logging_enabled) {
         gen_helper_qemu_log_instr_load32(cpu_env, saved_load_addr, val, tcoi);
     }
-    // Free the saved address if we needed it
-    if (saved_load_addr != addr)
-        tcg_temp_free_cap_checked(saved_load_addr);
 #endif
 }
 
@@ -3176,9 +3188,6 @@ void tcg_gen_qemu_ld_i64_with_checked_addr(TCGv_i64 val, TCGv_cap_checked_ptr ad
     if (tcg_ctx_logging_enabled) {
         gen_helper_qemu_log_instr_load64(cpu_env, saved_load_addr, val, tcop);
     }
-    // Free the saved address if we needed it
-    if (saved_load_addr != addr)
-        tcg_temp_free_cap_checked(saved_load_addr);
 #endif
 }
 
@@ -3337,7 +3346,6 @@ void tcg_gen_qemu_ld_i128_with_checked_addr(TCGv_i128 val,
     addr_p8 = tcg_temp_new_cap_checked();
     tcg_gen_addi_tl((TCGv) addr_p8, (TCGv) addr, 8);
     gen_ldst_i64(INDEX_op_qemu_ld_i64, y, addr_p8, mop[1], idx);
-    tcg_temp_free_cap_checked(addr_p8);
 
     if ((mop[0] ^ memop) & MO_BSWAP) {
         tcg_gen_bswap64_i64(y, y);
@@ -3386,7 +3394,6 @@ void tcg_gen_qemu_st_i128_with_checked_addr(TCGv_i128 val,
         tcg_gen_addi_tl((TCGv)addr_p8, (TCGv)addr, 8);
         gen_ldst_i64(INDEX_op_qemu_st_i64, y, addr_p8, mop[1], idx);
     }
-    tcg_temp_free_cap_checked(addr_p8);
 
     plugin_gen_mem_callbacks(addr, make_memop_idx(memop, idx),
                              QEMU_PLUGIN_MEM_W);

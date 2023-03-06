@@ -52,7 +52,6 @@ static bool trans_flw(DisasContext *ctx, arg_flw *a)
     tcg_gen_qemu_ld_i64_with_checked_addr(dest, addr, ctx->mem_idx, mop);
     gen_nanbox_s(dest, dest);
 
-    tcg_temp_free_cap_checked(addr);
     mark_fs_dirty(ctx);
     return true;
 }
@@ -68,9 +67,6 @@ static bool trans_fsw(DisasContext *ctx, arg_fsw *a)
     addr = get_capmode_dependent_store_addr(ctx, a->rs1, a->imm, mop);
     tcg_gen_qemu_st_i64_with_checked_addr(cpu_fpr[a->rs2], addr, ctx->mem_idx,
                                           mop);
-
-    tcg_temp_free_cap_checked(addr);
-
     return true;
 }
 
@@ -258,9 +254,6 @@ static bool trans_fsgnj_s(DisasContext *ctx, arg_fsgnj_s *a)
 
             /* This formulation retains the nanboxing of rs2 in normal 'F'. */
             tcg_gen_deposit_i64(dest, rs2, rs1, 0, 31);
-
-            tcg_temp_free_i64(rs1);
-            tcg_temp_free_i64(rs2);
         } else {
             tcg_gen_deposit_i64(dest, src2, src1, 0, 31);
             tcg_gen_ext32s_i64(dest, dest);
@@ -306,15 +299,12 @@ static bool trans_fsgnjn_s(DisasContext *ctx, arg_fsgnjn_s *a)
         tcg_gen_nor_i64(rs2, rs2, mask);
         tcg_gen_and_i64(dest, mask, rs1);
         tcg_gen_or_i64(dest, dest, rs2);
-
-        tcg_temp_free_i64(rs2);
     }
     /* signed-extended intead of nanboxing for result if enable zfinx */
     if (ctx->cfg_ptr->ext_zfinx) {
         tcg_gen_ext32s_i64(dest, dest);
     }
     gen_set_fpr_hs(ctx, a->rd, dest);
-    tcg_temp_free_i64(rs1);
     mark_fs_dirty(ctx);
     return true;
 }
@@ -354,14 +344,11 @@ static bool trans_fsgnjx_s(DisasContext *ctx, arg_fsgnjx_s *a)
          */
         tcg_gen_andi_i64(dest, rs2, MAKE_64BIT_MASK(31, 1));
         tcg_gen_xor_i64(dest, rs1, dest);
-
-        tcg_temp_free_i64(rs2);
     }
     /* signed-extended intead of nanboxing for result if enable zfinx */
     if (ctx->cfg_ptr->ext_zfinx) {
         tcg_gen_ext32s_i64(dest, dest);
     }
-    tcg_temp_free_i64(rs1);
     gen_set_fpr_hs(ctx, a->rd, dest);
     mark_fs_dirty(ctx);
     return true;

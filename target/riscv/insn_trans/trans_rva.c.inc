@@ -44,7 +44,6 @@ static inline bool gen_lr(DisasContext *ctx, arg_atomic *a, MemOp mop)
     TCGv_cap_checked_ptr addr =
         get_capmode_dependent_load_addr(ctx, a->rs1, 0, mop);
     bool result = gen_lr_impl(ctx, addr, a, mop);
-    tcg_temp_free_cap_checked(addr);
     return result;
 }
 
@@ -82,7 +81,7 @@ static inline bool gen_sc_impl(DisasContext *ctx, TCGv_cap_checked_ptr addr,
      * so we can ignore AQ/RL along this path.
      */
     dest = dest_gpr(ctx, a->rd);
-    src1 = temp_new(ctx);
+    src1 = tcg_temp_new();
     src2 = get_gpr(ctx, a->rs2, EXT_NONE);
     tcg_gen_atomic_cmpxchg_tl_with_checked_addr(src1, load_res, load_val, src2,
                                                 ctx->mem_idx, mop);
@@ -119,7 +118,6 @@ static inline bool gen_sc(DisasContext *ctx, arg_atomic *a, MemOp mop)
         get_capmode_dependent_load_addr(ctx, a->rs1, 0, mop);
     cheri_debug_assert((mop & MO_ALIGN) && "store-conditional must be aligned");
     bool result = gen_sc_impl(ctx, addr, a, mop);
-    tcg_temp_free_cap_checked(addr);
     return result;
 }
 
@@ -150,7 +148,6 @@ static bool gen_amo(DisasContext *ctx, arg_atomic *a,
     func(dest, src1, src2, ctx->mem_idx, mop);
 
     gen_set_gpr(ctx, a->rd, dest);
-    tcg_temp_free_cap_checked(src1);
     return true;
 }
 
