@@ -2504,10 +2504,6 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
         gen_store_gpr(t0, rt);
         break;
     }
-    tcg_temp_free(t0);
-#if defined(TARGET_CHERI) || defined(CONFIG_TCG_LOG_INSTR)
-    tcg_temp_free_cap_checked(ddc_interposed);
-#endif /* defined(TARGET_CHERI) || defined(CONFIG_TCG_LOG_INSTR) */
 }
 
 /* Store */
@@ -2628,8 +2624,6 @@ static void gen_st_cond(DisasContext *ctx, int rt, int base, int offset,
     tcg_temp_free(val);
 
     gen_set_label(done);
-    tcg_temp_free_cap_checked(addr);
-    tcg_temp_free(t0);
 }
 
 /* Load and store */

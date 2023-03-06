@@ -259,12 +259,7 @@ static inline void gen_set_label(TCGLabel *l)
     tcg_gen_op1(INDEX_op_set_label, label_arg(l));
 }
 
-static inline void tcg_gen_br(TCGLabel *l)
-{
-    l->refs++;
-    tcg_gen_op1(INDEX_op_br, label_arg(l));
-}
-
+void tcg_gen_br(TCGLabel *l);
 void tcg_gen_mb(TCGBar);
 
 /* Helper calls. */
@@ -861,7 +856,6 @@ static inline void tcg_gen_plugin_cb_end(void)
 #endif
 #define tcg_temp_new_cap_checked() (TCGv_cap_checked_ptr)tcg_temp_ebb_new_tl()
 #define tcg_temp_local_new_cap_checked() (TCGv_cap_checked_ptr)tcg_temp_new()
-#define tcg_temp_free_cap_checked(val) tcg_temp_free((TCGv)val)
 
 /*
  * These can be called if the address has already been checked (e.g. CHERI ddc

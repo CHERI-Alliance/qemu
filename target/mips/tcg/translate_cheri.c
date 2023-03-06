@@ -304,9 +304,6 @@ static inline void generate_cloadtags(DisasContext *ctx, int32_t rd, int32_t cb)
     gen_helper_qemu_log_instr_load64(cpu_env, tcbc, ttags, tcg_constant_i32(MO_TEUQ)); // FIXME: not really correct
 #endif
     gen_store_gpr(ttags, rd);
-
-    tcg_temp_free_cap_checked(tcbc);
-    tcg_temp_free(ttags);
 }
 
 
@@ -821,8 +818,6 @@ static inline void generate_cap_load(DisasContext *ctx, int32_t rd, int32_t cb,
     tcg_gen_qemu_ld_tl_with_checked_addr(t1, vaddr, ctx->mem_idx, op);
     gen_store_gpr(t1, rd);
 
-    tcg_temp_free(t1);
-    tcg_temp_free_cap_checked(vaddr);
 }
 
 static inline void generate_cloadlinked_int(DisasContext *ctx, int32_t rd, int32_t cb, MemOp op, int opcode)
@@ -836,11 +831,6 @@ static inline void generate_cloadlinked_int(DisasContext *ctx, int32_t rd, int32
     gen_helper_cloadlinked(taddr, cpu_env, tcb, tlen);
     tcg_gen_qemu_ld_tl_with_checked_addr(t0, taddr, ctx->mem_idx, op);
     gen_store_gpr(t0, rd);
-
-    tcg_temp_free_i32(tlen);
-    tcg_temp_free_cap_checked(taddr);
-    tcg_temp_free(t0);
-    tcg_temp_free_i32(tcb);
 }
 
 /*
@@ -880,12 +870,8 @@ static inline void generate_cstorecond_int(DisasContext *ctx, int32_t rs,
     gen_load_gpr(t0, rs);
     tcg_gen_qemu_st_tl_with_checked_addr(t0, taddr, ctx->mem_idx, op);
 
-    tcg_temp_free_cap_checked(taddr);
-    tcg_temp_free(t0);
-
     gen_set_label(l1);
     gen_store_gpr(tlf, rd);
-    tcg_temp_free(tlf);
 }
 
 
@@ -903,9 +889,6 @@ static inline void generate_cstore(DisasContext *ctx, int32_t rs, int32_t cb,
 
     gen_load_gpr(t0, rs); // t0 <- load value to store
     tcg_gen_qemu_st_tl_with_checked_addr(t0, taddr, ctx->mem_idx, op);
-
-    tcg_temp_free(t0);
-    tcg_temp_free_cap_checked(taddr);
 }
 
 static inline target_long clc_sign_extend(target_long x, bool big_imm)

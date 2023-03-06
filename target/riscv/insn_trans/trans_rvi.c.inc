@@ -108,8 +108,6 @@ static TCGCond gen_compare_i128(bool bz, TCGv rl,
             tcg_gen_xor_tl(tmp, ah, bh);
             tcg_gen_and_tl(rl, rl, tmp);
             tcg_gen_xor_tl(rl, rh, rl);
-
-            tcg_temp_free(tmp);
         }
         break;
 
@@ -128,8 +126,6 @@ static TCGCond gen_compare_i128(bool bz, TCGv rl,
             /* seed third word with 1, which will be result */
             tcg_gen_sub2_tl(tmp, rh, ah, one, tmp, zero);
             tcg_gen_sub2_tl(tmp, rl, tmp, rh, bh, zero);
-
-            tcg_temp_free(tmp);
         }
         break;
 
@@ -140,8 +136,6 @@ static TCGCond gen_compare_i128(bool bz, TCGv rl,
     if (invert) {
         cond = tcg_invert_cond(cond);
     }
-
-    tcg_temp_free(rh);
     return cond;
 }
 
@@ -172,8 +166,6 @@ static bool gen_branch(DisasContext *ctx, arg_b *a, TCGCond cond)
         cond = gen_compare_i128(a->rs2 == 0,
                                 tmp, src1, src1h, src2, src2h, cond);
         tcg_gen_brcondi_tl(cond, tmp, 0, l);
-
-        tcg_temp_free(tmp);
 #endif
     } else {
         tcg_gen_brcond_tl(cond, src1, src2, l);
@@ -271,8 +263,6 @@ static bool gen_load_i128(DisasContext *ctx, arg_lb *a, MemOp memop)
     }
 
     gen_set_gpr128(ctx, a->rd, destl, desth);
-
-    tcg_temp_free(addrl);
     return true;
 #endif
 }
@@ -375,8 +365,6 @@ static bool gen_store_i128(DisasContext *ctx, arg_sb *a, MemOp memop)
         tcg_gen_addi_tl(addrl, addrl, 8);
         tcg_gen_qemu_st_tl(src2h, addrl, ctx->mem_idx, MO_TEUQ);
     }
-
-    tcg_temp_free(addrl);
     return true;
 #endif
 }
@@ -493,7 +481,6 @@ static bool trans_slti(DisasContext *ctx, arg_slti *a)
         case 0x01: case 0x02:
             ttmp = tcg_const_i32(a->imm == 0x01);
             gen_helper_qemu_log_instr_buffered_mode(cpu_env, ttmp);
-            tcg_temp_free_i32(ttmp);
             break;
         case 0x03:
             gen_helper_qemu_log_instr_buffer_flush(cpu_env);
@@ -515,7 +502,6 @@ static bool trans_slti(DisasContext *ctx, arg_slti *a)
             ctx->base.is_jmp = DISAS_NORETURN;
             break;
         }
-        tcg_temp_free(tpc);
 
         if (ctx->base.is_jmp != DISAS_NEXT) {
             gen_set_pc_imm(ctx, ctx->pc_succ_insn);
@@ -648,14 +634,6 @@ static void gen_sll_i128(TCGv destl, TCGv desth,
 
     tcg_gen_movcond_tl(TCG_COND_NE, destl, hs, zero, zero, ll);
     tcg_gen_movcond_tl(TCG_COND_NE, desth, hs, zero, ll, h1);
-
-    tcg_temp_free(ls);
-    tcg_temp_free(rs);
-    tcg_temp_free(hs);
-    tcg_temp_free(ll);
-    tcg_temp_free(lr);
-    tcg_temp_free(h0);
-    tcg_temp_free(h1);
 }
 
 static bool trans_sll(DisasContext *ctx, arg_sll *a)
@@ -698,14 +676,6 @@ static void gen_srl_i128(TCGv destl, TCGv desth,
 
     tcg_gen_movcond_tl(TCG_COND_NE, destl, hs, zero, h1, h0);
     tcg_gen_movcond_tl(TCG_COND_NE, desth, hs, zero, zero, h1);
-
-    tcg_temp_free(ls);
-    tcg_temp_free(rs);
-    tcg_temp_free(hs);
-    tcg_temp_free(ll);
-    tcg_temp_free(lr);
-    tcg_temp_free(h0);
-    tcg_temp_free(h1);
 }
 
 static bool trans_srl(DisasContext *ctx, arg_srl *a)
@@ -739,14 +709,6 @@ static void gen_sra_i128(TCGv destl, TCGv desth,
 
     tcg_gen_movcond_tl(TCG_COND_NE, destl, hs, zero, h1, h0);
     tcg_gen_movcond_tl(TCG_COND_NE, desth, hs, zero, lr, h1);
-
-    tcg_temp_free(ls);
-    tcg_temp_free(rs);
-    tcg_temp_free(hs);
-    tcg_temp_free(ll);
-    tcg_temp_free(lr);
-    tcg_temp_free(h0);
-    tcg_temp_free(h1);
 }
 
 static bool trans_sra(DisasContext *ctx, arg_sra *a)

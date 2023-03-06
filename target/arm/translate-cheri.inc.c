@@ -1554,7 +1554,6 @@ TRANS_F(CSEL)
     arm_test_cc(&cmp, a->cond);
     gen_move_cap_gp_select_gp(ctx, AS_ZERO(a->Cd), AS_ZERO(a->Cn),
                               AS_ZERO(a->Cm), cmp.cond, cmp.value);
-    arm_free_cc(&cmp);
     return true;
 }
 

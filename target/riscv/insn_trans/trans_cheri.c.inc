@@ -310,8 +310,6 @@ static inline bool gen_cap_load_mem_idx(DisasContext *ctx, int32_t rd,
     generate_cap_load_check_imm(vaddr, cs, offset, op);
     tcg_gen_qemu_ld_tl_with_checked_addr(value, vaddr, mem_idx, op);
     gen_set_gpr(ctx, rd, value);
-    tcg_temp_free_cap_checked(vaddr);
-    tcg_temp_free(value);
     return true;
 }
 
@@ -394,8 +392,6 @@ static inline bool gen_cap_store_mem_idx(DisasContext *ctx, int32_t addr_regnum,
     TCGv value = tcg_temp_new();
     gen_get_gpr(ctx, value, val_regnum);
     tcg_gen_qemu_st_tl_with_checked_addr(value, vaddr, mem_idx, op);
-    tcg_temp_free(value);
-    tcg_temp_free_cap_checked(vaddr);
     return true;
 }
 
@@ -618,7 +614,6 @@ static inline bool gen_lr_impl(DisasContext *ctx, TCGv_cap_checked_ptr addr,
         generate_get_ddc_checked_gpr_plus_offset(                              \
             addr, ctx, a->rs1, 0, op, &generate_ddc_checked_load_ptr);         \
         bool result = gen_lr_impl(ctx, addr, a, op);                           \
-        tcg_temp_free_cap_checked(addr);                                       \
         return result;                                                         \
     }                                                                          \
     static bool trans_##name##_cap(DisasContext *ctx, arg_##name##_cap *a)     \
@@ -627,7 +622,6 @@ static inline bool gen_lr_impl(DisasContext *ctx, TCGv_cap_checked_ptr addr,
         TCGv_cap_checked_ptr addr = tcg_temp_new_cap_checked();                \
         generate_cap_load_check_imm(addr, a->rs1, 0, op);                      \
         bool result = gen_lr_impl(ctx, addr, a, op);                           \
-        tcg_temp_free_cap_checked(addr);                                       \
         return result;                                                         \
     }
 TRANSLATE_LR_EXPLICIT(lr_b, MO_ALIGN | MO_SB);
@@ -649,7 +643,6 @@ static inline bool gen_sc_impl(DisasContext *ctx, TCGv_cap_checked_ptr addr,
             addr, ctx, a->rs1, 0, op, &generate_ddc_checked_load_ptr);         \
         a->rd = a->rs2; /* Not enough encoding space for explicit rd */        \
         bool result = gen_sc_impl(ctx, addr, a, op);                           \
-        tcg_temp_free_cap_checked(addr);                                       \
         return result;                                                         \
     }                                                                          \
     static bool trans_##name##_cap(DisasContext *ctx, arg_##name##_cap *a)     \
@@ -659,7 +652,6 @@ static inline bool gen_sc_impl(DisasContext *ctx, TCGv_cap_checked_ptr addr,
         generate_cap_load_check_imm(addr, a->rs1, 0, op);                      \
         a->rd = a->rs2; /* Not enough encoding space for explicit rd */        \
         bool result = gen_sc_impl(ctx, addr, a, op);                           \
-        tcg_temp_free_cap_checked(addr);                                       \
         return result;                                                         \
     }
 TRANSLATE_SC_EXPLICIT(sc_b, MO_ALIGN | MO_SB);
