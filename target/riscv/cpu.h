@@ -29,6 +29,7 @@
 #include "qemu/int128.h"
 #include "cpu_bits.h"
 #include "rvfi_dii.h"
+#include "qapi/qapi-types-common.h"
 
 #define TCG_GUEST_DEFAULT_MO 0
 
@@ -543,6 +544,21 @@ struct RISCVCPUClass {
     ResettablePhases parent_phases;
 };
 
+/*
+ * map is a 16-bit bitmap: the most significant set bit in map is the maximum
+ * satp mode that is supported. It may be chosen by the user and must respect
+ * what qemu implements (valid_1_10_32/64) and what the hw is capable of
+ * (supported bitmap below).
+ *
+ * init is a 16-bit bitmap used to make sure the user selected a correct
+ * configuration as per the specification.
+ *
+ * supported is a 16-bit bitmap used to reflect the hw capabilities.
+ */
+typedef struct {
+    uint16_t map, init, supported;
+} RISCVSATPMap;
+
 struct RISCVCPUConfig {
     bool ext_i;
     bool ext_e;
@@ -579,9 +595,11 @@ struct RISCVCPUConfig {
     bool ext_zksh;
     bool ext_zkt;
     bool ext_ifencei;
+    bool ext_icsr;
+    bool ext_icbom;
+    bool ext_icboz;
     bool ext_zicond;
     bool ext_zihintpause;
-    bool ext_icsr;
     bool ext_smstateen;
     bool ext_sstc;
     bool ext_svadu;
@@ -610,8 +628,6 @@ struct RISCVCPUConfig {
     bool rvv_ta_all_1s;
     bool rvv_ma_all_1s;
 
-    bool ext_icbom;
-    bool ext_icboz;
 #if defined(TARGET_CHERI_RISCV_STD_093)
     bool ext_zish4add;
 #endif
@@ -664,6 +680,10 @@ struct RISCVCPUConfig {
     bool misa_w;
 
     bool short_isa_string;
+
+#ifndef CONFIG_USER_ONLY
+    RISCVSATPMap satp_mode;
+#endif
 };
 
 typedef struct RISCVCPUConfig RISCVCPUConfig;
@@ -1107,6 +1127,8 @@ enum riscv_pmu_event_idx {
 /* CSR function table */
 extern riscv_csr_operations csr_ops[CSR_TABLE_SIZE];
 
+extern const bool valid_vm_1_10_32[], valid_vm_1_10_64[];
+
 void riscv_get_csr_ops(int csrno, riscv_csr_operations *ops);
 void riscv_set_csr_ops(int csrno, riscv_csr_operations *ops);
 
@@ -1179,5 +1201,7 @@ static inline bool riscv_cpu_mode_cre(CPURISCVState *env)
 #endif
 }
 #endif
+uint8_t satp_mode_max_from_map(uint32_t map);
+const char *satp_mode_str(uint8_t satp_mode, bool is_32_bit);
 
 #endif /* RISCV_CPU_H */

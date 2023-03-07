@@ -155,6 +155,7 @@ target_ulong helper_csrrw_i128(CPURISCVState *env, int csr,
     return int128_getlo(rv);
 }
 #endif /* TARGET_CHERI */
+
 /*
  * check_zicbo_envcfg
  *
@@ -312,18 +313,6 @@ static void check_zicbom_access(CPURISCVState *env,
      * addresses, whether a cache-block management instruction is
      * permitted to access the cache block is UNSPECIFIED."
      */
-
-    /*
-     * Please note that in qemu 6.x, probe_access_flags does not yet have a
-     * size parameter. Upstream commit 1770b2f2d3d ("accel/tcg: Add 'size'
-     * param to probe_access_flags()") adds the size parameter and explains
-     * the background. On risc-v systems, size is used for checking different
-     * PMP permissions within a page.
-     *
-     * The upstream implementation of zicbom calls probe_access_flags with
-     * size = cbomlen.
-     */
-
     ret = probe_access_flags(env, address, cbomlen, MMU_DATA_LOAD,
                              mmu_idx, true, &phost, ra);
     if (ret != TLB_INVALID_MASK) {
