@@ -1166,6 +1166,11 @@ static Property riscv_cpu_properties[] = {
     DEFINE_PROP_BOOL("x-j", RISCVCPU, cfg.ext_j, false),
     DEFINE_PROP_BOOL("x-v", RISCVCPU, cfg.ext_v, false),
 
+    DEFINE_PROP_BOOL("zca", RISCVCPU, cfg.ext_zca, false),
+    DEFINE_PROP_BOOL("zcb", RISCVCPU, cfg.ext_zcb, false),
+    DEFINE_PROP_BOOL("zcd", RISCVCPU, cfg.ext_zcd, false),
+    DEFINE_PROP_BOOL("zcf", RISCVCPU, cfg.ext_zcf, false),
+
     DEFINE_PROP_BOOL("zicboz", RISCVCPU, cfg.ext_icboz, true),
     DEFINE_PROP_UINT16("cboz_blocksize", RISCVCPU, cfg.cboz_blocksize, 64),
 
@@ -1314,6 +1319,10 @@ static void riscv_isa_string_ext(RISCVCPU *cpu, char **isa_str, int max_str_len)
      *    extensions by an underscore.
      */
     struct isa_ext_data isa_edata_arr[] = {
+        ISA_EDATA_ENTRY(zca, ext_zca),
+        ISA_EDATA_ENTRY(zcb, ext_zcb),
+        ISA_EDATA_ENTRY(zcd, ext_zcd),
+        ISA_EDATA_ENTRY(zcf, ext_zcf),
         ISA_EDATA_ENTRY(zba, ext_zba),
         ISA_EDATA_ENTRY(zbb, ext_zbb),
         ISA_EDATA_ENTRY(zbc, ext_zbc),
