@@ -458,6 +458,10 @@ typedef struct {
     bool ext_svinval;
     bool ext_svnapot;
     bool ext_svpbmt;
+    bool ext_zca;
+    bool ext_zcb;
+    bool ext_zcd;
+    bool ext_zcf;
     bool ext_zfh;
     bool ext_zfhmin;
     bool ext_icbom;
