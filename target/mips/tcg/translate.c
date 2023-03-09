@@ -5335,6 +5335,16 @@ static void gen_compute_branch(DisasContext *ctx, uint32_t opc,
         break;
     case OPC_J:
     case OPC_JAL:
+        {
+            /* Jump to immediate */
+            int jal_mask = ctx->hflags & MIPS_HFLAG_M16 ? 0xF8000000
+                                                        : 0xF0000000;
+            btgt = (((ctx->base.pc_next + insn_bytes - pcc_reloc(ctx)) &
+                     (int32_t)jal_mask) |
+                    (uint32_t)offset) +
+                   pcc_reloc(ctx);
+            break;
+        }
 #ifndef TARGET_CHERI
     case OPC_JALX:
 #endif
