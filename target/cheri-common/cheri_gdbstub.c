@@ -38,6 +38,7 @@
 #include "cpu.h"
 #include "cheri-helper-utils.h"
 #include "exec/cpu-all.h"
+#include "gdbstub/internals.h"
 
 static inline void append(GByteArray *buf, target_ulong value)
 {
@@ -84,3 +85,58 @@ int gdb_get_general_purpose_capreg(GByteArray *buf, CPUArchState *env,
 #endif
     return CHERI_CAP_SIZE + 1;
 }
+
+#ifndef CONFIG_USER_ONLY
+bool gdb_query_capa_read_supported(void)
+{
+    return true;
+}
+
+void gdb_handle_query_xfer_capa_read(GArray *params, void *user_ctx)
+{
+    uint8_t capbuf[CHERI_CAP_SIZE + 1];
+    uint64_t addr;
+    unsigned long len, offset;
+
+    if (params->len != 3) {
+        gdb_put_packet("E22");
+        return;
+    }
+
+    addr = get_param(params, 0)->val_ull;
+    if (addr % CHERI_CAP_SIZE != 0) {
+        gdb_put_packet("E22");
+        return;
+    }
+
+    offset = get_param(params, 1)->val_ul;
+    if (offset > sizeof(capbuf)) {
+        gdb_put_packet("E22");
+        return;
+    }
+    if (offset == sizeof(capbuf)) {
+        gdb_put_packet("l");
+        return;
+    }
+
+    if (cpu_memory_readcap_debug(gdbserver_state.g_cpu, addr, capbuf,
+                                 sizeof(capbuf) - 1)) {
+        gdb_put_packet("E14");
+        return;
+    }
+
+    len = get_param(params, 2)->val_ul;
+    if (len > sizeof(capbuf) - offset) {
+        len = sizeof(capbuf) - offset;
+    }
+    if (offset + len < sizeof(capbuf)) {
+        g_string_assign(gdbserver_state.str_buf, "m");
+    } else {
+        g_string_assign(gdbserver_state.str_buf, "l");
+    }
+    gdb_memtox(gdbserver_state.str_buf, (void *)(capbuf + offset), len);
+
+    gdb_put_packet_binary(gdbserver_state.str_buf->str,
+                          gdbserver_state.str_buf->len, true);
+}
+#endif
