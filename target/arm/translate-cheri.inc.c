@@ -49,15 +49,15 @@ static inline bool gen_cheri_cap_cap_imm(DisasContext *ctx, int cd, int cn,
                                          target_long imm,
                                          cheri_cap_cap_imm_helper *gen_func)
 {
-    TCGv_i32 dest_regnum = tcg_const_i32(cd);
-    TCGv_i32 source_regnum = tcg_const_i32(cn);
-    TCGv imm_value = tcg_const_tl(imm);
+    TCGv_i32 dest_regnum = tcg_constant_i32(cd);
+    TCGv_i32 source_regnum = tcg_constant_i32(cn);
+    TCGv imm_value = tcg_constant_tl(imm);
     disas_capreg_state_set_unknown(ctx, cd);
     disas_capreg_state_set_unknown(ctx, cn);
     gen_func(cpu_env, dest_regnum, source_regnum, imm_value);
-    tcg_temp_free(imm_value);
-    tcg_temp_free_i32(source_regnum);
-    tcg_temp_free_i32(dest_regnum);
+
+
+
     return true;
 }
 
@@ -66,16 +66,16 @@ static inline bool gen_cheri_cap_cap_cap(DisasContext *ctx, int cd, int cn,
                                          int cm,
                                          cheri_cap_cap_cap_helper *gen_func)
 {
-    TCGv_i32 dest_regnum = tcg_const_i32(cd);
-    TCGv_i32 source_regnum1 = tcg_const_i32(cn);
-    TCGv_i32 source_regnum2 = tcg_const_i32(cm);
+    TCGv_i32 dest_regnum = tcg_constant_i32(cd);
+    TCGv_i32 source_regnum1 = tcg_constant_i32(cn);
+    TCGv_i32 source_regnum2 = tcg_constant_i32(cm);
     disas_capreg_state_set_unknown(ctx, cd);
     disas_capreg_state_set_unknown(ctx, cn);
     disas_capreg_state_set_unknown(ctx, cm);
     gen_func(cpu_env, dest_regnum, source_regnum1, source_regnum2);
-    tcg_temp_free_i32(source_regnum2);
-    tcg_temp_free_i32(source_regnum1);
-    tcg_temp_free_i32(dest_regnum);
+
+
+
     return true;
 }
 
@@ -84,8 +84,8 @@ static inline bool gen_cheri_cap_cap_int_imm(DisasContext *ctx, int cd, int cn,
                                              int rm, target_long imm,
                                              cheri_cap_cap_int_helper *gen_func)
 {
-    TCGv_i32 dest_regnum = tcg_const_i32(cd);
-    TCGv_i32 source_regnum = tcg_const_i32(cn);
+    TCGv_i32 dest_regnum = tcg_constant_i32(cd);
+    TCGv_i32 source_regnum = tcg_constant_i32(cn);
     TCGv gpr_value = read_cpu_reg(ctx, rm, 1);
     if (imm != 0) {
         tcg_gen_addi_tl(gpr_value, gpr_value, imm);
@@ -93,8 +93,8 @@ static inline bool gen_cheri_cap_cap_int_imm(DisasContext *ctx, int cd, int cn,
     disas_capreg_state_set_unknown(ctx, cd);
     disas_capreg_state_set_unknown(ctx, cn);
     gen_func(cpu_env, dest_regnum, source_regnum, gpr_value);
-    tcg_temp_free_i32(source_regnum);
-    tcg_temp_free_i32(dest_regnum);
+
+
     return true;
 }
 static inline bool gen_cheri_cap_cap_int(DisasContext *ctx, int cd, int cn,
@@ -316,7 +316,7 @@ static inline __attribute__((always_inline)) bool load_store_implementation(
             // rounded to a cap.
             addr_imm = (ctx->pc_curr + imm) & ~(CHERI_CAP_SIZE - 1);
         }
-        addr = tcg_const_i64(addr_imm);
+        addr = tcg_constant_i64(addr_imm);
     } else {
         // Things with a base (still unchecked)
         addr = read_cpu_reg_maybe_0(ctx, rn);
@@ -349,14 +349,14 @@ static inline __attribute__((always_inline)) bool load_store_implementation(
                                             : (pcc_base ? CHERI_EXC_REGNUM_PCC
                                                         : CHERI_EXC_REGNUM_DDC);
 
-        TCGv_i32 tcg_base_reg = tcg_const_i32(base_reg);
-        TCGv_i32 tcg_rd = tcg_const_i32(rd);
+        TCGv_i32 tcg_base_reg = tcg_constant_i32(base_reg);
+        TCGv_i32 tcg_rd = tcg_constant_i32(rd);
 
         TCGv_i32 tcg_rd2 = NULL;
 
         // Only one helper for exclusive, we just pass REG_NONE
         if (rd2 != REG_NONE || exclusive) {
-            tcg_rd2 = tcg_const_i32(rd2);
+            tcg_rd2 = tcg_constant_i32(rd2);
         }
 
         if (!capability_base) {
@@ -381,19 +381,19 @@ static inline __attribute__((always_inline)) bool load_store_implementation(
                 gen_helper_load_exclusive_cap_via_cap(cpu_env, tcg_rd, tcg_rd2,
                                                       tcg_base_reg, addr);
             } else {
-                TCGv_i32 tcg_rm = tcg_const_i32(rm);
+                TCGv_i32 tcg_rm = tcg_constant_i32(rm);
                 disas_capreg_state_set(ctx, rm, CREG_INTEGER);
                 gen_helper_store_exclusive_cap_via_cap(
                     cpu_env, tcg_rm, tcg_rd, tcg_rd2, tcg_base_reg, addr);
-                tcg_temp_free_i32(tcg_rm);
+
             }
         } else if (rd2 == REG_NONE) {
             if (unpriv) {
-                TCGv_i32 tcg_idx = tcg_const_i32(get_a64_user_mem_index(ctx));
+                TCGv_i32 tcg_idx = tcg_constant_i32(get_a64_user_mem_index(ctx));
                 (is_load ? gen_helper_load_cap_via_cap_mmu_idx
                          : gen_helper_store_cap_via_cap_mmu_idx)(
                     cpu_env, tcg_rd, tcg_base_reg, addr, tcg_idx);
-                tcg_temp_free_i32(tcg_idx);
+
             } else {
                 (is_load ? gen_helper_load_cap_via_cap
                          : gen_helper_store_cap_via_cap)(cpu_env, tcg_rd, addr,
@@ -416,11 +416,11 @@ static inline __attribute__((always_inline)) bool load_store_implementation(
             helper_fn(cpu_env, tcg_rd, tcg_rd2, tcg_base_reg, addr);
         }
 
-        tcg_temp_free_i32(tcg_base_reg);
-        tcg_temp_free_i32(tcg_rd);
+
+
 
         if (tcg_rd2 != NULL || exclusive) {
-            tcg_temp_free_i32(tcg_rd2);
+
         }
 
     } else {
@@ -490,7 +490,7 @@ static inline __attribute__((always_inline)) bool load_store_implementation(
                     // Now the second load has finished we can store the first
                     // one back
                     tcg_gen_mov_i64(tcg_rd, load_tmp);
-                    tcg_temp_free_i64(load_tmp);
+
                 }
             }
 
@@ -542,11 +542,11 @@ static inline __attribute__((always_inline)) bool load_store_implementation(
     if (post_inc || pre_inc) {
         assert(!exclusive); // otherwise this temp will have died
         set_gpr_reg_addr_base(ctx, rn, wb, capability_base);
-        tcg_temp_free_i64(wb);
+
     }
 
     if (rn == REG_NONE) {
-        tcg_temp_free_i64(addr);
+
     }
 
     return true;
@@ -637,7 +637,7 @@ TRANS_F(ADR)
         gen_lazy_cap_set_int(ctx, a->Rd);
     }
 
-    tcg_temp_free_i64(new_addr);
+
 
     return true;
 }
@@ -655,11 +655,12 @@ TRANS_F(ADD_SUB)
 
     gen_move_cap_gp_gp(ctx, a->Cd, a->Cn);
 
-    TCGv_i64 increment = tcg_const_i64(imm);
+    TCGv_i64 increment = tcg_temp_new_i64();
+    tcg_gen_movi_i64(increment, imm);
 
     gen_cap_add_fast(ctx, a->Cd, increment);
 
-    tcg_temp_free_i64(increment);
+
     gen_reg_modified_cap(ctx, a->Cd);
     return true;
 }
@@ -875,8 +876,8 @@ static bool cvt_impl_ptr_to_cap(DisasContext *ctx, uint32_t cd, uint32_t cn,
         gen_set_label(l2);
     }
 
-    tcg_temp_free_i64(new_cursor);
-    tcg_temp_free_i64(temp);
+
+
 
     gen_reg_modified_cap(ctx, cd);
 
@@ -942,9 +943,9 @@ static bool cvt_impl_cap_to_ptr(DisasContext *ctx, uint32_t rd, uint32_t cn,
 
     gen_lazy_cap_set_int(ctx, rd);
 
-    tcg_temp_free_i64(temp);
-    tcg_temp_free_i32(tag32);
-    tcg_temp_free_i32(z);
+
+
+
 
     return true;
 }
@@ -980,8 +981,10 @@ TRANS_F(SUBS)
     tcg_gen_shli_i64(tag2, tag2, 62);
 
     TCGv_i64 shift = tcg_temp_new_i64();
-    TCGv_i64 value1 = tcg_const_i64(0);
-    TCGv_i64 value2 = tcg_const_i64(62);
+    TCGv_i64 value1 = tcg_temp_new_i64();
+    TCGv_i64 value2 = tcg_temp_new_i64();
+    tcg_gen_movi_i64(value1, 0);
+    tcg_gen_movi_i64(value2, 62);
 
     // shift = tag1 == tag2 ? 0 : 62
     tcg_gen_movcond_i64(TCG_COND_EQ, shift, tag1, tag2, value1, value2);
@@ -991,8 +994,8 @@ TRANS_F(SUBS)
     tcg_gen_movcond_i64(TCG_COND_EQ, value2, tag1, tag2, cpu_reg(ctx, a->Cm),
                         tag2);
 
-    tcg_temp_free_i64(tag1);
-    tcg_temp_free_i64(tag2);
+
+
 
     TCGv_i64 result = cpu_reg(ctx, a->Rd);
 
@@ -1006,9 +1009,9 @@ TRANS_F(SUBS)
 
     gen_lazy_cap_set_int(ctx, AS_ZERO(a->Rd));
 
-    tcg_temp_free_i64(shift);
-    tcg_temp_free_i64(value1);
-    tcg_temp_free_i64(value2);
+
+
+
 
     return true;
 }
@@ -1035,14 +1038,14 @@ TRANS_F(FLGS_CTHI)
 
 static TCGv get_link_addr(DisasContext *ctx)
 {
-    return tcg_const_tl(ctx->base.pc_next);
+    return tcg_constant_tl(ctx->base.pc_next);
 }
 
 static TCGv_i32 get_link_reg(DisasContext *ctx, bool link)
 {
     if (link)
         disas_capreg_state_set(ctx, 30, CREG_FULLY_DECOMPRESSED);
-    return tcg_const_i32(link ? 30 : NULL_CAPREG_INDEX);
+    return tcg_constant_i32(link ? 30 : NULL_CAPREG_INDEX);
 }
 
 static bool should_be_executive(DisasContext *ctx)
@@ -1064,7 +1067,7 @@ static TCGv_i32 get_branch_flags(DisasContext *ctx, bool can_branch_restricted)
         should_be_executive(ctx);
     }
 
-    return tcg_const_i32(flags);
+    return tcg_constant_i32(flags);
 }
 
 TRANS_F(BLR_BR_RET_CHKD)
@@ -1106,10 +1109,6 @@ TRANS_F(BLR_BR_RET_CHKD)
             g_assert_not_reached();
         }
         set_NZCV(ctx, NULL, NULL, tag, sealed);
-        if (tag)
-            tcg_temp_free_i32(tag);
-        if (sealed)
-            tcg_temp_free_i32(sealed);
         return true;
     }
 
@@ -1131,12 +1130,12 @@ TRANS_F(BLR_BR_RET_CHKD)
         tcg_gen_xori_i32(pstate, pstate, PSTATE_C64);
         tcg_gen_st_i32(pstate, cpu_env, offsetof(CPUARMState, pstate));
         // update hflags because we know that a bit will have changed
-        TCGv_i32 tcg_el = tcg_const_i32(ctx->current_el);
+        TCGv_i32 tcg_el = tcg_constant_i32(ctx->current_el);
         gen_helper_rebuild_hflags_a64(cpu_env, tcg_el);
         // Also exit the translation block
         ctx->base.is_jmp = DISAS_UPDATE_EXIT;
-        tcg_temp_free_i32(tcg_el);
-        tcg_temp_free_i32(pstate);
+
+
 
     } else {
         uint32_t source = AS_ZERO(a->Cn);
@@ -1151,21 +1150,21 @@ TRANS_F(BLR_BR_RET_CHKD)
         if (!sbl)
             source |= CJALR_DONT_MAKE_SENTRY;
 
-        TCGv_i32 target_regnum = tcg_const_i32(source);
+        TCGv_i32 target_regnum = tcg_constant_i32(source);
 
         TCGv_i32 link_regnum = get_link_reg(ctx, a->opc == 0b01);
 
         TCGv link_addr = get_link_addr(ctx);
-        TCGv cjalr_imm = tcg_const_tl(0);
+        TCGv cjalr_imm = tcg_constant_tl(0);
 
         disas_capreg_state_set_unknown(ctx, AS_ZERO(a->Cn));
         gen_helper_cjalr(cpu_env, link_regnum, target_regnum, cjalr_imm,
                          link_addr);
 
-        tcg_temp_free(cjalr_imm);
-        tcg_temp_free(link_addr);
-        tcg_temp_free_i32(target_regnum);
-        tcg_temp_free_i32(link_regnum);
+
+
+
+
 
         ctx->base.is_jmp = DISAS_JUMP;
     }
@@ -1180,8 +1179,8 @@ TRANS_F(BR_BLR)
     if (capabilities_enabled_exception(ctx))
         return true;
 
-    TCGv_i32 cn = tcg_const_i32(a->Cn);
-    TCGv_i32 offset = tcg_const_i32(SE_32(a->imm7 << 4, 11));
+    TCGv_i32 cn = tcg_constant_i32(a->Cn);
+    TCGv_i32 offset = tcg_constant_i32(SE_32(a->imm7 << 4, 11));
     TCGv_i32 link = get_link_reg(ctx, a->link);
     TCGv link_addr = get_link_addr(ctx);
     TCGv_i32 flags = get_branch_flags(ctx, false);
@@ -1190,11 +1189,11 @@ TRANS_F(BR_BLR)
     gen_helper_load_and_branch_and_link(cpu_env, cn, offset, link, link_addr,
                                         flags);
 
-    tcg_temp_free_i32(cn);
-    tcg_temp_free_i32(offset);
-    tcg_temp_free_i32(link);
-    tcg_temp_free(link_addr);
-    tcg_temp_free_i32(flags);
+
+
+
+
+
 
     ctx->base.is_jmp = DISAS_JUMP;
 
@@ -1215,8 +1214,8 @@ TRANS_F(BRS)
 
     // Branch and link sealed
     bool link = a->opc == 0b01;
-    TCGv_i32 cn = tcg_const_i32(AS_ZERO(a->Cn));
-    TCGv_i32 cm = tcg_const_i32(AS_ZERO(a->Cm));
+    TCGv_i32 cn = tcg_constant_i32(AS_ZERO(a->Cn));
+    TCGv_i32 cm = tcg_constant_i32(AS_ZERO(a->Cm));
     TCGv_i32 linkreg = get_link_reg(ctx, link);
     TCGv link_addr = get_link_addr(ctx);
 
@@ -1226,11 +1225,11 @@ TRANS_F(BRS)
 
     gen_helper_branch_sealed_pair(cpu_env, cn, cm, linkreg, link_addr, flags);
 
-    tcg_temp_free_i32(cn);
-    tcg_temp_free_i32(cm);
-    tcg_temp_free_i32(flags);
-    tcg_temp_free_i32(linkreg);
-    tcg_temp_free_i64(link_addr);
+
+
+
+
+
 
     ctx->base.is_jmp = DISAS_JUMP;
 
@@ -1254,7 +1253,7 @@ TRANS_F(CHK)
         gen_cap_is_subset_and_tag_eq(ctx, a->Cn, a->Cm, ss_and_tagged);
         n = tcg_temp_new_i32();
         tcg_gen_extrl_i64_i32(n, ss_and_tagged);
-        tcg_temp_free_i64(ss_and_tagged);
+
         break;
     }
     case 0b01: // CHKEQ
@@ -1266,10 +1265,6 @@ TRANS_F(CHK)
     }
 
     set_NZCV(ctx, n, z, NULL, NULL);
-    if (n)
-        tcg_temp_free_i32(n);
-    if (z)
-        tcg_temp_free_i32(z);
 
     return true;
 }
@@ -1314,7 +1309,8 @@ TRANS_F(BUILD_CSEAL_CPYE)
         // new_tag = (old_tag && !sealed) || (cm tagged && !cm sealed &&
         // subset(d, cm) && !above_limit(data))
         TCGv_i64 result = tcg_temp_new_i64();
-        TCGv_i64 temp0 = tcg_const_i64(0);
+        TCGv_i64 temp0 = tcg_temp_new_i64();
+        tcg_gen_movi_i64(temp0, 0);
         TCGv_i64 temp1 = tcg_temp_new_i64();
 
         gen_cap_get_unsealed(ctx, cd_temp, result);
@@ -1338,9 +1334,9 @@ TRANS_F(BUILD_CSEAL_CPYE)
 
         gen_cap_set_tag(ctx, cd_temp, result, false);
 
-        tcg_temp_free_i64(result);
-        tcg_temp_free_i64(temp0);
-        tcg_temp_free_i64(temp1);
+
+
+
         break;
     }
 
@@ -1349,7 +1345,7 @@ TRANS_F(BUILD_CSEAL_CPYE)
         TCGv_i64 type = tcg_temp_new_i64();
         gen_cap_get_type_for_copytype(ctx, cm, type);
         gen_cap_set_cursor(ctx, cd_temp, type, false);
-        tcg_temp_free_i64(type);
+
         break;
     }
     case 0b10: // CSEAL
@@ -1359,8 +1355,8 @@ TRANS_F(BUILD_CSEAL_CPYE)
         TCGv_i32 v = tcg_temp_new_i32();
         tcg_gen_extrl_i64_i32(v, success);
         set_NZCV(ctx, NULL, NULL, NULL, v);
-        tcg_temp_free_i32(v);
-        tcg_temp_free_i64(success);
+
+
         break;
     }
     case 0b11: // CPYVALUE
@@ -1511,7 +1507,7 @@ TRANS_F(SEAL_CHKSSU)
         TCGv_i32 n = tcg_temp_new_i32();
         tcg_gen_extrl_i64_i32(n, ss_and_tagged);
         set_NZCV(ctx, n, NULL, NULL, NULL);
-        tcg_temp_free_i32(n);
+
 
         // type = ss_and_tagged && cm tagged && !cm sealed ? unsealed : type
         TCGv_i64 temp = tcg_temp_new_i64();
@@ -1526,8 +1522,8 @@ TRANS_F(SEAL_CHKSSU)
         tcg_gen_and_i64(temp, temp, ss_and_tagged);
         gen_cap_set_type_unchecked(ctx, cd_temp, temp);
 
-        tcg_temp_free_i64(temp);
-        tcg_temp_free_i64(ss_and_tagged);
+
+
 
         break;
     }
@@ -1650,8 +1646,8 @@ TRANS_F(LDPBR)
 
     bool link = a->opc == 0b01;
     TCGv_i32 link_regnum = get_link_reg(ctx, link);
-    TCGv_i32 pair_regnum = tcg_const_i32(a->Cn);
-    TCGv_i32 data_regnum = tcg_const_i32(AS_ZERO(a->Ct));
+    TCGv_i32 pair_regnum = tcg_constant_i32(a->Cn);
+    TCGv_i32 data_regnum = tcg_constant_i32(AS_ZERO(a->Ct));
     TCGv_i32 flag_tcg = get_branch_flags(ctx, false);
     TCGv link_addr = get_link_addr(ctx);
 
@@ -1660,11 +1656,11 @@ TRANS_F(LDPBR)
     gen_helper_load_pair_and_branch_and_link(cpu_env, pair_regnum, data_regnum,
                                              link_regnum, link_addr, flag_tcg);
 
-    tcg_temp_free(link_addr);
-    tcg_temp_free_i32(flag_tcg);
-    tcg_temp_free_i32(data_regnum);
-    tcg_temp_free_i32(pair_regnum);
-    tcg_temp_free_i32(link_regnum);
+
+
+
+
+
 
     ctx->base.is_jmp = DISAS_JUMP;
 
@@ -1823,7 +1819,7 @@ TRANS_F(SC)
             TCGv_i64 base = tcg_temp_new_i64();
             gen_cap_get_base(ctx, a->Cd, base);
             tcg_gen_add_i64(new_cursor, new_cursor, base);
-            tcg_temp_free_i64(base);
+
         }
 
         gen_cap_set_cursor(ctx, a->Cd, new_cursor, false);
@@ -1880,10 +1876,11 @@ TRANS_F(CLRPERM1)
     if (a->perm & 4)
         perms |= CAP_PERM_LOAD;
 
-    TCGv_i64 mask = tcg_const_i64(perms);
+    TCGv_i64 mask = tcg_temp_new_i64();
+    tcg_gen_movi_i64(mask, perms);
     gen_cap_clear_perms(ctx, a->Cd, mask, false);
     gen_cap_untag_if_sealed(ctx, a->Cd);
-    tcg_temp_free_i64(mask);
+
 
     gen_reg_modified_cap(ctx, a->Cd);
     return true;
@@ -2005,7 +2002,7 @@ TRANS_F(CT)
         tcg_gen_add_i64(addr, addr, ddc_interposition);
     }
 
-    TCGv_i32 tcg_reg = tcg_const_i32(reg);
+    TCGv_i32 tcg_reg = tcg_constant_i32(reg);
 
     if (a->opc) {
         gen_helper_load_tags(cpu_reg(ctx, a->Rt), cpu_env, tcg_reg, addr);
@@ -2018,7 +2015,7 @@ TRANS_F(CT)
         gen_helper_store_tags(cpu_env, v, tcg_reg, addr);
     }
 
-    tcg_temp_free_i32(tcg_reg);
+
 
     return true;
 }

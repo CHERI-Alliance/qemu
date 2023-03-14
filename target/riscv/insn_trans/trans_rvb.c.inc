@@ -370,7 +370,7 @@ GEN_SHADD(3)
             tcg_gen_shli_tl(offset, offset, SHAMT);                            \
             gen_helper_cincoffset(cpu_env, tcg_constant_i32(a->rd),            \
                                   tcg_constant_i32(a->rs2), offset);           \
-            tcg_temp_free(offset);                                             \
+                                             \
             return true;                                                       \
         }                                                                      \
         return gen_arith(ctx, a, EXT_NONE, gen_sh##SHAMT##add, NULL);          \
@@ -484,7 +484,7 @@ GEN_SHADD_UW(3)
             tcg_gen_shli_tl(offset, offset, SHAMT);                            \
             gen_helper_cincoffset(cpu_env, tcg_constant_i32(a->rd),            \
                                   tcg_constant_i32(a->rs2), offset);           \
-            tcg_temp_free(offset);                                             \
+                                             \
             return true;                                                       \
         }                                                                      \
         return gen_arith(ctx, a, EXT_NONE, gen_sh##SHAMT##add_uw, NULL);       \
@@ -525,7 +525,7 @@ static bool trans_add_uw(DisasContext *ctx, arg_add_uw *a)
         tcg_gen_ext32u_tl(t, t);
         gen_helper_cincoffset(cpu_env, tcg_constant_i32(a->rd),
                               tcg_constant_i32(a->rs2), t);
-        tcg_temp_free(t);
+
         return true;
     }
 #endif

@@ -72,13 +72,13 @@ static inline void generate_ccall(int32_t cs, int32_t cb)
     /*
      * XXXAM can a ccall be in a delay slot?
      */
-    TCGv_i32 tcs = tcg_const_i32(cs);
-    TCGv_i32 tcb = tcg_const_i32(cb);
+    TCGv_i32 tcs = tcg_constant_i32(cs);
+    TCGv_i32 tcb = tcg_constant_i32(cb);
 
     gen_helper_ccall(cpu_env, tcs, tcb);
 
-    tcg_temp_free_i32(tcb);
-    tcg_temp_free_i32(tcs);
+
+
 }
 
 static inline void generate_ccall_notrap(DisasContext *ctx, int32_t cs, int32_t cb, int32_t select)
@@ -94,8 +94,8 @@ static inline void generate_ccall_notrap(DisasContext *ctx, int32_t cs, int32_t 
 #endif
         generate_exception(ctx, EXCP_RI);
     } else {
-        TCGv_i32 tcs = tcg_const_i32(cs);
-        TCGv_i32 tcb = tcg_const_i32(cb);
+        TCGv_i32 tcs = tcg_constant_i32(cs);
+        TCGv_i32 tcb = tcg_constant_i32(cb);
 
         if (select == CCALL_SELECTOR_1)
             gen_helper_cinvoke(cpu_env, tcs, tcb);
@@ -107,8 +107,8 @@ static inline void generate_ccall_notrap(DisasContext *ctx, int32_t cs, int32_t 
         ctx->hflags |= (MIPS_HFLAG_BRCCALL);
         save_cpu_state(ctx, 0);
 
-        tcg_temp_free_i32(tcb);
-        tcg_temp_free_i32(tcs);
+
+
     }
 }
 
@@ -118,16 +118,16 @@ static inline void gen_cheri_cap_cap_int(DisasContext *ctx, int cd, int cb,
                                          cheri_cap_cap_int_helper *gen_func)
 {
     check_cop2x(ctx);
-    TCGv_i32 tcb = tcg_const_i32(cb);
-    TCGv_i32 tcd = tcg_const_i32(cd);
+    TCGv_i32 tcb = tcg_constant_i32(cb);
+    TCGv_i32 tcd = tcg_constant_i32(cd);
     TCGv t0 = tcg_temp_new();
 
     gen_load_gpr(t0, rt);
     gen_func(cpu_env, tcd, tcb, t0);
 
-    tcg_temp_free(t0);
-    tcg_temp_free_i32(tcd);
-    tcg_temp_free_i32(tcb);
+
+
+
 }
 
 typedef void (cheri_branch_helper)(TCGv, TCGv_ptr, TCGv_i32, TCGv_i32);
@@ -141,8 +141,8 @@ static inline void gen_compute_cheri_branch(DisasContext *ctx, int32_t cb,
 #endif
         generate_exception(ctx, EXCP_RI);
     } else {
-        TCGv_i32 tcb = tcg_const_i32(cb);
-        TCGv_i32 toffset = tcg_const_i32(offset);
+        TCGv_i32 tcb = tcg_constant_i32(cb);
+        TCGv_i32 toffset = tcg_constant_i32(offset);
 
         gen_func(bcond, cpu_env, tcb, toffset);
         ctx->btarget = ctx->base.pc_next + 4 * offset + 4;
@@ -153,8 +153,8 @@ static inline void gen_compute_cheri_branch(DisasContext *ctx, int32_t cb,
         // Check that the conditional branch target is in range (but only if the branch is taken)
         gen_check_cond_branch_target(ctx, bcond, ctx->btarget);
 
-        tcg_temp_free_i32(toffset);
-        tcg_temp_free_i32(tcb);
+
+
     }
 }
 
@@ -188,11 +188,11 @@ static inline void generate_cjalr(DisasContext *ctx, int32_t cd, int32_t cb)
 #endif
         generate_exception(ctx, EXCP_RI);
     } else {
-        TCGv_i32 tcd = tcg_const_i32(cd);
-        TCGv_i32 tcb = tcg_const_i32(cb);
-        TCGv toff = tcg_const_tl(0);
+        TCGv_i32 tcd = tcg_constant_i32(cd);
+        TCGv_i32 tcb = tcg_constant_i32(cb);
+        TCGv toff = tcg_constant_tl(0);
         /* Instruction size is always four bytes and so is the delay slot */
-        TCGv link_addr = tcg_const_tl(ctx->base.pc_next + 8);
+        TCGv link_addr = tcg_constant_tl(ctx->base.pc_next + 8);
         gen_helper_cjalr(cpu_env, tcd, tcb, toff, link_addr);
         /* Set branch and delay slot flags */
         ctx->hflags |= (MIPS_HFLAG_BRC | MIPS_HFLAG_BDS32);
@@ -200,10 +200,10 @@ static inline void generate_cjalr(DisasContext *ctx, int32_t cd, int32_t cb)
         // ctx->btcr = cb;
         save_cpu_state(ctx, 0);
 
-        tcg_temp_free(link_addr);
-        tcg_temp_free(toff);
-        tcg_temp_free_i32(tcb);
-        tcg_temp_free_i32(tcd);
+
+
+
+
     }
 }
 
@@ -216,7 +216,7 @@ static inline void generate_cjr(DisasContext *ctx, int32_t cb)
 #endif
         generate_exception(ctx, EXCP_RI);
     } else {
-        TCGv_i32 tcb = tcg_const_i32(cb);
+        TCGv_i32 tcb = tcg_constant_i32(cb);
 
         gen_helper_cjr(btarget, cpu_env, tcb);
         /* Set branch and delay slot flags */
@@ -225,54 +225,54 @@ static inline void generate_cjr(DisasContext *ctx, int32_t cb)
         // ctx->btcr = cb;
         save_cpu_state(ctx, 0);
 
-        tcg_temp_free_i32(tcb);
+
     }
 }
 
 static inline void generate_ccheckperm(int32_t cs, int32_t rt)
 {
-    TCGv_i32 tcs = tcg_const_i32(cs);
+    TCGv_i32 tcs = tcg_constant_i32(cs);
     TCGv t0 = tcg_temp_new();
 
     gen_load_gpr(t0, rt);
     gen_helper_ccheckperm(cpu_env, tcs, t0);
 
-    tcg_temp_free(t0);
-    tcg_temp_free_i32(tcs);
+
+
 }
 
 static inline void generate_cchecktype(int32_t cs, int32_t cb)
 {
-    TCGv_i32 tcs = tcg_const_i32(cs);
-    TCGv_i32 tcb = tcg_const_i32(cb);
+    TCGv_i32 tcs = tcg_constant_i32(cs);
+    TCGv_i32 tcb = tcg_constant_i32(cb);
 
     gen_helper_cchecktype(cpu_env, tcs, tcb);
-    tcg_temp_free_i32(tcb);
-    tcg_temp_free_i32(tcs);
+
+
 }
 
 static inline void generate_ccleartag(int32_t cd, int32_t cb)
 {
-    TCGv_i32 tcb = tcg_const_i32(cb);
-    TCGv_i32 tcd = tcg_const_i32(cd);
+    TCGv_i32 tcb = tcg_constant_i32(cb);
+    TCGv_i32 tcd = tcg_constant_i32(cd);
 
     gen_helper_ccleartag(cpu_env, tcd, tcb);
-    tcg_temp_free_i32(tcd);
-    tcg_temp_free_i32(tcb);
+
+
 }
 
 static inline void generate_cfromptr(int32_t cd, int32_t cb, int32_t rt)
 {
-    TCGv_i32 tcb = tcg_const_i32(cb);
-    TCGv_i32 tcd = tcg_const_i32(cd);
+    TCGv_i32 tcb = tcg_constant_i32(cb);
+    TCGv_i32 tcd = tcg_constant_i32(cd);
     TCGv t0 = tcg_temp_new();
 
     gen_load_gpr(t0, rt);
     gen_helper_cfromptr(cpu_env, tcd, tcb, t0);
 
-    tcg_temp_free(t0);
-    tcg_temp_free_i32(tcd);
-    tcg_temp_free_i32(tcb);
+
+
+
 }
 
 typedef void (cheri_cget_helper)(TCGv, TCGv_ptr, TCGv_i32);
@@ -280,14 +280,14 @@ static inline void generate_cheri_cget(DisasContext *ctx, int rd, int cs,
                                        cheri_cget_helper *gen_func)
 {
     check_cop2x(ctx);
-    TCGv_i32 tcs = tcg_const_i32(cs);
+    TCGv_i32 tcs = tcg_constant_i32(cs);
     TCGv t0 = tcg_temp_new();
 
     gen_func(t0, cpu_env, tcs);
     gen_store_gpr(t0, rd);
 
-    tcg_temp_free(t0);
-    tcg_temp_free_i32(tcs);
+
+
 }
 
 static inline void generate_cloadtags(DisasContext *ctx, int32_t rd, int32_t cb)
@@ -314,144 +314,144 @@ static inline void generate_cgetcause(DisasContext *ctx, int32_t rd)
     gen_helper_cgetcause(t0, cpu_env);
     gen_store_gpr(t0, rd);
 
-    tcg_temp_free(t0);
+
 }
 
 static inline void generate_cgetpcc(DisasContext *ctx, int32_t cd)
 {
-    TCGv_i32 tcd = tcg_const_i32(cd);
+    TCGv_i32 tcd = tcg_constant_i32(cd);
 
     save_cpu_state(ctx, 1); // save pcc.cursor for the helper call
     gen_helper_cgetpcc(cpu_env, tcd);
-    tcg_temp_free_i32(tcd);
+
 }
 
 static inline void
 generate_helper_cap_regnum_gpr_val(int32_t cd, int32_t rs,
                                    void (*gen_helper)(TCGv_env, TCGv_i32, TCGv)) {
-    TCGv_i32 tcd = tcg_const_i32(cd);
+    TCGv_i32 tcd = tcg_constant_i32(cd);
     TCGv t0 = tcg_temp_new();
 
     gen_load_gpr(t0, rs);
     gen_helper(cpu_env, tcd, t0);
-    tcg_temp_free(t0);
-    tcg_temp_free_i32(tcd);
+
+
 }
 
 static inline void generate_cincoffset(int32_t cd, int32_t cb, int32_t rt)
 {
-    TCGv_i32 tcb = tcg_const_i32(cb);
-    TCGv_i32 tcd = tcg_const_i32(cd);
+    TCGv_i32 tcb = tcg_constant_i32(cb);
+    TCGv_i32 tcd = tcg_constant_i32(cd);
     TCGv t0 = tcg_temp_new();
     gen_load_gpr(t0, rt);
     gen_helper_cincoffset(cpu_env, tcd, tcb, t0);
-    tcg_temp_free(t0);
-    tcg_temp_free_i32(tcd);
-    tcg_temp_free_i32(tcb);
+
+
+
 }
 
 static inline void generate_cincoffset_imm(int32_t cd, int32_t cs, int32_t increment)
 {
-    TCGv_i32 tcd = tcg_const_i32(cd);
-    TCGv_i32 tcs = tcg_const_i32(cs);
+    TCGv_i32 tcd = tcg_constant_i32(cd);
+    TCGv_i32 tcs = tcg_constant_i32(cs);
     TCGv t0 = tcg_temp_new();
 
     tcg_gen_movi_tl(t0, sign_extend(increment, 11));
     gen_helper_cincoffset(cpu_env, tcd, tcs, t0);
 
-    tcg_temp_free(t0);
-    tcg_temp_free_i32(tcd);
-    tcg_temp_free_i32(tcs);
+
+
+
 }
 
 static inline void generate_cmove(int32_t cd, int32_t cs)
 {
-    TCGv_i32 tcd = tcg_const_i32(cd);
-    TCGv_i32 tcs = tcg_const_i32(cs);
+    TCGv_i32 tcd = tcg_constant_i32(cd);
+    TCGv_i32 tcs = tcg_constant_i32(cs);
 
     gen_helper_cmove(cpu_env, tcd, tcs);
 
-    tcg_temp_free_i32(tcd);
-    tcg_temp_free_i32(tcs);
+
+
 }
 
 static inline void generate_cmovz(int32_t cd, int32_t cs, int32_t rs)
 {
-    TCGv_i32 tcd = tcg_const_i32(cd);
-    TCGv_i32 tcs = tcg_const_i32(cs);
+    TCGv_i32 tcd = tcg_constant_i32(cd);
+    TCGv_i32 tcs = tcg_constant_i32(cs);
     TCGv t0 = tcg_temp_new();
 
     gen_load_gpr(t0, rs);
     gen_helper_cmovz(cpu_env, tcd, tcs, t0);
 
-    tcg_temp_free(t0);
-    tcg_temp_free_i32(tcd);
-    tcg_temp_free_i32(tcs);
+
+
+
 }
 
 static inline void generate_cmovn(int32_t cd, int32_t cs, int32_t rs)
 {
-    TCGv_i32 tcd = tcg_const_i32(cd);
-    TCGv_i32 tcs = tcg_const_i32(cs);
+    TCGv_i32 tcd = tcg_constant_i32(cd);
+    TCGv_i32 tcs = tcg_constant_i32(cs);
     TCGv t0 = tcg_temp_new();
 
     gen_load_gpr(t0, rs);
     gen_helper_cmovn(cpu_env, tcd, tcs, t0);
 
-    tcg_temp_free(t0);
-    tcg_temp_free_i32(tcd);
-    tcg_temp_free_i32(tcs);
+
+
+
 }
 
 static inline void generate_cbuildcap(int32_t cd, int32_t cb, int32_t ct)
 {
-    TCGv_i32 tcd = tcg_const_i32(cd);
-    TCGv_i32 tcb = tcg_const_i32(cb);
-    TCGv_i32 tct = tcg_const_i32(ct);
+    TCGv_i32 tcd = tcg_constant_i32(cd);
+    TCGv_i32 tcb = tcg_constant_i32(cb);
+    TCGv_i32 tct = tcg_constant_i32(ct);
 
     gen_helper_cbuildcap(cpu_env, tcd, tcb, tct);
-    tcg_temp_free_i32(tcd);
-    tcg_temp_free_i32(tcb);
-    tcg_temp_free_i32(tct);
+
+
+
 }
 
 static inline void generate_ccseal(int32_t cd, int32_t cs, int32_t ct)
 {
-    TCGv_i32 tcd = tcg_const_i32(cd);
-    TCGv_i32 tcs = tcg_const_i32(cs);
-    TCGv_i32 tct = tcg_const_i32(ct);
+    TCGv_i32 tcd = tcg_constant_i32(cd);
+    TCGv_i32 tcs = tcg_constant_i32(cs);
+    TCGv_i32 tct = tcg_constant_i32(ct);
 
     gen_helper_ccseal(cpu_env, tcd, tcs, tct);
-    tcg_temp_free_i32(tcd);
-    tcg_temp_free_i32(tcs);
-    tcg_temp_free_i32(tct);
+
+
+
 }
 
 static inline void generate_ccopytype(int32_t cd, int32_t cb, int32_t ct)
 {
-    TCGv_i32 tcd = tcg_const_i32(cd);
-    TCGv_i32 tcb = tcg_const_i32(cb);
-    TCGv_i32 tct = tcg_const_i32(ct);
+    TCGv_i32 tcd = tcg_constant_i32(cd);
+    TCGv_i32 tcb = tcg_constant_i32(cb);
+    TCGv_i32 tct = tcg_constant_i32(ct);
 
     gen_helper_ccopytype(cpu_env, tcd, tcb, tct);
-    tcg_temp_free_i32(tcd);
-    tcg_temp_free_i32(tcb);
-    tcg_temp_free_i32(tct);
+
+
+
 }
 
 static inline void generate_ctestsubset(DisasContext *ctx, int32_t rd,
                                         int32_t cb, int32_t ct)
 {
     TCGv t0 = tcg_temp_new();
-    TCGv_i32 tcb = tcg_const_i32(cb);
-    TCGv_i32 tct = tcg_const_i32(ct);
+    TCGv_i32 tcb = tcg_constant_i32(cb);
+    TCGv_i32 tct = tcg_constant_i32(ct);
 
     gen_helper_ctestsubset(t0, cpu_env, tcb, tct);
     gen_store_gpr(t0, rd);
 
-    tcg_temp_free(t0);
-    tcg_temp_free_i32(tcb);
-    tcg_temp_free_i32(tct);
+
+
+
 }
 
 static inline void generate_creturn(void)
@@ -461,62 +461,62 @@ static inline void generate_creturn(void)
 
 static inline void generate_cseal(int32_t cd, int32_t cb, int32_t ct)
 {
-    TCGv_i32 tcd = tcg_const_i32(cd);
-    TCGv_i32 tcb = tcg_const_i32(cb);
-    TCGv_i32 tct = tcg_const_i32(ct);
+    TCGv_i32 tcd = tcg_constant_i32(cd);
+    TCGv_i32 tcb = tcg_constant_i32(cb);
+    TCGv_i32 tct = tcg_constant_i32(ct);
 
     gen_helper_cseal(cpu_env, tcd, tcb, tct);
-    tcg_temp_free_i32(tct);
-    tcg_temp_free_i32(tcb);
-    tcg_temp_free_i32(tcd);
+
+
+
 }
 
 static inline void generate_csetbounds(int32_t cd, int32_t cb, int32_t rt)
 {
-    TCGv_i32 tcb = tcg_const_i32(cb);
-    TCGv_i32 tcd = tcg_const_i32(cd);
+    TCGv_i32 tcb = tcg_constant_i32(cb);
+    TCGv_i32 tcd = tcg_constant_i32(cd);
     TCGv t0 = tcg_temp_new();
 
     gen_load_gpr(t0, rt);
     gen_helper_csetbounds(cpu_env, tcd, tcb, t0);
 
-    tcg_temp_free(t0);
-    tcg_temp_free_i32(tcd);
-    tcg_temp_free_i32(tcb);
+
+
+
 }
 
 static inline void generate_candaddr(int32_t cd, int32_t cb, int32_t rt)
 {
-    TCGv_i32 tcb = tcg_const_i32(cb);
-    TCGv_i32 tcd = tcg_const_i32(cd);
+    TCGv_i32 tcb = tcg_constant_i32(cb);
+    TCGv_i32 tcd = tcg_constant_i32(cd);
     TCGv t0 = tcg_temp_new();
 
     gen_load_gpr(t0, rt);
     gen_helper_candaddr(cpu_env, tcd, tcb, t0);
 
-    tcg_temp_free(t0);
-    tcg_temp_free_i32(tcd);
-    tcg_temp_free_i32(tcb);
+
+
+
 }
 
 static inline void generate_csetaddr(int32_t cd, int32_t cb, int32_t rt)
 {
-    TCGv_i32 tcb = tcg_const_i32(cb);
-    TCGv_i32 tcd = tcg_const_i32(cd);
+    TCGv_i32 tcb = tcg_constant_i32(cb);
+    TCGv_i32 tcd = tcg_constant_i32(cd);
     TCGv t0 = tcg_temp_new();
 
     gen_load_gpr(t0, rt);
     gen_helper_csetaddr(cpu_env, tcd, tcb, t0);
 
-    tcg_temp_free(t0);
-    tcg_temp_free_i32(tcd);
-    tcg_temp_free_i32(tcb);
+
+
+
 }
 
 static inline void generate_cgetandaddr(DisasContext *ctx, int32_t rd,
                                         int32_t cb, int32_t rt)
 {
-    TCGv_i32 tcb = tcg_const_i32(cb);
+    TCGv_i32 tcb = tcg_constant_i32(cb);
     TCGv t0 = tcg_temp_new();
     TCGv t1 = tcg_temp_new();
 
@@ -524,53 +524,53 @@ static inline void generate_cgetandaddr(DisasContext *ctx, int32_t rd,
     gen_helper_cgetandaddr(t1, cpu_env, tcb, t0);
     gen_store_gpr(t1, rd);
 
-    tcg_temp_free(t1);
-    tcg_temp_free(t0);
-    tcg_temp_free_i32(tcb);
+
+
+
 }
 
 static inline void generate_csetboundsexact(int32_t cd, int32_t cb, int32_t rt)
 {
-    TCGv_i32 tcb = tcg_const_i32(cb);
-    TCGv_i32 tcd = tcg_const_i32(cd);
+    TCGv_i32 tcb = tcg_constant_i32(cb);
+    TCGv_i32 tcd = tcg_constant_i32(cd);
     TCGv t0 = tcg_temp_new();
 
     gen_load_gpr(t0, rt);
     gen_helper_csetboundsexact(cpu_env, tcd, tcb, t0);
 
-    tcg_temp_free(t0);
-    tcg_temp_free_i32(tcd);
-    tcg_temp_free_i32(tcb);
+
+
+
 }
 
 static inline void generate_csetbounds_imm(int32_t cd, int32_t cb, int32_t length)
 {
-    TCGv_i32 tcd = tcg_const_i32(cd);
-    TCGv_i32 tcb = tcg_const_i32(cb);
+    TCGv_i32 tcd = tcg_constant_i32(cd);
+    TCGv_i32 tcb = tcg_constant_i32(cb);
     TCGv t0 = tcg_temp_new();
 
     tcg_debug_assert(length >= 0 && "CSetBoundsImm decoding broken (should be unsigned)?");
     tcg_gen_movi_tl(t0, length);
     gen_helper_csetbounds(cpu_env, tcd, tcb, t0);
 
-    tcg_temp_free(t0);
-    tcg_temp_free_i32(tcd);
-    tcg_temp_free_i32(tcb);
+
+
+
 }
 
 static inline void generate_csub(DisasContext *ctx, int32_t rd, int32_t cb,
                                  int32_t ct)
 {
-    TCGv_i32 tcb = tcg_const_i32(cb);
-    TCGv_i32 tct = tcg_const_i32(ct);
+    TCGv_i32 tcb = tcg_constant_i32(cb);
+    TCGv_i32 tct = tcg_constant_i32(ct);
     TCGv t0 = tcg_temp_new();
 
     gen_helper_csub(t0, cpu_env, tcb, tct);
     gen_store_gpr(t0, rd);
 
-    tcg_temp_free(t0);
-    tcg_temp_free_i32(tct);
-    tcg_temp_free_i32(tcb);
+
+
+
 }
 
 static inline void generate_csetcause(int32_t rd)
@@ -579,48 +579,48 @@ static inline void generate_csetcause(int32_t rd)
 
     gen_load_gpr(t0, rd);
     gen_helper_csetcause(cpu_env, t0);
-    tcg_temp_free(t0);
+
 }
 
 static inline void generate_csetoffset(int32_t cd, int32_t cb, int32_t rt)
 {
-    TCGv_i32 tcb = tcg_const_i32(cb);
-    TCGv_i32 tcd = tcg_const_i32(cd);
+    TCGv_i32 tcb = tcg_constant_i32(cb);
+    TCGv_i32 tcd = tcg_constant_i32(cd);
     TCGv t0 = tcg_temp_new();
 
     gen_load_gpr(t0, rt);
     gen_helper_csetoffset(cpu_env, tcd, tcb, t0);
 
-    tcg_temp_free(t0);
-    tcg_temp_free_i32(tcd);
-    tcg_temp_free_i32(tcb);
+
+
+
 }
 
 static inline void generate_ctoptr(DisasContext *ctx, int32_t rd, int32_t cb,
                                    int32_t ct)
 {
-    TCGv_i32 tcb = tcg_const_i32(cb);
-    TCGv_i32 tct = tcg_const_i32(ct);
+    TCGv_i32 tcb = tcg_constant_i32(cb);
+    TCGv_i32 tct = tcg_constant_i32(ct);
     TCGv t0 = tcg_temp_new();
 
     gen_helper_ctoptr(t0, cpu_env, tcb, tct);
     gen_store_gpr(t0, rd);
 
-    tcg_temp_free(t0);
-    tcg_temp_free_i32(tct);
-    tcg_temp_free_i32(tcb);
+
+
+
 }
 
 static inline void generate_cunseal(int32_t cd, int32_t cb, int32_t ct)
 {
-    TCGv_i32 tcd = tcg_const_i32(cd);
-    TCGv_i32 tcb = tcg_const_i32(cb);
-    TCGv_i32 tct = tcg_const_i32(ct);
+    TCGv_i32 tcd = tcg_constant_i32(cd);
+    TCGv_i32 tcb = tcg_constant_i32(cb);
+    TCGv_i32 tct = tcg_constant_i32(ct);
 
     gen_helper_cunseal(cpu_env, tcd, tcb, tct);
-    tcg_temp_free_i32(tct);
-    tcg_temp_free_i32(tcb);
-    tcg_temp_free_i32(tcd);
+
+
+
 }
 
 static inline int generate_cclearregs(DisasContext *ctx, int32_t regset, int32_t mask)
@@ -641,7 +641,7 @@ static inline int generate_cclearregs(DisasContext *ctx, int32_t regset, int32_t
                 gen_store_gpr(t0, i);
             mask = mask >> 1;
         }
-        tcg_temp_free(t0);
+
         break;
     case 1: /* ClearHi */
         if (!mask)
@@ -653,21 +653,21 @@ static inline int generate_cclearregs(DisasContext *ctx, int32_t regset, int32_t
                 gen_store_gpr(t0, i);
             mask = mask >> 1;
         }
-        tcg_temp_free(t0);
+
         break;
     case 2: /* CClearLO */
         if (!mask)
             return 0;
-        tcr0 = tcg_const_i32(mask);
+        tcr0 = tcg_constant_i32(mask);
         gen_helper_cclearreg(cpu_env, tcr0);
-        tcg_temp_free_i32(tcr0);
+
         break;
     case 3: /* CClearHi */
         if (!mask)
             return 0;
-        tcr0 = tcg_const_i32(mask << 16);
+        tcr0 = tcg_constant_i32(mask << 16);
         gen_helper_cclearreg(cpu_env, tcr0);
-        tcg_temp_free_i32(tcr0);
+
         break;
     default:
         return 1; /* Invalid */
@@ -678,122 +678,122 @@ static inline int generate_cclearregs(DisasContext *ctx, int32_t regset, int32_t
 static inline void generate_ceq(DisasContext *ctx, int32_t rd, int32_t cb,
                                 int32_t ct)
 {
-    TCGv_i32 tcb = tcg_const_i32(cb);
-    TCGv_i32 tct = tcg_const_i32(ct);
+    TCGv_i32 tcb = tcg_constant_i32(cb);
+    TCGv_i32 tct = tcg_constant_i32(ct);
     TCGv t0 = tcg_temp_new();
 
     gen_helper_ceq(t0, cpu_env, tcb, tct);
     gen_store_gpr(t0, rd);
 
-    tcg_temp_free(t0);
-    tcg_temp_free_i32(tct);
-    tcg_temp_free_i32(tcb);
+
+
+
 }
 
 static inline void generate_cne(DisasContext *ctx, int32_t rd, int32_t cb,
                                 int32_t ct)
 {
-    TCGv_i32 tcb = tcg_const_i32(cb);
-    TCGv_i32 tct = tcg_const_i32(ct);
+    TCGv_i32 tcb = tcg_constant_i32(cb);
+    TCGv_i32 tct = tcg_constant_i32(ct);
     TCGv t0 = tcg_temp_new();
 
     gen_helper_cne(t0, cpu_env, tcb, tct);
     gen_store_gpr(t0, rd);
 
-    tcg_temp_free(t0);
-    tcg_temp_free_i32(tct);
-    tcg_temp_free_i32(tcb);
+
+
+
 }
 
 static inline void generate_clt(DisasContext *ctx, int32_t rd, int32_t cb,
                                 int32_t ct)
 {
-    TCGv_i32 tcb = tcg_const_i32(cb);
-    TCGv_i32 tct = tcg_const_i32(ct);
+    TCGv_i32 tcb = tcg_constant_i32(cb);
+    TCGv_i32 tct = tcg_constant_i32(ct);
     TCGv t0 = tcg_temp_new();
 
     gen_helper_clt(t0, cpu_env, tcb, tct);
     gen_store_gpr(t0, rd);
 
-    tcg_temp_free(t0);
-    tcg_temp_free_i32(tct);
-    tcg_temp_free_i32(tcb);
+
+
+
 }
 
 static inline void generate_cle(DisasContext *ctx, int32_t rd, int32_t cb,
                                 int32_t ct)
 {
-    TCGv_i32 tcb = tcg_const_i32(cb);
-    TCGv_i32 tct = tcg_const_i32(ct);
+    TCGv_i32 tcb = tcg_constant_i32(cb);
+    TCGv_i32 tct = tcg_constant_i32(ct);
     TCGv t0 = tcg_temp_new();
 
     gen_helper_cle(t0, cpu_env, tcb, tct);
     gen_store_gpr(t0, rd);
 
-    tcg_temp_free(t0);
-    tcg_temp_free_i32(tct);
-    tcg_temp_free_i32(tcb);
+
+
+
 }
 
 static inline void generate_cltu(DisasContext *ctx, int32_t rd, int32_t cb,
                                  int32_t ct)
 {
-    TCGv_i32 tcb = tcg_const_i32(cb);
-    TCGv_i32 tct = tcg_const_i32(ct);
+    TCGv_i32 tcb = tcg_constant_i32(cb);
+    TCGv_i32 tct = tcg_constant_i32(ct);
     TCGv t0 = tcg_temp_new();
 
     gen_helper_cltu(t0, cpu_env, tcb, tct);
     gen_store_gpr(t0, rd);
 
-    tcg_temp_free(t0);
-    tcg_temp_free_i32(tct);
-    tcg_temp_free_i32(tcb);
+
+
+
 }
 
 static inline void generate_cleu(DisasContext *ctx, int32_t rd, int32_t cb,
                                  int32_t ct)
 {
-    TCGv_i32 tcb = tcg_const_i32(cb);
-    TCGv_i32 tct = tcg_const_i32(ct);
+    TCGv_i32 tcb = tcg_constant_i32(cb);
+    TCGv_i32 tct = tcg_constant_i32(ct);
     TCGv t0 = tcg_temp_new();
 
     gen_helper_cleu(t0, cpu_env, tcb, tct);
     gen_store_gpr(t0, rd);
 
-    tcg_temp_free(t0);
-    tcg_temp_free_i32(tct);
-    tcg_temp_free_i32(tcb);
+
+
+
 }
 
 static inline void generate_cexeq(DisasContext *ctx, int32_t rd, int32_t cb,
                                   int32_t ct)
 {
-    TCGv_i32 tcb = tcg_const_i32(cb);
-    TCGv_i32 tct = tcg_const_i32(ct);
+    TCGv_i32 tcb = tcg_constant_i32(cb);
+    TCGv_i32 tct = tcg_constant_i32(ct);
     TCGv t0 = tcg_temp_new();
 
     gen_helper_cseqx(t0, cpu_env, tcb, tct);
     gen_store_gpr(t0, rd);
 
-    tcg_temp_free(t0);
-    tcg_temp_free_i32(tct);
-    tcg_temp_free_i32(tcb);
+
+
+
 }
 
 static inline void generate_cnexeq(DisasContext *ctx, int32_t rd, int32_t cb,
                                    int32_t ct)
 {
-    TCGv_i32 tcb = tcg_const_i32(cb);
-    TCGv_i32 tct = tcg_const_i32(ct);
+    TCGv_i32 tcb = tcg_constant_i32(cb);
+    TCGv_i32 tct = tcg_constant_i32(ct);
     TCGv t0 = tcg_temp_new();
 
     gen_helper_cseqx(t0, cpu_env, tcb, tct);
     tcg_gen_xori_i64(t0, t0, 1);
     gen_store_gpr(t0, rd);
 
-    tcg_temp_free(t0);
-    tcg_temp_free_i32(tct);
-    tcg_temp_free_i32(tcb);
+
+
+
 }
 
 static inline target_long cload_sign_extend(target_long x)
@@ -823,10 +823,10 @@ static inline void generate_cap_load(DisasContext *ctx, int32_t rd, int32_t cb,
 static inline void generate_cloadlinked_int(DisasContext *ctx, int32_t rd, int32_t cb, MemOp op, int opcode)
 {
     check_cop2x(ctx);
-    TCGv_i32 tcb = tcg_const_i32(cb);
+    TCGv_i32 tcb = tcg_constant_i32(cb);
     TCGv t0 = tcg_temp_new();
     TCGv_cap_checked_ptr taddr = tcg_temp_new_cap_checked();
-    TCGv_i32 tlen = tcg_const_i32(memop_size(op));
+    TCGv_i32 tlen = tcg_constant_i32(memop_size(op));
 
     gen_helper_cloadlinked(taddr, cpu_env, tcb, tlen);
     tcg_gen_qemu_ld_tl_with_checked_addr(t0, taddr, ctx->mem_idx, op);
@@ -840,12 +840,12 @@ static inline void generate_cloadlinked_int(DisasContext *ctx, int32_t rd, int32
  */
 static inline void generate_cstorecond(TCGv_cap_checked_ptr taddr, int32_t cb, int32_t len)
 {
-    TCGv_i32 tcb = tcg_const_i32(cb);
-    TCGv_i32 tlen = tcg_const_i32(len);
+    TCGv_i32 tcb = tcg_constant_i32(cb);
+    TCGv_i32 tlen = tcg_constant_i32(len);
 
     gen_helper_cstorecond(taddr, cpu_env, tcb, tlen);
-    tcg_temp_free_i32(tcb);
-    tcg_temp_free_i32(tlen);
+
+
 }
 
 static inline void generate_cstorecond_int(DisasContext *ctx, int32_t rs,
@@ -903,38 +903,38 @@ static inline target_long clc_sign_extend(target_long x, bool big_imm)
 static inline void generate_clc(DisasContext *ctx, int32_t cd, int32_t cb,
         int32_t rt, int32_t offset, bool big_imm)
 {
-    TCGv_i32 tcd = tcg_const_i32(cd);
+    TCGv_i32 tcd = tcg_constant_i32(cd);
     TCGv toffset = tcg_temp_new();
     gen_load_gpr(toffset, rt);
     tcg_gen_addi_tl(toffset, toffset, clc_sign_extend(offset, big_imm) * 16);
     if (cb == 0) {
         gen_helper_load_cap_via_ddc(cpu_env, tcd, toffset);
     } else {
-        TCGv_i32 tcb = tcg_const_i32(cb);
+        TCGv_i32 tcb = tcg_constant_i32(cb);
         TCGv taddr = tcg_temp_new();
         gen_cap_get_cursor(ctx, cb, taddr);
         tcg_gen_add_tl(taddr, taddr, toffset);
         gen_helper_load_cap_via_cap(cpu_env, tcd, taddr, tcb);
-        tcg_temp_free(taddr);
-        tcg_temp_free_i32(tcb);
+
+
     }
-    tcg_temp_free(toffset);
-    tcg_temp_free_i32(tcd);
+
+
 }
 
 static inline void generate_cllc(DisasContext *ctx, int32_t cd, int32_t cb)
 {
-    TCGv_i32 tcd = tcg_const_i32(cd);
-    TCGv_i32 tcb = tcg_const_i32(cb);
+    TCGv_i32 tcd = tcg_constant_i32(cd);
+    TCGv_i32 tcb = tcg_constant_i32(cb);
     gen_helper_cllc_without_tcg(cpu_env, tcd, tcb);
-    tcg_temp_free_i32(tcb);
-    tcg_temp_free_i32(tcd);
+
+
 }
 
 static inline void generate_csc(DisasContext *ctx, int32_t cs, int32_t cb,
         int32_t rt, int32_t offset, bool big_imm)
 {
-    TCGv_i32 tcs = tcg_const_i32(cs);
+    TCGv_i32 tcs = tcg_constant_i32(cs);
     TCGv toffset = tcg_temp_new();
     gen_load_gpr(toffset, rt);
     tcg_gen_addi_tl(toffset, toffset, clc_sign_extend(offset, big_imm) * 16);
@@ -946,33 +946,33 @@ static inline void generate_csc(DisasContext *ctx, int32_t cs, int32_t cb,
     if (cb == 0) {
         gen_helper_store_cap_via_ddc(cpu_env, tcs, toffset);
     } else {
-        TCGv_i32 tcb = tcg_const_i32(cb);
+        TCGv_i32 tcb = tcg_constant_i32(cb);
         TCGv taddr = tcg_temp_new();
         gen_cap_get_cursor(ctx, cb, taddr);
         tcg_gen_add_tl(taddr, taddr, toffset);
         gen_helper_store_cap_via_cap(cpu_env, tcs, taddr, tcb);
-        tcg_temp_free(taddr);
-        tcg_temp_free_i32(tcb);
+
+
     }
     tcg_gen_movi_tl(cpu_lladdr, 1);
-    tcg_temp_free(toffset);
-    tcg_temp_free_i32(tcs);
+
+
 }
 
 static inline void generate_cscc(DisasContext *ctx, int32_t cs, int32_t cb,
         int32_t rd)
 {
-    TCGv_i32 tcs = tcg_const_i32(cs);
-    TCGv_i32 tcb = tcg_const_i32(cb);
+    TCGv_i32 tcs = tcg_constant_i32(cs);
+    TCGv_i32 tcb = tcg_constant_i32(cb);
     TCGv t0 = tcg_temp_new();
 
     /* Check the cap registers and compute the address. */
     gen_helper_cscc_without_tcg(t0, cpu_env, tcs, tcb);
     gen_store_gpr(t0, rd);
 
-    tcg_temp_free_i32(tcb);
-    tcg_temp_free_i32(tcs);
-    tcg_temp_free(t0);
+
+
+
 }
 
 #define GEN_CAP_CHECK_STORE(addr, offset, len) \
@@ -980,16 +980,16 @@ static inline void generate_cscc(DisasContext *ctx, int32_t cs, int32_t cb,
 
 static inline void generate_ccheck_load_right(TCGv_cap_checked_ptr addr, TCGv offset, int32_t len)
 {
-    TCGv_i32 tlen = tcg_const_i32(len);
+    TCGv_i32 tlen = tcg_constant_i32(len);
 
     gen_helper_ccheck_load_right(addr, cpu_env, offset, tlen);
-    tcg_temp_free_i32(tlen);
+
 }
 static inline void generate_ccheck_load_pcrel(TCGv addr, int32_t len)
 {
-    TCGv_i32 tlen = tcg_const_i32(len);
+    TCGv_i32 tlen = tcg_constant_i32(len);
     gen_helper_ccheck_load_pcrel(cpu_env, addr, tlen);
-    tcg_temp_free_i32(tlen);
+
 }
 
 static void gen_mtc2(DisasContext *ctx, TCGv arg, int reg, int sel)
@@ -1333,8 +1333,8 @@ static void gen_cp2 (DisasContext *ctx, uint32_t opc, int r16, int r11, int r6)
                 gen_load_gpr(t0, r11);
                 gen_helper_crap(t1, cpu_env, t0);
                 gen_store_gpr(t1, r16);
-                tcg_temp_free(t1);
-                tcg_temp_free(t0);
+
+
                 opn = "croundrepresetablelength";
                 break;
             }
@@ -1346,8 +1346,8 @@ static void gen_cp2 (DisasContext *ctx, uint32_t opc, int r16, int r11, int r6)
                 gen_load_gpr(t0, r11);
                 gen_helper_cram(t1, cpu_env, t0);
                 gen_store_gpr(t1, r16);
-                tcg_temp_free(t1);
-                tcg_temp_free(t0);
+
+
                 opn = "crepresentablealignmentmask";
                 break;
             }
@@ -1446,7 +1446,7 @@ static void gen_cp2 (DisasContext *ctx, uint32_t opc, int r16, int r11, int r6)
 
                 gen_load_gpr(t0, r16);
                 gen_mtc2(ctx, t0, r11, ctx->opcode & 0x7);
-                tcg_temp_free(t0);
+
             }
             opn = "mtc2";
             break;

@@ -38,7 +38,7 @@ static bool trans_cbo_clean(DisasContext *ctx, arg_cbo_clean *a)
 #ifndef TARGET_CHERI
     gen_helper_cbo_clean_flush(cpu_env, get_gpr(ctx, a->rs1, EXT_NONE));
 #else
-    TCGv_i32 addr_reg = tcg_const_i32(a->rs1);
+    TCGv_i32 addr_reg = tcg_constant_i32(a->rs1);
     gen_helper_cbo_clean_flush_cap(cpu_env, addr_reg);
 #endif
     return true;

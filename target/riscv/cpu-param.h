@@ -27,7 +27,6 @@
  *  - S mode HLV/HLVX/HSV 0b101
  *  - M mode HLV/HLVX/HSV 0b111
  */
-#define NB_MMU_MODES 8
 
 #ifdef CONFIG_TCG_LOG_INSTR
 #define TARGET_MAX_INSN_SIZE 4

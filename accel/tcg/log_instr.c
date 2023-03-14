@@ -1477,9 +1477,6 @@ void qemu_log_gen_printf(DisasContextBase *base, const char *qemu_format,
     }
 
     va_end(args);
-
-    tcg_temp_free_i64(temp64);
-    tcg_temp_free_i32(temp32);
 }
 
 void qemu_log_gen_printf_flush(DisasContextBase *base, bool flush_early,

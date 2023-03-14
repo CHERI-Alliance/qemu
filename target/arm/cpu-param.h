@@ -45,8 +45,6 @@
     bool guarded;
 #endif
 
-#define NB_MMU_MODES 12
-
 #endif
 
 #ifdef CONFIG_TCG_LOG_INSTR
