@@ -3581,7 +3581,7 @@ static bool trans_vrgather_vx(DisasContext *s, arg_rmrr *a)
             TCGv trs1 = tcg_temp_new();
             gen_get_gpr(s, trs1, a->rs1);
             vec_element_loadx(s, dest, a->rs2, trs1, vlmax);
-            tcg_temp_free(trs1);
+
         }
 
         tcg_gen_gvec_dup_i64(s->sew, vreg_ofs(s, a->rd),

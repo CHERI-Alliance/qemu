@@ -223,9 +223,8 @@ extern TCGv bcond;
 static inline void gen_log_instr_gpr_update(DisasContext *ctx, int reg)
 {
     if (unlikely(ctx->base.log_instr_enabled)) {
-        TCGv_i32 regnum = tcg_const_i32(reg);
+        TCGv_i32 regnum = tcg_constant_i32(reg);
         gen_helper_mips_log_instr_gpr(cpu_env, regnum, cpu_gpr[reg]);
-        tcg_temp_free_i32(regnum);
     }
 }
 
@@ -237,14 +236,11 @@ static inline void gen_log_instr_cop0_update(DisasContext *ctx, int reg,
                                              int sel, target_ulong offset)
 {
     if (unlikely(ctx->base.log_instr_enabled)) {
-        TCGv_i32 treg = tcg_const_i32(reg);
-        TCGv_i32 tsel = tcg_const_i32(sel);
+        TCGv_i32 treg = tcg_constant_i32(reg);
+        TCGv_i32 tsel = tcg_constant_i32(sel);
         TCGv tv = tcg_temp_new();
         tcg_gen_ld_tl(tv, cpu_env, offset);
         gen_helper_mips_log_instr_cop0(cpu_env, treg, tsel, tv);
-        tcg_temp_free(tv);
-        tcg_temp_free_i32(treg);
-        tcg_temp_free_i32(tsel);
     }
 }
 
@@ -257,27 +253,22 @@ static inline void gen_log_instr_hilo_update(DisasContext *ctx, int hiLO,
     if (likely(!ctx->base.log_instr_enabled))
         return;
 
-    TCGv_i32 thilo = tcg_const_i32(hiLO);
-    TCGv_i32 tindex = tcg_const_i32(index);
+    TCGv_i32 thilo = tcg_constant_i32(hiLO);
+    TCGv_i32 tindex = tcg_constant_i32(index);
     if (reg == 0) {
         //  cpu_gpr[0] is NULL and should not be used.
-        TCGv tzero = tcg_const_tl(0);
+        TCGv tzero = tcg_constant_tl(0);
         gen_helper_mips_log_instr_hilo(cpu_env, thilo, tindex, tzero);
-        tcg_temp_free(tzero);
     } else {
         gen_helper_mips_log_instr_hilo(cpu_env, thilo, tindex, cpu_gpr[reg]);
     }
-    tcg_temp_free_i32(thilo);
-    tcg_temp_free_i32(tindex);
 }
 
 ATTRIBUTE_UNUSED static void _debug_value(TCGv value, const char* msg) {
-    TCGv_ptr dbg_msg = tcg_const_ptr(msg);
+    TCGv_ptr dbg_msg = tcg_constant_ptr(msg);
     TCGv_i64 tmp = tcg_temp_new_i64();
     tcg_gen_ext_tl_i64(tmp, value);
     gen_helper_log_value(cpu_env, dbg_msg, tmp);
-    tcg_temp_free_i64(tmp);
-    tcg_temp_free_ptr(dbg_msg);
 }
 #define DEBUG_VALUE(value) _debug_value(value, #value)
 

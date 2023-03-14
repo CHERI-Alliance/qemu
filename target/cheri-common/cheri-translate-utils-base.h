@@ -55,9 +55,8 @@ static inline void gen_raise_pcc_violation_tcgv(DisasContextBase *db,
 {
     // Ensure correct PCC.cursor
     cheri_tcg_save_pc(db);
-    TCGv_i32 tbytes = tcg_const_i32(num_bytes);
+    TCGv_i32 tbytes = tcg_constant_i32(num_bytes);
     gen_helper_raise_exception_pcc_bounds(cpu_env, taddr, tbytes);
-    tcg_temp_free_i32(tbytes);
     // Note: we don't set DISAS_NORETURN (must be called before helper) since
     // this helper function might only be called in a conditional branch
 }
@@ -68,9 +67,8 @@ static inline void gen_raise_pcc_violation(DisasContextBase *db,
 {
     tcg_debug_assert(!in_pcc_bounds(db, addr + num_bytes) ||
                      !in_pcc_bounds(db, addr));
-    TCGv taddr = tcg_const_tl(addr);
+    TCGv taddr = tcg_constant_tl(addr);
     gen_raise_pcc_violation_tcgv(db, taddr, num_bytes);
-    tcg_temp_free(taddr);
 }
 
 #define ALL_CAPREG_STATES 0b1111
