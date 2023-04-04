@@ -64,7 +64,7 @@ void tcg_cpu_init_cflags(CPUState *cpu, bool parallel)
     if (cpu->log_state.loglevel_active && qemu_loglevel_mask(CPU_LOG_INSTR))
         cflags |= CF_LOG_INSTR;
 #endif
-    cpu->tcg_cflags = cflags;
+    cpu->tcg_cflags |= cflags;
 }
 
 void tcg_cpus_destroy(CPUState *cpu)
