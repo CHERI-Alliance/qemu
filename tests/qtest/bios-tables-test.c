@@ -1001,9 +1001,8 @@ static void test_acpi_q35_tcg_bridge(void)
 
 static void test_acpi_q35_tcg_no_acpi_hotplug(void)
 {
-    test_data data;
+    test_data data = {};
 
-    memset(&data, 0, sizeof(data));
     data.machine = MACHINE_Q35;
     data.variant = ".noacpihp";
     data.required_struct_types = base_required_struct_types;
@@ -1407,7 +1406,6 @@ static void test_acpi_tcg_dimm_pxm(const char *machine)
 {
     test_data data = {};
 
-    memset(&data, 0, sizeof(data));
     data.machine = machine;
     data.variant = ".dimmpxm";
     test_acpi_one(" -machine nvdimm=on,nvdimm-persistence=cpu"

@@ -21,3 +21,5 @@ GTAGS
 *.patch
 .vscode
 *.gcov
+
+/subprojects/slirp
