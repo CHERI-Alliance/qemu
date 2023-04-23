@@ -1251,7 +1251,7 @@ static inline QEMU_ALWAYS_INLINE target_ulong cap_check_common(
 {
 #ifdef TARGET_AARCH64
     /* These helpers cannot be used on Morello since TCG passes addresses. */
-    tcg_abort();
+    g_assert_not_reached();
 #endif
     const cap_register_t *cbp = get_load_store_base_cap(env, cb);
     return cap_check_common_reg(required_perms, env, cb,
@@ -1785,7 +1785,7 @@ void CHERI_HELPER_IMPL(raise_exception_pcc_perms(CPUArchState *env))
         error_report("%s: PCC must be invalid. Logic error in translator? "
                      "PCC=" PRINT_CAP_FMTSTR,
                      __func__, PRINT_CAP_ARGS(pcc));
-        tcg_abort();
+        g_assert_not_reached();
     }
     raise_pcc_fault(env, cause, PC_ADDR(env));
 }
@@ -1824,7 +1824,7 @@ void CHERI_HELPER_IMPL(raise_exception_ddc_perms(CPUArchState *env,
                          GETPC(), ddc, 1, NULL);
     error_report("%s should not return! DDC= " PRINT_CAP_FMTSTR, __func__,
                  PRINT_CAP_ARGS(cheri_get_ddc(env)));
-    tcg_abort();
+    g_assert_not_reached();
 }
 
 void CHERI_HELPER_IMPL(raise_exception_ddc_bounds(CPUArchState *env,
@@ -1838,7 +1838,7 @@ void CHERI_HELPER_IMPL(raise_exception_ddc_bounds(CPUArchState *env,
               /*instavail=*/true, GETPC());
     error_report("%s should not return! DDC= " PRINT_CAP_FMTSTR, __func__,
                  PRINT_CAP_ARGS(cheri_get_ddc(env)));
-    tcg_abort();
+    g_assert_not_reached();
 }
 
 void CHERI_HELPER_IMPL(decompress_cap(CPUArchState *env, uint32_t regndx))
