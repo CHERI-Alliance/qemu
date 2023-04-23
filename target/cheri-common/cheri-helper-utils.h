@@ -121,7 +121,7 @@ static inline void check_cap(CPUArchState *env, const cap_register_t *cr,
         }
         // Multiple missing permissions:
         error_report("Bad permissions check %d", perm);
-        tcg_abort();
+        g_assert_not_reached();
     }
     // fprintf(stderr, "addr=%zx, len=%zd, cr_base=%zx, cr_len=%zd\n",
     //     (size_t)addr, (size_t)len, (size_t)cr->cr_base,
