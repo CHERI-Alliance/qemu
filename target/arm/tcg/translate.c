@@ -2857,7 +2857,7 @@ static bool msr_banked_access_decode(DisasContext *s, int r, int sysm, int rn,
             if (arm_dc_feature(s, ARM_FEATURE_AARCH64) &&
                 dc_isar_feature(aa64_sel2, s)) {
                 /* Target EL is EL<3 minus SCR_EL3.EEL2> */
-                tcg_el = load_cpu_field(cp15.scr_el3);
+                tcg_el = load_cpu_field_low32(cp15.scr_el3);
                 tcg_gen_sextract_i32(tcg_el, tcg_el, ctz32(SCR_EEL2), 1);
                 tcg_gen_addi_i32(tcg_el, tcg_el, 3);
             } else {
@@ -6445,7 +6445,21 @@ static bool trans_ERET(DisasContext *s, arg_ERET *a)
     }
     if (s->current_el == 2) {
         /* ERET from Hyp uses ELR_Hyp, not LR */
-        tmp = load_cpu_field(elr_el[2]);
+#ifdef TARGET_CHERI
+        /*
+         * AArch32 (and hence A32 Hyp mode) is not supported under Morello
+         * (see the "Morello does not support A32" abort in
+         * arm_cpu_reset()), so this path can never actually execute here.
+         * elr_el[] is widened to AARCH_REG_TYPE (a capability, not a plain
+         * uint64_t) for CHERI builds, so it no longer satisfies
+         * load_cpu_field_low32()'s "field is exactly 8 bytes" build-time
+         * assert; avoid instantiating that macro rather than trying to
+         * give a meaningful capability-low32 value that can never be used.
+         */
+        g_assert_not_reached();
+#else
+        tmp = load_cpu_field_low32(elr_el[2]);
+#endif
     } else {
         tmp = load_reg(s, 14);
     }
