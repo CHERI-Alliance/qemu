@@ -182,6 +182,7 @@ static const char *log_file;
 static bool list_data_dirs;
 static const char *qtest_chrdev;
 static const char *qtest_log;
+static bool opt_one_insn_per_tb;
 
 bool cheri_c2e_on_unrepresentable = false;
 bool cheri_debugger_on_unrepresentable = false;
@@ -2286,7 +2287,19 @@ static int do_configure_accelerator(void *opaque, QemuOpts *opts, Error **errp)
     qemu_opt_foreach(opts, accelerator_set_property,
                      accel,
                      &error_fatal);
-
+    /*
+     * If legacy -singlestep option is set, honour it for TCG and
+     * silently ignore for any other accelerator (which is how this
+     * option has always behaved).
+     */
+    if (opt_one_insn_per_tb) {
+        /*
+         * This will always succeed for TCG, and we want to ignore
+         * the error from trying to set a nonexistent property
+         * on any other accelerator.
+         */
+        object_property_set_bool(OBJECT(accel), "one-insn-per-tb", true, NULL);
+    }
     ret = accel_init_machine(accel, current_machine);
     if (ret < 0) {
         if (!qtest_with_kvm || ret != -ENOENT) {
@@ -2693,7 +2706,18 @@ void qmp_x_exit_preconfig(Error **errp)
         rvfi_client_fd = accept(rvfi_listen_fd, NULL, NULL);
         autostart = true;
         assert(!incoming);
-        singlestep = true;
+        /*
+         * Force single-instruction-per-TB mode, same as the legacy
+         * -singlestep CLI option (see do_configure_accelerator()). The
+         * old global 'singlestep' variable this used to set was removed
+         * upstream in favour of the TCG accelerator's "one-insn-per-tb"
+         * property (commit 0e33928cd9b); go through that property
+         * instead, same as hmp_singlestep()/qmp_query_status() do.
+         * Ignore errors, since this is meaningless for non-TCG
+         * accelerators.
+         */
+        object_property_set_bool(OBJECT(current_accel()), "one-insn-per-tb",
+                                  true, NULL);
     }
 #endif
 
@@ -2709,7 +2733,8 @@ void qmp_x_exit_preconfig(Error **errp)
             cpu_breakcount(cs, cl_breakcount);
         }
     }
-    if (singlestep) {
+    if (object_property_get_bool(OBJECT(current_accel()), "one-insn-per-tb",
+                                  NULL)) {
         CPUState *cpu;
         CPU_FOREACH(cpu) {
             cpu_single_step(cpu, SSTEP_ENABLE | SSTEP_NOIRQ | SSTEP_NOTIMER);
@@ -3053,7 +3078,7 @@ void qemu_init(int argc, char **argv)
                 qdict_put_str(machine_opts_dict, "firmware", optarg);
                 break;
             case QEMU_OPTION_singlestep:
-                singlestep = 1;
+                opt_one_insn_per_tb = true;
                 break;
             case QEMU_OPTION_S:
                 autostart = 0;
