@@ -169,6 +169,9 @@ typedef enum {
     rv_codec_zcb_mul,
     rv_codec_zcb_lb,
     rv_codec_zcb_lh,
+    rv_codec_zcmp_cm_pushpop,
+    rv_codec_zcmp_cm_mv,
+    rv_codec_zcmt_jt,
 } rv_codec;
 
 typedef enum {
@@ -954,8 +957,16 @@ typedef enum {
     rv_op_c_lh = 778,
     rv_op_c_sb = 779,
     rv_op_c_sh = 780,
+    rv_op_cm_push = 781,
+    rv_op_cm_pop = 782,
+    rv_op_cm_popret = 783,
+    rv_op_cm_popretz = 784,
+    rv_op_cm_mva01s = 785,
+    rv_op_cm_mvsa01 = 786,
+    rv_op_cm_jt = 787,
+    rv_op_cm_jalt = 788,
     // CHERI:
-    rv_op_auipcc = 781,
+    rv_op_auipcc,
     rv_op_lc,
     rv_op_clc,
     rv_op_clb,
@@ -1101,6 +1112,7 @@ typedef struct {
     uint8_t   rnum;
     uint8_t   vm;
     uint32_t  vzimm;
+    uint8_t   rlist;
 } rv_decode;
 
 typedef struct {
@@ -1250,6 +1262,10 @@ static const char rv_vreg_name_sym[32][4] = {
 #define rv_fmt_vd_vm                  "O\tDm"
 #define rv_fmt_vsetvli                "O\t0,1,v"
 #define rv_fmt_vsetivli               "O\t0,u,v"
+#define rv_fmt_rs1_rs2_zce_ldst       "O\t2,i(1)"
+#define rv_fmt_push_rlist             "O\tx,-i"
+#define rv_fmt_pop_rlist              "O\tx,i"
+#define rv_fmt_zcmt_index             "O\ti"
 
 #define rv_fmt_rs1_rs2_zce_ldst       "O\t2,i(1)"
 /* pseudo-instruction constraints */
@@ -2260,6 +2276,14 @@ const rv_opcode_data opcode_data[] = {
     { "c.lh", rv_codec_zcb_lh, rv_fmt_rs1_rs2_zce_ldst, NULL, 0, 0, 0 },
     { "c.sb", rv_codec_zcb_lb, rv_fmt_rs1_rs2_zce_ldst, NULL, 0, 0, 0 },
     { "c.sh", rv_codec_zcb_lh, rv_fmt_rs1_rs2_zce_ldst, NULL, 0, 0, 0 },
+    { "cm.push", rv_codec_zcmp_cm_pushpop, rv_fmt_push_rlist, NULL, 0, 0 },
+    { "cm.pop", rv_codec_zcmp_cm_pushpop, rv_fmt_pop_rlist, NULL, 0, 0 },
+    { "cm.popret", rv_codec_zcmp_cm_pushpop, rv_fmt_pop_rlist, NULL, 0, 0, 0 },
+    { "cm.popretz", rv_codec_zcmp_cm_pushpop, rv_fmt_pop_rlist, NULL, 0, 0 },
+    { "cm.mva01s", rv_codec_zcmp_cm_mv, rv_fmt_rd_rs2, NULL, 0, 0, 0 },
+    { "cm.mvsa01", rv_codec_zcmp_cm_mv, rv_fmt_rd_rs2, NULL, 0, 0, 0 },
+    { "cm.jt", rv_codec_zcmt_jt, rv_fmt_zcmt_index, NULL, 0 },
+    { "cm.jalt", rv_codec_zcmt_jt, rv_fmt_zcmt_index, NULL, 0 },
 
     // CHERI extensions
     [rv_op_auipcc] = { "auipcc", rv_codec_u, rv_fmt_cd_offset, NULL, 0, 0, 0 },
@@ -2422,6 +2446,7 @@ static const char *csr_name(int csrno)
     case 0x000a: return "vxrm";
     case 0x000f: return "vcsr";
     case 0x0015: return "seed";
+    case 0x0017: return "jvt";
     case 0x0040: return "uscratch";
     case 0x0041: return "uepc";
     case 0x0042: return "ucause";
@@ -2855,9 +2880,57 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa, int flags)
         case 5:
             if (isa == rv128) {
                 op = rv_op_c_sqsp;
+            } else if (flags & RISCV_DIS_FLAG_CAPMODE) {
+                /*
+                 * Under capmode this encoding is c.scsp (as in the plain
+                 * REQUIRE_ZCMP/REQUIRE_ZCMT execution path, which refuses to
+                 * decode Zcmp/Zcmt under capmode since those instructions
+                 * have no CHERI-aware implementation) rather than any of the
+                 * Zcmp/Zcmt mnemonics below.
+                 */
+                op = rv_op_c_scsp;
             } else {
-                op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_c_scsp
-                                                      : rv_op_c_fsdsp;
+                op = rv_op_c_fsdsp;
+                if (((inst >> 12) & 0b01)) {
+                    switch ((inst >> 8) & 0b01111) {
+                    case 8:
+                        if (((inst >> 4) & 0b01111) >= 4) {
+                            op = rv_op_cm_push;
+                        }
+                        break;
+                    case 10:
+                        if (((inst >> 4) & 0b01111) >= 4) {
+                            op = rv_op_cm_pop;
+                        }
+                        break;
+                    case 12:
+                        if (((inst >> 4) & 0b01111) >= 4) {
+                            op = rv_op_cm_popretz;
+                        }
+                        break;
+                    case 14:
+                        if (((inst >> 4) & 0b01111) >= 4) {
+                            op = rv_op_cm_popret;
+                        }
+                        break;
+                    }
+                } else {
+                    switch ((inst >> 10) & 0b011) {
+                    case 0:
+                        if (((inst >> 2) & 0xFF) >= 32) {
+                            op = rv_op_cm_jalt;
+                        } else {
+                            op = rv_op_cm_jt;
+                        }
+                        break;
+                    case 3:
+                        switch ((inst >> 5) & 0b011) {
+                        case 1: op = rv_op_cm_mvsa01; break;
+                        case 3: op = rv_op_cm_mva01s; break;
+                        }
+                        break;
+                    }
+                }
             }
             break;
         case 6: op = rv_op_c_swsp; break;
@@ -4227,6 +4300,21 @@ static uint32_t operand_crs2q(rv_inst inst)
     return (inst << 59) >> 61;
 }
 
+static uint32_t calculate_xreg(uint32_t sreg)
+{
+    return sreg < 2 ? sreg + 8 : sreg + 16;
+}
+
+static uint32_t operand_sreg1(rv_inst inst)
+{
+    return calculate_xreg((inst << 54) >> 61);
+}
+
+static uint32_t operand_sreg2(rv_inst inst)
+{
+    return calculate_xreg((inst << 59) >> 61);
+}
+
 static uint32_t operand_crd(rv_inst inst)
 {
     return (inst << 52) >> 59;
@@ -4468,6 +4556,35 @@ static uint32_t operand_uimm_c_lb(rv_inst inst)
 static uint32_t operand_uimm_c_lh(rv_inst inst)
 {
     return (((inst << 58) >> 63) << 1);
+}
+
+static uint32_t operand_zcmp_spimm(rv_inst inst)
+{
+    return ((inst << 60) >> 62) << 4;
+}
+
+static uint32_t operand_zcmp_rlist(rv_inst inst)
+{
+    return ((inst << 56) >> 60);
+}
+
+static uint32_t calculate_stack_adj(rv_isa isa, uint32_t rlist, uint32_t spimm)
+{
+    int xlen_bytes_log2 = isa == rv64 ? 3 : 2;
+    int regs = rlist == 15 ? 13 : rlist - 3;
+    uint32_t stack_adj_base = ROUND_UP(regs << xlen_bytes_log2, 16);
+    return stack_adj_base + spimm;
+}
+
+static uint32_t operand_zcmp_stack_adj(rv_inst inst, rv_isa isa)
+{
+    return calculate_stack_adj(isa, operand_zcmp_rlist(inst),
+                               operand_zcmp_spimm(inst));
+}
+
+static uint32_t operand_tbl_index(rv_inst inst)
+{
+    return ((inst << 54) >> 56);
 }
 
 /* decode operands */
@@ -4812,6 +4929,17 @@ static void decode_inst_operands(rv_decode *dec, rv_isa isa)
         dec->imm = operand_vimm(inst);
         dec->vzimm = operand_vzimm10(inst);
         break;
+    case rv_codec_zcmp_cm_pushpop:
+        dec->imm = operand_zcmp_stack_adj(inst, isa);
+        dec->rlist = operand_zcmp_rlist(inst);
+        break;
+    case rv_codec_zcmp_cm_mv:
+        dec->rd = operand_sreg1(inst);
+        dec->rs2 = operand_sreg2(inst);
+        break;
+    case rv_codec_zcmt_jt:
+        dec->imm = operand_tbl_index(inst);
+        break;
     };
 }
 
@@ -4970,6 +5098,9 @@ static void format_inst(char *buf, size_t buflen, size_t tab, rv_decode *dec)
             break;
         case ')':
             append(buf, ")", buflen);
+            break;
+        case '-':
+            append(buf, "-", buflen);
             break;
         case 'b':
             snprintf(tmp, sizeof(tmp), "%d", dec->bs);
@@ -5186,6 +5317,24 @@ static void format_inst(char *buf, size_t buflen, size_t tab, rv_decode *dec)
             append(buf, vta, buflen);
             append(buf, ",", buflen);
             append(buf, vma, buflen);
+            break;
+        }
+        case 'x': {
+            switch (dec->rlist) {
+            case 4:
+                snprintf(tmp, sizeof(tmp), "{ra}");
+                break;
+            case 5:
+                snprintf(tmp, sizeof(tmp), "{ra, s0}");
+                break;
+            case 15:
+                snprintf(tmp, sizeof(tmp), "{ra, s0-s11}");
+                break;
+            default:
+                snprintf(tmp, sizeof(tmp), "{ra, s0-s%d}", dec->rlist - 5);
+                break;
+            }
+            append(buf, tmp, buflen);
             break;
         }
         default:

@@ -16,151 +16,184 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef CONFIG_USER_ONLY
-static bool check_access(DisasContext *ctx)
-{
-    if (!ctx->hlsx) {
-        if (ctx->virt_enabled) {
-            generate_exception(ctx, RISCV_EXCP_VIRT_INSTRUCTION_FAULT);
-        } else {
-            generate_exception(ctx, RISCV_EXCP_ILLEGAL_INST);
-        }
-        return false;
-    }
-    return true;
-}
-#endif
-
-static bool do_hlv(DisasContext *ctx, arg_r2 *a, MemOp mop)
-{
 #ifdef CONFIG_USER_ONLY
-    return false;
+#define do_hlv(ctx, a, mop, func)  false
+#define do_hsv(ctx, a, mop, func)  false
+#define do_hlvx(ctx, a, func)      false
 #else
-    decode_save_opc(ctx);
-    if (check_access(ctx)) {
-        int mem_idx = ctx->mem_idx | TB_FLAGS_PRIV_HYP_ACCESS_MASK;
-#ifdef TARGET_CHERI
-        if (ctx->capmode)
-            return gen_cap_load_mem_idx(ctx, a->rd, a->rs1, 0,
-                mem_idx, mop);
-#endif
-
-        TCGv dest = dest_gpr(ctx, a->rd);
-        TCGv addr = get_gpr(ctx, a->rs1, EXT_NONE);
-        gen_ddc_interposed_ld_tl(ctx, dest, /* Update addr in-place */ NULL,
-            addr, mem_idx, mop);
-        gen_set_gpr(ctx, a->rd, dest);
-    }
-    return true;
-#endif
+static void gen_helper_hyp_hlv_b(TCGv r, TCGv_env e, TCGv a)
+{
+    gen_helper_hyp_hlv_bu(r, e, a);
+    tcg_gen_ext8s_tl(r, r);
 }
+
+static void gen_helper_hyp_hlv_h(TCGv r, TCGv_env e, TCGv a)
+{
+    gen_helper_hyp_hlv_hu(r, e, a);
+    tcg_gen_ext16s_tl(r, r);
+}
+
+static void gen_helper_hyp_hlv_w(TCGv r, TCGv_env e, TCGv a)
+{
+    gen_helper_hyp_hlv_wu(r, e, a);
+    tcg_gen_ext32s_tl(r, r);
+}
+
+/*
+ * do_hlv()/do_hsv() cover the HLV/HSV instructions proper (the ones that
+ * take a plain GPR address operand). Upstream ("target/riscv: Handle HLV,
+ * HSV via helpers") moved both the privilege check (now
+ * check_access_hlsv(), target/riscv/op_helper.c) and the actual load/store
+ * out of translate-time TCG generation and into runtime helper functions,
+ * in preparation for computing mmu_idx at runtime.
+ *
+ * On this fork, HLV/HSV also have a CHERI "capmode" operand: when
+ * ctx->capmode is set, rs1 is a capability register and the access must go
+ * through the capability-checked path (gen_cap_load_mem_idx()/
+ * gen_cap_store_mem_idx(), trans_cheri.c.inc) instead; when it is clear,
+ * the plain-integer access is DDC-relative and must be bounds-checked
+ * against DDC. That capmode branch still runs entirely at translate time
+ * (as it did before this commit) and never reaches the new
+ * helper_hyp_h[ls]v_*() helpers, so:
+ *  - it calls gen_helper_hyp_check_access() to reproduce the privilege
+ *    check that check_access_hlsv() now performs for the helper path
+ *    (previously both operands were gated by the same translate-time
+ *    check_access(ctx), via ctx->hlsx/TB_FLAGS.HLSX -- removed by this
+ *    commit).
+ *  - the non-capmode/DDC case's bounds check now happens inside the
+ *    helper_hyp_h[ls]v_*() helpers themselves (via check_ddc(), see
+ *    op_helper.c), since the actual access moved there; it used to be
+ *    generated inline at translate time via gen_ddc_interposed_ld_tl()/
+ *    gen_ddc_interposed_st_tl().
+ */
+static bool do_hlv(DisasContext *ctx, arg_r2 *a, MemOp mop,
+                   void (*func)(TCGv, TCGv_env, TCGv))
+{
+    decode_save_opc(ctx);
+#ifdef TARGET_CHERI
+    if (ctx->capmode) {
+        int mem_idx = ctx->mem_idx | MMU_2STAGE_BIT;
+        gen_helper_hyp_check_access(cpu_env);
+        return gen_cap_load_mem_idx(ctx, a->rd, a->rs1, 0, mem_idx, mop);
+    }
+#endif
+    TCGv dest = dest_gpr(ctx, a->rd);
+    TCGv addr = get_gpr(ctx, a->rs1, EXT_NONE);
+    func(dest, cpu_env, addr);
+    gen_set_gpr(ctx, a->rd, dest);
+    return true;
+}
+
+static bool do_hsv(DisasContext *ctx, arg_r2_s *a, MemOp mop,
+                   void (*func)(TCGv_env, TCGv, TCGv))
+{
+    decode_save_opc(ctx);
+#ifdef TARGET_CHERI
+    if (ctx->capmode) {
+        int mem_idx = ctx->mem_idx | MMU_2STAGE_BIT;
+        gen_helper_hyp_check_access(cpu_env);
+        return gen_cap_store_mem_idx(ctx, a->rs1, a->rs2, 0, mem_idx, mop);
+    }
+#endif
+    TCGv addr = get_gpr(ctx, a->rs1, EXT_NONE);
+    TCGv data = get_gpr(ctx, a->rs2, EXT_NONE);
+    func(cpu_env, addr, data);
+    return true;
+}
+
+/*
+ * HLVX (used by the VS-stage software instruction-fetch page-fault
+ * handler to read guest instruction memory with execute permission) is
+ * kept as a separate, simpler function rather than folded into do_hlv()
+ * above: even before this commit, HLVX on this fork never went through
+ * the CHERI capmode/DDC-interposed path (its pre-image do_hlvx() below
+ * had no ctx->capmode branch and never called gen_ddc_interposed_ld_tl()
+ * -- unlike do_hlv()/do_hsv()). Reusing do_hlv() for it, as upstream now
+ * does, would newly send it through the capmode branch and change its
+ * behaviour; this preserves the fork's pre-existing (CHERI-unaware) HLVX
+ * semantics unchanged.
+ */
+static bool do_hlvx(DisasContext *ctx, arg_r2 *a,
+                    void (*func)(TCGv, TCGv_env, TCGv))
+{
+    TCGv dest = dest_gpr(ctx, a->rd);
+    TCGv addr = get_gpr(ctx, a->rs1, EXT_NONE);
+
+    decode_save_opc(ctx);
+    func(dest, cpu_env, addr);
+    gen_set_gpr(ctx, a->rd, dest);
+    return true;
+}
+#endif /* CONFIG_USER_ONLY */
 
 static bool trans_hlv_b(DisasContext *ctx, arg_hlv_b *a)
 {
     REQUIRE_EXT(ctx, RVH);
-    return do_hlv(ctx, a, MO_SB);
+    return do_hlv(ctx, a, MO_SB, gen_helper_hyp_hlv_b);
 }
 
 static bool trans_hlv_h(DisasContext *ctx, arg_hlv_h *a)
 {
     REQUIRE_EXT(ctx, RVH);
-    return do_hlv(ctx, a, MO_TESW);
+    return do_hlv(ctx, a, MO_TESW, gen_helper_hyp_hlv_h);
 }
 
 static bool trans_hlv_w(DisasContext *ctx, arg_hlv_w *a)
 {
     REQUIRE_EXT(ctx, RVH);
-    return do_hlv(ctx, a, MO_TESL);
+    return do_hlv(ctx, a, MO_TESL, gen_helper_hyp_hlv_w);
 }
 
 static bool trans_hlv_bu(DisasContext *ctx, arg_hlv_bu *a)
 {
     REQUIRE_EXT(ctx, RVH);
-    return do_hlv(ctx, a, MO_UB);
+    return do_hlv(ctx, a, MO_UB, gen_helper_hyp_hlv_bu);
 }
 
 static bool trans_hlv_hu(DisasContext *ctx, arg_hlv_hu *a)
 {
     REQUIRE_EXT(ctx, RVH);
-    return do_hlv(ctx, a, MO_TEUW);
-}
-
-static bool do_hsv(DisasContext *ctx, arg_r2_s *a, MemOp mop)
-{
-#ifdef CONFIG_USER_ONLY
-    return false;
-#else
-    decode_save_opc(ctx);
-    if (check_access(ctx)) {
-        int mem_idx = ctx->mem_idx | TB_FLAGS_PRIV_HYP_ACCESS_MASK;
-#ifdef TARGET_CHERI
-        if (ctx->capmode)
-            return gen_cap_store_mem_idx(ctx, a->rs1, a->rs2, 0, mem_idx, mop);
-#endif
-        
-        TCGv addr = get_gpr(ctx, a->rs1, EXT_NONE);
-        TCGv data = get_gpr(ctx, a->rs2, EXT_NONE);
-
-        gen_ddc_interposed_st_tl(ctx, data, /* Update addr in-place */ NULL,
-            addr, mem_idx, mop);
-    }
-    return true;
-#endif
+    return do_hlv(ctx, a, MO_TEUW, gen_helper_hyp_hlv_hu);
 }
 
 static bool trans_hsv_b(DisasContext *ctx, arg_hsv_b *a)
 {
     REQUIRE_EXT(ctx, RVH);
-    return do_hsv(ctx, a, MO_SB);
+    return do_hsv(ctx, a, MO_SB, gen_helper_hyp_hsv_b);
 }
 
 static bool trans_hsv_h(DisasContext *ctx, arg_hsv_h *a)
 {
     REQUIRE_EXT(ctx, RVH);
-    return do_hsv(ctx, a, MO_TESW);
+    return do_hsv(ctx, a, MO_TESW, gen_helper_hyp_hsv_h);
 }
 
 static bool trans_hsv_w(DisasContext *ctx, arg_hsv_w *a)
 {
     REQUIRE_EXT(ctx, RVH);
-    return do_hsv(ctx, a, MO_TESL);
+    return do_hsv(ctx, a, MO_TESL, gen_helper_hyp_hsv_w);
 }
 
 static bool trans_hlv_wu(DisasContext *ctx, arg_hlv_wu *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVH);
-    return do_hlv(ctx, a, MO_TEUL);
+    return do_hlv(ctx, a, MO_TEUL, gen_helper_hyp_hlv_wu);
 }
 
 static bool trans_hlv_d(DisasContext *ctx, arg_hlv_d *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVH);
-    return do_hlv(ctx, a, MO_TEUQ);
+    return do_hlv(ctx, a, MO_TEUQ, gen_helper_hyp_hlv_d);
 }
 
 static bool trans_hsv_d(DisasContext *ctx, arg_hsv_d *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVH);
-    return do_hsv(ctx, a, MO_TEUQ);
+    return do_hsv(ctx, a, MO_TEUQ, gen_helper_hyp_hsv_d);
 }
-
-#ifndef CONFIG_USER_ONLY
-static bool do_hlvx(DisasContext *ctx, arg_r2 *a,
-                    void (*func)(TCGv, TCGv_env, TCGv))
-{
-    decode_save_opc(ctx);
-    if (check_access(ctx)) {
-        TCGv dest = dest_gpr(ctx, a->rd);
-        TCGv addr = get_gpr(ctx, a->rs1, EXT_NONE);
-        func(dest, cpu_env, addr);
-        gen_set_gpr(ctx, a->rd, dest);
-    }
-    return true;
-}
-#endif
 
 static bool trans_hlvx_hu(DisasContext *ctx, arg_hlvx_hu *a)
 {

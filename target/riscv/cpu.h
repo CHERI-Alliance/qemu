@@ -30,6 +30,7 @@
 #include "cpu_bits.h"
 #include "rvfi_dii.h"
 #include "qapi/qapi-types-common.h"
+#include "cpu-qom.h"
 
 #define TCG_GUEST_DEFAULT_MO 0
 
@@ -39,40 +40,9 @@
  */
 #define TARGET_INSN_START_EXTRA_WORDS 1
 
-#define TYPE_RISCV_CPU "riscv-cpu"
-
-#define RISCV_CPU_TYPE_SUFFIX "-" TYPE_RISCV_CPU
-#define RISCV_CPU_TYPE_NAME(name) (name RISCV_CPU_TYPE_SUFFIX)
-#define CPU_RESOLVING_TYPE TYPE_RISCV_CPU
-
-#define TYPE_RISCV_CPU_ANY              RISCV_CPU_TYPE_NAME("any")
-#define TYPE_RISCV_CPU_BASE32           RISCV_CPU_TYPE_NAME("rv32")
-#define TYPE_RISCV_CPU_BASE64           RISCV_CPU_TYPE_NAME("rv64")
-#define TYPE_RISCV_CPU_BASE128          RISCV_CPU_TYPE_NAME("x-rv128")
-#define TYPE_RISCV_CPU_IBEX             RISCV_CPU_TYPE_NAME("lowrisc-ibex")
-#define TYPE_RISCV_CPU_SHAKTI_C         RISCV_CPU_TYPE_NAME("shakti-c")
-#define TYPE_RISCV_CPU_SIFIVE_E31       RISCV_CPU_TYPE_NAME("sifive-e31")
-#define TYPE_RISCV_CPU_SIFIVE_E34       RISCV_CPU_TYPE_NAME("sifive-e34")
-#define TYPE_RISCV_CPU_SIFIVE_E51       RISCV_CPU_TYPE_NAME("sifive-e51")
-#define TYPE_RISCV_CPU_SIFIVE_U34       RISCV_CPU_TYPE_NAME("sifive-u34")
-#define TYPE_RISCV_CPU_SIFIVE_U54       RISCV_CPU_TYPE_NAME("sifive-u54")
-#define TYPE_RISCV_CPU_CODASIP_A730     RISCV_CPU_TYPE_NAME("codasip-a730")
-#define TYPE_RISCV_CPU_CODASIP_L730     RISCV_CPU_TYPE_NAME("codasip-l730")
-#define TYPE_RISCV_CPU_THEAD_C906       RISCV_CPU_TYPE_NAME("thead-c906")
-#define TYPE_RISCV_CPU_HOST             RISCV_CPU_TYPE_NAME("host")
-
-#if defined(TARGET_RISCV32)
-# define TYPE_RISCV_CPU_BASE            TYPE_RISCV_CPU_BASE32
-#elif defined(TARGET_RISCV64)
-# define TYPE_RISCV_CPU_BASE            TYPE_RISCV_CPU_BASE64
-#endif
-
 #define RV(x) ((target_ulong)1 << (x - 'A'))
 
-/*
- * Consider updating register_cpu_props() when adding
- * new MISA bits here.
- */
+/* Consider updating misa_ext_cfgs[] when adding new MISA bits here */
 #define RVI RV('I')
 #define RVE RV('E') /* E and I are mutually exclusive */
 #define RVM RV('M')
@@ -85,6 +55,7 @@
 #define RVU RV('U')
 #define RVH RV('H')
 #define RVJ RV('J')
+#define RVG RV('G')
 
 
 /* Privileged specification version */
@@ -106,11 +77,17 @@ enum {
 #endif
 };
 
+/* Extension context status */
+typedef enum {
+    EXT_STATUS_DISABLED = 0,
+    EXT_STATUS_INITIAL,
+    EXT_STATUS_CLEAN,
+    EXT_STATUS_DIRTY,
+} RISCVExtStatus;
+
 #define MMU_USER_IDX 3
 
 #define MAX_RISCV_PMPS (16)
-
-typedef struct CPUArchState CPURISCVState;
 
 #ifdef TARGET_CHERI
 #include "cheri-lazy-capregs-types.h"
@@ -135,7 +112,7 @@ FIELD(VTYPE, RESERVED, 10, sizeof(target_ulong) * 8 - 11)
 typedef struct PMUCTRState {
     /* Current value of a counter */
     target_ulong mhpmcounter_val;
-    /* Current value of a counter in RV32*/
+    /* Current value of a counter in RV32 */
     target_ulong mhpmcounterh_val;
     /* Snapshot values of counter */
     target_ulong mhpmcounter_prev;
@@ -209,6 +186,8 @@ struct CPUArchState {
     target_ulong retxh;
 #endif
 
+    target_ulong jvt;
+
 #ifdef CONFIG_USER_ONLY
     uint32_t elf_flags;
 #endif
@@ -216,7 +195,7 @@ struct CPUArchState {
 #ifndef CONFIG_USER_ONLY
     target_ulong priv;
     /* This contains QEMU specific information about the virt state. */
-    target_ulong virt;
+    bool virt_enabled;
     target_ulong geilen;
     uint64_t resetvec;
 
@@ -346,8 +325,10 @@ struct CPUArchState {
     target_ulong satp_hs;
     uint64_t mstatus_hs;
 
-    /* Signals whether the current exception occurred with two-stage address
-       translation active. */
+    /*
+     * Signals whether the current exception occurred with two-stage address
+     * translation active.
+     */
     bool two_stage_lookup;
     /*
      * Signals whether the current exception occurred while doing two-stage
@@ -363,7 +344,7 @@ struct CPUArchState {
     /* PMU counter state */
     PMUCTRState pmu_ctrs[RV_MAX_MHPMCOUNTERS];
 
-    /* PMU event selector configured values. First three are unused*/
+    /* PMU event selector configured values. First three are unused */
     target_ulong mhpmevent_val[RV_MAX_MHPMEVENTS];
 
 #ifdef TARGET_CHERI
@@ -389,7 +370,7 @@ struct CPUArchState {
     cap_register_t vstdc; /* Virtual Supervisor trap data cap */
 #endif
 
-    /* PMU event selector configured values for RV32*/
+    /* PMU event selector configured values for RV32 */
     target_ulong mhpmeventh_val[RV_MAX_MHPMEVENTS];
 
     /* Sstc CSRs */
@@ -527,23 +508,6 @@ struct CPUArchState {
     uint64_t kvm_timer_frequency;
 };
 
-OBJECT_DECLARE_CPU_TYPE(RISCVCPU, RISCVCPUClass, RISCV_CPU)
-
-/**
- * RISCVCPUClass:
- * @parent_realize: The parent class' realize handler.
- * @parent_phases: The parent class' reset phase handlers.
- *
- * A RISCV CPU model.
- */
-struct RISCVCPUClass {
-    /*< private >*/
-    CPUClass parent_class;
-    /*< public >*/
-    DeviceRealize parent_realize;
-    ResettablePhases parent_phases;
-};
-
 /*
  * map is a 16-bit bitmap: the most significant set bit in map is the maximum
  * satp mode that is supported. It may be chosen by the user and must respect
@@ -560,19 +524,6 @@ typedef struct {
 } RISCVSATPMap;
 
 struct RISCVCPUConfig {
-    bool ext_i;
-    bool ext_e;
-    bool ext_g;
-    bool ext_m;
-    bool ext_a;
-    bool ext_f;
-    bool ext_d;
-    bool ext_c;
-    bool ext_s;
-    bool ext_u;
-    bool ext_h;
-    bool ext_j;
-    bool ext_v;
     bool ext_zba;
     bool ext_zbb;
     bool ext_zbc;
@@ -583,7 +534,10 @@ struct RISCVCPUConfig {
     bool ext_zca;
     bool ext_zcb;
     bool ext_zcd;
+    bool ext_zce;
     bool ext_zcf;
+    bool ext_zcmp;
+    bool ext_zcmt;
     bool ext_zk;
     bool ext_zkn;
     bool ext_zknd;
@@ -688,16 +642,16 @@ struct RISCVCPUConfig {
 
 typedef struct RISCVCPUConfig RISCVCPUConfig;
 
-/**
+/*
  * RISCVCPU:
  * @env: #CPURISCVState
  *
  * A RISCV CPU.
  */
 struct ArchCPU {
-    /*< private >*/
+    /* < private > */
     CPUState parent_obj;
-    /*< public >*/
+    /* < public > */
     CPUNegativeOffsetState neg;
     CPURISCVState env;
 
@@ -814,13 +768,11 @@ bool riscv_cpu_fp_enabled(CPURISCVState *env);
 target_ulong riscv_cpu_get_geilen(CPURISCVState *env);
 void riscv_cpu_set_geilen(CPURISCVState *env, target_ulong geilen);
 bool riscv_cpu_vector_enabled(CPURISCVState *env);
-bool riscv_cpu_virt_enabled(CPURISCVState *env);
 void riscv_cpu_set_virt_enabled(CPURISCVState *env, bool enable);
-bool riscv_cpu_two_stage_lookup(int mmu_idx);
 int riscv_cpu_mmu_index(CPURISCVState *env, bool ifetch);
 G_NORETURN void  riscv_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
-                                               MMUAccessType access_type, int mmu_idx,
-                                               uintptr_t retaddr);
+                                               MMUAccessType access_type,
+                                               int mmu_idx, uintptr_t retaddr);
 bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                         MMUAccessType access_type, int mmu_idx,
                         bool probe, uintptr_t retaddr);
@@ -850,7 +802,8 @@ hwaddr riscv_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
 bool riscv_cpu_exec_interrupt(CPUState *cs, int interrupt_request);
 void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env, bool hs_mode_trap);
 int riscv_cpu_claim_interrupts(RISCVCPU *cpu, uint64_t interrupts);
-uint64_t riscv_cpu_update_mip(RISCVCPU *cpu, uint64_t mask, uint64_t value);
+uint64_t riscv_cpu_update_mip(CPURISCVState *env, uint64_t mask,
+                              uint64_t value);
 #define BOOL_TO_MASK(x) (-!!(x)) /* helper for riscv_cpu_update_mip value */
 void riscv_cpu_set_rdtime_fn(CPURISCVState *env, uint64_t (*fn)(void *),
                              void *arg);
@@ -861,6 +814,8 @@ void riscv_cpu_set_aia_ireg_rmw_fn(CPURISCVState *env, uint32_t priv,
                                                  target_ulong new_val,
                                                  target_ulong write_mask),
                                    void *rmw_fn_arg);
+
+RISCVException smstateen_acc_ok(CPURISCVState *env, int index, uint64_t bit);
 #endif
 void riscv_cpu_set_mode(CPURISCVState *env, target_ulong newpriv);
 
@@ -871,11 +826,6 @@ G_NORETURN void riscv_raise_exception(CPURISCVState *env,
 target_ulong riscv_cpu_get_fflags(CPURISCVState *env);
 void riscv_cpu_set_fflags(CPURISCVState *env, target_ulong);
 bool csr_needs_asr(uint32_t csrno, bool write);
-
-#define TB_FLAGS_PRIV_MMU_MASK                3
-#define TB_FLAGS_PRIV_HYP_ACCESS_MASK   (1 << 2)
-#define TB_FLAGS_MSTATUS_FS MSTATUS_FS
-#define TB_FLAGS_MSTATUS_VS MSTATUS_VS
 
 #include "exec/cpu-all.h"
 #include "cpu_cheri.h"
@@ -904,25 +854,35 @@ static inline target_ulong cpu_get_recent_pc(CPURISCVState *env)
 }
 
 FIELD(TB_FLAGS, MEM_IDX, 0, 3)
-FIELD(TB_FLAGS, LMUL, 3, 3)
-FIELD(TB_FLAGS, SEW, 6, 3)
-/* Skip MSTATUS_VS (0x600) bits */
-FIELD(TB_FLAGS, VL_EQ_VLMAX, 11, 1)
-FIELD(TB_FLAGS, VILL, 12, 1)
-/* Skip MSTATUS_FS (0x6000) bits */
-/* Is a Hypervisor instruction load/store allowed? */
-FIELD(TB_FLAGS, HLSX, 15, 1)
-FIELD(TB_FLAGS, MSTATUS_HS_FS, 16, 2)
-FIELD(TB_FLAGS, MSTATUS_HS_VS, 18, 2)
+FIELD(TB_FLAGS, FS, 3, 2)
+/* Vector flags */
+FIELD(TB_FLAGS, VS, 5, 2)
+FIELD(TB_FLAGS, LMUL, 7, 3)
+FIELD(TB_FLAGS, SEW, 10, 3)
+FIELD(TB_FLAGS, VL_EQ_VLMAX, 13, 1)
+FIELD(TB_FLAGS, VILL, 14, 1)
+/*
+ * Bit 15 previously held HLSX (whether a Hypervisor instruction
+ * load/store was allowed); HLSX was removed by "target/riscv: Handle
+ * HLV, HSV via helpers" (the permission check now happens at runtime
+ * in check_access_hlsv()). Bits 16-19 previously held MSTATUS_HS_FS/
+ * MSTATUS_HS_VS; those were removed/merged into the plain FS/VS
+ * fields by "target/riscv: Remove mstatus_hs_{fs, vs} from tb_flags".
+ * Left unused/compacted per upstream's true final layout.
+ */
 /* The combination of MXL/SXL/UXL that applies to the current cpu mode. */
-FIELD(TB_FLAGS, XL, 20, 2)
+FIELD(TB_FLAGS, XL, 16, 2)
 /* If PointerMasking should be applied */
-FIELD(TB_FLAGS, PM_MASK_ENABLED, 22, 1)
-FIELD(TB_FLAGS, PM_BASE_ENABLED, 23, 1)
-FIELD(TB_FLAGS, VTA, 24, 1)
-FIELD(TB_FLAGS, VMA, 25, 1)
+FIELD(TB_FLAGS, PM_MASK_ENABLED, 18, 1)
+FIELD(TB_FLAGS, PM_BASE_ENABLED, 19, 1)
+FIELD(TB_FLAGS, VTA, 20, 1)
+FIELD(TB_FLAGS, VMA, 21, 1)
 /* Native debug itrigger */
-FIELD(TB_FLAGS, ITRIGGER, 26, 1)
+FIELD(TB_FLAGS, ITRIGGER, 22, 1)
+/* Virtual mode enabled */
+FIELD(TB_FLAGS, VIRT_ENABLED, 23, 1)
+FIELD(TB_FLAGS, VSTART_EQ_ZERO, 24, 1)
+FIELD(TB_FLAGS, PRIV, 25, 2)
 
 #ifdef TARGET_RISCV32
 #define riscv_cpu_mxl(env)  ((void)(env), MXL_RV32)
@@ -959,7 +919,7 @@ static inline RISCVMXL cpu_recompute_xl(CPURISCVState *env)
         case PRV_U:
             xl = get_field(env->mstatus, MSTATUS64_UXL);
             break;
-        default: /* PRV_S | PRV_H */
+        default: /* PRV_S */
             xl = get_field(env->mstatus, MSTATUS64_SXL);
             break;
         }
@@ -1048,7 +1008,7 @@ static inline const char *cpu_get_mode_name(qemu_log_instr_cpu_mode_t mode)
 void riscv_cpu_update_mask(CPURISCVState *env);
 
 RISCVException riscv_csrrw_check(CPURISCVState *env, int csrno,
-                                 target_ulong write_mask, RISCVCPU *cpu);
+                                 target_ulong write_mask);
 RISCVException riscv_csrrw(CPURISCVState *env, int csrno,
                            target_ulong *ret_value,
                            target_ulong new_value, target_ulong write_mask,
@@ -1111,7 +1071,7 @@ enum {
     CSR_TABLE_SIZE = 0x1000
 };
 
-/**
+/*
  * The event id are encoded based on the encoding specified in the
  * SBI specification v0.3
  */

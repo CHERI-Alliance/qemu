@@ -870,13 +870,23 @@ static char *custom_riscv_isa_string(RISCVCPU *cpu, bool is_32_bit)
         bool *flag;
         const char *ext;
     } ext_map_t;
+    typedef struct {
+        uint32_t bit;
+        const char *ext;
+    } misa_ext_map_t;
     bool enable = true;
-    ext_map_t base_exts[] = {
-        { &cpu->cfg.ext_i, "i" }, { &cpu->cfg.ext_m, "m" },
-        { &cpu->cfg.ext_a, "a" }, { &cpu->cfg.ext_f, "f" },
-        { &cpu->cfg.ext_d, "d" }, { &cpu->cfg.ext_c, "c" },
-        { &cpu->cfg.ext_h, "h" }, { &cpu->cfg.ext_j, "j" },
-        { &cpu->cfg.ext_v, "v" }
+    /*
+     * Base (single-letter) extensions are no longer tracked as individual
+     * cpu->cfg.ext_* booleans -- they were folded into env->misa_ext by
+     * upstream's MISA-property redesign. Derive them from the MISA bits
+     * instead, the same way riscv_isa_string() in target/riscv/cpu.c does.
+     */
+    misa_ext_map_t base_exts[] = {
+        { RVI, "i" }, { RVM, "m" },
+        { RVA, "a" }, { RVF, "f" },
+        { RVD, "d" }, { RVC, "c" },
+        { RVH, "h" }, { RVJ, "j" },
+        { RVV, "v" }
     };
 
     ext_map_t multi_exts[] = {
@@ -907,7 +917,7 @@ static char *custom_riscv_isa_string(RISCVCPU *cpu, bool is_32_bit)
     GString *result = (is_32_bit) ? g_string_new("rv32") : g_string_new("rv64");
 
     for (int i = 0; i < ARRAY_SIZE(base_exts); i++) {
-        if (*base_exts[i].flag)
+        if (cpu->env.misa_ext & base_exts[i].bit)
             g_string_append(result, base_exts[i].ext);
     }
 
