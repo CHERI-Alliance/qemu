@@ -888,34 +888,6 @@ void tcg_gen_qemu_st_i128_with_checked_addr(TCGv_i128, TCGv_cap_checked_ptr,
 #define tcg_gen_qemu_st_i64 tcg_gen_qemu_st_i64_with_checked_addr
 #define tcg_gen_qemu_ld_i128 tcg_gen_qemu_ld_i128_with_checked_addr
 #define tcg_gen_qemu_st_i128 tcg_gen_qemu_st_i128_with_checked_addr
-#define TCG_LD_HELPER(name, memop)                                             \
-    static inline void tcg_gen_qemu_##name(TCGv ret, TCGv addr,                \
-                                           int mem_index) {                    \
-        tcg_gen_qemu_ld_tl(ret, addr, mem_index, memop);                       \
-    }
-TCG_LD_HELPER(ld8u, MO_UB)
-TCG_LD_HELPER(ld8s, MO_SB)
-TCG_LD_HELPER(ld16u, MO_TEUW)
-TCG_LD_HELPER(ld16s, MO_TESW)
-TCG_LD_HELPER(ld32u, MO_TEUL)
-TCG_LD_HELPER(ld32s, MO_TESL)
-
-static inline void tcg_gen_qemu_ld64(TCGv_i64 ret, TCGv addr, int mem_index)
-{
-    tcg_gen_qemu_ld_i64(ret, addr, mem_index, MO_TEUQ);
-}
-#define TCG_ST_HELPER(name, memop)                                             \
-    static inline void tcg_gen_qemu_##name(TCGv ret, TCGv addr,                \
-                                           int mem_index) {                    \
-        tcg_gen_qemu_st_tl(ret, addr, mem_index, memop);                       \
-    }
-TCG_ST_HELPER(st8, MO_UB)
-TCG_ST_HELPER(st16, MO_TEUW)
-TCG_ST_HELPER(st32, MO_TEUL)
-static inline void tcg_gen_qemu_st64(TCGv_i64 ret, TCGv addr, int mem_index)
-{
-    tcg_gen_qemu_st_i64(ret, addr, mem_index, MO_TEUQ);
-}
 #endif
 // The same as tcg_gen_qemu_st_i64_with_checked_addr but takes a boolean option
 // as to whether a tag clear should take place.
