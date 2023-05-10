@@ -827,6 +827,7 @@ for opt do
   --enable-debug)
       # Enable debugging options that aren't excessively noisy
       debug_tcg="yes"
+      meson_option_parse --enable-debug-graph-lock ""
       meson_option_parse --enable-debug-mutex ""
       tcg_log_instr="yes"
       rvfi_dii="yes"
