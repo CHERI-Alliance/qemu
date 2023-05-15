@@ -4393,7 +4393,7 @@ bool virtio_device_ioeventfd_enabled(VirtIODevice *vdev)
 VirtioInfoList *qmp_x_query_virtio(Error **errp)
 {
     VirtioInfoList *list = NULL;
-    VirtioInfoList *node;
+    VirtioInfo *node;
     VirtIODevice *vdev;
 
     QTAILQ_FOREACH(vdev, &virtio_list, next) {
@@ -4407,11 +4407,10 @@ VirtioInfoList *qmp_x_query_virtio(Error **errp)
             if (!strncmp(is_realized->str, "false", 4)) {
                 QTAILQ_REMOVE(&virtio_list, vdev, next);
             } else {
-                node = g_new0(VirtioInfoList, 1);
-                node->value = g_new(VirtioInfo, 1);
-                node->value->path = g_strdup(dev->canonical_path);
-                node->value->name = g_strdup(vdev->name);
-                QAPI_LIST_PREPEND(list, node->value);
+                node = g_new(VirtioInfo, 1);
+                node->path = g_strdup(dev->canonical_path);
+                node->name = g_strdup(vdev->name);
+                QAPI_LIST_PREPEND(list, node);
             }
            g_string_free(is_realized, true);
         }
