@@ -734,48 +734,27 @@ static inline void tcg_gen_concat32_i64(TCGv_i64 ret, TCGv_i64 lo, TCGv_i64 hi)
 #endif
 
 #if TARGET_INSN_START_WORDS == 1
-# if TARGET_LONG_BITS <= TCG_TARGET_REG_BITS
 static inline void tcg_gen_insn_start(target_ulong pc)
 {
-    tcg_gen_op1(INDEX_op_insn_start, pc);
+    TCGOp *op = tcg_emit_op(INDEX_op_insn_start, 64 / TCG_TARGET_REG_BITS);
+    tcg_set_insn_start_param(op, 0, pc);
 }
-# else
-static inline void tcg_gen_insn_start(target_ulong pc)
-{
-    tcg_gen_op2(INDEX_op_insn_start, (uint32_t)pc, (uint32_t)(pc >> 32));
-}
-# endif
 #elif TARGET_INSN_START_WORDS == 2
-# if TARGET_LONG_BITS <= TCG_TARGET_REG_BITS
 static inline void tcg_gen_insn_start(target_ulong pc, target_ulong a1)
 {
-    tcg_gen_op2(INDEX_op_insn_start, pc, a1);
+    TCGOp *op = tcg_emit_op(INDEX_op_insn_start, 2 * 64 / TCG_TARGET_REG_BITS);
+    tcg_set_insn_start_param(op, 0, pc);
+    tcg_set_insn_start_param(op, 1, a1);
 }
-# else
-static inline void tcg_gen_insn_start(target_ulong pc, target_ulong a1)
-{
-    tcg_gen_op4(INDEX_op_insn_start,
-                (uint32_t)pc, (uint32_t)(pc >> 32),
-                (uint32_t)a1, (uint32_t)(a1 >> 32));
-}
-# endif
 #elif TARGET_INSN_START_WORDS == 3
-# if TARGET_LONG_BITS <= TCG_TARGET_REG_BITS
 static inline void tcg_gen_insn_start(target_ulong pc, target_ulong a1,
                                       target_ulong a2)
 {
-    tcg_gen_op3(INDEX_op_insn_start, pc, a1, a2);
+    TCGOp *op = tcg_emit_op(INDEX_op_insn_start, 3 * 64 / TCG_TARGET_REG_BITS);
+    tcg_set_insn_start_param(op, 0, pc);
+    tcg_set_insn_start_param(op, 1, a1);
+    tcg_set_insn_start_param(op, 2, a2);
 }
-# else
-static inline void tcg_gen_insn_start(target_ulong pc, target_ulong a1,
-                                      target_ulong a2)
-{
-    tcg_gen_op6(INDEX_op_insn_start,
-                (uint32_t)pc, (uint32_t)(pc >> 32),
-                (uint32_t)a1, (uint32_t)(a1 >> 32),
-                (uint32_t)a2, (uint32_t)(a2 >> 32));
-}
-# endif
 #else
 # error "Unhandled number of operands to insn_start"
 #endif
@@ -835,6 +814,7 @@ static inline void tcg_gen_plugin_cb_end(void)
 #define tcg_temp_new() tcg_temp_new_i32()
 #define tcg_global_mem_new tcg_global_mem_new_i32
 #define tcg_temp_free tcg_temp_free_i32
+#define tcgv_tl_temp tcgv_i32_temp
 #ifndef TARGET_CHERI
 #define tcg_gen_qemu_ld_tl tcg_gen_qemu_ld_i32
 #define tcg_gen_qemu_st_tl tcg_gen_qemu_st_i32
@@ -845,6 +825,7 @@ static inline void tcg_gen_plugin_cb_end(void)
 #define tcg_temp_new() tcg_temp_new_i64()
 #define tcg_global_mem_new tcg_global_mem_new_i64
 #define tcg_temp_free tcg_temp_free_i64
+#define tcgv_tl_temp tcgv_i64_temp
 #ifndef TARGET_CHERI
 #define tcg_gen_qemu_ld_tl tcg_gen_qemu_ld_i64
 #define tcg_gen_qemu_st_tl tcg_gen_qemu_st_i64
