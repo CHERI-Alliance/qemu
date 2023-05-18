@@ -554,7 +554,7 @@ static inline __attribute__((always_inline)) bool load_store_implementation(
 
 // All the instructions
 
-TRANS_F(ADR)
+TRANS_F(MRLL_ADR)
 {
     if (a->Rd == 31)
         return true;
