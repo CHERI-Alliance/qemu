@@ -40,7 +40,11 @@
 
 
 # ADR, ADRP, ADRP, ADRDP
-ADR ...10000........................ @op_ADR
+# NOTE: renamed from "ADR" to "MRLL_ADR" to avoid a trans_ADR symbol clash
+# with target/arm/tcg/a64.decode's own (plain AArch64) ADR/ADRP, now that
+# both are decodetree-generated into the same translation unit. If this
+# file is regenerated upstream of the fork, keep this rename.
+MRLL_ADR ...10000........................ @op_ADR
 {
   
   # ADD, SUB
