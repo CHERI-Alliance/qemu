@@ -22,9 +22,6 @@
  * THE SOFTWARE.
  */
 
-/* define it to use liveness analysis (better code) */
-#define USE_TCG_OPTIMIZATIONS
-
 #include "qemu/osdep.h"
 
 /* Define to jump the ELF file used to communicate with GDB.  */
@@ -1459,7 +1456,6 @@ void tcg_prologue_init(TCGContext *s)
                         (uintptr_t)s->code_buf, prologue_size);
 #endif
 
-#ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_OUT_ASM)) {
         FILE *logfile = qemu_log_trylock();
         if (logfile) {
@@ -1491,7 +1487,6 @@ void tcg_prologue_init(TCGContext *s)
             qemu_log_unlock(logfile);
         }
     }
-#endif
 
 #ifndef CONFIG_TCG_INTERPRETER
     /*
@@ -6024,7 +6019,6 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
     }
 #endif
 
-#ifdef DEBUG_DISAS
     if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP)
                  && qemu_log_in_addr_range(pc_start))) {
         FILE *logfile = qemu_log_trylock();
@@ -6035,7 +6029,6 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
             qemu_log_unlock(logfile);
         }
     }
-#endif
 
 #ifdef CONFIG_DEBUG_TCG
     /* Ensure all labels referenced have been emitted.  */
@@ -6058,9 +6051,7 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
     qatomic_set(&prof->opt_time, prof->opt_time - profile_getclock());
 #endif
 
-#ifdef USE_TCG_OPTIMIZATIONS
     tcg_optimize(s);
-#endif
 
 #ifdef CONFIG_PROFILER
     qatomic_set(&prof->opt_time, prof->opt_time + profile_getclock());
@@ -6072,7 +6063,6 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
     liveness_pass_1(s);
 
     if (s->nb_indirects > 0) {
-#ifdef DEBUG_DISAS
         if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP_IND)
                      && qemu_log_in_addr_range(pc_start))) {
             FILE *logfile = qemu_log_trylock();
@@ -6083,7 +6073,7 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
                 qemu_log_unlock(logfile);
             }
         }
-#endif
+
         /* Replace indirect temps with direct temps.  */
         if (liveness_pass_2(s)) {
             /* If changes were made, re-run liveness.  */
@@ -6095,7 +6085,6 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
     qatomic_set(&prof->la_time, prof->la_time + profile_getclock());
 #endif
 
-#ifdef DEBUG_DISAS
     if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP_OPT)
                  && qemu_log_in_addr_range(pc_start))) {
         FILE *logfile = qemu_log_trylock();
@@ -6106,7 +6095,6 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
             qemu_log_unlock(logfile);
         }
     }
-#endif
 
     /* Initialize goto_tb jump offsets. */
     tb->jmp_reset_offset[0] = TB_JMP_OFFSET_INVALID;
