@@ -1079,9 +1079,6 @@ void tcg_gen_nonatomic_cmpxchg_i128_with_checked_addr(TCGv_i128 retv,
 {
     if (TCG_TARGET_REG_BITS == 32) {
         /* Inline expansion below is simply too large for 32-bit hosts. */
-        gen_atomic_cx_i128 gen = ((memop & MO_BSWAP) == MO_LE
-                                  ? gen_helper_nonatomic_cmpxchgo_le
-                                  : gen_helper_nonatomic_cmpxchgo_be);
         MemOpIdx oi = make_memop_idx(memop, idx);
         TCGv_i64 a64;
 
@@ -1089,7 +1086,8 @@ void tcg_gen_nonatomic_cmpxchg_i128_with_checked_addr(TCGv_i128 retv,
         tcg_debug_assert((memop & MO_SIGN) == 0);
 
         a64 = maybe_extend_addr64(tcgv_tl_temp((TCGv)addr));
-        gen(retv, cpu_env, a64, cmpv, newv, tcg_constant_i32(oi));
+        gen_helper_nonatomic_cmpxchgo(retv, cpu_env, a64, cmpv, newv,
+                                      tcg_constant_i32(oi));
         maybe_free_addr64(a64);
     } else {
         TCGv_i128 oldv = tcg_temp_ebb_new_i128();

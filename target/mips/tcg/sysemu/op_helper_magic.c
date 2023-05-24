@@ -142,11 +142,7 @@ static inline void
 store_u32_and_clear_tag(CPUMIPSState *env, target_ulong vaddr, uint32_t val,
                          MemOpIdx oi, uintptr_t retaddr)
 {
-#if TARGET_BIG_ENDIAN
-    cpu_stw_be_mmu(env, vaddr, val, oi, retaddr);
-#else
-    cpu_stw_le_mmu(env, vaddr, val, oi, retaddr);
-#endif
+    cpu_stw_mmu(env, vaddr, val, oi, retaddr);
 
 #ifdef TARGET_CHERI
     // If we returned (i.e. write was successful) we also need to invalidate the
