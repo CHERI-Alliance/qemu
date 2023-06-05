@@ -23,21 +23,20 @@
  */
 
 #include "qemu/osdep.h"
-#include "cpu.h"
-#include "internal.h"
-#include "tcg/tcg-op.h"
-#include "exec/translator.h"
-#include "exec/helper-proto.h"
-#include "exec/helper-gen.h"
-#include "semihosting/semihost.h"
-
-#include "trace.h"
-#include "exec/log.h"
-#include "exec/log_instr.h"
-#include "qemu/qemu-print.h"
-#include "fpu_helper.h"
 #include "translate.h"
+#include "internal.h"
+#include "exec/helper-proto.h"
+#include "exec/translation-block.h"
+#include "semihosting/semihost.h"
+#include "trace.h"
+#include "disas/disas.h"
+#include "exec/log_instr.h"
+#include "fpu_helper.h"
 #include "cheri-translate-utils.h"
+
+#define HELPER_H "helper.h"
+#include "exec/helper-info.c.inc"
+#undef  HELPER_H
 
 
 /*
@@ -1435,6 +1434,9 @@ enum {
 
 /* global register indices */
 TCGv cpu_gpr[32], cpu_PC;
+#ifdef TARGET_CHERI
+TCGv ddc_interposition;
+#endif
 /*
  * For CPUs using 128-bit GPR registers, we put the lower halves in cpu_gpr[])
  * and the upper halves in cpu_gpr_hi[].
@@ -1448,9 +1450,6 @@ static TCGv_i32 hflags;
 TCGv_i32 fpu_fcr0, fpu_fcr31;
 TCGv_i64 fpu_f64[32];
 static TCGv cpu_statcounters_icount_kernel, cpu_statcounters_icount_user;
-
-
-#include "exec/gen-icount.h"
 
 
 const char regnames_HI[4][4] = {
@@ -4649,7 +4648,7 @@ static void gen_loongson_lswc2(DisasContext *ctx, int rt,
             gen_load_fpr32(ctx, fp0, rt);
             t1 = tcg_temp_new();
             tcg_gen_ext_i32_tl(t1, fp0);
-            gen_lxl(ctx, t1, t0, ctx->mem_idx, MO_TEUL);
+            gen_lxl(ctx, t1, (TCGv_cap_checked_ptr)t0, ctx->mem_idx, MO_TEUL);
             tcg_gen_trunc_tl_i32(fp0, t1);
             gen_store_fpr32(ctx, fp0, rt);
             break;
@@ -4660,7 +4659,7 @@ static void gen_loongson_lswc2(DisasContext *ctx, int rt,
             gen_load_fpr32(ctx, fp0, rt);
             t1 = tcg_temp_new();
             tcg_gen_ext_i32_tl(t1, fp0);
-            gen_lxr(ctx, t1, t0, ctx->mem_idx, MO_TEUL);
+            gen_lxr(ctx, t1, (TCGv_cap_checked_ptr)t0, ctx->mem_idx, MO_TEUL);
             tcg_gen_trunc_tl_i32(fp0, t1);
             gen_store_fpr32(ctx, fp0, rt);
             break;
@@ -4670,7 +4669,7 @@ static void gen_loongson_lswc2(DisasContext *ctx, int rt,
             gen_base_offset_addr(ctx, t0, rs, shf_offset);
             t1 = tcg_temp_new();
             gen_load_fpr64(ctx, t1, rt);
-            gen_lxl(ctx, t1, t0, ctx->mem_idx, MO_TEUQ);
+            gen_lxl(ctx, t1, (TCGv_cap_checked_ptr)t0, ctx->mem_idx, MO_TEUQ);
             gen_store_fpr64(ctx, t1, rt);
             break;
         case OPC_GSLDRC1:
@@ -4678,7 +4677,7 @@ static void gen_loongson_lswc2(DisasContext *ctx, int rt,
             gen_base_offset_addr(ctx, t0, rs, shf_offset);
             t1 = tcg_temp_new();
             gen_load_fpr64(ctx, t1, rt);
-            gen_lxr(ctx, t1, t0, ctx->mem_idx, MO_TEUQ);
+            gen_lxr(ctx, t1, (TCGv_cap_checked_ptr)t0, ctx->mem_idx, MO_TEUQ);
             gen_store_fpr64(ctx, t1, rt);
             break;
 #endif
@@ -6182,9 +6181,8 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         switch (sel) {
         case CP0_REG09__COUNT:
             /* Mark as an IO operation because we read the time.  */
-            if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-                gen_io_start();
-            }
+            translator_io_start(&ctx->base);
+
             gen_helper_mfc0_count(arg, cpu_env);
             /*
              * Break the TB to be able to take timer interrupts immediately
@@ -6651,14 +6649,13 @@ cp0_unimplemented:
 static void gen_mtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
 {
     const char *register_name = "invalid";
+    bool icount;
 
     if (sel != 0) {
         check_insn(ctx, ISA_MIPS_R1);
     }
 
-    if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-        gen_io_start();
-    }
+    icount = translator_io_start(&ctx->base);
 
     switch (reg) {
     case CP0_REGISTER_00:
@@ -7416,7 +7413,7 @@ static void gen_mtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
     trace_mips_translate_c0("mtc0", register_name, reg, sel);
 
     /* For simplicity assume that all writes can cause interrupts.  */
-    if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
+    if (icount) {
         /*
          * DISAS_STOP isn't sufficient, we need to ensure we break out of
          * translated code to check for pending interrupts.
@@ -7735,9 +7732,7 @@ static void gen_dmfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         switch (sel) {
         case CP0_REG09__COUNT:
             /* Mark as an IO operation because we read the time.  */
-            if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-                gen_io_start();
-            }
+            translator_io_start(&ctx->base);
             gen_helper_mfc0_count(arg, cpu_env);
             /*
              * Break the TB to be able to take timer interrupts immediately
@@ -8196,14 +8191,13 @@ cp0_unimplemented:
 static void gen_dmtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
 {
     const char *register_name = "invalid";
+    bool icount;
 
     if (sel != 0) {
         check_insn(ctx, ISA_MIPS_R1);
     }
 
-    if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-        gen_io_start();
-    }
+    icount = translator_io_start(&ctx->base);
 
     switch (reg) {
     case CP0_REGISTER_00:
@@ -8956,7 +8950,7 @@ static void gen_dmtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
     trace_mips_translate_c0("dmtc0", register_name, reg, sel);
 
     /* For simplicity assume that all writes can cause interrupts.  */
-    if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
+    if (icount) {
         /*
          * DISAS_STOP isn't sufficient, we need to ensure we break out of
          * translated code to check for pending interrupts.
@@ -11790,9 +11784,7 @@ void gen_rdhwr(DisasContext *ctx, int rt, int rd, int sel)
         gen_store_gpr(t0, rt);
         break;
     case 2:
-        if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-            gen_io_start();
-        }
+        translator_io_start(&ctx->base);
         gen_helper_rdhwr_cc(t0, cpu_env);
         gen_store_gpr(t0, rt);
         /*

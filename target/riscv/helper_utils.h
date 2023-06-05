@@ -36,6 +36,16 @@
 #include "tcg/tcg.h"
 #include "tcg/tcg-op.h"
 #include "exec/log.h"
+/*
+ * This header calls helper_riscv_log_gpr_write() (fork log-instr tracing)
+ * below. tcg-op.h/tcg-op-common.h no longer transitively pull in this
+ * target's helper.h since the "tcg: Split helper-proto.h" reorg (only the
+ * target-independent tcg-runtime/plugin helpers are reachable that way
+ * now), and not every .c file that includes this header also includes
+ * "exec/helper-proto.h" itself before doing so, so include it explicitly
+ * here to guarantee helper_* declarations are visible.
+ */
+#include "exec/helper-proto.h"
 #ifdef TARGET_CHERI
 #include "cheri-lazy-capregs.h"
 #endif

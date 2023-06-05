@@ -8,9 +8,20 @@
 #ifndef TARGET_MIPS_TRANSLATE_H
 #define TARGET_MIPS_TRANSLATE_H
 
-#include "qemu/log.h"
-#include "exec/translator.h"
+#include "cpu.h"
 #include "tcg/tcg-op.h"
+#include "exec/translator.h"
+/*
+ * This header uses gen_helper_mips_log_instr_* (fork log-instr tracing)
+ * below. tcg-op.h/tcg-op-common.h no longer transitively pull in this
+ * target's helper.h since the "tcg: Split helper-gen.h" reorg (only the
+ * target-independent tcg-runtime/plugin helpers are reachable that way
+ * now), and not every .c file that includes this header also includes
+ * "exec/helper-gen.h" itself before doing so, so include it explicitly
+ * here to guarantee gen_helper_* declarations are visible.
+ */
+#include "exec/helper-gen.h"
+#include "qemu/log.h"
 
 #define MIPS_DEBUG_DISAS 0
 

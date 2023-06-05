@@ -41,6 +41,13 @@
 
 #ifdef TARGET_CHERI
 
+/*
+ * TCG global holding the DDC-relative offset used to relocate integer
+ * loads/stores under capability mode. Defined once per target, in that
+ * target's own TCG-globals-init code.
+ */
+extern TCGv ddc_interposition;
+
 #define CHERI_TCG_LOGGING 0
 
 #define cheri_tcg_printf_standard(...)                                         \
@@ -369,20 +376,20 @@ generate_special_checked_rmw_ptr(TCGv_cap_checked_ptr checked_addr,
 
 #else // !TARGET_CHERI
 #define generate_ddc_checked_load_ptr(checked_addr, ctx, offset, num_bytes)    \
-    tcg_gen_mov_tl(checked_addr, offset)
+    tcg_gen_mov_tl((TCGv)(checked_addr), offset)
 #define generate_ddc_checked_store_ptr(checked_addr, ctx, offset, num_bytes)   \
-    tcg_gen_mov_tl(checked_addr, offset)
+    tcg_gen_mov_tl((TCGv)(checked_addr), offset)
 #define generate_ddc_checked_rmw_ptr(checked_addr, ctx, offset, num_bytes)     \
-    tcg_gen_mov_tl(checked_addr, offset)
+    tcg_gen_mov_tl((TCGv)(checked_addr), offset)
 #define generate_special_checked_load_ptr(checked_addr, ctx, offset,           \
                                           num_bytes, ddc)                      \
-    tcg_gen_mov_tl(checked_addr, offset)
+    tcg_gen_mov_tl((TCGv)(checked_addr), offset)
 #define generate_special_checked_store_ptr(checked_addr, ctx, offset,          \
                                            num_bytes, ddc)                     \
-    tcg_gen_mov_tl(checked_addr, offset)
+    tcg_gen_mov_tl((TCGv)(checked_addr), offset)
 #define generate_special_checked_rmw_ptr(checked_addr, ctx, offset, num_bytes, \
                                          ddc)                                  \
-    tcg_gen_mov_tl(checked_addr, offset)
+    tcg_gen_mov_tl((TCGv)(checked_addr), offset)
 #endif // TARGET_CHERI
 
 static inline void gen_special_interposed_ld_i64(

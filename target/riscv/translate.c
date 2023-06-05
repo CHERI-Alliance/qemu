@@ -34,6 +34,10 @@
 #include "instmap.h"
 #include "internals.h"
 
+#define HELPER_H "helper.h"
+#include "exec/helper-info.c.inc"
+#undef  HELPER_H
+
 /* global register indices */
 #ifdef TARGET_CHERI
 #include "cheri-lazy-capregs.h"
@@ -52,8 +56,6 @@ static TCGv load_val;
 /* globals for PM CSRs */
 static TCGv pm_mask;
 static TCGv pm_base;
-
-#include "exec/gen-icount.h"
 
 /*
  * If an operation is being performed on less than TARGET_LONG_BITS,
@@ -1659,6 +1661,10 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int *max_insns,
 
     translator_loop(cs, tb, max_insns, pc, host_pc, &riscv_tr_ops, &ctx.base);
 }
+
+#ifdef TARGET_CHERI
+TCGv ddc_interposition;
+#endif
 
 void riscv_translate_init(void)
 {

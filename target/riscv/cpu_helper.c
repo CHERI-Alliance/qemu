@@ -37,6 +37,7 @@
 #include "sysemu/cpu-timers.h"
 #include "cpu_bits.h"
 #include "debug.h"
+#include "tcg/oversized-guest.h"
 
 #ifdef TARGET_CHERI
 #define COPY_SPECIAL_REG(env, dst, cheri_dst, src, cheri_src)   \
