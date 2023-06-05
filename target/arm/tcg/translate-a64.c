@@ -18,25 +18,14 @@
  */
 #include "qemu/osdep.h"
 
-#include "cpu.h"
-#include "exec/exec-all.h"
-#include "tcg/tcg-op.h"
-#include "tcg/tcg-op-gvec.h"
-#include "qemu/log.h"
-#include "arm_ldst.h"
 #include "translate.h"
-#include "internals.h"
-#include "qemu/host-utils.h"
-#include "semihosting/semihost.h"
-#include "exec/gen-icount.h"
-#include "exec/helper-proto.h"
-#include "exec/helper-gen.h"
-#include "exec/log.h"
-#include "exec/log_instr.h"
-
-#include "cpregs.h"
 #include "translate-a64.h"
-#include "qemu/atomic128.h"
+#include "qemu/log.h"
+#include "disas/disas.h"
+#include "arm_ldst.h"
+#include "semihosting/semihost.h"
+#include "exec/log_instr.h"
+#include "cpregs.h"
 
 #include "cheri-translate-utils.h"
 
@@ -127,6 +116,10 @@ typedef struct AArch64DecodeTable {
     uint32_t mask;
     AArch64DecodeFn *disas_fn;
 } AArch64DecodeTable;
+
+#ifdef TARGET_CHERI
+TCGv ddc_interposition;
+#endif
 
 /* initialize TCG globals.  */
 void a64_translate_init(void)
@@ -463,7 +456,7 @@ arm_bounds_checked(DisasContext *s, TCGv_i64 tcg_addr, int size, int base_reg,
 #else
 #define arm_bounds_checked(s, tcg_addr, size, base_reg, is_load, is_store,     \
                            alternate_base, against_ddc)                        \
-    tcg_addr
+    ((TCGv_cap_checked_ptr)(tcg_addr))
 #define IS_C64(ctx) false
 #endif
 
@@ -1922,9 +1915,7 @@ static bool trans_ERET(DisasContext *s, arg_ERET *a)
     tcg_gen_ld_i64(dst, cpu_env,
                    offsetof(CPUARMState, elr_el[s->current_el]));
 
-    if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
-        gen_io_start();
-    }
+    translator_io_start(&s->base);
 
     gen_helper_exception_return(cpu_env, dst);
 #ifdef TARGET_CHERI
@@ -1955,9 +1946,8 @@ static bool trans_ERETA(DisasContext *s, arg_reta *a)
                    offsetof(CPUARMState, elr_el[s->current_el]));
 
     dst = auth_branch_target(s, dst, cpu_X[31], !a->m);
-    if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
-        gen_io_start();
-    }
+
+    translator_io_start(&s->base);
 
     gen_helper_exception_return(cpu_env, dst);
 #ifdef TARGET_CHERI
@@ -2479,7 +2469,7 @@ static TCGv_cap_checked_ptr bounds_check_cache_op(DisasContext *s,
 }
 #else
 #define ZVA_SIZE                            0
-#define bounds_check_cache_op(s, addr, ...) addr
+#define bounds_check_cache_op(s, addr, ...) ((TCGv_cap_checked_ptr)(addr))
 #endif
 
 
@@ -2497,6 +2487,7 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
     uint32_t key = ENCODE_AA64_CP_REG(CP_REG_ARM64_SYSREG_CP,
                                       crn, crm, op0, op1, op2);
     const ARMCPRegInfo *ri = get_arm_cp_reginfo(s->cp_regs, key);
+    bool need_exit_tb = false;
     TCGv_ptr tcg_ri = NULL;
     TCGv_i64 tcg_rt;
 
@@ -2690,8 +2681,9 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
         return;
     }
 
-    if ((tb_cflags(s->base.tb) & CF_USE_ICOUNT) && (ri->type & ARM_CP_IO)) {
-        gen_io_start();
+    if (ri->type & ARM_CP_IO) {
+        /* I/O operations must end the TB here (whether read or write) */
+        need_exit_tb = translator_io_start(&s->base);
     }
 
     tcg_rt = cpu_reg(s, rt);
@@ -2773,10 +2765,6 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
         sp_modified(tcg_rt);
     }
 
-    if ((tb_cflags(s->base.tb) & CF_USE_ICOUNT) && (ri->type & ARM_CP_IO)) {
-        /* I/O operations must end the TB here (whether read or write) */
-        s->base.is_jmp = DISAS_UPDATE_EXIT;
-    }
     if (!isread && !(ri->type & ARM_CP_SUPPRESS_TB_END)) {
         /*
          * A write to any coprocessor regiser that ends a TB
@@ -2788,6 +2776,9 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
          * but allow this to be suppressed by the register definition
          * (usually only necessary to work around guest bugs).
          */
+        need_exit_tb = true;
+    }
+    if (need_exit_tb) {
         s->base.is_jmp = DISAS_UPDATE_EXIT;
     }
 }

@@ -38,13 +38,16 @@
 #include "qemu/log.h"
 #include "qemu/host-utils.h"
 #include "exec/cpu_ldst.h"
-#include "exec/gen-icount.h"
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
 
 #include "exec/translator.h"
 #include "exec/log.h"
 #include "qemu/atomic128.h"
+
+#define HELPER_H "helper.h"
+#include "exec/helper-info.c.inc"
+#undef  HELPER_H
 
 
 /* Information that (most) every instruction needs to manipulate.  */
@@ -1357,7 +1360,8 @@ static DisasJumpType op_asi(DisasContext *s, DisasOps *o)
         tcg_gen_qemu_ld_tl(o->in1, o->addr1, get_mem_index(s), s->insn->data);
     } else {
         /* Perform the atomic addition in memory. */
-        tcg_gen_atomic_fetch_add_i64(o->in1, o->addr1, o->in2, get_mem_index(s),
+        tcg_gen_atomic_fetch_add_i64(o->in1, (TCGv_cap_checked_ptr)o->addr1,
+                                     o->in2, get_mem_index(s),
                                      s->insn->data);
     }
 
@@ -1379,7 +1383,7 @@ static DisasJumpType op_asiu64(DisasContext *s, DisasOps *o)
         tcg_gen_qemu_ld_tl(o->in1, o->addr1, get_mem_index(s), s->insn->data);
     } else {
         /* Perform the atomic addition in memory. */
-        tcg_gen_atomic_fetch_add_i64(o->in1, o->addr1, o->in2, get_mem_index(s),
+        tcg_gen_atomic_fetch_add_i64(o->in1, (TCGv_cap_checked_ptr)o->addr1, o->in2, get_mem_index(s),
                                      s->insn->data);
     }
 
@@ -1472,7 +1476,7 @@ static DisasJumpType op_ni(DisasContext *s, DisasOps *o)
         tcg_gen_qemu_ld_tl(o->in1, o->addr1, get_mem_index(s), s->insn->data);
     } else {
         /* Perform the atomic operation in memory. */
-        tcg_gen_atomic_fetch_and_i64(o->in1, o->addr1, o->in2, get_mem_index(s),
+        tcg_gen_atomic_fetch_and_i64(o->in1, (TCGv_cap_checked_ptr)o->addr1, o->in2, get_mem_index(s),
                                      s->insn->data);
     }
 
@@ -2665,7 +2669,7 @@ static DisasJumpType op_laa(DisasContext *s, DisasOps *o)
 {
     /* The real output is indeed the original value in memory;
        recompute the addition for the computation of CC.  */
-    tcg_gen_atomic_fetch_add_i64(o->in2, o->in2, o->in1, get_mem_index(s),
+    tcg_gen_atomic_fetch_add_i64(o->in2, (TCGv_cap_checked_ptr)o->in2, o->in1, get_mem_index(s),
                                  s->insn->data | MO_ALIGN);
     /* However, we need to recompute the addition for setting CC.  */
     tcg_gen_add_i64(o->out, o->in1, o->in2);
@@ -2676,7 +2680,7 @@ static DisasJumpType op_lan(DisasContext *s, DisasOps *o)
 {
     /* The real output is indeed the original value in memory;
        recompute the addition for the computation of CC.  */
-    tcg_gen_atomic_fetch_and_i64(o->in2, o->in2, o->in1, get_mem_index(s),
+    tcg_gen_atomic_fetch_and_i64(o->in2, (TCGv_cap_checked_ptr)o->in2, o->in1, get_mem_index(s),
                                  s->insn->data | MO_ALIGN);
     /* However, we need to recompute the operation for setting CC.  */
     tcg_gen_and_i64(o->out, o->in1, o->in2);
@@ -2687,7 +2691,7 @@ static DisasJumpType op_lao(DisasContext *s, DisasOps *o)
 {
     /* The real output is indeed the original value in memory;
        recompute the addition for the computation of CC.  */
-    tcg_gen_atomic_fetch_or_i64(o->in2, o->in2, o->in1, get_mem_index(s),
+    tcg_gen_atomic_fetch_or_i64(o->in2, (TCGv_cap_checked_ptr)o->in2, o->in1, get_mem_index(s),
                                 s->insn->data | MO_ALIGN);
     /* However, we need to recompute the operation for setting CC.  */
     tcg_gen_or_i64(o->out, o->in1, o->in2);
@@ -2698,7 +2702,7 @@ static DisasJumpType op_lax(DisasContext *s, DisasOps *o)
 {
     /* The real output is indeed the original value in memory;
        recompute the addition for the computation of CC.  */
-    tcg_gen_atomic_fetch_xor_i64(o->in2, o->in2, o->in1, get_mem_index(s),
+    tcg_gen_atomic_fetch_xor_i64(o->in2, (TCGv_cap_checked_ptr)o->in2, o->in1, get_mem_index(s),
                                  s->insn->data | MO_ALIGN);
     /* However, we need to recompute the operation for setting CC.  */
     tcg_gen_xor_i64(o->out, o->in1, o->in2);
@@ -3555,7 +3559,7 @@ static DisasJumpType op_oi(DisasContext *s, DisasOps *o)
         tcg_gen_qemu_ld_tl(o->in1, o->addr1, get_mem_index(s), s->insn->data);
     } else {
         /* Perform the atomic operation in memory. */
-        tcg_gen_atomic_fetch_or_i64(o->in1, o->addr1, o->in2, get_mem_index(s),
+        tcg_gen_atomic_fetch_or_i64(o->in1, (TCGv_cap_checked_ptr)o->addr1, o->in2, get_mem_index(s),
                                     s->insn->data);
     }
 
@@ -4753,7 +4757,7 @@ static DisasJumpType op_ts(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 t1 = tcg_constant_i32(0xff);
 
-    tcg_gen_atomic_xchg_i32(t1, o->in2, t1, get_mem_index(s), MO_UB);
+    tcg_gen_atomic_xchg_i32(t1, (TCGv_cap_checked_ptr)o->in2, t1, get_mem_index(s), MO_UB);
     tcg_gen_extract_i32(cc_op, t1, 7, 1);
     set_cc_static(s);
     return DISAS_NEXT;
@@ -4882,7 +4886,7 @@ static DisasJumpType op_xi(DisasContext *s, DisasOps *o)
         tcg_gen_qemu_ld_tl(o->in1, o->addr1, get_mem_index(s), s->insn->data);
     } else {
         /* Perform the atomic operation in memory. */
-        tcg_gen_atomic_fetch_xor_i64(o->in1, o->addr1, o->in2, get_mem_index(s),
+        tcg_gen_atomic_fetch_xor_i64(o->in1, (TCGv_cap_checked_ptr)o->addr1, o->in2, get_mem_index(s),
                                      s->insn->data);
     }
 
@@ -6350,10 +6354,7 @@ static DisasJumpType translate_one(CPUS390XState *env, DisasContext *s)
 
         /* input/output is the special case for icount mode */
         if (unlikely(insn->flags & IF_IO)) {
-            icount = tb_cflags(s->base.tb) & CF_USE_ICOUNT;
-            if (icount) {
-                gen_io_start();
-            }
+            icount = translator_io_start(&s->base);
         }
     }
 

@@ -120,6 +120,13 @@ GEN_ATOMIC_HELPERS(xchg)
 
 #undef GEN_ATOMIC_HELPERS
 
+/*
+ * These declarations use the target_ulong-sized "tl" and capability-checked
+ * "cap_checked_ptr" helper typecodes, which are only meaningful in a
+ * per-target compilation unit (one that defines NEED_CPU_H), so they are
+ * only declared there.
+ */
+#ifdef NEED_CPU_H
 #ifdef TARGET_CHERI
 // Check that the second arg (addr) + third arg (num_bytes) is within the bounds
 // of DDC and raise an exception otherwise. Tag+usealed+load/store perms must
@@ -137,6 +144,7 @@ DEF_HELPER_4(cheri_invalidate_tags_condition, void, env, cap_checked_ptr,
              memop_idx, i32)
 
 #endif
+#endif /* NEED_CPU_H */
 
 DEF_HELPER_FLAGS_3(gvec_mov, TCG_CALL_NO_RWG, void, ptr, ptr, i32)
 
@@ -317,6 +325,13 @@ DEF_HELPER_FLAGS_4(gvec_leu64, TCG_CALL_NO_RWG, void, ptr, ptr, ptr, i32)
 
 DEF_HELPER_FLAGS_5(gvec_bitsel, TCG_CALL_NO_RWG, void, ptr, ptr, ptr, ptr, i32)
 
+/*
+ * These declarations use the target_ulong-sized "tl" and capability-checked
+ * "cap_checked_ptr" helper typecodes, which are only meaningful in a
+ * per-target compilation unit (one that defines NEED_CPU_H), so they are
+ * only declared there.
+ */
+#ifdef NEED_CPU_H
 #ifdef CONFIG_TCG_LOG_INSTR
 DEF_HELPER_FLAGS_2(qemu_log_instr_buffered_mode, TCG_CALL_NO_RWG, void, env, i32)
 DEF_HELPER_FLAGS_1(qemu_log_instr_buffer_flush, TCG_CALL_NO_RWG, void, env)
@@ -343,4 +358,5 @@ DEF_HELPER_FLAGS_5(qemu_log_instr_cap, TCG_CALL_NO_WG, void, env, cptr, cptr,
                    i32, i32)
 #endif
 DEF_HELPER_FLAGS_3(log_value, TCG_CALL_NO_WG, void, env, cptr, i64)
-#endif
+#endif /* CONFIG_TCG_LOG_INSTR */
+#endif /* NEED_CPU_H */

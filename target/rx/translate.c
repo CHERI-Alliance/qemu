@@ -28,6 +28,11 @@
 #include "exec/translator.h"
 #include "exec/log.h"
 
+#define HELPER_H "helper.h"
+#include "exec/helper-info.c.inc"
+#undef  HELPER_H
+
+
 typedef struct DisasContext {
     DisasContextBase base;
     CPURXState *env;
@@ -67,8 +72,6 @@ static TCGv cpu_fintv, cpu_intb, cpu_pc;
 static TCGv_i64 cpu_acc;
 
 #define cpu_sp cpu_regs[0]
-
-#include "exec/gen-icount.h"
 
 /* decoder helper */
 static uint32_t decode_load_bytes(DisasContext *ctx, uint32_t insn,
@@ -720,8 +723,8 @@ static bool trans_XCHG_mr(DisasContext *ctx, arg_XCHG_mr *a)
     default:
         g_assert_not_reached();
     }
-    tcg_gen_atomic_xchg_i32(cpu_regs[a->rd], addr, cpu_regs[a->rd],
-                            0, mi_to_mop(a->mi));
+    tcg_gen_atomic_xchg_i32(cpu_regs[a->rd], (TCGv_cap_checked_ptr)addr,
+                            cpu_regs[a->rd], 0, mi_to_mop(a->mi));
     return true;
 }
 

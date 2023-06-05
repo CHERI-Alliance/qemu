@@ -29,6 +29,10 @@
 #include "exec/log.h"
 #include "qemu/qemu-print.h"
 
+#define HELPER_H "helper.h"
+#include "exec/helper-info.c.inc"
+#undef  HELPER_H
+
 
 typedef struct DisasContext {
     DisasContextBase base;
@@ -70,8 +74,6 @@ static TCGv cpu_fregs[32];
 
 /* internal register indexes */
 static TCGv cpu_flags, cpu_delayed_pc, cpu_delayed_cond;
-
-#include "exec/gen-icount.h"
 
 void sh4_translate_init(void)
 {
@@ -1638,7 +1640,7 @@ static void _decode_opc(DisasContext * ctx)
 	tcg_gen_shri_i32(REG(B11_8), REG(B11_8), 16);
 	return;
     case 0x401b:		/* tas.b @Rn */
-        tcg_gen_atomic_fetch_or_i32(cpu_sr_t, REG(B11_8),
+        tcg_gen_atomic_fetch_or_i32(cpu_sr_t, (TCGv_cap_checked_ptr)REG(B11_8),
                                     tcg_constant_i32(0x80), ctx->memidx, MO_UB);
         tcg_gen_setcondi_i32(TCG_COND_EQ, cpu_sr_t, cpu_sr_t, 0);
         return;
@@ -2060,7 +2062,7 @@ static void decode_gusa(DisasContext *ctx, CPUSH4State *env)
         if (st_src == ld_dst || mv_src >= 0) {
             goto fail;
         }
-        tcg_gen_atomic_xchg_i32(REG(ld_dst), REG(ld_adr), REG(st_src),
+        tcg_gen_atomic_xchg_i32(REG(ld_dst), (TCGv_cap_checked_ptr)REG(ld_adr), REG(st_src),
                                 ctx->memidx, ld_mop);
         break;
 
@@ -2069,10 +2071,10 @@ static void decode_gusa(DisasContext *ctx, CPUSH4State *env)
             goto fail;
         }
         if (op_dst == ld_dst && st_mop == MO_UL) {
-            tcg_gen_atomic_add_fetch_i32(REG(ld_dst), REG(ld_adr),
+            tcg_gen_atomic_add_fetch_i32(REG(ld_dst), (TCGv_cap_checked_ptr)REG(ld_adr),
                                          op_arg, ctx->memidx, ld_mop);
         } else {
-            tcg_gen_atomic_fetch_add_i32(REG(ld_dst), REG(ld_adr),
+            tcg_gen_atomic_fetch_add_i32(REG(ld_dst), (TCGv_cap_checked_ptr)REG(ld_adr),
                                          op_arg, ctx->memidx, ld_mop);
             if (op_dst != ld_dst) {
                 /* Note that mop sizes < 4 cannot use add_fetch
@@ -2087,10 +2089,10 @@ static void decode_gusa(DisasContext *ctx, CPUSH4State *env)
             goto fail;
         }
         if (op_dst == ld_dst) {
-            tcg_gen_atomic_and_fetch_i32(REG(ld_dst), REG(ld_adr),
+            tcg_gen_atomic_and_fetch_i32(REG(ld_dst), (TCGv_cap_checked_ptr)REG(ld_adr),
                                          op_arg, ctx->memidx, ld_mop);
         } else {
-            tcg_gen_atomic_fetch_and_i32(REG(ld_dst), REG(ld_adr),
+            tcg_gen_atomic_fetch_and_i32(REG(ld_dst), (TCGv_cap_checked_ptr)REG(ld_adr),
                                          op_arg, ctx->memidx, ld_mop);
             tcg_gen_and_i32(REG(op_dst), REG(ld_dst), op_arg);
         }
@@ -2101,10 +2103,10 @@ static void decode_gusa(DisasContext *ctx, CPUSH4State *env)
             goto fail;
         }
         if (op_dst == ld_dst) {
-            tcg_gen_atomic_or_fetch_i32(REG(ld_dst), REG(ld_adr),
+            tcg_gen_atomic_or_fetch_i32(REG(ld_dst), (TCGv_cap_checked_ptr)REG(ld_adr),
                                         op_arg, ctx->memidx, ld_mop);
         } else {
-            tcg_gen_atomic_fetch_or_i32(REG(ld_dst), REG(ld_adr),
+            tcg_gen_atomic_fetch_or_i32(REG(ld_dst), (TCGv_cap_checked_ptr)REG(ld_adr),
                                         op_arg, ctx->memidx, ld_mop);
             tcg_gen_or_i32(REG(op_dst), REG(ld_dst), op_arg);
         }
@@ -2115,10 +2117,10 @@ static void decode_gusa(DisasContext *ctx, CPUSH4State *env)
             goto fail;
         }
         if (op_dst == ld_dst) {
-            tcg_gen_atomic_xor_fetch_i32(REG(ld_dst), REG(ld_adr),
+            tcg_gen_atomic_xor_fetch_i32(REG(ld_dst), (TCGv_cap_checked_ptr)REG(ld_adr),
                                          op_arg, ctx->memidx, ld_mop);
         } else {
-            tcg_gen_atomic_fetch_xor_i32(REG(ld_dst), REG(ld_adr),
+            tcg_gen_atomic_fetch_xor_i32(REG(ld_dst), (TCGv_cap_checked_ptr)REG(ld_adr),
                                          op_arg, ctx->memidx, ld_mop);
             tcg_gen_xor_i32(REG(op_dst), REG(ld_dst), op_arg);
         }
@@ -2142,9 +2144,7 @@ static void decode_gusa(DisasContext *ctx, CPUSH4State *env)
 
     /* The entire region has been translated.  */
     ctx->envflags &= ~TB_FLAG_GUSA_MASK;
-    ctx->base.pc_next = pc_end;
-    ctx->base.num_insns += max_insns - 1;
-    return;
+    goto done;
 
  fail:
     qemu_log_mask(LOG_UNIMP, "Unrecognized gUSA sequence %08x-%08x\n",
@@ -2161,8 +2161,19 @@ static void decode_gusa(DisasContext *ctx, CPUSH4State *env)
        purposes of accounting within the TB.  We might as well report the
        entire region consumed via ctx->base.pc_next so that it's immediately
        available in the disassembly dump.  */
+
+ done:
     ctx->base.pc_next = pc_end;
     ctx->base.num_insns += max_insns - 1;
+
+    /*
+     * Emit insn_start to cover each of the insns in the region.
+     * This matches an assert in tcg.c making sure that we have
+     * tb->icount * insn_start.
+     */
+    for (i = 1; i < max_insns; ++i) {
+        tcg_gen_insn_start(pc + i * 2, ctx->envflags);
+    }
 }
 #endif
 

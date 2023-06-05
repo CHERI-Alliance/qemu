@@ -1025,7 +1025,8 @@ cp2_unimplemented:
 
 
 #else /* ! TARGET_CHERI */
-#define generate_ccheck_load_right(addr, offset, len) tcg_gen_mov_tl(addr, offset);
+#define generate_ccheck_load_right(addr, offset, len) \
+    tcg_gen_mov_tl((TCGv)(addr), offset);
 #define generate_ccheck_load_pcrel(addr, len)
 #endif /* ! TARGET_CHERI */
 

@@ -33,6 +33,16 @@
 #pragma once
 #include "tcg/tcg.h"
 #include "tcg/tcg-op.h"
+// This header uses gen_helper_raise_exception_pcc_* below, and is pulled in
+// from accel/tcg/translator.c (target-independent) as well as from the
+// per-target translate.c files. The per-target translate.c files already get
+// gen_helper_* declarations for the target's own helper.h via their own
+// translate.h (arm) or explicit "exec/helper-gen.h" include (riscv/mips), but
+// translator.c has no such path of its own, so include it explicitly here.
+// tcg-op.h/tcg-op-common.h no longer pull in the target's helper.h since the
+// "tcg: Split helper-gen.h" reorg (only the target-independent
+// tcg-runtime/plugin helpers are reachable that way now).
+#include "exec/helper-gen.h"
 // Note: Due to cyclic dependencies we can only use DisasContextBase in this
 // file and must avoid anything defined in translate.c as it is also included
 // from accel/tcg/translator.c.
