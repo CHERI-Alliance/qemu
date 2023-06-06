@@ -409,7 +409,7 @@ config ALLWINNER_A10
     select ALLWINNER_WDT
     select ALLWINNER_EMAC
     select ALLWINNER_I2C
-    select AXP209_PMU
+    select AXP2XX_PMU
     select SERIAL
     select UNIMP
 
@@ -428,6 +428,21 @@ config ALLWINNER_H3
     select UNIMP
     select USB_OHCI
     select USB_EHCI_SYSBUS
+    select SD
+
+config ALLWINNER_R40
+    bool
+    # Morello does not support ARMv7M / these 32-bit-only boards
+    # (the R40/bananapi board hard-codes a cortex-a7 CPU, which this fork
+    # excludes entirely under TARGET_CHERI)
+    default y if TCG && ARM && !MORELLO
+    select ALLWINNER_SRAMC
+    select ALLWINNER_A10_PIT
+    select AXP2XX_PMU
+    select SERIAL
+    select ARM_TIMER
+    select ARM_GIC
+    select UNIMP
     select SD
 
 config RASPI

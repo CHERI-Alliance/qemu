@@ -438,13 +438,34 @@ static inline __attribute__((always_inline)) bool load_store_implementation(
         if (exclusive) {
             uint32_t rd_0 = STANDARD_ZERO(rd);
             uint32_t rd2_0 = STANDARD_ZERO(rd2);
+            bool is_pair = rd2 != REG_NONE;
+            int esize = is_pair ? size + 1 : size;
+            MemOp memop;
 
             if (is_load) {
-                gen_load_exclusive(ctx, rd_0, rd2_0, checked, size,
-                                   rd2 != REG_NONE);
+                /*
+                 * For pairs:
+                 * if size == 2, the operation is single-copy atomic for the
+                 * doubleword.
+                 * if size == 3, the operation is single-copy atomic for
+                 * *each* doubleword, not the entire quadword, however it
+                 * must be quadword aligned.
+                 */
+                memop = esize;
+                if (memop == MO_128) {
+                    memop = finalize_memop_atom(ctx, MO_128 | MO_ALIGN,
+                                                MO_ATOM_IFALIGN_PAIR);
+                } else {
+                    memop = finalize_memop(ctx, memop | MO_ALIGN);
+                }
+                gen_load_exclusive_with_checked_addr(ctx, rd_0, rd2_0, checked,
+                                                     size, is_pair, memop);
             } else {
-                gen_store_exclusive(ctx, STANDARD_ZERO(rm), rd_0, rd2_0,
-                                    checked, size, rd2 != REG_NONE);
+                memop = finalize_memop(ctx, esize | MO_ALIGN);
+                gen_store_exclusive_with_checked_addr(ctx, STANDARD_ZERO(rm),
+                                                       rd_0, rd2_0, checked,
+                                                       size, is_pair, memop,
+                                                       rn, false);
             }
         } else if (!vector) {
             MemOp memop = ctx->be_data + size;
@@ -517,10 +538,12 @@ static inline __attribute__((always_inline)) bool load_store_implementation(
                 }
             }
         } else {
+            MemOp mop = finalize_memop_asimd(ctx, size);
+
             if (is_load) {
-                do_fp_ld(ctx, rd, checked, size);
+                do_fp_ld(ctx, rd, checked, mop);
             } else {
-                do_fp_st(ctx, rd, checked, size);
+                do_fp_st(ctx, rd, checked, mop);
             }
         }
     }

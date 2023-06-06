@@ -4167,17 +4167,18 @@ TRANS_FEAT(UCVTF_dd, aa64_sve, gen_gvec_fpst_arg_zpz,
 void gen_sve_ldr(DisasContext *s, TCGv_ptr base, int vofs,
                  int len, int rn, int imm)
 {
-    int len_align = QEMU_ALIGN_DOWN(len, 8);
-    int len_remain = len % 8;
-    int nparts = len / 8 + ctpop8(len_remain);
+    int len_align = QEMU_ALIGN_DOWN(len, 16);
+    int len_remain = len % 16;
+    int nparts = len / 16 + ctpop8(len_remain);
     int midx = get_mem_index(s);
     TCGv_i64 dirty_addr, t0, t1;
     TCGv_cap_checked_ptr clean_addr;
+    TCGv_i128 t16;
 
     dirty_addr = tcg_temp_new_i64();
     tcg_gen_addi_i64(dirty_addr, cpu_reg_sp(s, rn), imm);
     clean_addr = gen_mte_and_cheri_checkN(s, dirty_addr, true, false, rn != 31,
-                                          len, rn, false, true);
+                                          len, MO_8, rn, false, true);
 
     /*
      * Note that unpredicated load/store of vector/predicate registers
@@ -4190,10 +4191,16 @@ void gen_sve_ldr(DisasContext *s, TCGv_ptr base, int vofs,
         int i;
 
         t0 = tcg_temp_new_i64();
-        for (i = 0; i < len_align; i += 8) {
-            tcg_gen_qemu_ld_i64_with_checked_addr(t0, clean_addr, midx, MO_LEUQ);
+        t1 = tcg_temp_new_i64();
+        t16 = tcg_temp_new_i128();
+
+        for (i = 0; i < len_align; i += 16) {
+            tcg_gen_qemu_ld_i128_with_checked_addr(t16, clean_addr, midx,
+                                                   MO_LE | MO_128 | MO_ATOM_NONE);
+            tcg_gen_extr_i128_i64(t0, t1, t16);
             tcg_gen_st_i64(t0, base, vofs + i);
-            tcg_gen_addi_i64((TCGv_i64)clean_addr, (TCGv_i64)clean_addr, 8);
+            tcg_gen_st_i64(t1, base, vofs + i + 8);
+            tcg_gen_addi_i64((TCGv_i64)clean_addr, (TCGv_i64)clean_addr, 16);
         }
     } else {
         TCGLabel *loop = gen_new_label();
@@ -4202,14 +4209,21 @@ void gen_sve_ldr(DisasContext *s, TCGv_ptr base, int vofs,
         tcg_gen_movi_ptr(i, 0);
         gen_set_label(loop);
 
-        t0 = tcg_temp_new_i64();
-        tcg_gen_qemu_ld_i64_with_checked_addr(t0, clean_addr, midx, MO_LEUQ);
-        tcg_gen_addi_i64((TCGv_i64)clean_addr, (TCGv_i64)clean_addr, 8);
+        t16 = tcg_temp_new_i128();
+        tcg_gen_qemu_ld_i128_with_checked_addr(t16, clean_addr, midx,
+                                               MO_LE | MO_128 | MO_ATOM_NONE);
+        tcg_gen_addi_i64((TCGv_i64)clean_addr, (TCGv_i64)clean_addr, 16);
 
         tp = tcg_temp_new_ptr();
         tcg_gen_add_ptr(tp, base, i);
-        tcg_gen_addi_ptr(i, i, 8);
+        tcg_gen_addi_ptr(i, i, 16);
+
+        t0 = tcg_temp_new_i64();
+        t1 = tcg_temp_new_i64();
+        tcg_gen_extr_i128_i64(t0, t1, t16);
+
         tcg_gen_st_i64(t0, tp, vofs);
+        tcg_gen_st_i64(t1, tp, vofs + 8);
 
         tcg_gen_brcondi_ptr(TCG_COND_LTU, i, len_align, loop);
     }
@@ -4218,6 +4232,17 @@ void gen_sve_ldr(DisasContext *s, TCGv_ptr base, int vofs,
      * Predicate register loads can be any multiple of 2.
      * Note that we still store the entire 64-bit unit into cpu_env.
      */
+    if (len_remain >= 8) {
+        t0 = tcg_temp_new_i64();
+        tcg_gen_qemu_ld_i64_with_checked_addr(t0, clean_addr, midx,
+                                              MO_LEUQ | MO_ATOM_NONE);
+        tcg_gen_st_i64(t0, base, vofs + len_align);
+        len_remain -= 8;
+        len_align += 8;
+        if (len_remain) {
+            tcg_gen_addi_i64((TCGv_i64)clean_addr, (TCGv_i64)clean_addr, 8);
+        }
+    }
     if (len_remain) {
         t0 = tcg_temp_new_i64();
         switch (len_remain) {
@@ -4225,16 +4250,17 @@ void gen_sve_ldr(DisasContext *s, TCGv_ptr base, int vofs,
         case 4:
         case 8:
             tcg_gen_qemu_ld_i64_with_checked_addr(t0, clean_addr, midx,
-                                                  MO_LE | ctz32(len_remain));
+                                                  MO_LE | ctz32(len_remain) |
+                                                  MO_ATOM_NONE);
             break;
 
         case 6:
             t1 = tcg_temp_new_i64();
             tcg_gen_qemu_ld_i64_with_checked_addr(t0, clean_addr, midx,
-                                                  MO_LEUL);
+                                                  MO_LEUL | MO_ATOM_NONE);
             tcg_gen_addi_i64((TCGv_i64)clean_addr, (TCGv_i64)clean_addr, 4);
             tcg_gen_qemu_ld_i64_with_checked_addr(t1, clean_addr, midx,
-                                                  MO_LEUW);
+                                                  MO_LEUW | MO_ATOM_NONE);
             tcg_gen_deposit_i64(t0, t0, t1, 32, 32);
             break;
 
@@ -4249,17 +4275,18 @@ void gen_sve_ldr(DisasContext *s, TCGv_ptr base, int vofs,
 void gen_sve_str(DisasContext *s, TCGv_ptr base, int vofs,
                  int len, int rn, int imm)
 {
-    int len_align = QEMU_ALIGN_DOWN(len, 8);
-    int len_remain = len % 8;
-    int nparts = len / 8 + ctpop8(len_remain);
+    int len_align = QEMU_ALIGN_DOWN(len, 16);
+    int len_remain = len % 16;
+    int nparts = len / 16 + ctpop8(len_remain);
     int midx = get_mem_index(s);
-    TCGv_i64 dirty_addr, t0;
+    TCGv_i64 dirty_addr, t0, t1;
     TCGv_cap_checked_ptr clean_addr;
+    TCGv_i128 t16;
 
     dirty_addr = tcg_temp_new_i64();
     tcg_gen_addi_i64(dirty_addr, cpu_reg_sp(s, rn), imm);
     clean_addr = gen_mte_and_cheri_checkN(s, dirty_addr, false, true, rn != 31,
-                                          len, rn, false, true);
+                                          len, MO_8, rn, false, true);
 
     /* Note that unpredicated load/store of vector/predicate registers
      * are defined as a stream of bytes, which equates to little-endian
@@ -4273,10 +4300,15 @@ void gen_sve_str(DisasContext *s, TCGv_ptr base, int vofs,
         int i;
 
         t0 = tcg_temp_new_i64();
+        t1 = tcg_temp_new_i64();
+        t16 = tcg_temp_new_i128();
         for (i = 0; i < len_align; i += 8) {
             tcg_gen_ld_i64(t0, base, vofs + i);
-            tcg_gen_qemu_st_i64_with_checked_addr(t0, clean_addr, midx, MO_LEUQ);
-            tcg_gen_addi_i64((TCGv_i64)clean_addr, (TCGv_i64)clean_addr, 8);
+            tcg_gen_ld_i64(t1, base, vofs + i + 8);
+            tcg_gen_concat_i64_i128(t16, t0, t1);
+            tcg_gen_qemu_st_i128_with_checked_addr(t16, clean_addr, midx,
+                                                   MO_LE | MO_128 | MO_ATOM_NONE);
+            tcg_gen_addi_i64((TCGv_i64)clean_addr, (TCGv_i64)clean_addr, 16);
         }
     } else {
         TCGLabel *loop = gen_new_label();
@@ -4286,18 +4318,35 @@ void gen_sve_str(DisasContext *s, TCGv_ptr base, int vofs,
         gen_set_label(loop);
 
         t0 = tcg_temp_new_i64();
+        t1 = tcg_temp_new_i64();
         tp = tcg_temp_new_ptr();
         tcg_gen_add_ptr(tp, base, i);
         tcg_gen_ld_i64(t0, tp, vofs);
-        tcg_gen_addi_ptr(i, i, 8);
+        tcg_gen_ld_i64(t1, tp, vofs + 8);
+        tcg_gen_addi_ptr(i, i, 16);
 
-        tcg_gen_qemu_st_i64_with_checked_addr(t0, clean_addr, midx, MO_LEUQ);
-        tcg_gen_addi_i64((TCGv_i64)clean_addr, (TCGv_i64)clean_addr, 8);
+        t16 = tcg_temp_new_i128();
+        tcg_gen_concat_i64_i128(t16, t0, t1);
+
+        tcg_gen_qemu_st_i128_with_checked_addr(t16, clean_addr, midx,
+                                               MO_LEUQ);
+        tcg_gen_addi_i64((TCGv_i64)clean_addr, (TCGv_i64)clean_addr, 16);
 
         tcg_gen_brcondi_ptr(TCG_COND_LTU, i, len_align, loop);
     }
 
     /* Predicate register stores can be any multiple of 2.  */
+    if (len_remain >= 8) {
+        t0 = tcg_temp_new_i64();
+        tcg_gen_st_i64(t0, base, vofs + len_align);
+        tcg_gen_qemu_st_i64_with_checked_addr(t0, clean_addr, midx,
+                                              MO_LEUQ | MO_ATOM_NONE);
+        len_remain -= 8;
+        len_align += 8;
+        if (len_remain) {
+            tcg_gen_addi_i64((TCGv_i64)clean_addr, (TCGv_i64)clean_addr, 8);
+        }
+    }
     if (len_remain) {
         t0 = tcg_temp_new_i64();
         tcg_gen_ld_i64(t0, base, vofs + len_align);
@@ -4307,16 +4356,17 @@ void gen_sve_str(DisasContext *s, TCGv_ptr base, int vofs,
         case 4:
         case 8:
             tcg_gen_qemu_st_i64_with_checked_addr(t0, clean_addr, midx,
-                                                  MO_LE | ctz32(len_remain));
+                                                  MO_LE | ctz32(len_remain) |
+                                                  MO_ATOM_NONE);
             break;
 
         case 6:
             tcg_gen_qemu_st_i64_with_checked_addr(t0, clean_addr, midx,
-                                                  MO_LEUL);
+                                                  MO_LEUL | MO_ATOM_NONE);
             tcg_gen_addi_i64((TCGv_i64)clean_addr, (TCGv_i64)clean_addr, 4);
             tcg_gen_shri_i64(t0, t0, 32);
             tcg_gen_qemu_st_i64_with_checked_addr(t0, clean_addr, midx,
-                                                  MO_LEUW);
+                                                  MO_LEUW | MO_ATOM_NONE);
             break;
 
         default:
@@ -4973,6 +5023,7 @@ static bool trans_LD1R_zpri(DisasContext *s, arg_rpri_load *a)
     TCGLabel *over;
     TCGv_i64 temp;
     TCGv_cap_checked_ptr clean_addr;
+    MemOp memop;
 
     if (!dc_isar_feature(aa64_sve, s)) {
         return false;
@@ -5002,11 +5053,12 @@ static bool trans_LD1R_zpri(DisasContext *s, arg_rpri_load *a)
     /* Load the data.  */
     temp = tcg_temp_new_i64();
     tcg_gen_addi_i64(temp, cpu_reg_sp(s, a->rn), a->imm << msz);
-    clean_addr = gen_mte_and_cheri_check1(s, temp, true, false, true, msz,
-                                          a->rn, false, true);
 
+    memop = finalize_memop(s, dtype_mop[a->dtype]);
+    clean_addr = gen_mte_and_cheri_check1(s, temp, true, false, true, memop,
+                                          a->rn, false, true);
     tcg_gen_qemu_ld_i64_with_checked_addr(temp, clean_addr, get_mem_index(s),
-                        finalize_memop(s, dtype_mop[a->dtype]));
+                                          memop);
 
     /* Broadcast to *all* elements.  */
     tcg_gen_gvec_dup_i64(esz, vec_full_reg_offset(s, a->rd),
