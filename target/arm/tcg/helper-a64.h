@@ -116,6 +116,9 @@ DEF_HELPER_FLAGS_2(alignment_fault_exception, TCG_CALL_NO_RETURN, void, env,
                    i64)
 DEF_HELPER_FLAGS_1(sp_alignment_exception, TCG_CALL_NO_RETURN, void, env)
 
+DEF_HELPER_FLAGS_4(unaligned_access, TCG_CALL_NO_WG,
+                   noreturn, env, i64, i32, i32)
+
 #if defined(TARGET_CHERI)
 #include "cheri-helper-common.h"
 #endif
