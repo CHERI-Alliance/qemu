@@ -34,7 +34,7 @@ static bool trans_wrs(DisasContext *ctx)
     /* TODO fix load_res handling due to the res now being a capability */
     /* tcg_gen_mov_cap_checked(load_res, -1); */
 
-    gen_set_pc_imm(ctx, ctx->pc_succ_insn);
+    gen_update_pc(ctx, ctx->cur_insn_len);
     tcg_gen_exit_tb(NULL, 0);
     ctx->base.is_jmp = DISAS_NORETURN;
 

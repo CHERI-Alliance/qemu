@@ -40,8 +40,9 @@ static bool trans_auipc(DisasContext *ctx, arg_auipc *a)
 {
 #ifdef TARGET_CHERI
     if (ctx->capmode) {
-        gen_helper_auipcc(cpu_env, tcg_constant_i32(a->rd),
-                          tcg_constant_tl(a->imm + ctx->base.pc_next));
+        TCGv target_pc = tcg_temp_new();
+        gen_pc_plus_diff(target_pc, ctx, a->imm);
+        gen_helper_auipcc(cpu_env, tcg_constant_i32(a->rd), target_pc);
         return true;
     }
 #endif
@@ -49,7 +50,10 @@ static bool trans_auipc(DisasContext *ctx, arg_auipc *a)
      * AUIPC returns a value relative to PCC.base for ISAv8 but the address for
      * v9. This is handled by the pcc_reloc() macro.
      */
-    gen_set_gpri(ctx, a->rd, a->imm + ctx->base.pc_next);
+    TCGv target_pc = dest_gpr(ctx, a->rd);
+    gen_pc_plus_diff(target_pc, ctx, a->imm);
+    tcg_gen_subi_tl(target_pc, target_pc, pcc_reloc(ctx));
+    gen_set_gpr(ctx, a->rd, target_pc);
     return true;
 }
 
@@ -154,6 +158,7 @@ static bool gen_branch(DisasContext *ctx, arg_b *a, TCGCond cond)
     TCGLabel *l = gen_new_label();
     TCGv src1 = get_gpr(ctx, a->rs1, EXT_SIGN);
     TCGv src2 = get_gpr(ctx, a->rs2, EXT_SIGN);
+    target_ulong orig_pc_save = ctx->pc_save;
 
     if (get_xl(ctx) == MXL_RV128) {
 #ifdef TARGET_CHERI
@@ -171,18 +176,22 @@ static bool gen_branch(DisasContext *ctx, arg_b *a, TCGCond cond)
         tcg_gen_brcond_tl(cond, src1, src2, l);
     }
     /* Branch not taken, CHERI PCC bounds check done on next ifetch. */
-    gen_goto_tb(ctx, 1, ctx->pc_succ_insn, /*bounds_check=*/false);
+    gen_goto_tb(ctx, 1, ctx->cur_insn_len, /*bounds_check=*/false);
+    ctx->pc_save = orig_pc_save;
 
     gen_set_label(l); /* branch taken */
 
     if (!has_ext(ctx, RVC) && !ctx->cfg_ptr->ext_zca &&
-        ((ctx->base.pc_next + a->imm) & 0x3)) {
+        (a->imm & 0x3)) {
         /* misaligned */
-        gen_exception_inst_addr_mis(ctx);
+        TCGv target_pc = tcg_temp_new();
+        gen_pc_plus_diff(target_pc, ctx, a->imm);
+        gen_exception_inst_addr_mis(ctx, target_pc);
     } else {
         /* Branch taken -> check if PCC bounds allow for this jump. */
-        gen_goto_tb(ctx, 0, ctx->base.pc_next + a->imm, /*bounds_check=*/true);
+        gen_goto_tb(ctx, 0, a->imm, /*bounds_check=*/true);
     }
+    ctx->pc_save = -1;
     ctx->base.is_jmp = DISAS_NORETURN;
 
     return true;
@@ -474,8 +483,10 @@ static bool trans_slti(DisasContext *ctx, arg_slti *a)
      * from next instruction.
      */
     if (unlikely(a->rd == 0)) {
-        TCGv tpc = tcg_constant_tl(ctx->base.pc_next);
+        TCGv tpc = tcg_temp_new();
         TCGv_i32 ttmp;
+
+        gen_pc_plus_diff(tpc, ctx, 0);
 
         switch (a->imm) {
         case 0x01: case 0x02:
@@ -504,7 +515,7 @@ static bool trans_slti(DisasContext *ctx, arg_slti *a)
         }
 
         if (ctx->base.is_jmp != DISAS_NEXT) {
-            gen_set_pc_imm(ctx, ctx->pc_succ_insn);
+            gen_update_pc(ctx, ctx->cur_insn_len);
             tcg_gen_exit_tb(NULL, 0);
             return true;
         }
@@ -850,7 +861,7 @@ static bool trans_pause(DisasContext *ctx, arg_pause *a)
      * PAUSE is a no-op in QEMU,
      * end the TB and return to main loop
      */
-    gen_set_pc_imm(ctx, ctx->pc_succ_insn);
+    gen_update_pc(ctx, ctx->cur_insn_len);
     exit_tb(ctx);
     ctx->base.is_jmp = DISAS_NORETURN;
 
@@ -874,7 +885,7 @@ static bool trans_fence_i(DisasContext *ctx, arg_fence_i *a)
      * FENCE_I is a no-op in QEMU,
      * however we need to end the translation block
      */
-    gen_set_pc_imm(ctx, ctx->pc_succ_insn);
+    gen_update_pc(ctx, ctx->cur_insn_len);
     exit_tb(ctx);
     ctx->base.is_jmp = DISAS_NORETURN;
     return true;
@@ -894,7 +905,7 @@ static bool do_csr_post(DisasContext *ctx)
     /* The helper may raise ILLEGAL_INSN -- record binv for unwind. */
     decode_save_opc(ctx);
     /* We may have changed important cpu state -- exit to main loop. */
-    gen_set_pc_imm(ctx, ctx->pc_succ_insn);
+    gen_update_pc(ctx, ctx->cur_insn_len);
     exit_tb(ctx);
     ctx->base.is_jmp = DISAS_NORETURN;
     return true;

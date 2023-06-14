@@ -170,24 +170,34 @@ static inline bool gen_cheri_cap_cap_imm(int cd, int cs1, target_long imm,
 static void gen_cjal(DisasContext *ctx, int rd, target_ulong imm)
 {
     /* Mask the LSB to match the RISC-V spec for JAL. */
-    target_ulong next_pc = (ctx->base.pc_next + imm) & ~(target_ulong)1;
+    target_long diff = (target_long)imm & ~(target_ulong)1;
+    TCGv target_addr = tcg_temp_new();
+    TCGv link_addr = tcg_temp_new();
 
-    TCGv target_addr = tcg_constant_tl(next_pc);
-    TCGv link_addr = tcg_constant_tl(ctx->pc_succ_insn);
+    gen_pc_plus_diff(target_addr, ctx, diff);
+    gen_pc_plus_diff(link_addr, ctx, ctx->cur_insn_len);
     /*
      * helper_cjal() checks for misalignment and capability bounds. It also
      * ensures that the written value is a sentry and marks PC as up-to-date.
      */
     gen_helper_cjal(cpu_env, tcg_constant_i32(rd), target_addr, link_addr);
+    /*
+     * helper_cjal() has already made cpu_pc exact (see above), so record
+     * that here for gen_goto_tb()'s own PC-relative update below to build
+     * on, the same way a direct gen_update_pc() call would.
+     */
+    ctx->pc_save = ctx->base.pc_next + diff;
 
     /* No bounds check needed here since we did it in helper_cjal(). */
-    gen_goto_tb(ctx, 0, next_pc, false);
+    gen_goto_tb(ctx, 0, diff, false);
     ctx->base.is_jmp = DISAS_NORETURN;
 }
 
 static void gen_cjalr(DisasContext *ctx, int cd, int cs1, target_ulong imm)
 {
-    TCGv t0 = tcg_constant_tl(ctx->pc_succ_insn); /* Link addr + resulting pc */
+    TCGv t0 = tcg_temp_new(); /* Link addr + resulting pc */
+
+    gen_pc_plus_diff(t0, ctx, ctx->cur_insn_len);
     gen_helper_cjalr(cpu_env, tcg_constant_i32(cd), tcg_constant_i32(cs1),
                      tcg_constant_tl(imm), t0);
 
@@ -244,7 +254,7 @@ static bool trans_cspecialrw(DisasContext *ctx, arg_cspecialrw *a)
             // When DDC changes we have to exit the current translation block
             // since we cache DDC properties in the flags to optimize out
             // bounds/permission checks.
-            gen_set_pc_imm(ctx, ctx->pc_succ_insn);
+            gen_update_pc(ctx, ctx->cur_insn_len);
             tcg_gen_exit_tb(NULL, 0);
             ctx->base.is_jmp = DISAS_NORETURN;
         }
@@ -583,7 +593,7 @@ static inline bool do_trans_modesw(DisasContext *ctx, bool to_capmode)
      * See Morello code which uses DISAS_UPDATE_EXIT.
      */
     /* create tcg instruction to exit the tb */
-    gen_set_pc_imm(ctx, ctx->pc_succ_insn);
+    gen_update_pc(ctx, ctx->cur_insn_len);
     tcg_gen_exit_tb(NULL, 0);
     /* This indicates to riscv_tr_tb_stop that no cleanup is needed. */
     ctx->base.is_jmp = DISAS_NORETURN;

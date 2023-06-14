@@ -152,6 +152,12 @@ void riscv_cpu_get_tb_cpu_state(CPURISCVState *env, target_ulong *pc,
         }
     }
 
+    /* With Zfinx, floating point is enabled/disabled by Smstateen. */
+    if (!riscv_has_ext(env, RVF)) {
+        fs = (smstateen_acc_ok(env, 0, SMSTATEEN0_FCSR) == RISCV_EXCP_NONE)
+             ? EXT_STATUS_DIRTY : EXT_STATUS_DISABLED;
+    }
+
     if (cpu->cfg.debug && !icount_enabled()) {
         flags = FIELD_DP32(flags, TB_FLAGS, ITRIGGER, env->itrigger_enabled);
     }
@@ -160,7 +166,7 @@ void riscv_cpu_get_tb_cpu_state(CPURISCVState *env, target_ulong *pc,
     flags = FIELD_DP32(flags, TB_FLAGS, FS, fs);
     flags = FIELD_DP32(flags, TB_FLAGS, VS, vs);
     flags = FIELD_DP32(flags, TB_FLAGS, XL, env->xl);
-    if (env->cur_pmmask < (env->xl == MXL_RV32 ? UINT32_MAX : UINT64_MAX)) {
+    if (env->cur_pmmask != 0) {
         flags = FIELD_DP32(flags, TB_FLAGS, PM_MASK_ENABLED, 1);
     }
     if (env->cur_pmbase != 0) {
@@ -172,7 +178,7 @@ void riscv_cpu_get_tb_cpu_state(CPURISCVState *env, target_ulong *pc,
 
 void riscv_cpu_update_mask(CPURISCVState *env)
 {
-    target_ulong mask = -1, base = 0;
+    target_ulong mask = 0, base = 0;
     /*
      * TODO: Current RVJ spec does not specify
      * how the extension interacts with XLEN.
@@ -822,39 +828,30 @@ void riscv_cpu_set_mode(CPURISCVState *env, target_ulong newpriv)
  *
  * @env: CPURISCVState
  * @prot: The returned protection attributes
- * @tlb_size: TLB page size containing addr. It could be modified after PMP
- *            permission checking. NULL if not set TLB page for addr.
  * @addr: The physical address to be checked permission
  * @access_type: The type of MMU access
  * @mode: Indicates current privilege level.
  */
-static int get_physical_address_pmp(CPURISCVState *env, int *prot,
-                                    target_ulong *tlb_size, hwaddr addr,
+static int get_physical_address_pmp(CPURISCVState *env, int *prot, hwaddr addr,
                                     int size, MMUAccessType access_type,
                                     int mode)
 {
     pmp_priv_t pmp_priv;
-    int pmp_index = -1;
+    bool pmp_has_privs;
 
     if (!riscv_cpu_cfg(env)->pmp) {
         *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
         return TRANSLATE_SUCCESS;
     }
 
-    pmp_index = pmp_hart_has_privs(env, addr, size,
+    pmp_has_privs = pmp_hart_has_privs(env, addr, size,
                         access_type_to_pmp_priv(access_type), &pmp_priv, mode);
-    if (pmp_index < 0) {
+    if (!pmp_has_privs) {
         *prot = 0;
         return TRANSLATE_PMP_FAIL;
     }
 
     *prot = pmp_priv_to_page_prot(pmp_priv);
-    if ((tlb_size != NULL) && pmp_index != MAX_RISCV_PMPS) {
-        target_ulong tlb_sa = addr & ~(TARGET_PAGE_SIZE - 1);
-        target_ulong tlb_ea = tlb_sa + TARGET_PAGE_SIZE - 1;
-
-        *tlb_size = pmp_get_tlb_size(env, pmp_index, tlb_sa, tlb_ea);
-    }
 
     return TRANSLATE_SUCCESS;
 }
@@ -1076,7 +1073,7 @@ restart:
         }
 
         int pmp_prot;
-        int pmp_ret = get_physical_address_pmp(env, &pmp_prot, NULL, pte_addr,
+        int pmp_ret = get_physical_address_pmp(env, &pmp_prot, pte_addr,
                                                sizeof(target_ulong),
                                                MMU_DATA_LOAD, PRV_S);
         if (pmp_ret != TRANSLATE_SUCCESS) {
@@ -1784,8 +1781,9 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
             prot &= prot2 | prot_lc_preserve;
 
             if (ret == TRANSLATE_SUCCESS) {
-                ret = get_physical_address_pmp(env, &prot_pmp, &tlb_size, pa,
+                ret = get_physical_address_pmp(env, &prot_pmp, pa,
                                                size, access_type, mode);
+                tlb_size = pmp_get_tlb_size(env, pa);
 
                 qemu_log_mask(CPU_LOG_MMU,
                               "%s PMP address=" HWADDR_FMT_plx " ret %d prot"
@@ -1819,8 +1817,9 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                       __func__, address, ret, pa, prot);
 
         if (ret == TRANSLATE_SUCCESS) {
-            ret = get_physical_address_pmp(env, &prot_pmp, &tlb_size, pa,
+            ret = get_physical_address_pmp(env, &prot_pmp, pa,
                                            size, access_type, mode);
+            tlb_size = pmp_get_tlb_size(env, pa);
 
             qemu_log_mask(CPU_LOG_MMU,
                           "%s PMP address=" HWADDR_FMT_plx " ret %d prot"

@@ -43,7 +43,7 @@
      * cm_jalt fetches its jump target from the jvt vector table via a   \
      * plain code load (zce_helper.c, no DDC/PCC awareness) and then     \
      * writes it straight into cpu_pc without the bounds check that      \
-     * gen_set_pc()'s other callers (e.g. gen_jalr()) perform against    \
+     * gen_jalr() performs (via gen_check_branch_target_dynamic()) against \
      * PCC, and (for index >= 32) writes the link register via           \
      * gen_set_gpri() without the "- pcc_reloc(ctx)" adjustment that     \
      * gen_jal()/gen_jalr() apply for CHERI ISAv8 offset-from-PCC.base   \
@@ -229,8 +229,8 @@ static bool gen_pop(DisasContext *ctx, arg_cmpp *a, bool ret, bool ret_val)
     }
 
     if (ret) {
-        TCGv ret_addr = get_gpr(ctx, xRA, EXT_NONE);
-        gen_set_pc(ctx, ret_addr);
+        TCGv ret_addr = get_gpr(ctx, xRA, EXT_SIGN);
+        tcg_gen_mov_tl(cpu_pc, ret_addr);
         tcg_gen_lookup_and_goto_ptr();
         ctx->base.is_jmp = DISAS_NORETURN;
     }
@@ -325,12 +325,14 @@ static bool trans_cm_jalt(DisasContext *ctx, arg_cm_jalt *a)
      * Update pc to current for the non-unwinding exception
      * that might come from cpu_ld*_code() in the helper.
      */
-    tcg_gen_movi_tl(cpu_pc, ctx->base.pc_next);
+    gen_update_pc(ctx, 0);
     gen_helper_cm_jalt(cpu_pc, cpu_env, tcg_constant_i32(a->index));
 
     /* c.jt vs c.jalt depends on the index. */
     if (a->index >= 32) {
-        gen_set_gpri(ctx, xRA, ctx->pc_succ_insn);
+        TCGv succ_pc = dest_gpr(ctx, xRA);
+        gen_pc_plus_diff(succ_pc, ctx, ctx->cur_insn_len);
+        gen_set_gpr(ctx, xRA, succ_pc);
     }
 
     tcg_gen_lookup_and_goto_ptr();
