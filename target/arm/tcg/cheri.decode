@@ -90,7 +90,11 @@ BRS 11000010110.....1..001.....00000 @op_BRS_RETS_CHK
 CHK 11000010110.....1..001.....00001 @op_BRS_RETS_CHK
 
 # CAS, CASA, CASAL, CASL
-CAS 101000101.1......11111.......... @op_CAS
+# NOTE: renamed from "CAS" to "MRLL_CAS" to avoid a trans_CAS symbol clash
+# with target/arm/tcg/a64.decode's own (plain AArch64) CAS, now that both are
+# decodetree-generated into the same translation unit. If this file is
+# regenerated upstream of the fork, keep this rename.
+MRLL_CAS 101000101.1......11111.......... @op_CAS
 
 # BUILD, CSEAL, CPYTYPE, CPYVALUE
 BUILD_CSEAL_CPYE 11000010110.....0..001.......... @op_BUILD_CSEAL_CPYE
@@ -126,13 +130,21 @@ CVT2 11000010110001010..100.......... @op_CFHI_GCL_CVT
 GC 1100001011000000...100.......... @op_GC
 
 # LDAPR
-LDAPR 1010001000111111110000.......... @op_LDAPR
+# NOTE: renamed from "LDAPR" to "MRLL_LDAPR" to avoid a trans_LDAPR symbol
+# clash with target/arm/tcg/a64.decode's own (plain AArch64) LDAPR, now that
+# both are decodetree-generated into the same translation unit. If this file
+# is regenerated upstream of the fork, keep this rename.
+MRLL_LDAPR 1010001000111111110000.......... @op_LDAPR
 
 # LDPBLR, LDPBR
 LDPBR 11000010110001000..100.......... @op_LDPBR
 
 # LDR
-LDR 1000001000...................... @op_LDR
+# NOTE: renamed from "LDR" to "MRLL_LDR" to avoid a trans_LDR symbol clash
+# with target/arm/tcg/a64.decode's own (plain AArch64) LDR, now that both are
+# decodetree-generated into the same translation unit. If this file is
+# regenerated upstream of the fork, keep this rename.
+MRLL_LDR 1000001000...................... @op_LDR
 
 # LDR, LDR, LDTR, LDUR, STR, STR, STTR, STUR
 LDR_STR 10100010..0..................... @op_LDR_STR
@@ -162,7 +174,11 @@ SC 11000010110.....0..000.......... @op_SC
 CVT3 11000010110.....110000.......... @op_SUBS_CVT
 
 # SWP, SWPA, SWPAL, SWPL
-SWP 10100010..1.....100000.......... @op_SWP
+# NOTE: renamed from "SWP" to "MRLL_SWP" to avoid a trans_SWP symbol clash
+# with target/arm/tcg/a64.decode's own (plain AArch64) SWP, now that both are
+# decodetree-generated into the same translation unit. If this file is
+# regenerated upstream of the fork, keep this rename.
+MRLL_SWP 10100010..1.....100000.......... @op_SWP
 
 # CVTD, CVTP, CVTDZ, CVTPZ
 CVT4 11000010110001011..100.......... @op_CVT
