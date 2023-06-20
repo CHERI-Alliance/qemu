@@ -60,7 +60,7 @@
  */
 #define NB_MMU_MODES 16
 
-#if !defined(CONFIG_USER_ONLY) && defined(CONFIG_TCG)
+#if defined(CONFIG_SOFTMMU) && defined(CONFIG_TCG)
 #include "exec/tlb-common.h"
 
 /* use a fully associative victim tlb of 8 entries */
@@ -89,9 +89,9 @@
 #  endif
 # endif
 
-#endif  /* !CONFIG_USER_ONLY && CONFIG_TCG */
+#endif /* CONFIG_SOFTMMU && CONFIG_TCG */
 
-#if !defined(CONFIG_USER_ONLY)
+#if defined(CONFIG_SOFTMMU)
 /*
  * The full TLB entry, which is not accessed by generated TCG code,
  * so the layout is not as critical as that of CPUTLBEntry. This is
@@ -162,7 +162,7 @@ typedef struct CPUTLBEntryFull {
     TARGET_PAGE_ENTRY_EXTRA
 #endif
 } CPUTLBEntryFull;
-#endif  /* !CONFIG_USER_ONLY */
+#endif /* CONFIG_SOFTMMU */
 
 #define IOTLB_GET_TAGMEM(iotlbentry, rw)                                       \
     ({                                                                         \
@@ -172,7 +172,7 @@ typedef struct CPUTLBEntryFull {
 #define IOTLB_GET_TAGMEM_FLAGS(iotlbentry, rw)                                 \
     ((uintptr_t)iotlbentry->tagmem_##rw & TLBENTRYCAP_MASK);
 
-#if !defined(CONFIG_USER_ONLY) && defined(CONFIG_TCG)
+#if defined(CONFIG_SOFTMMU) && defined(CONFIG_TCG)
 /*
  * Data elements that are per MMU mode, minus the bits accessed by
  * the TCG fast path.
@@ -238,7 +238,7 @@ typedef struct CPUTLB {
 
 typedef struct CPUTLB { } CPUTLB;
 
-#endif  /* !CONFIG_USER_ONLY && CONFIG_TCG */
+#endif /* CONFIG_SOFTMMU && CONFIG_TCG */
 
 /*
  * This structure must be placed in ArchCPU immediately
