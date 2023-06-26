@@ -12295,8 +12295,8 @@ static bool mve_no_pred(CPUARMState *env)
     return true;
 }
 
-void aarch_cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
-                                target_ulong *cs_base, target_ulong *pcc_base,
+void aarch_cpu_get_tb_cpu_state(CPUARMState *env, vaddr *pc,
+                                uint64_t *cs_base, target_ulong *pcc_base,
                                 target_ulong *pcc_top, uint32_t *cheri_flags,
                                 uint32_t *pflags)
 {

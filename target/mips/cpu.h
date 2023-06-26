@@ -1451,8 +1451,8 @@ void itc_reconfigure(struct MIPSITUState *tag);
 target_ulong exception_resume_pc(CPUMIPSState *env);
 
 static inline void
-mips_cpu_get_tb_cpu_state(CPUMIPSState *env, target_ulong *pc,
-                          target_ulong *cs_base, target_ulong *pcc_base,
+mips_cpu_get_tb_cpu_state(CPUMIPSState *env, vaddr *pc,
+                          uint64_t *cs_base, target_ulong *pcc_base,
                           target_ulong *pcc_top, uint32_t *cheri_flags,
                           uint32_t *flags)
 {

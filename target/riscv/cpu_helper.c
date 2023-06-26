@@ -79,8 +79,8 @@ int riscv_cpu_mmu_index(CPURISCVState *env, bool ifetch)
 #endif
 }
 
-void riscv_cpu_get_tb_cpu_state(CPURISCVState *env, target_ulong *pc,
-                           target_ulong *cs_base, target_ulong *pcc_base,
+void riscv_cpu_get_tb_cpu_state(CPURISCVState *env, vaddr *pc,
+                           uint64_t *cs_base, target_ulong *pcc_base,
                            target_ulong *pcc_top, uint32_t *cheri_flags,
                            uint32_t *pflags)
 {
