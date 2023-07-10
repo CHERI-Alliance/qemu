@@ -532,7 +532,8 @@ target_ulong helper_mret(CPURISCVState *env)
     }
 #endif
 
-    target_ulong prev_virt = get_field(env->mstatus, MSTATUS_MPV);
+    target_ulong prev_virt = get_field(env->mstatus, MSTATUS_MPV) &&
+                             (prev_priv != PRV_M);
     mstatus = set_field(mstatus, MSTATUS_MIE,
                         get_field(mstatus, MSTATUS_MPIE));
     mstatus = set_field(mstatus, MSTATUS_MPIE, 1);

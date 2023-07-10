@@ -55,15 +55,10 @@ qapi_trace_events = []
 
 bsd_oses = ['gnu/kfreebsd', 'freebsd', 'netbsd', 'openbsd', 'dragonfly', 'darwin']
 supported_oses = ['windows', 'freebsd', 'netbsd', 'openbsd', 'darwin', 'sunos', 'linux']
-supported_cpus = ['ppc', 'ppc64', 's390x', 'riscv', 'x86', 'x86_64',
+supported_cpus = ['ppc', 'ppc64', 's390x', 'riscv32', 'riscv64', 'x86', 'x86_64',
   'arm', 'aarch64', 'loongarch64', 'mips', 'mips64', 'sparc64']
 
 cpu = host_machine.cpu_family()
-
-# Unify riscv* to a single family.
-if cpu in ['riscv32', 'riscv64']
-  cpu = 'riscv'
-endif
 
 targetos = host_machine.system()
 host_os = targetos
@@ -102,6 +97,8 @@ elif cpu == 'x86'
   host_arch = 'i386'
 elif cpu == 'mips64'
   host_arch = 'mips'
+elif cpu in ['riscv32', 'riscv64']
+  host_arch = 'riscv'
 else
   host_arch = cpu
 endif
@@ -116,8 +113,10 @@ elif cpu in ['ppc', 'ppc64']
   kvm_targets = ['ppc-softmmu', 'ppc64-softmmu']
 elif cpu in ['mips', 'mips64']
   kvm_targets = ['mips-softmmu', 'mipsel-softmmu', 'mips64-softmmu', 'mips64el-softmmu']
-elif cpu in ['riscv']
-  kvm_targets = ['riscv32-softmmu', 'riscv64-softmmu']
+elif cpu in ['riscv32']
+  kvm_targets = ['riscv32-softmmu']
+elif cpu in ['riscv64']
+  kvm_targets = ['riscv64-softmmu']
 else
   kvm_targets = []
 endif
