@@ -465,6 +465,18 @@ typedef struct RISCVCPUConfigDisas {
     bool ext_zcmp;
     bool ext_zcmt;
     bool ext_zfinx;
+    bool ext_xtheadba;
+    bool ext_xtheadbb;
+    bool ext_xtheadbs;
+    bool ext_xtheadcmo;
+    bool ext_xtheadcondmov;
+    bool ext_xtheadfmemidx;
+    bool ext_xtheadfmv;
+    bool ext_xtheadmac;
+    bool ext_xtheadmemidx;
+    bool ext_xtheadmempair;
+    bool ext_xtheadsync;
+    bool ext_XVentanaCondOps;
 } RISCVCPUConfigDisas;
 
 int print_insn_riscv32          (bfd_vma, disassemble_info*);
