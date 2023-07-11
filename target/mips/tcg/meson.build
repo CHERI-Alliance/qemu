@@ -4,6 +4,7 @@ gen = [
   decodetree.process('tx79.decode', extra_args: '--static-decode=decode_tx79'),
   decodetree.process('vr54xx.decode', extra_args: '--decode=decode_ext_vr54xx'),
   decodetree.process('octeon.decode', extra_args: '--decode=decode_ext_octeon'),
+  decodetree.process('lcsr.decode', extra_args: '--decode=decode_ase_lcsr'),
 ]
 
 mips_ss.add(gen)
@@ -30,7 +31,9 @@ tx79_ss.add(when: 'TARGET_CHERI', if_false: files('tx79_translate.c'))
 mips_ss.add(when: 'TARGET_MIPS64', if_false: files('mxu_translate.c'))
 mips_ss.add_all(when: 'TARGET_MIPS64', if_true: [tx79_ss])
 mips_ss.add(when: 'TARGET_MIPS64', if_true: files(
-  'octeon_translate.c'))
+  'octeon_translate.c',
+  'lcsr_translate.c',
+))
 
 if have_system
   subdir('sysemu')
