@@ -13,3 +13,7 @@ config GPIO_PWR
 
 config SIFIVE_GPIO
     bool
+
+config XILINX_AXI_GPIO
+    bool
+    select REGISTER
