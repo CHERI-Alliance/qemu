@@ -214,6 +214,15 @@ static uint32_t ssi_sd_transfer(SSIPeripheral *dev, uint32_t val)
                 }
 
                 cardstatus = ldl_be_p(longresp);
+
+                /*
+                 * CMD0 resets the card to idle state, so we don't care about
+                 * the state before the command.
+                 */
+                if (s->cmd == 0) {
+                    cardstatus &= ~CURRENT_STATE;
+                }
+
                 status = 0;
                 if (((cardstatus >> 9) & 0xf) < 4)
                     status |= SSI_SDR_IDLE;
