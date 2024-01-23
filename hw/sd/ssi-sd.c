@@ -180,7 +180,20 @@ static uint32_t ssi_sd_transfer(SSIPeripheral *dev, uint32_t val)
                 /* CMD8/CMD58 returns R3/R7 response */
                 DPRINTF("Returned R3/R7\n");
                 s->arglen = 5;
-                s->response[0] = 1;
+                /*
+                 * SD card specification documents the MSB of R3/R7
+                 * as being the same as R1:
+                 *   It is one byte long, and the MSB is always set to zero.
+                 *   The other bits are error indications.
+                 * Bit 0 indicates:
+                 *   In idle state: The card is in idle state and running
+                 *   the initializing process.
+                 *
+                 * Originally this code set bit 0.
+                 * However FSBL expects a response of 0, which presumably it
+                 * gets from real hardware.
+                 */
+                s->response[0] = 0;
                 memcpy(&s->response[1], longresp, 4);
             } else if (s->arglen != 4) {
                 BADF("Unexpected response to cmd %d\n", s->cmd);
