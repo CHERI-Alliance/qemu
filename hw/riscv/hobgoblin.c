@@ -63,6 +63,8 @@ static const memmapEntry_t memmap[] = {
         "riscv.hobgoblin.boot.rom"},
     [HOBGOBLIN_BOOT_RAM] = { 0x10400000, 0x00008000,
         "riscv.hobgoblin.boot.ram"},
+    [HOBGOBLIN_SRAM] =     { 0x20000000, 0x08000000,
+        "riscv.hobgoblin.sram"},
     [HOBGOBLIN_PLIC] =     { 0x40000000,  0x4000000, ""},
     [HOBGOBLIN_CLINT] =    { 0x60014000,     0xc000, ""},
     /*
@@ -318,6 +320,8 @@ static void hobgoblin_machine_init(MachineState *machine)
     hobgoblin_add_memory_area(system_memory, &memmap[HOBGOBLIN_MROM]);
     hobgoblin_add_memory_area(system_memory, &memmap[HOBGOBLIN_BOOT_ROM]);
     hobgoblin_add_memory_area(system_memory, &memmap[HOBGOBLIN_BOOT_RAM]);
+    /* SRAM exists on FPGA only */
+    hobgoblin_add_memory_area(system_memory, &memmap[HOBGOBLIN_SRAM]);
 
     /* add interrupt controller */
     hobgoblin_add_interrupt_controller(s, smp_cpus);
