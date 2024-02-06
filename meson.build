@@ -1930,6 +1930,22 @@ if rdma.found()
                                        prefix: '#include <infiniband/verbs.h>'))
 endif
 
+have_inotify_init = cc.has_header_symbol('sys/inotify.h', 'inotify_init')
+have_inotify_init1 = cc.has_header_symbol('sys/inotify.h', 'inotify_init1')
+inotify = not_found
+if (have_inotify_init or have_inotify_init1) and host_os == 'freebsd'
+  # libinotify-kqueue
+  inotify = cc.find_library('inotify')
+  if have_inotify_init
+    have_inotify_init = inotify.found()
+  endif
+  if have_inotify_init1
+    have_inotify_init1 = inotify.found()
+  endif
+endif
+config_host_data.set('CONFIG_INOTIFY', have_inotify_init)
+config_host_data.set('CONFIG_INOTIFY1', have_inotify_init1)
+
 # has_header_symbol
 config_host_data.set('CONFIG_BYTESWAP_H',
                      cc.has_header_symbol('byteswap.h', 'bswap_32'))
@@ -1946,10 +1962,6 @@ config_host_data.set('CONFIG_FIEMAP',
 config_host_data.set('CONFIG_GETRANDOM',
                      cc.has_function('getrandom') and
                      cc.has_header_symbol('sys/random.h', 'GRND_NONBLOCK'))
-config_host_data.set('CONFIG_INOTIFY',
-                     cc.has_header_symbol('sys/inotify.h', 'inotify_init'))
-config_host_data.set('CONFIG_INOTIFY1',
-                     cc.has_header_symbol('sys/inotify.h', 'inotify_init1'))
 config_host_data.set('CONFIG_MACHINE_BSWAP_H',
                      cc.has_header_symbol('machine/bswap.h', 'bswap32',
                                           prefix: '''#include <sys/endian.h>
@@ -4047,6 +4059,9 @@ summary_info += {'libudev':           libudev}
 # Dummy dependency, keep .found()
 summary_info += {'FUSE lseek':        fuse_lseek.found()}
 summary_info += {'selinux':           selinux}
+if host_os == 'freebsd'
+  summary_info += {'libinotify-kqueue': inotify}
+endif
 summary(summary_info, bool_yn: true, section: 'Dependencies')
 
 if not supported_cpus.contains(cpu)
