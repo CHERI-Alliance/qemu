@@ -3574,6 +3574,7 @@ typedef CPUARMState CPUArchState;
 typedef ARMCPU ArchCPU;
 
 static inline bool pc_is_current(CPUArchState *env);
+static inline target_ulong cpu_get_recent_pc(CPUArchState *env);
 
 #include "exec/cpu-all.h"
 #include "cpu_cheri.h"
