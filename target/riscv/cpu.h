@@ -200,7 +200,6 @@ struct CPURISCVState {
 
 #ifdef TARGET_CHERI
     // XXX: not implemented properly
-    cap_register_t UTCC; // SCR 4 User trap code cap. (UTCC)
     cap_register_t UTDC; // SCR 5 User trap data cap. (UTDC)
     cap_register_t UScratchC; // SCR 6 User scratch cap. (UScratchC)
     cap_register_t UEPCC; // SCR 7 User exception PC cap. (UEPCC)

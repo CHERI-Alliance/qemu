@@ -739,7 +739,6 @@ static void riscv_cpu_reset(DeviceState *dev)
     set_max_perms_capability(&env->PCC, env->resetvec);
     set_max_perms_capability(&env->DDC, 0);
     // User mode trap handling:
-    set_max_perms_capability(&env->UTCC, 0);
     null_capability(&env->UTDC);
     null_capability(&env->UScratchC);
     set_max_perms_capability(&env->UEPCC, 0);

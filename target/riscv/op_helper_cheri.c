@@ -119,7 +119,6 @@ static inline cap_register_t *get_scr(CPUArchState *env, uint32_t index)
     case CheriSCR_PCC: return &env->PCC;
     case CheriSCR_DDC: return &env->DDC;
 
-    case CheriSCR_UTCC: return &env->UTCC;
     case CheriSCR_UTDC: return &env->UTDC;
     case CheriSCR_UScratchC: return &env->UScratchC;
     case CheriSCR_UEPCC: return &env->UEPCC;
