@@ -40,7 +40,6 @@
 #include "cheri_utils.h"
 
 bool cpu_restore_state(CPUState *cpu, uintptr_t host_pc, bool will_exit);
-static inline bool pc_is_current(CPUArchState *env);
 static inline target_ulong cpu_get_recent_pc(CPUArchState *env);
 
 #ifdef TARGET_CHERI

@@ -1370,6 +1370,8 @@ static inline int cpu_mmu_index(CPUMIPSState *env, bool ifetch)
 typedef CPUMIPSState CPUArchState;
 typedef MIPSCPU ArchCPU;
 
+static inline bool pc_is_current(CPUArchState *env);
+
 #include "exec/cpu-all.h"
 #include "cpu_cheri.h"
 
