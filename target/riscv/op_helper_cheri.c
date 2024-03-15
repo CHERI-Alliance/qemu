@@ -94,7 +94,6 @@ struct SCRInfo {
     [CheriSCR_PCC] = {.r = true, .w = false, .access = U_Always, .name = "PCC"},
     [CheriSCR_DDC] = {.r = true, .w = true, .access = U_Always, .name = "DDC"},
 
-    [CheriSCR_UTCC] = {.r = true, .w = true, .access = U_ASR_RW, .name = "UTCC"},
     [CheriSCR_UTDC] = {.r = true, .w = true, .access = U_ASR_RW, .name = "UTDC"},
     [CheriSCR_UScratchC] = {.r = true,
                             .w = true,
@@ -205,7 +204,6 @@ void HELPER(cspecialrw)(CPUArchState *env, uint32_t cd, uint32_t cs,
         }
 #endif
         switch (index) {
-        case CheriSCR_UTCC:
         case CheriSCR_STCC:
         case CheriSCR_MTCC: {
             target_ulong new_tvec = SCR_TO_PROGRAM_COUNTER(env, &new_val);
