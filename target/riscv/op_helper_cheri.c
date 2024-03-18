@@ -82,8 +82,6 @@ struct SCRInfo {
     [CheriSCR_PCC] = {.r = true, .w = false, .access = U_Always, .name = "PCC"},
     [CheriSCR_DDC] = {.r = true, .w = true, .access = U_Always, .name = "DDC"},
 
-    [CheriSCR_UEPCC] = {.r = true, .w = true, .access = U_ASR, .name = "UEPCC"},
-
     [CheriSCR_STCC] = {.r = true, .w = true, .access = S_ASR, .name = "STCC"},
     [CheriSCR_STDC] = {.r = true, .w = true, .access = S_ASR, .name = "STDC"},
     [CheriSCR_SScratchC] = {.r = true,
@@ -112,8 +110,6 @@ static inline cap_register_t *get_scr(CPUArchState *env, uint32_t index)
     switch (index) {
     case CheriSCR_PCC: return &env->PCC;
     case CheriSCR_DDC: return &env->DDC;
-
-    case CheriSCR_UEPCC: return &env->UEPCC;
 
     case CheriSCR_STCC: return &env->STCC;
     case CheriSCR_STDC: return &env->STDC;
@@ -170,7 +166,6 @@ void HELPER(cspecialrw)(CPUArchState *env, uint32_t cd, uint32_t cs,
         // For xEPCC we clear the low address bit(s) when reading to match xEPC.
         // See helper_sret/helper_mret for more context.
         switch(index) {
-        case CheriSCR_UEPCC:
         case CheriSCR_SEPCC:
         case CheriSCR_MEPCC: {
             cap_register_t legalized = *scr;

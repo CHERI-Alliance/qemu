@@ -199,11 +199,6 @@ struct CPURISCVState {
 #endif
 
 #ifdef TARGET_CHERI
-    // XXX: not implemented properly
-    cap_register_t UEPCC; // SCR 7 User exception PC cap. (UEPCC)
-#endif
-
-#ifdef TARGET_CHERI
     cap_register_t STCC;      // SCR 12 Supervisor trap code cap. (STCC)
     cap_register_t STDC;      // SCR 13 Supervisor trap data cap. (STDC)
     cap_register_t SScratchC; // SCR 14 Supervisor scratch cap. (SScratchC)
