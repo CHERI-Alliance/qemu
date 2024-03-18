@@ -200,11 +200,6 @@ struct CPURISCVState {
 #endif
 
 #ifdef TARGET_CHERI
-    // XXX: not implemented properly
-    cap_register_t uepcc; // SCR 7 User exception PC cap. (UEPCC)
-#endif
-
-#ifdef TARGET_CHERI
     cap_register_t stcc;      // SCR 12 Supervisor trap code cap. (STCC)
     cap_register_t stdc;      // SCR 13 Supervisor trap data cap. (STDC)
     cap_register_t sscratchc; // SCR 14 Supervisor scratch cap. (SScratchC)
@@ -829,8 +824,6 @@ static inline cap_register_t *riscv_get_scr(CPUArchState *env, uint32_t index)
     switch (index) {
     case CheriSCR_PCC: return &env->pcc;
     case CheriSCR_DDC: return &env->ddc;
-
-    case CheriSCR_UEPCC: return &env->uepcc;
 
     case CheriSCR_STCC: return &env->stcc;
     case CheriSCR_STDC: return &env->stdc;
