@@ -81,7 +81,6 @@ enum CheriSCR {
     CheriSCR_DDC = 1,
 
     CheriSCR_UTIDC = 3,
-    CheriSCR_UEPCC = 7,
 
     CheriSCR_STIDC = 11,
     CheriSCR_STCC = 12,
