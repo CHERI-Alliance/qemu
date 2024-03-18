@@ -94,10 +94,6 @@ struct SCRInfo {
     [CheriSCR_PCC] = {.r = true, .w = false, .access = U_Always, .name = "PCC"},
     [CheriSCR_DDC] = {.r = true, .w = true, .access = U_Always, .name = "DDC"},
 
-    [CheriSCR_UScratchC] = {.r = true,
-                            .w = true,
-                            .access = U_ASR_RW,
-                            .name = "UScratchC"},
     [CheriSCR_UEPCC] = {.r = true, .w = true, .access = U_ASR_RW, .name = "UEPCC"},
     [CheriSCR_UTIDC] = {.r = true, .w = true, .access = U_ASR_W, .name = "UTIDC"},
 
