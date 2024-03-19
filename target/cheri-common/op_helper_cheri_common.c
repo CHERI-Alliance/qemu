@@ -1745,3 +1745,11 @@ void helper_capreg_state_debug(CPUArchState *env, uint32_t regnum,
     // Should include the actual state
     assert((flags & (1 << (uint64_t)regstate)) && pc);
 }
+
+target_ulong CHERI_HELPER_IMPL(gctag(CPUArchState *env, uint32_t cb))
+{
+    /*
+     * gctag: Move Tag to a General-Purpose Register
+     */
+    return (target_ulong)get_capreg_tag(env, cb);
+}

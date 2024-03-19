@@ -34,6 +34,10 @@
 # This is concatenated with insn32.decode for risc64 targets.
 # Most of the fields and formats are there.
 
+%cs1       15:5
+
+@c2      .......   ..... ..... ... ..... ....... %cs1 %rd
+
 ### Three operand instructions
 # 0000000 unused
 cspecialrw  0000001  ..... ..... 000 ..... 1011011 @r
@@ -89,6 +93,7 @@ cloadtags   1111111  10010 ..... 000 ..... 1011011 @r2
 jalr_pcc    1111111  10100 ..... 000 ..... 1011011 @r2
 cgethigh    1111111  10111 ..... 000 ..... 1011011 @r2
 
+gctag       0001000  00000 ..... 000 ..... 0110011 @c2
 
 # There is an existing @sfence_vma format with rs1+rs2 fields, but let's define a new name
 @r_2source ....... ..... .....   ... ..... ....... %rs2 %rs1
