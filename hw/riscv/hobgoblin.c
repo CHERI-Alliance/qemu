@@ -28,6 +28,7 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "hw/boards.h"
+#include "hw/irq.h"
 #include "hw/loader.h"
 #include "hw/sysbus.h"
 #include "hw/sd/sd.h"
@@ -42,6 +43,7 @@
 #include "chardev/char.h"
 #include "sysemu/device_tree.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/runstate.h"
 #include "exec/address-spaces.h"
 #include <libfdt.h>
 
@@ -242,6 +244,14 @@ static void hobgoblin_add_uart(HobgoblinState_t *s,
                    chardev, DEVICE_LITTLE_ENDIAN);
 }
 
+static void hobgoblin_gpio_1_3_event(void *opaque, int n, int level)
+{
+    /* gpio pin active high triggers reset */
+    if (level) {
+        qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
+    }
+}
+
 static void hobgoblin_add_gpio(HobgoblinState_t *s)
 {
     for (int i = 0; i < 2; i++) {
@@ -255,6 +265,11 @@ static void hobgoblin_add_gpio(HobgoblinState_t *s)
         /* publish GPIO device */
         s->gpio[i] = gpio;
     }
+
+    /* Reset via GPIO 1.3 */
+    qdev_connect_gpio_out(DEVICE(s->gpio[1]), 3,
+                          qemu_allocate_irq(hobgoblin_gpio_1_3_event, NULL, 0));
+
 }
 
 static void hobgoblin_add_spi(HobgoblinState_t *s)
