@@ -24,7 +24,7 @@ include:
   - local: '/.gitlab-ci.d/qemu-project.yml'
 default:
     image:
-        name: docker-registry.codasip.com/platforms/qemu:0.1.1
+        name: docker-registry.codasip.com/cheri/qemu:0.1.2
         entrypoint: [""]
     interruptible: true
     tags:
