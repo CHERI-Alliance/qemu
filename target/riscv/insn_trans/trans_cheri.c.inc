@@ -707,3 +707,16 @@ TRANSLATE_SC_EXPLICIT(sc_w, MO_ALIGN | MO_SL);
 #ifdef TARGET_RISCV64
 TRANSLATE_SC_EXPLICIT(sc_d, MO_ALIGN | MO_Q);
 #endif
+
+static bool trans_gctag(DisasContext *ctx, arg_gctag *a)
+{
+    TCGv_i32 cs1 = tcg_const_i32(a->cs1);
+    TCGv rd = tcg_temp_new();
+
+    gen_helper_gctag(rd, cpu_env, cs1);
+    gen_set_gpr(a->rd, rd);
+
+    tcg_temp_free(rd);
+    tcg_temp_free_i32(cs1);
+    return true;
+}

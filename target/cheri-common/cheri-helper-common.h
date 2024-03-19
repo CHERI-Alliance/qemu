@@ -151,3 +151,5 @@ DEF_HELPER_2(debug_cap, void, env, i32)
 
 // Check that static optimisation is correct
 DEF_HELPER_4(capreg_state_debug, void, env, i32, i64, i64)
+
+DEF_HELPER_2(gctag, tl, env, i32)
