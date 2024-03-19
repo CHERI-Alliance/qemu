@@ -23,24 +23,31 @@
 include:
   - local: '/.gitlab-ci.d/qemu-project.yml'
 default:
-  image:
-    name: docker-registry.codasip.com/cheri/software/bakewell/cherillvm:0.1.1
-    entrypoint: [""]
-  interruptible: true
-  tags:
-    - docker
-    - linux
-    - nolicense
+    image:
+        name: docker-registry.codasip.com/cheri/software/bakewell/cherillvm:0.1.1
+        entrypoint: [""]
+    interruptible: true
+    tags:
+        - docker
+        - linux
+        - nolicense
 
-build_qemu_riscvcheri:
-  image:
-    name: docker-registry.codasip.com/cheri/software/bakewell/cherillvm:0.1.1
-    entrypoint: [""]
-  interruptible: true
-  tags:
-    - docker
-    - linux
-    - nolicense
-  needs: []
-  script:
-    - scripts/riscv_cheri/build_cheri_llvm
+build_qemu_riscvcheri_64:
+    stage: build
+    script:
+        - scripts/riscv_cheri/build_riscv_cheri riscv64cheri-softmmu
+
+build_qemu_riscvcheri_32:
+    stage: build
+    script:
+        - scripts/riscv_cheri/build_riscv_cheri riscv32cheri-softmmu
+
+build_qemu_morellocheri:
+    stage: build
+    script:
+        - scripts/riscv_cheri/build_riscv_cheri morello-softmmu
+
+build_qemu_mipscheri:
+    stage: build
+    script:
+        - scripts/riscv_cheri/build_mips_cheri mips64cheri128-softmmu

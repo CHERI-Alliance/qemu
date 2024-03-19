@@ -4,12 +4,12 @@
 set -e
 set -u
 set -o pipefail
-
+TARGET=$1
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 REPO_DIR=$(realpath ${SCRIPT_DIR}/../..)
-BUILD_DIR=${REPO_DIR}/build
+BUILD_DIR=${REPO_DIR}/build_${TARGET}
 
 mkdir -p ${BUILD_DIR} 
 cd ${BUILD_DIR}
-${REPO_DIR}/configure --target-list=riscv64cheri-softmmu --disable-werror
+${REPO_DIR}/configure --target-list=${TARGET} --disable-werror
 ninja 
