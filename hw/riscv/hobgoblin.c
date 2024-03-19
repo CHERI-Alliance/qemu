@@ -63,7 +63,15 @@ static const memmapEntry_t memmap[] = {
         "riscv.hobgoblin.boot.ram"},
     [HOBGOBLIN_PLIC] =     { 0x40000000,  0x4000000, ""},
     [HOBGOBLIN_CLINT] =    { 0x60014000,     0xc000, ""},
-    [HOBGOBLIN_UART0] =    { 0x60100000,     0x1020, ""},
+    /*
+     * The Hobgoblin FPGA uses a Xilinx AXI UART 16550 v2.0, which is at
+     * 0x60100000 and uses 8 KiB in the address space. However, the lower 4 KiB
+     * do not contain any registers, they start at offset 4 KiB. To keep things
+     * simple, we leave out the lower 4 KiB and just declare the upper 4 KiB
+     * here. The acessible register are fully compatible with QEMU's existing
+     * NS16550A UART emulation.
+     */
+    [HOBGOBLIN_UART0] =    { 0x60101000,     0x1000, ""},
     [HOBGOBLIN_SPI] =      { 0x60210000,     0x1000, ""},
     [HOBGOBLIN_GPIO0] =    { 0x60300000,    0x10000, ""},
     [HOBGOBLIN_GPIO1] =    { 0x60310000,    0x10000, ""},
@@ -230,7 +238,7 @@ static void hobgoblin_add_uart(HobgoblinState_t *s,
 
     qemu_irq irq = hobgoblin_make_plic_irq(s, HOBGOBLIN_UART0_IRQ);
 
-    serial_mm_init(system_memory, mem_uart->base + 0x1000, 2, irq, 115200,
+    serial_mm_init(system_memory, mem_uart->base, 2, irq, 115200,
                    chardev, DEVICE_LITTLE_ENDIAN);
 }
 
