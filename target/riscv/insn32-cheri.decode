@@ -82,7 +82,7 @@ cseqx       0100001  ..... ..... 000 ..... 1011011 @rcc
 &cc cd cs1
 @cc .......  ..... ..... ... ..... ....... &cc %cd %cs1
 
-# TODO: generate from sail?
+# ISAv9 instruction
 cgetperm    1111111  00000 ..... 000 ..... 1011011 @rc
 cgettype    1111111  00001 ..... 000 ..... 1011011 @rc
 cgetbase    1111111  00010 ..... 000 ..... 1011011 @rc
@@ -105,6 +105,8 @@ cloadtags   1111111  10010 ..... 000 ..... 1011011 @rc
 jalr_pcc    1111111  10100 ..... 000 ..... 1011011 @r2
 cgethigh    1111111  10111 ..... 000 ..... 1011011 @rc
 
+# RISC-V standard instructions
+gctag       0001000  00000 ..... 000 ..... 0110011 @rc
 
 # There is an existing @sfence_vma format with rs1+rs2 fields, but let's define a new name
 @r_2source ....... ..... .....   ... ..... ....... %rs2 %rs1

@@ -33,11 +33,14 @@
  * SUCH DAMAGE.
  */
 
-#define DO_TRANSLATE(name, gen_helper, ...)                                    \
+#define DO_TRANSLATE_HELPER(name, gen_helper, helper_name, ...)                \
     static bool trans_##name(DisasContext *ctx, arg_##name *a)                 \
     {                                                                          \
-        return gen_helper(__VA_ARGS__, &gen_helper_##name);                    \
+        return gen_helper(__VA_ARGS__, &gen_helper_##helper_name);             \
     }
+
+#define DO_TRANSLATE(name, gen_helper, ...)                                    \
+    DO_TRANSLATE_HELPER(name, gen_helper, name, __VA_ARGS__)
 
 typedef void(cheri_int_cap_helper)(TCGv, TCGv_env, TCGv_i32);
 static inline bool gen_cheri_int_cap(DisasContext *ctx, arg_rc *a,
@@ -50,7 +53,9 @@ static inline bool gen_cheri_int_cap(DisasContext *ctx, arg_rc *a,
     return true;
 }
 
-#define TRANSLATE_INT_CAP(name) DO_TRANSLATE(name, gen_cheri_int_cap, ctx, a)
+#define TRANSLATE_INT_CAP_HELPER(name, helper)                                 \
+    DO_TRANSLATE_HELPER(name, gen_cheri_int_cap, helper, ctx, a)
+#define TRANSLATE_INT_CAP(name) TRANSLATE_INT_CAP_HELPER(name, name)
 
 typedef void(cheri_cap_cap_helper)(TCGv_env, TCGv_i32, TCGv_i32);
 static inline bool gen_cheri_cap_cap(arg_cc *a, cheri_cap_cap_helper *gen_func)
@@ -650,3 +655,9 @@ TRANSLATE_SC_EXPLICIT(sc_w, MO_ALIGN | MO_SL);
 #ifdef TARGET_RISCV64
 TRANSLATE_SC_EXPLICIT(sc_d, MO_ALIGN | MO_Q);
 #endif
+
+/*
+ * Instructions from the RISC-V CHERI standard.
+ */
+
+TRANSLATE_INT_CAP_HELPER(gctag, cgettag)
