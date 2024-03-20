@@ -65,7 +65,6 @@ DEF_HELPER_FLAGS_2(cgetlen, 0, tl, env, i32)
 DEF_HELPER_FLAGS_2(cgetperm, 0, tl, env, i32)
 DEF_HELPER_FLAGS_2(cgetoffset, 0, tl, env, i32)
 DEF_HELPER_FLAGS_2(cgetsealed, 0, tl, env, i32)
-DEF_HELPER_FLAGS_2(cgettag, 0, tl, env, i32)
 DEF_HELPER_FLAGS_2(cgettype, 0, tl, env, i32)
 
 // Two operands (cap cap)

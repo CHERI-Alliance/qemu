@@ -312,14 +312,6 @@ target_ulong CHERI_HELPER_IMPL(cgetsealed(CPUArchState *env, uint32_t cb))
     return cap_is_unsealed(cbp) ? 0 : 1;
 }
 
-target_ulong CHERI_HELPER_IMPL(cgettag(CPUArchState *env, uint32_t cb))
-{
-    /*
-     * CGetTag: Move Tag to a General-Purpose Register
-     */
-    return (target_ulong)get_capreg_tag(env, cb);
-}
-
 target_ulong CHERI_HELPER_IMPL(cgettype(CPUArchState *env, uint32_t cb))
 {
     /*

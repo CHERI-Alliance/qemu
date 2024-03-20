@@ -2120,3 +2120,12 @@ void helper_smp_yield(CPUMIPSState *env) {
     cpu_loop_exit(cs);
 }
 
+#ifdef TARGET_CHERI
+target_ulong helper_cgettag(CPUArchState *env, uint32_t cb)
+{
+    /*
+     * CGetTag: Move Tag to a General-Purpose Register
+     */
+    return (target_ulong)get_capreg_tag(env, cb);
+}
+#endif
