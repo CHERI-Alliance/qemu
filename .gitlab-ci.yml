@@ -42,6 +42,16 @@ build_qemu_riscvcheri_32:
     script:
         - scripts/riscv_cheri/build_riscv_cheri riscv32cheri 
 
+build_qemu_riscv_64:
+    stage: build
+    script:
+        - scripts/riscv_cheri/build_riscv_cheri riscv64 
+
+build_qemu_riscv_32:
+    stage: build
+    script:
+        - scripts/riscv_cheri/build_riscv_cheri riscv32 
+
 build_qemu_morellocheri:
     stage: build
     script:
