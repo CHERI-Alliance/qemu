@@ -190,7 +190,6 @@ TRANSLATE_INT_CAP(cgethigh)
 TRANSLATE_INT_CAP(cgetlen)
 TRANSLATE_INT_CAP(cgetoffset)
 TRANSLATE_INT_CAP(cgetperm)
-TRANSLATE_INT_CAP(cgettag)
 TRANSLATE_INT_CAP(cgettype)
 TRANSLATE_INT_CAP(cgetsealed)
 

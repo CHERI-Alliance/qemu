@@ -552,7 +552,6 @@ typedef enum {
     rv_op_cgettype,
     rv_op_cgetbase,
     rv_op_cgetlen,
-    rv_op_cgettag,
     rv_op_cgetsealed,
     rv_op_cgetoffset,
     rv_op_cgetflags,
@@ -1317,7 +1316,6 @@ const rv_opcode_data opcode_data[] = {
     [rv_op_cgettype] = { "cgettype", rv_codec_r, rv_fmt_rd_cs1, NULL, 0, 0, 0 },
     [rv_op_cgetbase] = { "cgetbase", rv_codec_r, rv_fmt_rd_cs1, NULL, 0, 0, 0 },
     [rv_op_cgetlen] = { "cgetlen", rv_codec_r, rv_fmt_rd_cs1, NULL, 0, 0, 0 },
-    [rv_op_cgettag] = { "cgettag", rv_codec_r, rv_fmt_rd_cs1, NULL, 0, 0, 0 },
     [rv_op_cgetsealed] = { "cgetsealed", rv_codec_r, rv_fmt_rd_cs1, NULL, 0, 0, 0 },
     [rv_op_cgetoffset] = { "cgetoffset", rv_codec_r, rv_fmt_rd_cs1, NULL, 0, 0, 0 },
     [rv_op_cgetflags] = { "cgetflags", rv_codec_r, rv_fmt_rd_cs1, NULL, 0, 0, 0 },
@@ -1590,7 +1588,6 @@ static rv_opcode decode_cheri_two_op(unsigned func) {
     case 0b00001: return rv_op_cgettype;
     case 0b00010: return rv_op_cgetbase;
     case 0b00011: return rv_op_cgetlen;
-    case 0b00100: return rv_op_cgettag;
     case 0b00101: return rv_op_cgetsealed;
     case 0b00110: return rv_op_cgetoffset;
     case 0b00111: return rv_op_cgetflags;
