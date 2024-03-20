@@ -35,6 +35,7 @@ typedef struct {
     DeviceState *plic;
     DeviceState *spi;
     DeviceState *gpio[2];
+    DeviceState *eth;
 } HobgoblinState_t;
 
 #define HOBGOBLIN_MACHINE_STATE(obj) \
@@ -47,6 +48,7 @@ enum {
     HOBGOBLIN_SRAM, /* exists on FPGA only */
     HOBGOBLIN_PLIC,
     HOBGOBLIN_CLINT,
+    HOBGOBLIN_ETH,
     HOBGOBLIN_UART0,
     HOBGOBLIN_SPI,
     HOBGOBLIN_GPIO0,
@@ -60,6 +62,7 @@ enum {
     HOBGOBLIN_SPI_IRQ      = 4,
     HOBGOBLIN_GPIO0_IRQ    = 7,
     HOBGOBLIN_GPIO1_IRQ    = 8,
+    HOBGOBLIN_ETH_IRQ      = 15,
     /* ----------- */
     HOBGOBLIN_MAX_IRQ
 };
