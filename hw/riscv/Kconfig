@@ -88,3 +88,4 @@ config HOBGOBLIN
     select SIFIVE_PLIC
     select XILINX_SPI
     select XILINX_AXI_GPIO
+    select XILINX_ETHLITE
