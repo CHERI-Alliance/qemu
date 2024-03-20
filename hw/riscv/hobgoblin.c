@@ -45,10 +45,12 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/runstate.h"
 #include "exec/address-spaces.h"
+#include "net/net.h"
 #include <libfdt.h>
 
 #define TYPE_XILINX_SPI "xlnx.xps-spi"
 #define TYPE_XLNX_AXI_GPIO "xlnx.axi-gpio"
+#define TYPE_XILINX_ETHLITE "xlnx.xps-ethernetlite"
 
 typedef struct {
     hwaddr base;
@@ -67,6 +69,7 @@ static const memmapEntry_t memmap[] = {
         "riscv.hobgoblin.sram"},
     [HOBGOBLIN_PLIC] =     { 0x40000000,  0x4000000, ""},
     [HOBGOBLIN_CLINT] =    { 0x60014000,     0xc000, ""},
+    [HOBGOBLIN_ETH] =      { 0x60020000,     0x2000, ""},
     /*
      * The Hobgoblin FPGA uses a Xilinx AXI UART 16550 v2.0, which is at
      * 0x60100000 and uses 8 KiB in the address space. However, the lower 4 KiB
@@ -304,6 +307,29 @@ static void hobgoblin_add_spi(HobgoblinState_t *s)
     s->spi = spi;
 }
 
+static void hobgoblin_add_eth(HobgoblinState_t *s)
+{
+    const memmapEntry_t *mem_eth = &memmap[HOBGOBLIN_ETH];
+
+    NICInfo *nd = &nd_table[0];
+    const char *model = TYPE_XILINX_ETHLITE;
+
+    /* Ethernet (ethernetlite) */
+    qemu_check_nic_model(nd, model);
+    DeviceState *eth = qdev_new(model);
+    qdev_set_nic_properties(eth, nd);
+
+    SysBusDevice *bus_eth = SYS_BUS_DEVICE(eth);
+    sysbus_realize_and_unref(bus_eth, &error_fatal);
+    sysbus_mmio_map(bus_eth, 0, mem_eth->base);
+    /* connect PLIC interrupt */
+    hobgoblin_connect_plic_irq(s, bus_eth, HOBGOBLIN_ETH_IRQ);
+
+    /* publish ETH device */
+    s->eth = eth;
+}
+
+
 static void hobgoblin_machine_init(MachineState *machine)
 {
     HobgoblinState_t *s = HOBGOBLIN_MACHINE_STATE(machine);
@@ -330,6 +356,7 @@ static void hobgoblin_machine_init(MachineState *machine)
     hobgoblin_add_uart(s, system_memory);
     hobgoblin_add_gpio(s);
     hobgoblin_add_spi(s);
+    hobgoblin_add_eth(s);
 
     /* load images into memory to boot the platform */
     int ret = hobgoblin_load_images(machine, s);
