@@ -31,8 +31,17 @@
 #include "hw/qdev-properties.h"
 #include "net/net.h"
 
+#include "xilinx_ethlite_phy.c"
+
 #define D(x)
+
 #define R_TX_BUF0     0
+
+#define R_MDIO_ADDR   (0x07e4 / 4)
+#define R_MDIO_WDATA  (0x07e8 / 4)
+#define R_MDIO_RDATA  (0x07ec / 4)
+#define R_MDIO_CTRL   (0x07f0 / 4)
+
 #define R_TX_LEN0     (0x07f4 / 4)
 #define R_TX_GIE0     (0x07f8 / 4)
 #define R_TX_CTRL0    (0x07fc / 4)
@@ -71,6 +80,10 @@ struct xlx_ethlite
     unsigned int rxbuf;
 
     uint32_t regs[R_MAX];
+
+    struct MDIOBus mdio_bus;
+    struct PHY phy;
+    unsigned int c_phyaddr;
 };
 
 static inline void eth_pulse_irq(struct xlx_ethlite *s)
@@ -91,6 +104,10 @@ eth_read(void *opaque, hwaddr addr, unsigned int size)
 
     switch (addr)
     {
+        case R_MDIO_CTRL:
+        case R_MDIO_ADDR:
+        case R_MDIO_WDATA:
+        case R_MDIO_RDATA:
         case R_TX_GIE0:
         case R_TX_LEN0:
         case R_TX_LEN1:
@@ -120,6 +137,27 @@ eth_write(void *opaque, hwaddr addr,
     addr >>= 2;
     switch (addr) 
     {
+        case R_MDIO_CTRL:
+            D(qemu_log("%s addr=" HWADDR_FMT_plx " val=%x\n",
+                       __func__, addr * 4, value));
+            if (value & 1) {
+                uint32_t mdio_addr = s->regs[R_MDIO_ADDR];
+                unsigned int regaddr = (mdio_addr >> 0) & 0x1f;
+                unsigned int phyaddr = (mdio_addr >> 5) & 0x1f;
+                unsigned int op = (mdio_addr >> 10) & 1;
+                uint16_t phy_reg;
+
+                if (!op) {
+                    phy_reg = s->regs[R_MDIO_WDATA];
+                    mdio_write_req(&s->mdio_bus, phyaddr, regaddr, phy_reg);
+                } else {
+                    phy_reg = mdio_read_req(&s->mdio_bus, phyaddr, regaddr);
+                    s->regs[R_MDIO_RDATA] = phy_reg;
+                }
+            }
+            s->regs[addr] = value & (1 << 3);
+            break;
+
         case R_TX_CTRL0:
         case R_TX_CTRL1:
             if (addr == R_TX_CTRL1)
@@ -152,6 +190,9 @@ eth_write(void *opaque, hwaddr addr,
                 qemu_flush_queued_packets(qemu_get_queue(s->nic));
             }
             /* fall through */
+        case R_MDIO_ADDR:
+        case R_MDIO_WDATA:
+        case R_MDIO_RDATA:
         case R_TX_LEN0:
         case R_TX_LEN1:
         case R_TX_GIE0:
@@ -237,6 +278,9 @@ static void xilinx_ethlite_realize(DeviceState *dev, Error **errp)
     s->nic = qemu_new_nic(&net_xilinx_ethlite_info, &s->conf,
                           object_get_typename(OBJECT(dev)), dev->id, s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
+
+    tdk_init(&s->phy);
+    mdio_attach(&s->mdio_bus, &s->phy, s->c_phyaddr);
 }
 
 static void xilinx_ethlite_init(Object *obj)
@@ -251,6 +295,7 @@ static void xilinx_ethlite_init(Object *obj)
 }
 
 static Property xilinx_ethlite_properties[] = {
+    DEFINE_PROP_UINT32("phyaddr", struct xlx_ethlite, c_phyaddr, 1),
     DEFINE_PROP_UINT32("tx-ping-pong", struct xlx_ethlite, c_tx_pingpong, 1),
     DEFINE_PROP_UINT32("rx-ping-pong", struct xlx_ethlite, c_rx_pingpong, 1),
     DEFINE_NIC_PROPERTIES(struct xlx_ethlite, conf),
