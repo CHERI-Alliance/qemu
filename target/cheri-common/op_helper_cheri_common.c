@@ -1745,3 +1745,36 @@ target_ulong CHERI_HELPER_IMPL(gctag(CPUArchState *env, uint32_t cb))
      */
     return (target_ulong)get_capreg_tag(env, cb);
 }
+
+target_ulong CHERI_HELPER_IMPL(gcperm(CPUArchState *env, uint32_t cb))
+{
+    const cap_register_t *cbp = get_readonly_capreg(env, cb);
+    target_ulong res;
+
+    /*
+     * For now, we use the existing internal representation of the permissions
+     * (which is based on P1). We try to build a response whose format is in
+     * line with the Bakewell spec. The content isn't correct yet, we'll
+     * have to refactor this part later.
+     */
+
+    /* V9's uperms match (more or less) the SDP in Bakewell. */
+    res = cap_get_uperms(cbp) << 16;
+
+    if (cap_has_perms(cbp, CAP_ACCESS_SYS_REGS))
+        res |= (1 << 4);
+    if (cap_has_perms(cbp, CAP_PERM_EXECUTE))
+        res |= (1 << 3);
+    if (cap_has_perms(cbp, CAP_PERM_LOAD)) {
+        res |= (1 << 2);
+        if (cap_has_perms(cbp, CAP_PERM_LOAD_CAP))
+            res |= (1 << 0);
+    }
+    if (cap_has_perms(cbp, CAP_PERM_STORE)) {
+        res |= (1 << 1);
+        if (cap_has_perms(cbp, CAP_PERM_STORE_CAP))
+            res |= (1 << 0);
+    }
+
+    return res;
+}
