@@ -661,3 +661,4 @@ TRANSLATE_SC_EXPLICIT(sc_d, MO_ALIGN | MO_Q);
  */
 
 TRANSLATE_INT_CAP_HELPER(gctag, cgettag)
+TRANSLATE_INT_CAP_HELPER(gcperm, cgetperm)
