@@ -716,3 +716,4 @@ TRANSLATE_SC_EXPLICIT(sc_d, MO_ALIGN | MO_Q);
     DO_TRANSLATE(name, gen_cheri_int_cap, ctx, a->rd, a->cs1)
 
 TRANSLATE_INT_CAP_BW(gctag)
+TRANSLATE_INT_CAP_BW(gcperm)

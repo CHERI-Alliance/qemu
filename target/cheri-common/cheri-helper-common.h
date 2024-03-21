@@ -152,3 +152,4 @@ DEF_HELPER_2(debug_cap, void, env, i32)
 DEF_HELPER_4(capreg_state_debug, void, env, i32, i64, i64)
 
 DEF_HELPER_2(gctag, tl, env, i32)
+DEF_HELPER_2(gcperm, tl, env, i32)
