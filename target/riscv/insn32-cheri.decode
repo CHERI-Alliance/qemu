@@ -71,7 +71,6 @@ cseqx       0100001  ..... ..... 000 ..... 1011011 @r
 
 ### Two operands (source and dest)
 # TODO: generate from sail?
-cgetperm    1111111  00000 ..... 000 ..... 1011011 @r2
 cgettype    1111111  00001 ..... 000 ..... 1011011 @r2
 cgetbase    1111111  00010 ..... 000 ..... 1011011 @r2
 cgetlen     1111111  00011 ..... 000 ..... 1011011 @r2
