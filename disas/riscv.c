@@ -548,7 +548,6 @@ typedef enum {
     rv_op_modesw_int,
 
     // Two operand
-    rv_op_cgetperm,
     rv_op_cgettype,
     rv_op_cgetbase,
     rv_op_cgetlen,
@@ -1313,7 +1312,6 @@ const rv_opcode_data opcode_data[] = {
     [rv_op_modesw_cap] = { "modesw.cap", rv_codec_none, rv_fmt_none, NULL, 0, 0, 0 },
     [rv_op_modesw_int] = { "modesw.int", rv_codec_none, rv_fmt_none, NULL, 0, 0, 0 },
     // Two operand
-    [rv_op_cgetperm] = { "cgetperm", rv_codec_r, rv_fmt_rd_cs1, NULL, 0, 0, 0 },
     [rv_op_cgettype] = { "cgettype", rv_codec_r, rv_fmt_rd_cs1, NULL, 0, 0, 0 },
     [rv_op_cgetbase] = { "cgetbase", rv_codec_r, rv_fmt_rd_cs1, NULL, 0, 0, 0 },
     [rv_op_cgetlen] = { "cgetlen", rv_codec_r, rv_fmt_rd_cs1, NULL, 0, 0, 0 },
@@ -1586,7 +1584,6 @@ static const char *csr_name(int csrno)
 
 static rv_opcode decode_cheri_two_op(unsigned func) {
     switch (func) {
-    case 0b00000: return rv_op_cgetperm;
     case 0b00001: return rv_op_cgettype;
     case 0b00010: return rv_op_cgetbase;
     case 0b00011: return rv_op_cgetlen;

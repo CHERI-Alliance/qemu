@@ -278,23 +278,6 @@ target_ulong CHERI_HELPER_IMPL(cgetlen(CPUArchState *env, uint32_t cb))
     return (target_ulong)cap_get_length_sat(get_readonly_capreg(env, cb));
 }
 
-target_ulong CHERI_HELPER_IMPL(cgetperm(CPUArchState *env, uint32_t cb))
-{
-    /*
-     * CGetPerm: Move Memory Permissions Field to a General-Purpose
-     * Register.
-     */
-    const cap_register_t *cbp = get_readonly_capreg(env, cb);
-    cheri_debug_assert((cap_get_perms(cbp) & CAP_PERMS_ALL) ==
-                           cap_get_perms(cbp) &&
-                       "Unknown HW perms bits set!");
-    cheri_debug_assert((cap_get_uperms(cbp) & CAP_UPERMS_ALL) ==
-                           cap_get_uperms(cbp) &&
-                       "Unknown SW perms bits set!");
-
-    return COMBINED_PERMS_VALUE(cbp);
-}
-
 target_ulong CHERI_HELPER_IMPL(cgetoffset(CPUArchState *env, uint32_t cb))
 {
     /*
