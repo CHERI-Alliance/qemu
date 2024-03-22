@@ -1762,3 +1762,11 @@ target_ulong CHERI_HELPER_IMPL(gchi(CPUArchState *env, uint32_t cb))
      */
     return CAP_cc(compress_mem)(get_readonly_capreg(env, cb));
 }
+
+target_ulong CHERI_HELPER_IMPL(gcbase(CPUArchState *env, uint32_t cb))
+{
+    /*
+     * GCBASE: Move Base to a General-Purpose Register.
+     */
+    return (target_ulong)cap_get_base(get_readonly_capreg(env, cb));
+}
