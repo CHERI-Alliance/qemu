@@ -109,6 +109,7 @@ cgethigh    1111111  10111 ..... 000 ..... 1011011 @rc
 gctag       0001000  00000 ..... 000 ..... 0110011 @rc
 gcperm      0001000  00001 ..... 000 ..... 0110011 @rc
 gchi        0001000  00100 ..... 000 ..... 0110011 @rc
+gcbase      0001000  00101 ..... 000 ..... 0110011 @rc
 
 # There is an existing @sfence_vma format with rs1+rs2 fields, but let's define a new name
 @r_2source ....... ..... .....   ... ..... ....... %rs2 %rs1
