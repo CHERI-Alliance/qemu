@@ -2146,4 +2146,13 @@ target_ulong helper_cgetperm(CPUArchState *env, uint32_t cb)
     return COMBINED_PERMS_VALUE(cbp);
 }
 
+target_ulong helper_cgethigh(CPUArchState *env, uint32_t cb)
+{
+    /*
+     * CGetHigh: Move Metadata bits to a General-Purpose Register
+     * TODO: could do this directly from TCG now.
+     */
+    return CAP_cc(compress_mem)(get_readonly_capreg(env, cb));
+}
+
 #endif
