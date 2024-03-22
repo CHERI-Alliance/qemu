@@ -72,7 +72,6 @@ cseqx       0100001  ..... ..... 000 ..... 1011011 @r
 ### Two operands (source and dest)
 # TODO: generate from sail?
 cgettype    1111111  00001 ..... 000 ..... 1011011 @r2
-cgetlen     1111111  00011 ..... 000 ..... 1011011 @r2
 cgetsealed  1111111  00101 ..... 000 ..... 1011011 @r2
 cgetoffset  1111111  00110 ..... 000 ..... 1011011 @r2
 cgetflags   1111111  00111 ..... 000 ..... 1011011 @r2
