@@ -101,6 +101,11 @@ static uint32_t atomic_set_masked(uint32_t *a, uint32_t mask, uint32_t value)
     return old;
 }
 
+static void sifive_plic_set_request(SiFivePLICState *plic, int irq, bool level)
+{
+    atomic_set_masked(&plic->request[irq >> 5], 1 << (irq & 31), -!!level);
+}
+
 static void sifive_plic_set_pending(SiFivePLICState *plic, int irq, bool level)
 {
     atomic_set_masked(&plic->pending[irq >> 5], 1 << (irq & 31), -!!level);
@@ -338,6 +343,8 @@ static void sifive_plic_write(void *opaque, hwaddr addr, uint64_t value,
             }
             if (value < plic->num_sources) {
                 sifive_plic_set_claimed(plic, value, false);
+                if (plic->request[value >> 5] & (1 << (value & 31)))
+                    sifive_plic_set_pending(plic, value, true);
                 sifive_plic_update(plic);
             }
             return;
@@ -437,8 +444,11 @@ static void sifive_plic_irq_request(void *opaque, int irq, int level)
     if (RISCV_DEBUG_PLIC) {
         qemu_log("sifive_plic_irq_request: irq=%d level=%d\n", irq, level);
     }
-    sifive_plic_set_pending(plic, irq, level > 0);
-    sifive_plic_update(plic);
+    sifive_plic_set_request(plic, irq, level);
+    if (level > 0) {
+        sifive_plic_set_pending(plic, irq, true);
+        sifive_plic_update(plic);
+    }
 }
 
 static void sifive_plic_realize(DeviceState *dev, Error **errp)
@@ -456,6 +466,7 @@ static void sifive_plic_realize(DeviceState *dev, Error **errp)
     plic->pending = g_new0(uint32_t, plic->bitfield_words);
     plic->claimed = g_new0(uint32_t, plic->bitfield_words);
     plic->enable = g_new0(uint32_t, plic->num_enables);
+    plic->request = g_new0(uint32_t, plic->bitfield_words);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &plic->mmio);
     qdev_init_gpio_in(dev, sifive_plic_irq_request, plic->num_sources);
 
