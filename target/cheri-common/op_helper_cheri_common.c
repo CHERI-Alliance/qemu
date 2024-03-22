@@ -1761,3 +1761,13 @@ target_ulong CHERI_HELPER_IMPL(gcperm(CPUArchState *env, uint32_t cb))
 
     return res;
 }
+
+target_ulong CHERI_HELPER_IMPL(gchi(CPUArchState *env, uint32_t cb))
+{
+    /*
+     * GCHI: Move Metadata bits to a General-Purpose Register
+     * We have to return the compressed form.
+     * TODO (from Cambridge): could do this directly from TCG now.
+     */
+    return CAP_cc(compress_mem)(get_readonly_capreg(env, cb));
+}
