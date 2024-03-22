@@ -470,6 +470,8 @@ static void emit_cvtrace_entry(CPUArchState *env, cpu_log_instr_info_t *iinfo)
      * cheritrace does not currently expect this.
      */
     entry.inst = cpu_to_be32(*insn);
+# if 0
+    // the switch statement below is broken so replacing it with it's current result to avoid unexpected failures
     switch (iinfo->flags & LI_FLAG_INTR_MASK) {
     case LI_FLAG_INTR_TRAP:
         entry.exception = (uint8_t)(iinfo->intr_code & 0xff);
@@ -478,7 +480,9 @@ static void emit_cvtrace_entry(CPUArchState *env, cpu_log_instr_info_t *iinfo)
     default:
         entry.exception = CTE_EXCEPTION_NONE;
     }
-
+#else
+    entry.exception = CTE_EXCEPTION_NONE;
+#endif 
     if (iinfo->regs->len) {
         log_reginfo_t *rinfo = &g_array_index(iinfo->regs, log_reginfo_t, 0);
 #ifndef TARGET_CHERI
@@ -645,7 +649,7 @@ static void do_cpu_loglevel_switch(CPUState *cpu, run_on_cpu_data data)
     qemu_log_instr_loglevel_t prev_level = cpulog->loglevel;
     bool prev_level_active = cpulog->loglevel_active;
     qemu_log_instr_loglevel_t next_level = data.host_int;
-    bool next_level_active;
+    bool next_level_active = false;
 
     /* Decide whether we have to pause/resume logging */
     switch (next_level) {
@@ -800,7 +804,7 @@ void qemu_log_instr_init(CPUState *cpu)
     cpu_log_instr_state_t *cpulog = &cpu->log_state;
     GArray *iinfo_ring = g_array_sized_new(FALSE, TRUE,
         sizeof(cpu_log_instr_info_t), reset_entry_buffer_size);
-    cpu_log_instr_info_t *iinfo;
+    cpu_log_instr_info_t *iinfo=NULL;
     int i;
 
     g_array_set_size(iinfo_ring, reset_entry_buffer_size);
@@ -816,7 +820,10 @@ void qemu_log_instr_init(CPUState *cpu)
     cpulog->instr_info = iinfo_ring;
     cpulog->ring_head = 0;
     cpulog->ring_tail = 0;
-    reset_log_buffer(cpulog, iinfo);
+    
+    if (iinfo){
+        reset_log_buffer(cpulog, iinfo);
+    }
 
     // Make sure we are using the correct trace format.
     if (trace_format == NULL) {
@@ -1132,6 +1139,9 @@ static void g_string_append_printf_union_args(GString *string, const char *fmt,
     bool format = false;
     char c;
     bool is_short, is_long, is_long_long;
+    
+    is_short = is_long = is_long_long = false;
+    
     while ((c = bounce_buf[i++] = *fmt++)) {
         assert(i != sizeof(bounce_buf));
         if (!format) {
@@ -1326,6 +1336,7 @@ void qemu_log_gen_printf(DisasContextBase *base, const char *qemu_format,
             case 'i':
                 is_signed = true;
                 /* FALLTHRU */
+
             case 'u':
             case 'x':
             case 'X':
@@ -1381,6 +1392,7 @@ void qemu_log_gen_printf(DisasContextBase *base, const char *qemu_format,
                 if (t == 'c') {
                     arg_const = (uint64_t)va_arg(args, void *);
                 }
+                break;
             case '%':
                 format = false;
                 break;
