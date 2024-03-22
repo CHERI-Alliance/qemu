@@ -184,7 +184,6 @@ static inline bool gen_cheri_int_cap_cap(DisasContext *ctx, int rd, int cs1,
 // TODO: all of these could be implemented in TCG without calling a helper
 // Two operand (int cap)
 TRANSLATE_INT_CAP(cgetaddr)
-TRANSLATE_INT_CAP(cgetbase)
 TRANSLATE_INT_CAP(cgetflags)
 TRANSLATE_INT_CAP(cgetlen)
 TRANSLATE_INT_CAP(cgetoffset)
