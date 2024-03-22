@@ -1860,12 +1860,6 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa, int flags)
             }
             break;
         case 12:
-            if (!((inst >> 12) & 0b111)) {
-               if ((inst >> 20) == 0x100) {
-                   op = rv_op_gctag;
-                   break;
-               }
-            }
             switch (((inst >> 22) & 0b1111111000) | ((inst >> 12) & 0b0000000111)) {
             case 0: op = rv_op_add; break;
             case 1: op = rv_op_sll; break;
@@ -1883,6 +1877,11 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa, int flags)
             case 13: op = rv_op_divu; break;
             case 14: op = rv_op_rem; break;
             case 15: op = rv_op_remu; break;
+            case 64:
+                switch ((inst >> 20) & 0b11111) {
+                case 0b00000: op = rv_op_gctag; break;
+                }
+                break;
             case 256: op = rv_op_sub; break;
             case 261: op = rv_op_sra; break;
             }
