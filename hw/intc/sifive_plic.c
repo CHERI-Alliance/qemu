@@ -100,6 +100,11 @@ static uint32_t atomic_set_masked(uint32_t *a, uint32_t mask, uint32_t value)
     return old;
 }
 
+static void sifive_plic_set_request(SiFivePLICState *plic, int irq, bool level)
+{
+    atomic_set_masked(&plic->request[irq >> 5], 1 << (irq & 31), -!!level);
+}
+
 static void sifive_plic_set_pending(SiFivePLICState *plic, int irq, bool level)
 {
     atomic_set_masked(&plic->pending[irq >> 5], 1 << (irq & 31), -!!level);
@@ -333,6 +338,8 @@ static void sifive_plic_write(void *opaque, hwaddr addr, uint64_t value,
             }
             if (value < plic->num_sources) {
                 sifive_plic_set_claimed(plic, value, false);
+                if (plic->request[value >> 5] & (1 << (value & 31)))
+                    sifive_plic_set_pending(plic, value, true);
                 sifive_plic_update(plic);
             }
             return;
@@ -414,8 +421,11 @@ static void sifive_plic_irq_request(void *opaque, int irq, int level)
 {
     SiFivePLICState *s = opaque;
 
-    sifive_plic_set_pending(s, irq, level > 0);
-    sifive_plic_update(s);
+    sifive_plic_set_request(s, irq, level);
+    if (level > 0) {
+        sifive_plic_set_pending(s, irq, true);
+        sifive_plic_update(s);
+    }
 }
 
 static void sifive_plic_realize(DeviceState *dev, Error **errp)
@@ -436,6 +446,7 @@ static void sifive_plic_realize(DeviceState *dev, Error **errp)
     s->pending = g_new0(uint32_t, s->bitfield_words);
     s->claimed = g_new0(uint32_t, s->bitfield_words);
     s->enable = g_new0(uint32_t, s->num_enables);
+    s->request = g_new0(uint32_t, s->bitfield_words);
 
     qdev_init_gpio_in(dev, sifive_plic_irq_request, s->num_sources);
 
