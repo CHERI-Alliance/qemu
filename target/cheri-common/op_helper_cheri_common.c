@@ -1762,3 +1762,11 @@ target_ulong CHERI_HELPER_IMPL(gclen(CPUArchState *env, uint32_t cb))
      */
     return (target_ulong)cap_get_length_sat(get_readonly_capreg(env, cb));
 }
+
+/* For caddi, val is the immediate. For cadd, val is the value of the rs2
+ * register that was read by the translation function. */
+void CHERI_HELPER_IMPL(
+        caddi(CPUArchState *env, uint32_t cd, uint32_t cs1, target_ulong val))
+{
+    return cincoffset_impl(env, cd, cs1, val, GETPC(), OOB_INFO(cincoffset));
+}
