@@ -69,6 +69,10 @@ cseqx       0100001  ..... ..... 000 ..... 1011011 @r
 # 1111110 Used for two source ops
 # 1111111 Used for Source & Dest ops (see below)
 
+@rcc     .......   ..... ..... ... ..... ....... %rs2 %cs1 %cd
+
+cadd  0000110  ..... ..... 000 ..... 0110011 @rcc
+
 
 ### Two operands (source and dest)
 # TODO: generate from sail?

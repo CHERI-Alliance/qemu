@@ -718,4 +718,29 @@ TRANSLATE_INT_CAP_BW(gchi)
 TRANSLATE_INT_CAP_BW(gcbase)
 TRANSLATE_INT_CAP_BW(gclen)
 
+static bool trans_cadd(DisasContext *ctx, arg_cadd *a)
+{
+    TCGv_i32 dest_regnum = tcg_const_i32(a->cd);
+    TCGv_i32 source_regnum = tcg_const_i32(a->cs1);
+    TCGv gpr_value;
+
+    if (a->rs2 == 0) {
+        /*
+         * For rs2 == x0, cs1 should be moved to cd. The tag should not be
+         * cleared if cs1 is tagged or sealed.
+         * TODO: Handle this special case here.
+         */
+    }
+
+    gpr_value = tcg_temp_new();
+    gen_get_gpr(gpr_value, a->rs2);
+
+    gen_helper_caddi(cpu_env, dest_regnum, source_regnum, gpr_value);
+
+    tcg_temp_free(gpr_value);
+    tcg_temp_free_i32(source_regnum);
+    tcg_temp_free_i32(dest_regnum);
+    return true;
+}
+
 TRANSLATE_CAP_CAP_IMM_BW(caddi)
