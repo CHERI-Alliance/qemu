@@ -152,3 +152,5 @@ DEF_HELPER_2(gcperm, tl, env, i32)
 DEF_HELPER_2(gchi, tl, env, i32)
 DEF_HELPER_2(gcbase, tl, env, i32)
 DEF_HELPER_2(gclen, tl, env, i32)
+
+DEF_HELPER_4(caddi, void, env, i32, i32, tl)
