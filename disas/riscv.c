@@ -593,6 +593,7 @@ typedef enum {
     rv_op_ctestsubset,
     rv_op_cseqx,
 
+    rv_op_cadd,
     rv_op_caddi,
 
     // FP loads/store
@@ -1378,6 +1379,7 @@ const rv_opcode_data opcode_data[] = {
     [rv_op_ctestsubset] = { "ctestsubset", rv_codec_r, rv_fmt_rd_cs1_cs2, NULL, 0, 0, 0 },
     [rv_op_cseqx] = { "cseqx", rv_codec_r, rv_fmt_rd_cs1_cs2, NULL, 0, 0, 0 },
 
+    [rv_op_cadd] = { "cadd", rv_codec_r, rv_fmt_cd_cs1_rs2, NULL, 0, 0, 0 },
     [rv_op_caddi] = { "caddi", rv_codec_i, rv_fmt_cd_cs1_imm, NULL, 0, 0, 0 },
 
     // FP load store
@@ -2026,6 +2028,7 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa, int flags)
             case 45: op = rv_op_minu; break;
             case 46: op = rv_op_max; break;
             case 47: op = rv_op_maxu; break;
+            case 48: op = rv_op_cadd; break;
             case 64:
                 switch ((inst >> 20) & 0b11111) {
                 case 0b00000: op = rv_op_gctag; break;

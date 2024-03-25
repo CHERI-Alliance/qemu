@@ -63,7 +63,9 @@ static inline bool gen_cheri_cap_cap(arg_cc *a, cheri_cap_cap_helper *gen_func)
     gen_func(cpu_env, tcg_constant_i32(a->cd), tcg_constant_i32(a->cs1));
     return true;
 }
-#define TRANSLATE_CAP_CAP(name) DO_TRANSLATE(name, gen_cheri_cap_cap, a)
+#define TRANSLATE_CAP_CAP_HELPER(name, helper)                                 \
+    DO_TRANSLATE_HELPER(name, gen_cheri_cap_cap, helper, a)
+#define TRANSLATE_CAP_CAP(name) TRANSLATE_CAP_CAP_HELPER(name, name)
 
 typedef void(cheri_cap_int_helper)(TCGv_env, TCGv_i32, TCGv);
 static inline QEMU_ALWAYS_INLINE bool
@@ -666,7 +668,15 @@ TRANSLATE_INT_CAP_HELPER(gchi, cgethigh)
 TRANSLATE_INT_CAP_HELPER(gcbase, cgetbase)
 TRANSLATE_INT_CAP_HELPER(gclen, cgetlen)
 
+TRANSLATE_CAP_CAP_HELPER(cmv, cmove)
+
 static bool trans_caddi(DisasContext *ctx, arg_caddi *a)
 {
     return gen_cheri_cap_cap_imm(a->cd, a->cs1, a->imm, &gen_helper_cincoffset);
+}
+
+static bool trans_cadd(DisasContext *ctx, arg_cadd *a)
+{
+    assert(a->rs2 != 0 && "This encoding is reserved");
+    return gen_cheri_cap_cap_int(ctx, a, &gen_helper_cincoffset);
 }

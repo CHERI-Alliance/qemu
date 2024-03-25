@@ -38,13 +38,19 @@
 %cs1       15:5
 %cd         7:5
 
-### Three operand instructions
 &ccr cd cs1 rs2
 @ccr .......   ..... ..... ... ..... ....... &ccr %cd %cs1 %rs2
 &rcc rd cs1 cs2
 @rcc .......   ..... ..... ... ..... ....... &rcc %rd %cs1 %cs2
 &ccc cd cs1 cs2
 @ccc .......   ..... ..... ... ..... ....... &ccc %cd %cs1 %cs2
+
+&rc rd cs1
+@rc .......  ..... ..... ... ..... ....... &rc %rd %cs1
+&cc cd cs1
+@cc .......  ..... ..... ... ..... ....... &cc %cd %cs1
+
+### Three operand instructions
 
 # 0000000 unused
 cspecialrw  0000001  ..... ..... 000 ..... 1011011 @ccc
@@ -75,13 +81,13 @@ cseqx       0100001  ..... ..... 000 ..... 1011011 @rcc
 # 1111110 Used for two source ops
 # 1111111 Used for Source & Dest ops (see below)
 
+# RISC-V standard instructions
+{
+  cmv   0000110  00000 ..... 000 ..... 0110011 @cc
+  cadd  0000110  ..... ..... 000 ..... 0110011 @ccr
+}
 
 ### Two operands (source and dest)
-&rc rd cs1
-@rc .......  ..... ..... ... ..... ....... &rc %rd %cs1
-&cc cd cs1
-@cc .......  ..... ..... ... ..... ....... &cc %cd %cs1
-
 # ISAv9 instruction
 cgetperm    1111111  00000 ..... 000 ..... 1011011 @rc
 cgettype    1111111  00001 ..... 000 ..... 1011011 @rc
