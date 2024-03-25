@@ -665,3 +665,8 @@ TRANSLATE_INT_CAP_HELPER(gcperm, cgetperm)
 TRANSLATE_INT_CAP_HELPER(gchi, cgethigh)
 TRANSLATE_INT_CAP_HELPER(gcbase, cgetbase)
 TRANSLATE_INT_CAP_HELPER(gclen, cgetlen)
+
+static bool trans_caddi(DisasContext *ctx, arg_caddi *a)
+{
+    return gen_cheri_cap_cap_imm(a->cd, a->cs1, a->imm, &gen_helper_cincoffset);
+}
