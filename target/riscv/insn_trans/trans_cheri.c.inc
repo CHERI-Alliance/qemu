@@ -263,8 +263,6 @@ static inline bool gen_cheri_cap_cap_imm(int cd, int cs1, target_long imm,
     tcg_temp_free_i32(dest_regnum);
     return true;
 }
-#define TRANSLATE_CAP_CAP_IMM(name)                                            \
-    TRANSLATE_MAYBE_TRAP(name, gen_cheri_cap_cap_imm, a->rd, a->rs1, a->imm)
 
 static bool trans_cincoffsetimm(DisasContext *ctx, arg_cincoffsetimm *a)
 {
