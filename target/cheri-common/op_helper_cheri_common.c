@@ -926,7 +926,7 @@ void CHERI_HELPER_IMPL(candperm(CPUArchState *env, uint32_t cd, uint32_t cb,
 void CHERI_HELPER_IMPL(cincoffset(CPUArchState *env, uint32_t cd, uint32_t cb,
                                   target_ulong rt))
 {
-    return cincoffset_impl(env, cd, cb, rt, GETPC(), OOB_INFO(cincoffset));
+    cincoffset_impl(env, cd, cb, rt, GETPC(), OOB_INFO(cincoffset));
 }
 
 void CHERI_HELPER_IMPL(candaddr(CPUArchState *env, uint32_t cd, uint32_t cb,
