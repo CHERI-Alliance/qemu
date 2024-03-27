@@ -782,13 +782,6 @@ static inline bool trans_sc(DisasContext *ctx, arg_sc *a)
     g_assert_not_reached();
     return false;
 }
-
-typedef arg_i arg_cincoffsetimm;
-static inline bool trans_cincoffsetimm(DisasContext *ctx, arg_cincoffsetimm *a)
-{
-    g_assert_not_reached();
-    return false;
-}
 #endif
 // Helpers to generate a virtual address that has been checked by the CHERI
 // capability helpers: If ctx->capmode is set, the register number will be
