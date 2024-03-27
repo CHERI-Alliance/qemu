@@ -897,3 +897,9 @@ target_ulong CHERI_HELPER_IMPL(cgetlen(CPUArchState *env, uint32_t cb))
      */
     return (target_ulong)cap_get_length_sat(get_readonly_capreg(env, cb));
 }
+
+void CHERI_HELPER_IMPL(cincoffset(CPUArchState *env, uint32_t cd, uint32_t cb,
+                                  target_ulong rt))
+{
+    do_cincoffset(env, cd, cb, rt);
+}

@@ -90,7 +90,6 @@ DEF_HELPER_4(cunseal, void, env, i32, i32, i32)
 DEF_HELPER_4(candaddr, void, env, i32, i32, tl)
 DEF_HELPER_4(candperm, void, env, i32, i32, tl)
 DEF_HELPER_4(cfromptr, void, env, i32, i32, tl)
-DEF_HELPER_4(cincoffset, void, env, i32, i32, tl)
 
 // Rather than waste TCG vals on a few bits of flags, they can be placed in the
 // 32-bit register numbers. Also has the benefit of optimising away when defined
