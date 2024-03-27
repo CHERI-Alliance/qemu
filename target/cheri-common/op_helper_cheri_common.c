@@ -904,8 +904,7 @@ void CHERI_HELPER_IMPL(candperm(CPUArchState *env, uint32_t cd, uint32_t cb,
     update_capreg(env, cd, &result);
 }
 
-void CHERI_HELPER_IMPL(cincoffset(CPUArchState *env, uint32_t cd, uint32_t cb,
-                                  target_ulong rt))
+void do_cincoffset(CPUArchState *env, uint32_t cd, uint32_t cb, target_ulong rt)
 {
     cincoffset_impl(env, cd, cb, rt, GETPC(), OOB_INFO(cincoffset));
 }
