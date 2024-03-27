@@ -1,0 +1,33 @@
+#!/bin/bash
+
+# ----[ STRICT MODE ]----
+set -e
+set -u
+set -o pipefail
+TARGET=riscv64cheri
+TARGET_LIST=${TARGET}-softmmu
+NINJA_TARGET=qemu-system-${TARGET}
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+REPO_DIR=$(realpath ${SCRIPT_DIR}/../..)
+BUILD_DIR=${REPO_DIR}/build_${TARGET}
+
+QEMU_CONFIG="--disable-gtk \
+    --audio-drv-list="" \
+    --disable-brlapi \
+    --disable-libiscsi \
+    --disable-libnfs \
+    --disable-rbd \
+    --disable-sdl \
+    --disable-snappy \
+    --disable-vnc \
+    --disable-vnc-jpeg \
+    --disable-vnc-sasl \
+    --disable-werror \
+    --prefix=$1"
+
+mkdir -p ${BUILD_DIR} 
+cd ${BUILD_DIR}
+${REPO_DIR}/configure --target-list=${TARGET_LIST} ${QEMU_CONFIG}
+ninja ${NINJA_TARGET}
+ninja install
+tar -czf $2 $1
