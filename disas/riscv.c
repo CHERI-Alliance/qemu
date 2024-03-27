@@ -540,7 +540,6 @@ typedef enum {
     rv_op_csw,
     rv_op_csd,
 
-    rv_op_cincoffsetimm,
     rv_op_csetboundsimm,
 
     // Zero operand
@@ -1308,7 +1307,6 @@ const rv_opcode_data opcode_data[] = {
     [rv_op_clc] = { "clc", rv_codec_i, rv_fmt_cd_offset_cs1, NULL, 0, 0, 0 },
     [rv_op_sc] = { "sc", rv_codec_s, rv_fmt_cs2_offset_rs1, NULL, 0, 0, 0 },
     [rv_op_csc] = { "csc", rv_codec_s, rv_fmt_cs2_offset_cs1, NULL, 0, 0, 0 },
-    [rv_op_cincoffsetimm] = { "cincoffset", rv_codec_i, rv_fmt_cd_cs1_imm, NULL, 0, 0, 0 },
     [rv_op_csetboundsimm] = { "csetbounds", rv_codec_i, rv_fmt_cd_cs1_imm, NULL, 0, 0, 0 },
     // Zero operand
     [rv_op_modesw_cap] = { "modesw.cap", rv_codec_none, rv_fmt_none, NULL, 0, 0, 0 },
@@ -2311,9 +2309,6 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa, int flags)
                 switch (((inst >> 12) & 0b111)) {
                 case 0:
                     op = decode_cheri_inst(inst);
-                    break;
-                case 1:
-                    op = rv_op_cincoffsetimm;
                     break;
                 case 2:
                     op = rv_op_csetboundsimm;

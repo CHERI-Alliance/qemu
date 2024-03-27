@@ -96,7 +96,6 @@
   # Opcode of all zeros is illegal; rd != 0, nzuimm == 0 is reserved.
   illegal         000  000 000 00 --- 00
   addi            000  ... ... .. ... 00 @c_addi4spn ?!pred_capmode
-  cincoffsetimm   000  ... ... .. ... 00 @c_addi4spn ?pred_capmode
 }
 lw                010  ... ... .. ... 00 @cl_w
 sw                110  ... ... .. ... 00 @cs_w
@@ -134,7 +133,6 @@ addi              010 .  .....  ..... 01 @c_li
 {
   illegal         011 0  -----  00000 01 # c.addi16sp and c.lui, RES nzimm=0
   addi            011 .  00010  ..... 01 @c_addi16sp ?!pred_capmode
-  cincoffsetimm   011 .  00010  ..... 01 @c_addi16sp ?pred_capmode
   lui             011 .  .....  ..... 01 @c_lui
 }
 {

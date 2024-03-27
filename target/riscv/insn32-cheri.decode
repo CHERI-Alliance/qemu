@@ -118,7 +118,6 @@ cinvoke  1111110  ..... ..... 000 00001 1011011 @r_2source
 @atom_ld_cap_or_ddc .......   ..... ..... ... ..... ....... &atomic aq=1 rl=1 rs2=0  %rs1 %rd
 @atom_st_cap_or_ddc .......   ..... ..... ... ..... ....... &atomic aq=1 rl=1 rd=0   %rs2 %rs1
 
-cincoffsetimm ............     ..... 001 ..... 1011011 @i
 csetboundsimm ............     ..... 010 ..... 1011011 @i_unsigned
 
 caddi         ............     ..... 010 ..... 0011011 @icc
