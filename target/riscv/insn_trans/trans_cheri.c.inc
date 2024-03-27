@@ -268,7 +268,7 @@ static bool trans_cincoffsetimm(DisasContext *ctx, arg_cincoffsetimm *a)
     return gen_cheri_cap_cap_imm(a->rd, a->rs1, a->imm, &gen_helper_cincoffset);
 }
 
-static bool trans_csetboundsimm(DisasContext *ctx, arg_cincoffsetimm *a)
+static bool trans_csetboundsimm(DisasContext *ctx, arg_csetboundsimm *a)
 {
     tcg_debug_assert(a->imm >= 0);
     return gen_cheri_cap_cap_imm(a->rd, a->rs1, a->imm, &gen_helper_csetbounds);
