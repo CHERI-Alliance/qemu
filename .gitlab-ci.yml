@@ -22,6 +22,15 @@
 
 include:
   - local: '/.gitlab-ci.d/qemu-project.yml'
+variables:
+  BUILD_DIR: $CI_PROJECT_DIR/build
+  INSTALL_DIR: $CI_PROJECT_DIR/install
+  PACKAGE_NAME: "qemu_cheri.tar.gz"
+
+stages:
+    - build
+    - package
+
 default:
     image:
         name: docker-registry.codasip.com/cheri/qemu:0.1.2
@@ -61,3 +70,14 @@ build_qemu_mipscheri:
     stage: build
     script:
         - scripts/riscv_cheri/build_riscv_cheri mips64cheri128
+
+nightly_build:
+    stage:
+        package
+    rules:
+    - if: $CI_PIPELINE_SOURCE =="schedule"
+    script:
+        - scripts/riscv_cheri/package $INSTALL_DIR $CI_PROJECT_DIR/$PACKAGE_NAME
+        - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file $CI_PROJECT_DIR/$PACKAGE_NAME "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/qemu-cheri/0.0.1/$PACKAGE_NAME"'
+
+
