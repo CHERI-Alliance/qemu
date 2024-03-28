@@ -75,7 +75,10 @@ static void qemu_logfile_free(QemuLogFile *logfile)
 
 static bool log_uses_own_buffers;
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wredundant-decls"
 __attribute__((weak)) int qemu_log_instr_global_switch(int log_flags);
+#pragma GCC diagnostic pop
 __attribute__((weak)) int qemu_log_instr_global_switch(int log_flags)
 {
     /* Real implementation in accel/tcg/log_instr.c. */
