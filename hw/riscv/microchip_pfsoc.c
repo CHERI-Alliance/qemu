@@ -507,8 +507,10 @@ static void microchip_icicle_kit_machine_init(MachineState *machine)
                                 mem_high_alias);
 
     /* Load the firmware */
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wunused-result"
     (void)riscv_find_and_load_firmware(machine, BIOS_FILENAME, RESET_VECTOR, NULL);
-
+    #pragma GCC diagnostic pop
     /* Attach an SD card */
     if (dinfo) {
         CadenceSDHCIState *sdhci = &(s->soc.sdhci);
