@@ -34,6 +34,7 @@
 # This is concatenated with insn32.decode for risc64 targets.
 # Most of the fields and formats are there.
 
+%cs2       20:5
 %cs1       15:5
 %cd         7:5
 
@@ -67,10 +68,12 @@ cseqx       0100001  ..... ..... 000 ..... 1011011 @r
 # 1111111 Used for Source & Dest ops (see below)
 
 @rcc     .......   ..... ..... ... ..... ....... %rs2 %cs1 %cd
+@ccr     .......   ..... ..... ... ..... ....... %cs2 %cs1 %rd
 
 cadd   0000110  ..... ..... 000 ..... 0110011 @rcc
 scaddr 0000110  ..... ..... 001 ..... 0110011 @rcc
 schi   0000110  ..... ..... 011 ..... 0110011 @rcc
+sceq   0000110  ..... ..... 100 ..... 0110011 @ccr
 
 
 ### Two operands (source and dest)
