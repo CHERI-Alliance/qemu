@@ -1607,7 +1607,7 @@ static inline void gen_cap_set_cursor(DisasContext *ctx, int regnum,
         tcg_gen_brcond_i64(TCG_COND_EQ, possible_bad_modification, temp1, l1);
         // call handler (just do a setaddr)
         TCGv_i32 tcg_regnum = tcg_const_i32(regnum);
-        gen_helper_csetaddr(cpu_env, tcg_regnum, tcg_regnum, new_val_local);
+        gen_helper_scaddr(cpu_env, tcg_regnum, tcg_regnum, new_val_local);
         tcg_temp_free_i32(tcg_regnum);
         // else
         gen_set_label(l1);

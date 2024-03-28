@@ -105,7 +105,6 @@ DEF_HELPER_4(cfromptr, void, env, i32, i32, tl)
 #define CJALR_DONT_MAKE_SENTRY 0
 #endif
 DEF_HELPER_5(cjalr, void, env, i32, i32, tl, tl)
-DEF_HELPER_4(csetaddr, void, env, i32, i32, tl)
 DEF_HELPER_4(csethigh, void, env, i32, i32, tl)
 DEF_HELPER_4(csetbounds, void, env, i32, i32, tl)
 DEF_HELPER_4(csetboundsexact, void, env, i32, i32, tl)

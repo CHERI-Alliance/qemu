@@ -903,3 +903,9 @@ void CHERI_HELPER_IMPL(cincoffset(CPUArchState *env, uint32_t cd, uint32_t cb,
 {
     do_cincoffset(env, cd, cb, rt);
 }
+
+void CHERI_HELPER_IMPL(csetaddr(CPUArchState *env, uint32_t cd, uint32_t cs1,
+                                target_ulong rs2))
+{
+    do_csetaddr(env, cd, cs1, rs2);
+}
