@@ -2389,14 +2389,8 @@ uint64_t cpu_ldq_le_data_ra(CPUArchState *env, target_ulong ptr,
 target_ulong cpu_ld_cap_word_ra(CPUArchState *env, target_ulong ptr,
                                 uintptr_t retaddr)
 {
-    FullLoadHelper *full_load;
-    MemOp op;
 #if TARGET_LONG_BITS == 32
-    op = MO_TEUW;
-    full_load = MO_TE == MO_LE ? helper_le_lduw_mmu : helper_be_lduw_mmu;
 #elif TARGET_LONG_BITS == 64
-    op = MO_TEQ;
-    full_load = MO_TE == MO_LE ? helper_le_ldq_mmu : helper_be_ldq_mmu;
 #else
 #error "Unhandled target long width"
 #endif
