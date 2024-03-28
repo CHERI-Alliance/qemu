@@ -86,6 +86,8 @@ cseqx       0100001  ..... ..... 000 ..... 1011011 @rcc
   cmv   0000110  00000 ..... 000 ..... 0110011 @cc
   cadd  0000110  ..... ..... 000 ..... 0110011 @ccr
 }
+scaddr  0000110  ..... ..... 001 ..... 0110011 @ccr
+
 
 ### Two operands (source and dest)
 # ISAv9 instruction
