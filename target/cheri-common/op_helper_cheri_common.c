@@ -928,17 +928,6 @@ void do_csetaddr(CPUArchState *env, uint32_t cd, uint32_t cs1, target_ulong rs2)
                        OOB_INFO(csetaddr));
 }
 
-void CHERI_HELPER_IMPL(csethigh(CPUArchState *env, uint32_t cd, uint32_t cs1,
-                                target_ulong new_mem_pesbt))
-{
-    cap_register_t result;
-    CAP_cc(decompress_mem)(new_mem_pesbt, get_capreg_cursor(env, cs1), false,
-                           &result);
-    result.cr_extra = CREG_FULLY_DECOMPRESSED;
-    update_capreg(env, cd, &result);
-}
-
-
 void CHERI_HELPER_IMPL(csetoffset(CPUArchState *env, uint32_t cd, uint32_t cb,
                                   target_ulong target_offset))
 {
