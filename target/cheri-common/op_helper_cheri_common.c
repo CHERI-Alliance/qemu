@@ -1763,3 +1763,11 @@ void CHERI_HELPER_IMPL(
 {
     return caddi_impl(env, cd, cs1, val, GETPC(), OOB_INFO(cadd));
 }
+
+void CHERI_HELPER_IMPL(scaddr(CPUArchState *env, uint32_t cd, uint32_t cs1,
+                                target_ulong rs2))
+{
+    try_set_cap_cursor(env, get_readonly_capreg(env, cs1), cs1, cd, rs2,
+                       /*precise_repr_check=*/true, GETPC(),
+                       OOB_INFO(csetaddr));
+}
