@@ -921,10 +921,9 @@ void CHERI_HELPER_IMPL(candaddr(CPUArchState *env, uint32_t cd, uint32_t cb,
                        OOB_INFO(candaddr));
 }
 
-void CHERI_HELPER_IMPL(csetaddr(CPUArchState *env, uint32_t cd, uint32_t cb,
-                                target_ulong target_addr))
+void do_csetaddr(CPUArchState *env, uint32_t cd, uint32_t cs1, target_ulong rs2)
 {
-    try_set_cap_cursor(env, get_readonly_capreg(env, cb), cb, cd, target_addr,
+    try_set_cap_cursor(env, get_readonly_capreg(env, cs1), cs1, cd, rs2,
                        /*precise_repr_check=*/true, GETPC(),
                        OOB_INFO(csetaddr));
 }
@@ -1767,7 +1766,5 @@ void CHERI_HELPER_IMPL(
 void CHERI_HELPER_IMPL(scaddr(CPUArchState *env, uint32_t cd, uint32_t cs1,
                                 target_ulong rs2))
 {
-    try_set_cap_cursor(env, get_readonly_capreg(env, cs1), cs1, cd, rs2,
-                       /*precise_repr_check=*/true, GETPC(),
-                       OOB_INFO(csetaddr));
+    do_csetaddr(env, cd, cs1, rs2);
 }
