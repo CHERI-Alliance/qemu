@@ -146,8 +146,9 @@ static inline bool gen_cheri_int_cap_cap(DisasContext *ctx, arg_rcc *a,
     tcg_temp_free(result);
     return true;
 }
-#define TRANSLATE_INT_CAP_CAP(name)                                            \
-    DO_TRANSLATE(name, gen_cheri_int_cap_cap, ctx, a)
+#define TRANSLATE_INT_CAP_CAP_HELPER(name, helper)                             \
+    DO_TRANSLATE_HELPER(name, gen_cheri_int_cap_cap, helper, ctx, a)
+#define TRANSLATE_INT_CAP_CAP(name) TRANSLATE_INT_CAP_CAP_HELPER(name, name)
 
 // TODO: all of these could be implemented in TCG without calling a helper
 // Two operand (int cap)
@@ -684,3 +685,5 @@ static bool trans_cadd(DisasContext *ctx, arg_cadd *a)
 
 TRANSLATE_CAP_CAP_INT_HELPER(scaddr, csetaddr)
 TRANSLATE_CAP_CAP_INT_HELPER(schi, csethigh)
+
+TRANSLATE_INT_CAP_CAP_HELPER(sceq, cseqx)
