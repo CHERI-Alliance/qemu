@@ -1768,3 +1768,13 @@ void CHERI_HELPER_IMPL(scaddr(CPUArchState *env, uint32_t cd, uint32_t cs1,
 {
     do_csetaddr(env, cd, cs1, rs2);
 }
+
+void CHERI_HELPER_IMPL(schi(CPUArchState *env, uint32_t cd, uint32_t cs1,
+                                target_ulong rs2))
+{
+    cap_register_t result;
+    CAP_cc(decompress_mem)(rs2, get_capreg_cursor(env, cs1), false,
+                           &result);
+    result.cr_extra = CREG_FULLY_DECOMPRESSED;
+    update_capreg(env, cd, &result);
+}
