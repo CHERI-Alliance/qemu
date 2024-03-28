@@ -854,27 +854,29 @@ struct bounds_bucket bounds_buckets[NUM_BOUNDS_BUCKETS] = {
     {64 * 1024, "64K"}, {1024 * 1024, "1M "}, {64 * 1024 * 1024, "64M"},
 };
 
-DEFINE_CHERI_STAT(cincoffset);
+DEFINE_CHERI_STAT(cadd);
 DEFINE_CHERI_STAT(csetoffset);
 DEFINE_CHERI_STAT(csetaddr);
 DEFINE_CHERI_STAT(candaddr);
 DEFINE_CHERI_STAT(cfromptr);
 #endif
 
-static inline QEMU_ALWAYS_INLINE void
-cincoffset_impl(CPUArchState *env, uint32_t cd, uint32_t cb, target_ulong rt,
+static inline QEMU_ALWAYS_INLINE void caddi_impl(CPUArchState *env,
+        uint32_t regnum_dst, uint32_t regnum_src, target_ulong offs,
                 uintptr_t retpc, struct oob_stats_info *oob_info)
 {
-    const cap_register_t *cbp = get_readonly_capreg(env, cb);
+    const cap_register_t *cbp = get_readonly_capreg(env, regnum_src);
     /*
-     * CIncOffset: Increase Offset
+     * Add an offset to the current address.
+     * TODO: Can this overflow?
      */
-    target_ulong new_addr = cap_get_cursor(cbp) + rt;
+    target_ulong new_addr = cap_get_cursor(cbp) + offs;
     /*
+     * TODO: Review and rephrase this for cadd/caddi.
      * CIncOffset and CSetOffset use the approximate fast representability
      * check rather than a precise one.
      */
-    try_set_cap_cursor(env, cbp, cb, cd, new_addr,
+    try_set_cap_cursor(env, cbp, regnum_src, regnum_dst, new_addr,
                        /*precise_repr_check=*/false, retpc, oob_info);
 }
 
@@ -906,7 +908,7 @@ void CHERI_HELPER_IMPL(candperm(CPUArchState *env, uint32_t cd, uint32_t cb,
 
 void do_cincoffset(CPUArchState *env, uint32_t cd, uint32_t cb, target_ulong rt)
 {
-    cincoffset_impl(env, cd, cb, rt, GETPC(), OOB_INFO(cincoffset));
+    caddi_impl(env, cd, cb, rt, GETPC(), OOB_INFO(cadd));
 }
 
 void CHERI_HELPER_IMPL(candaddr(CPUArchState *env, uint32_t cd, uint32_t cb,
@@ -943,7 +945,7 @@ void CHERI_HELPER_IMPL(csetoffset(CPUArchState *env, uint32_t cd, uint32_t cb,
 {
     target_ulong offset = cap_get_offset(get_readonly_capreg(env, cb));
     target_ulong diff = target_offset - offset;
-    cincoffset_impl(env, cd, cb, diff, GETPC(), OOB_INFO(csetoffset));
+    caddi_impl(env, cd, cb, diff, GETPC(), OOB_INFO(csetoffset));
 }
 
 void CHERI_HELPER_IMPL(cfromptr(CPUArchState *env, uint32_t cd, uint32_t cb,
@@ -1759,5 +1761,5 @@ target_ulong CHERI_HELPER_IMPL(gclen(CPUArchState *env, uint32_t cb))
 void CHERI_HELPER_IMPL(
         caddi(CPUArchState *env, uint32_t cd, uint32_t cs1, target_ulong val))
 {
-    return cincoffset_impl(env, cd, cs1, val, GETPC(), OOB_INFO(cincoffset));
+    return caddi_impl(env, cd, cs1, val, GETPC(), OOB_INFO(cadd));
 }
