@@ -741,3 +741,4 @@ static bool trans_cadd(DisasContext *ctx, arg_cadd *a)
 TRANSLATE_CAP_CAP_IMM_BW(caddi)
 
 TRANSLATE_CAP_CAP_INT_BW(scaddr)
+TRANSLATE_CAP_CAP_INT_BW(schi)
