@@ -683,3 +683,4 @@ static bool trans_cadd(DisasContext *ctx, arg_cadd *a)
 }
 
 TRANSLATE_CAP_CAP_INT_HELPER(scaddr, csetaddr)
+TRANSLATE_CAP_CAP_INT_HELPER(schi, csethigh)
