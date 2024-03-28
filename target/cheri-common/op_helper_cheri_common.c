@@ -1767,3 +1767,12 @@ void CHERI_HELPER_IMPL(schi(CPUArchState *env, uint32_t cd, uint32_t cs1,
     result.cr_extra = CREG_FULLY_DECOMPRESSED;
     update_capreg(env, cd, &result);
 }
+
+target_ulong CHERI_HELPER_IMPL(sceq(CPUArchState *env, uint32_t cs1,
+             uint32_t cs2))
+{
+    const cap_register_t *cs1p = get_readonly_capreg(env, cs1);
+    const cap_register_t *cs2p = get_readonly_capreg(env, cs2);
+
+    return cap_exactly_equal(cs1p, cs2p);
+}

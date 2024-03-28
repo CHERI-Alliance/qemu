@@ -706,6 +706,9 @@ TRANSLATE_SC_EXPLICIT(sc_d, MO_ALIGN | MO_Q);
 #define TRANSLATE_CAP_CAP_INT_BW(name) \
     DO_TRANSLATE(name, gen_cheri_cap_cap_int_plus_imm, a->cd, a->cs1, a->rs2, 0)
 
+#define TRANSLATE_INT_CAP_CAP_BW(name) \
+    DO_TRANSLATE(name, gen_cheri_int_cap_cap, ctx, a->rd, a->cs1, a->cs2)
+
 TRANSLATE_INT_CAP_BW(gctag)
 TRANSLATE_INT_CAP_BW(gcperm)
 TRANSLATE_INT_CAP_BW(gchi)
@@ -741,3 +744,4 @@ TRANSLATE_CAP_CAP_IMM_BW(caddi)
 
 TRANSLATE_CAP_CAP_INT_BW(scaddr)
 TRANSLATE_CAP_CAP_INT_BW(schi)
+TRANSLATE_INT_CAP_CAP_BW(sceq)
