@@ -203,7 +203,6 @@ void HELPER(cspecialrw)(CPUArchState *env, uint32_t cd, uint32_t cs,
         case CheriSCR_STCC:
         case CheriSCR_MTCC: {
             target_ulong new_tvec = SCR_TO_PROGRAM_COUNTER(env, &new_val);
-            target_ulong new_mode = new_tvec & 3;
             /* The low two bits encode the mode, but only 0 and 1 are valid. */
             if ((new_tvec & 3) > 1) {
                 /* Invalid mode, keep the old one. */
