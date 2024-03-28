@@ -78,6 +78,8 @@ nightly_build:
     - if: $CI_PIPELINE_SOURCE =="schedule"
     script:
         - scripts/riscv_cheri/package $INSTALL_DIR $CI_PROJECT_DIR/$PACKAGE_NAME
-        - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file $CI_PROJECT_DIR/$PACKAGE_NAME "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/qemu-cheri/0.0.1/$PACKAGE_NAME"'
-
+    artifacts:
+        paths:
+        - $CI_PROJECT_DIR/$PACKAGE_NAME
+        expire_in: 1 week
 
