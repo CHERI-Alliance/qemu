@@ -77,7 +77,6 @@ sceq   0000110  ..... ..... 100 ..... 0110011 @ccr
 
 ### Two operands (source and dest)
 # TODO: generate from sail?
-cgettype    1111111  00001 ..... 000 ..... 1011011 @r2
 cgetsealed  1111111  00101 ..... 000 ..... 1011011 @r2
 cgetoffset  1111111  00110 ..... 000 ..... 1011011 @r2
 crrl        1111111  01000 ..... 000 ..... 1011011 @r2
