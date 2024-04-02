@@ -929,3 +929,31 @@ void CHERI_HELPER_IMPL(csetaddr(CPUArchState *env, uint32_t cd, uint32_t cs1,
 {
     do_csetaddr(env, cd, cs1, rs2);
 }
+
+void CHERI_HELPER_IMPL(csetflags(CPUArchState *env, uint32_t cd, uint32_t cb,
+                                 target_ulong flags))
+{
+    /*
+     * CSetFlags: Set Flags
+     */
+
+    bool _cap_valid = true;
+    const cap_register_t *cbp = get_readonly_capreg(env, cb);
+    cap_register_t result = *cbp;
+
+    if (cbp->cr_tag && !cap_is_unsealed(cbp)) {
+        /*
+         * TODO: When this code lived in target/cheri-common, there was an
+         * option to either throw an exception at this point or to clear
+         * the tag. This uses helper functions from cheri-common that cannot
+         * be copied to mips easily.
+         * Since csetflags has to be disabled anyway when we modify the
+         * capability metadata format, we clear the tag here in any case.
+         */
+        result.cr_tag = 0;
+    }
+    flags &= CAP_FLAGS_ALL_BITS;
+    _Static_assert(CAP_FLAGS_ALL_BITS == 1, "Only one flag should exist");
+    CAP_cc(update_flags)(&result, flags);
+    update_capreg(env, cd, &result);
+}
