@@ -898,6 +898,26 @@ target_ulong CHERI_HELPER_IMPL(cgetlen(CPUArchState *env, uint32_t cb))
     return (target_ulong)cap_get_length_sat(get_readonly_capreg(env, cb));
 }
 
+target_ulong CHERI_HELPER_IMPL(cgettype(CPUArchState *env, uint32_t cb))
+{
+    /*
+     * CGetType: Move Object Type Field to a General-Purpose Register.
+     */
+    const cap_register_t *cbp = get_readonly_capreg(env, cb);
+    const target_long otype = cap_get_otype_signext(cbp);
+    // Must be either a valid positive type < maximum or one of the special
+    // hardware-interpreted otypes
+    if (otype < 0) {
+        cheri_debug_assert(
+            (cap_is_unsealed(cbp) || cap_is_sealed_with_reserved_otype(cbp)) &&
+            "all negative return values are used for reserved otypes.");
+    } else {
+        cheri_debug_assert(
+            cap_is_sealed_with_type(cbp) &&
+            "non-negative return values are used for non-reserved otypes");
+    }
+    return otype;
+}
 void CHERI_HELPER_IMPL(cincoffset(CPUArchState *env, uint32_t cd, uint32_t cb,
                                   target_ulong rt))
 {
