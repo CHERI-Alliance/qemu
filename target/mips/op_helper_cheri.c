@@ -845,6 +845,14 @@ target_ulong CHERI_HELPER_IMPL(cgetbase(CPUArchState *env, uint32_t cb))
     return (target_ulong)cap_get_base(get_readonly_capreg(env, cb));
 }
 
+target_ulong CHERI_HELPER_IMPL(cgetflags(CPUArchState *env, uint32_t cb))
+{
+    /*
+     * CGetFlags: Move Flags to a General-Purpose Register.
+     */
+    return (target_ulong)cap_get_flags(get_readonly_capreg(env, cb));
+}
+
 target_ulong CHERI_HELPER_IMPL(cgethigh(CPUArchState *env, uint32_t cb))
 {
     /*
