@@ -82,6 +82,15 @@ DEF_HELPER_FLAGS_4(riscv_log_instr, TCG_CALL_NO_RWG, void, env, tl, i32, i32)
 DEF_HELPER_3(csrrw, tl, env, tl, tl)
 DEF_HELPER_4(csrrs, tl, env, tl, tl, tl)
 DEF_HELPER_4(csrrc, tl, env, tl, tl, tl)
+#ifdef TARGET_CHERI
+DEF_HELPER_4(csrrw_cap, void, env, i32, i32, i32)
+DEF_HELPER_4(csrrs_cap, void, env, i32, i32, i32)
+DEF_HELPER_4(csrrc_cap, void, env, i32, i32, i32)
+DEF_HELPER_4(csrrwi_cap, void, env, i32, i32, i32)
+DEF_HELPER_4(csrrsi_cap, void, env, i32, i32, i32)
+DEF_HELPER_4(csrrci_cap, void, env, i32, i32, i32)
+
+#endif
 #ifndef CONFIG_USER_ONLY
 DEF_HELPER_2(sret, tl, env, tl)
 DEF_HELPER_2(mret, tl, env, tl)
