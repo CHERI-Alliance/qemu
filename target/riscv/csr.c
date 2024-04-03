@@ -1769,6 +1769,28 @@ static RISCVException write_upmbase(CPURISCVState *env, int csrno,
 
 #endif
 
+
+#ifdef TARGET_CHERI
+/* handlers for capabilty csr registers */
+void write_mscratchc(CPURISCVState *env, cap_register_t* src);
+cap_register_t *read_mscratchc(CPURISCVState *env);
+
+
+void write_mscratchc(CPURISCVState *env, cap_register_t* src)
+{
+    env->MScratchC = *src;
+}
+
+cap_register_t *read_mscratchc(CPURISCVState *env)
+{
+    return &env->MScratchC;
+}
+
+#endif
+
+
+
+
 #ifdef TARGET_CHERI
 static RISCVException read_ccsr(CPURISCVState *env, int csrno, target_ulong *val)
 {
@@ -2191,3 +2213,21 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_MHPMCOUNTER3H ... CSR_MHPMCOUNTER31H] =  CSR_OP_FN_R(any32, read_zero, "mhpmcounterNh"),
 #endif /* !CONFIG_USER_ONLY */
 };
+
+#ifdef TARGET_CHERI
+// We don't have as many CSR CAP Ops, and haven't fully defined what we need in the table, so don't bother 
+// with macros for this
+
+riscv_csr_cap_ops csr_cap_ops[]={
+    {"mscratchc", read_mscratchc, write_mscratchc},
+};
+
+
+riscv_csr_cap_ops* get_csr_cap_info(int csrnum){
+    switch (csrnum){
+        case CSR_MSCRATCHC: return &csr_cap_ops[0];
+        default: return NULL;
+    }
+}
+#endif
+
