@@ -212,6 +212,7 @@ struct CPURISCVState {
 #else
     target_ulong stvec;
     target_ulong sepc;
+    target_ulong sscratch;
 #endif
     target_ulong scause;
 
@@ -224,6 +225,7 @@ struct CPURISCVState {
 #else
     target_ulong mtvec;
     target_ulong mepc;
+    target_ulong mscratch;
 #endif
     target_ulong mcause;
     target_ulong mtval;  /* since: priv-1.10.0 */
@@ -247,13 +249,13 @@ struct CPURISCVState {
 #else
     target_ulong vstvec;
     target_ulong vsepc;
+    target_ulong vsscratch;
 #endif
     /*
      * For RV32 this is 32-bit vsstatus and 32-bit vsstatush.
      * For RV64 this is a 64-bit vsstatus.
      */
     uint64_t vsstatus;
-    target_ulong vsscratch;
     target_ulong vscause;
     target_ulong vstval;
     target_ulong vsatp;
@@ -265,11 +267,12 @@ struct CPURISCVState {
 #ifdef TARGET_CHERI
     cap_register_t stcc_hs;
     cap_register_t sepcc_hs;
+    cap_register_t sscratchc_hs;
 #else
     target_ulong stvec_hs;
     target_ulong sepc_hs;
-#endif
     target_ulong sscratch_hs;
+#endif
     target_ulong scause_hs;
     target_ulong stval_hs;
     target_ulong satp_hs;
@@ -281,9 +284,6 @@ struct CPURISCVState {
 
     target_ulong scounteren;
     target_ulong mcounteren;
-
-    target_ulong sscratch;
-    target_ulong mscratch;
 
     /* temporary htif regs */
     uint64_t mfromhost;

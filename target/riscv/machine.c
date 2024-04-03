@@ -93,7 +93,7 @@ static const VMStateDescription vmstate_hyper = {
 
         VMSTATE_UINT64(env.vsstatus, RISCVCPU),
         VMSTATE_UINTTL_OR_CAP(env.vstvec, env.vstcc, RISCVCPU),
-        VMSTATE_UINTTL(env.vsscratch, RISCVCPU),
+        VMSTATE_UINTTL_OR_CAP(env.vsscratch, env.vsscratchc, RISCVCPU),
         VMSTATE_UINTTL_OR_CAP(env.vsepc, env.vsepcc, RISCVCPU),
         VMSTATE_UINTTL(env.vscause, RISCVCPU),
         VMSTATE_UINTTL(env.vstval, RISCVCPU),
@@ -103,7 +103,7 @@ static const VMStateDescription vmstate_hyper = {
         VMSTATE_UINTTL(env.mtinst, RISCVCPU),
 
         VMSTATE_UINTTL_OR_CAP(env.stvec_hs, env.stcc_hs, RISCVCPU),
-        VMSTATE_UINTTL(env.sscratch_hs, RISCVCPU),
+        VMSTATE_UINTTL_OR_CAP(env.sscratch_hs, env.sscratchc_hs, RISCVCPU),
         VMSTATE_UINTTL_OR_CAP(env.sepc_hs, env.sepcc_hs, RISCVCPU),
         VMSTATE_UINTTL(env.scause_hs, RISCVCPU),
         VMSTATE_UINTTL(env.stval_hs, RISCVCPU),
@@ -211,8 +211,8 @@ const VMStateDescription vmstate_riscv_cpu = {
         VMSTATE_UINTTL(env.mtval, RISCVCPU),
         VMSTATE_UINTTL(env.scounteren, RISCVCPU),
         VMSTATE_UINTTL(env.mcounteren, RISCVCPU),
-        VMSTATE_UINTTL(env.sscratch, RISCVCPU),
-        VMSTATE_UINTTL(env.mscratch, RISCVCPU),
+        VMSTATE_UINTTL_OR_CAP(env.sscratch, env.sscratchc, RISCVCPU),
+        VMSTATE_UINTTL_OR_CAP(env.mscratch, env.mscratchc, RISCVCPU),
         VMSTATE_UINT64(env.mfromhost, RISCVCPU),
         VMSTATE_UINT64(env.mtohost, RISCVCPU),
         VMSTATE_UINT64(env.timecmp, RISCVCPU),

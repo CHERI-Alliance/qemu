@@ -801,14 +801,14 @@ static RISCVException write_mcounteren(CPURISCVState *env, int csrno,
 static RISCVException read_mscratch(CPURISCVState *env, int csrno,
                                     target_ulong *val)
 {
-    *val = env->mscratch;
+    *val = GET_SPECIAL_REG_ARCH(env, mscratch, mscratchc);
     return RISCV_EXCP_NONE;
 }
 
 static RISCVException write_mscratch(CPURISCVState *env, int csrno,
                                      target_ulong val)
 {
-    env->mscratch = val;
+    SET_SPECIAL_REG(env, mscratch, mscratchc, val);
     return RISCV_EXCP_NONE;
 }
 
@@ -977,14 +977,14 @@ static RISCVException write_scounteren(CPURISCVState *env, int csrno,
 static RISCVException read_sscratch(CPURISCVState *env, int csrno,
                                     target_ulong *val)
 {
-    *val = env->sscratch;
+    *val = GET_SPECIAL_REG_ARCH(env, sscratch, sscratchc);
     return RISCV_EXCP_NONE;
 }
 
 static RISCVException write_sscratch(CPURISCVState *env, int csrno,
                                      target_ulong val)
 {
-    env->sscratch = val;
+    SET_SPECIAL_REG(env, sscratch, sscratchc, val);
     return RISCV_EXCP_NONE;
 }
 
@@ -1367,14 +1367,14 @@ static RISCVException write_vstvec(CPURISCVState *env, int csrno,
 static RISCVException read_vsscratch(CPURISCVState *env, int csrno,
                                      target_ulong *val)
 {
-    *val = env->vsscratch;
+    *val = GET_SPECIAL_REG_ARCH(env, vsscratch, vsscratchc);
     return RISCV_EXCP_NONE;
 }
 
 static RISCVException write_vsscratch(CPURISCVState *env, int csrno,
                                       target_ulong val)
 {
-    env->vsscratch = val;
+    SET_SPECIAL_REG(env, vsscratch, vsscratchc, val);
     return RISCV_EXCP_NONE;
 }
 
