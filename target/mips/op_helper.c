@@ -2119,14 +2119,3 @@ void helper_smp_yield(CPUMIPSState *env) {
 
     cpu_loop_exit(cs);
 }
-
-#ifdef TARGET_CHERI
-target_ulong helper_cgetbase(CPUArchState *env, uint32_t cb)
-{
-    /*
-     * CGetBase: Move Base to a General-Purpose Register.
-     */
-    return (target_ulong)cap_get_base(get_readonly_capreg(env, cb));
-}
-
-#endif
