@@ -837,6 +837,14 @@ void CHERI_HELPER_IMPL(mtc2_dumpcstate(CPUArchState *env, target_ulong arg1))
         qemu_log_unlock(logfile);
 }
 
+target_ulong CHERI_HELPER_IMPL(cgetbase(CPUArchState *env, uint32_t cb))
+{
+    /*
+     * CGetBase: Move Base to a General-Purpose Register.
+     */
+    return (target_ulong)cap_get_base(get_readonly_capreg(env, cb));
+}
+
 target_ulong CHERI_HELPER_IMPL(cgethigh(CPUArchState *env, uint32_t cb))
 {
     /*
