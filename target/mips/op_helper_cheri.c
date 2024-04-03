@@ -836,3 +836,11 @@ void CHERI_HELPER_IMPL(mtc2_dumpcstate(CPUArchState *env, target_ulong arg1))
     if (logfile != stderr)
         qemu_log_unlock(logfile);
 }
+
+target_ulong CHERI_HELPER_IMPL(cgettag(CPUArchState *env, uint32_t cb))
+{
+    /*
+     * CGetTag: Move Tag to a General-Purpose Register
+     */
+    return (target_ulong)get_capreg_tag(env, cb);
+}
