@@ -801,15 +801,15 @@ static RISCVException write_mcounteren(CPURISCVState *env, int csrno,
 static RISCVException read_mscratch(CPURISCVState *env, int csrno,
                                     target_ulong *val)
 {
-    *val = env->mscratch;
-    return RISCV_EXCP_NONE;
+    *val = GET_SPECIAL_REG_ARCH(env, mscratch, mscratchc);
+    return 0;
 }
 
 static RISCVException write_mscratch(CPURISCVState *env, int csrno,
                                      target_ulong val)
 {
-    env->mscratch = val;
-    return RISCV_EXCP_NONE;
+    SET_SPECIAL_REG(env, mscratch, mscratchc, val);
+    return 0;
 }
 
 static RISCVException read_mepc(CPURISCVState *env, int csrno,
