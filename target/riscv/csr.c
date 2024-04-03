@@ -1770,6 +1770,21 @@ static RISCVException write_upmbase(CPURISCVState *env, int csrno,
 #endif
 
 #ifdef TARGET_CHERI
+/* handlers for capability csr registers */
+
+static void write_mscratchc(CPURISCVState *env, cap_register_t *src)
+{
+    env->mscratchc = *src;
+}
+
+static cap_register_t read_mscratchc(CPURISCVState *env)
+{
+    return env->mscratchc;
+}
+
+#endif
+
+#ifdef TARGET_CHERI
 static RISCVException read_ccsr(CPURISCVState *env, int csrno, target_ulong *val)
 {
     // We report the same values for all modes and don't perform dirty tracking
@@ -2207,3 +2222,25 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_MHPMCOUNTER3H ... CSR_MHPMCOUNTER31H] =  CSR_OP_FN_R(any32, read_zero, "mhpmcounterNh"),
 #endif /* !CONFIG_USER_ONLY */
 };
+
+#ifdef TARGET_CHERI
+/*
+ * We don't have as many CSR Cap ops, and haven't fully defined what we need in
+ * the table, so keep this table separate instead of merging it into the main
+ * table for now.
+ */
+
+riscv_csr_cap_ops csr_cap_ops[] = {
+    { "mscratchc", read_mscratchc, write_mscratchc },
+};
+
+riscv_csr_cap_ops *get_csr_cap_info(int csrnum)
+{
+    switch (csrnum) {
+    case CSR_MSCRATCHC:
+        return &csr_cap_ops[0];
+    default:
+        return NULL;
+    }
+}
+#endif
