@@ -512,6 +512,7 @@ static bool trans_fence_i(DisasContext *ctx, arg_fence_i *a)
     tcg_temp_free(rs1_pass); \
 } while (0)
 
+#ifdef TARGET_CHERI
 /*
 These functions generate the tcg code for csr acceses.
 As it stands these will not work correctly with the capability ones as they are only expecting 64/32 bit words
@@ -557,7 +558,7 @@ static bool is_cap_csr(int csrno)
 
 
 }
-
+#endif
 
 /*
 TODO: PB Inovke relevant csrxx_cap variants
@@ -574,12 +575,14 @@ static bool do_csr_post(DisasContext *ctx)
 
 static bool trans_csrrw(DisasContext *ctx, arg_csrrw *a)
     TCGv source1, csr_store, dest, rs1_pass;
+#ifdef TARGET_CHERI
     if( is_cap_csr(a->csr) ){
         // currently this is not appropriate as the behaviour is expectedthe helper function to return the register valu and then the post code moves this into the rd register. This is not the way that
         // we can do directly. Need to look at how this is handled elsewhere.
         gen_cheri_cap_cap_cap(a->csr, a->rd, a->rs1, &gen_helper_csrrw_cap);
         return true;
     }
+#endif
     RISCV_OP_CSR_PRE;
     gen_helper_csrrw(dest, cpu_env, source1, csr_store);
     RISCV_OP_CSR_POST;
@@ -643,10 +646,12 @@ static bool trans_csrrw(DisasContext *ctx, arg_csrrw *a)
 static bool trans_csrrs(DisasContext *ctx, arg_csrrs *a)
 {
     TCGv source1, csr_store, dest, rs1_pass;
+#ifdef TARGET_CHERI
     if( is_cap_csr(a->csr) ){
         gen_cheri_cap_cap_cap(a->csr, a->rd, a->rs1, &gen_helper_csrrs_cap);
         return true;
     }
+#endif    
     RISCV_OP_CSR_PRE;
     gen_helper_csrrs(dest, cpu_env, source1, csr_store, rs1_pass);
     RISCV_OP_CSR_POST;
@@ -656,10 +661,12 @@ static bool trans_csrrs(DisasContext *ctx, arg_csrrs *a)
 static bool trans_csrrc(DisasContext *ctx, arg_csrrc *a)
 {
     TCGv source1, csr_store, dest, rs1_pass;
+#ifdef TARGET_CHERI
     if( is_cap_csr(a->csr) ){
         gen_cheri_cap_cap_cap(a->csr, a->rd, a->rs1, &gen_helper_csrrc_cap);
         return true;
     }
+#endif
     RISCV_OP_CSR_PRE;
     gen_helper_csrrc(dest, cpu_env, source1, csr_store, rs1_pass);
     RISCV_OP_CSR_POST;
@@ -669,10 +676,12 @@ static bool trans_csrrc(DisasContext *ctx, arg_csrrc *a)
 static bool trans_csrrwi(DisasContext *ctx, arg_csrrwi *a)
 {
     TCGv source1, csr_store, dest, rs1_pass;
+#ifdef TARGET_CHERI    
     if( is_cap_csr(a->csr) ){
         gen_cheri_cap_cap_cap(a->csr, a->rd, a->rs1, &gen_helper_csrrwi_cap);
         return true;
     }
+#endif
     RISCV_OP_CSR_PRE;
     gen_helper_csrrw(dest, cpu_env, rs1_pass, csr_store);
     RISCV_OP_CSR_POST;
@@ -682,10 +691,12 @@ static bool trans_csrrwi(DisasContext *ctx, arg_csrrwi *a)
 static bool trans_csrrsi(DisasContext *ctx, arg_csrrsi *a)
 {
     TCGv source1, csr_store, dest, rs1_pass;
+#ifdef TARGET_CHERI
     if( is_cap_csr(a->csr) ){
         gen_cheri_cap_cap_cap(a->csr, a->rd, a->rs1, &gen_helper_csrrsi_cap);
         return true;
     }
+#endif    
     RISCV_OP_CSR_PRE;
     gen_helper_csrrs(dest, cpu_env, rs1_pass, csr_store, rs1_pass);
     RISCV_OP_CSR_POST;
@@ -695,10 +706,12 @@ static bool trans_csrrsi(DisasContext *ctx, arg_csrrsi *a)
 static bool trans_csrrci(DisasContext *ctx, arg_csrrci *a)
 {
     TCGv source1, csr_store, dest, rs1_pass;
+#ifdef TARGET_CHERI
     if( is_cap_csr(a->csr) ){
         gen_cheri_cap_cap_cap(a->csr, a->rd, a->rs1, &gen_helper_csrrci_cap);
         return true;
     }
+#endif
     RISCV_OP_CSR_PRE;
     gen_helper_csrrc(dest, cpu_env, rs1_pass, csr_store, rs1_pass);
     RISCV_OP_CSR_POST;
