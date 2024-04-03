@@ -115,6 +115,238 @@ void riscv_log_instr_scr_changed(CPURISCVState *env, int scrno)
 }
 #endif
 
+static inline  cap_register_t *get_cap_csr(CPUArchState *env, int csrno,const char **name)
+{
+    switch (csrno)
+    {
+        case CSR_DSCRATCH0C: *name="MSCRATCH"; return &env->MScratchC;
+        default:
+            *name=NULL;
+            return &env->DDC; // for now just pass the default data capability
+    }
+}
+
+int check_csr_cap_permissions(CPURISCVState *env, int csrno,int write_mask);
+int check_csr_cap_permissions(CPURISCVState *env, int csrno,int write_mask)
+{
+    RISCVCPU *cpu = env_archcpu(env);
+
+    /* check privileges and return -1 if check fails */
+#if !defined(CONFIG_USER_ONLY)
+    int effective_priv = env->priv;
+    int read_only = get_field(csrno, 0xC00) == 3;
+
+    if (riscv_has_ext(env, RVH) &&
+        env->priv == PRV_S &&
+        !riscv_cpu_virt_enabled(env)) {
+        /*
+         * We are in S mode without virtualisation, therefore we are in HS Mode.
+         * Add 1 to the effective privledge level to allow us to access the
+         * Hypervisor CSRs.
+         */
+        effective_priv++;
+    }
+
+    if ((write_mask && read_only) ||
+        (!env->debugger && (effective_priv < get_field(csrno, 0x300)))) {
+        return -RISCV_EXCP_ILLEGAL_INST;
+    }
+#endif
+
+    /* ensure the CSR extension is enabled. */
+    if (!cpu->cfg.ext_icsr) {
+        return -RISCV_EXCP_ILLEGAL_INST;
+    }
+
+
+    return 0;
+}
+
+
+void HELPER(csrrw_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
+                        uint32_t rs1)
+{
+    cap_register_t rs_cap;
+    int ret;
+    riscv_csr_cap_ops *csr_cap_info = get_csr_cap_info(csr);
+    cap_register_t *csr_cap;
+
+    assert(csr_cap_info);
+
+    ret = check_csr_cap_permissions(env,csr,1);
+    if (ret) {
+        riscv_raise_exception(env, RISCV_EXCP_CHERI, GETPC());
+    }
+
+    rs_cap = *get_cap_in_gpregs(&env->gpcapregs,rs1);
+    if (rd) {
+        csr_cap = csr_cap_info->read(env);
+        cap_register_t *rd_cap = get_cap_in_gpregs(&env->gpcapregs,rd);
+        *rd_cap=*csr_cap;
+        cheri_log_instr_changed_gp_capreg(env, rd, rd_cap);
+    }
+
+    cheri_log_instr_changed_capreg(env, csr_cap_info->name, &rs_cap);
+    csr_cap_info->write(env, &rs_cap);
+}
+
+void HELPER(csrrs_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
+                        uint32_t rs1)
+{
+    cap_register_t rs_cap;
+    int ret;
+    riscv_csr_cap_ops *csr_cap_info = get_csr_cap_info(csr);
+    cap_register_t *csr_cap;
+
+
+    assert(csr_cap_info);
+
+    if (rs1) {
+        ret = check_csr_cap_permissions(env,csr,1);
+        if (ret) {
+            riscv_raise_exception(env, RISCV_EXCP_CHERI, GETPC());
+        }
+        rs_cap = *get_cap_in_gpregs(&env->gpcapregs,rs1);
+    }
+
+    csr_cap = csr_cap_info->read(env);
+    cap_register_t *dest = get_cap_in_gpregs(&env->gpcapregs,rd);
+    *dest=*csr_cap;
+    cheri_log_instr_changed_gp_capreg(env, rd, csr_cap);
+
+    if (rs1){
+        target_ulong new_val;
+        new_val =   ( cap_get_cursor(csr_cap) | cap_get_cursor(&rs_cap) );
+        update_special_register(env, &rs_cap, csr_cap_info->name, new_val);
+        csr_cap_info->write(env, &rs_cap);
+    }
+
+}
+
+void HELPER(csrrc_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
+                        uint32_t rs1)
+{
+    cap_register_t rs_cap;
+    int ret;
+    riscv_csr_cap_ops *csr_cap_info = get_csr_cap_info(csr);
+    cap_register_t *csr_cap;
+
+    assert(csr_cap_info);
+
+    if(rs1) {
+        ret = check_csr_cap_permissions(env,csr,1);
+        if (ret) {
+            riscv_raise_exception(env, RISCV_EXCP_CHERI, GETPC());
+        }
+        rs_cap = *get_cap_in_gpregs(&env->gpcapregs,rs1);
+    }
+
+    csr_cap = csr_cap_info->read(env);
+    cap_register_t *dest = get_cap_in_gpregs(&env->gpcapregs,rd);
+    *dest=*csr_cap;
+    cheri_log_instr_changed_gp_capreg(env, rd, csr_cap);
+
+    if (rs1) {
+        target_ulong addr;
+        addr = ( cap_get_cursor(csr_cap) & (~cap_get_cursor(&rs_cap)) );
+        update_special_register(env, &rs_cap, csr_cap_info->name, addr);
+        csr_cap_info->write(env, &rs_cap);
+    }
+}
+
+void HELPER(csrrwi_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
+                        uint32_t rs1)
+{
+    cap_register_t tmp_cap;
+    int ret;
+    riscv_csr_cap_ops *csr_cap_info = get_csr_cap_info(csr);
+    cap_register_t *csr_cap;
+
+    assert(csr_cap_info);
+
+    ret = check_csr_cap_permissions(env,csr,1);
+
+    if (ret) {
+        riscv_raise_exception(env, RISCV_EXCP_CHERI, GETPC());
+    }
+
+    csr_cap = csr_cap_info->read(env);
+    if (rd) {
+        cap_register_t *dest = get_cap_in_gpregs(&env->gpcapregs,rd);
+        *dest=*csr_cap;
+        cheri_log_instr_changed_gp_capreg(env, rd, csr_cap);
+    }
+    tmp_cap = *csr_cap;
+    update_special_register(env, &tmp_cap, csr_cap_info->name, rs1);
+    csr_cap_info->write(env, &tmp_cap);
+}
+
+void HELPER(csrrsi_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
+                        uint32_t rs1_val)
+{
+    int ret;
+    riscv_csr_cap_ops *csr_cap_info = get_csr_cap_info(csr);
+    cap_register_t *csr_cap;
+
+    assert(csr_cap_info);
+
+    if (rs1_val) {
+        ret = check_csr_cap_permissions(env,csr,1);
+        if (ret) {
+            riscv_raise_exception(env, RISCV_EXCP_CHERI, GETPC());
+        }
+    }
+
+    csr_cap = csr_cap_info->read(env);
+    if (rd) {
+        cap_register_t *rd_cap = get_cap_in_gpregs(&env->gpcapregs,rd);
+        *rd_cap=*csr_cap;
+        cheri_log_instr_changed_gp_capreg(env, rd, csr_cap);
+    }
+
+    if (rs1_val) {
+        target_ulong new_val;
+        new_val = (cap_get_cursor(csr_cap) | rs1_val);
+        update_special_register(env, csr_cap, csr_cap_info->name, new_val);
+        csr_cap_info->write(env, csr_cap);
+    }
+}
+
+void HELPER(csrrci_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
+                        uint32_t rs1_val)
+{
+    int ret;
+    riscv_csr_cap_ops *csr_cap_info = get_csr_cap_info(csr);
+    cap_register_t *csr_cap;
+
+    assert(csr_cap_info);
+
+    if (rs1_val) {
+        ret = check_csr_cap_permissions(env,csr,1);
+        if(ret){
+            riscv_raise_exception(env, RISCV_EXCP_CHERI, GETPC());
+        }
+    }
+
+    csr_cap = csr_cap_info->read(env);
+    if (rd) {
+        cap_register_t *rd_cap = get_cap_in_gpregs(&env->gpcapregs,rd);
+        *rd_cap=*csr_cap;
+        cheri_log_instr_changed_gp_capreg(env, rd, csr_cap);
+    }
+
+
+    if (rs1_val) {
+        target_ulong new_val;
+        new_val = (cap_get_cursor(csr_cap) & (~rs1_val));
+        update_special_register(env, csr_cap, csr_cap_info->name, new_val);
+        csr_cap_info->write(env, csr_cap);
+    }
+
+
+}
+
+
 void HELPER(cspecialrw)(CPUArchState *env, uint32_t cd, uint32_t cs,
                         uint32_t index)
 {
