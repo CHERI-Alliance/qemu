@@ -160,6 +160,13 @@
 #define CSR_MTVAL           0x343
 #define CSR_MIP             0x344
 
+#ifdef TARGET_CHERI
+/* Machine trap setup,scratch and handling capabilities*/
+#define CSR_MTVECC          0x305
+#define CSR_MSCRATCHC       0x340
+#define CSR_MEPCC           0x341
+#endif
+
 /* Supervisor Trap Setup */
 #define CSR_SSTATUS         0x100
 #define CSR_SEDELEG         0x102
@@ -174,6 +181,13 @@
 #define CSR_SCAUSE          0x142
 #define CSR_STVAL           0x143
 #define CSR_SIP             0x144
+
+#ifdef TARGET_CHERI
+/* Supervisor trap setup, scratch and handling */
+#define CSR_STVECC          0x105
+#define CSR_SSCRATCHC       0x140
+#define CSR_SEPCC           0x141
+#endif
 
 /* Supervisor Protection and Translation */
 #define CSR_SPTBR           0x180
@@ -243,7 +257,26 @@
 /* Debug Mode Registers */
 #define CSR_DCSR            0x7b0
 #define CSR_DPC             0x7b1
-#define CSR_DSCRATCH        0x7b2
+#define CSR_DSCRATCH0       0x7b2
+#define CSR_DSCRATCH1       0x7b3
+
+#ifdef TARGET_CHERI
+/*
+ * CHERI Debug mode capability CSRs.
+ * Note: Qemu does not implement debug mode (Qemu's gdbserver uses Qemu's
+ * internal mechanisms for stopping a vm or setting breakpoints), so there is
+ * no internal storage or access mechanism for these registers.
+ */
+#define CSR_DPCC            0x7b1
+#define CSR_DSCRATCH0C      0x7b2
+#define CSR_DSCRATCH1C      0x7b3
+#define CSR_DDDC            0x7bc
+#define CSR_DINFC           0x7bd
+
+/* CHERI default data capability */
+#define CSR_DDC             0x416
+
+#endif
 
 /* Performance Counters */
 #define CSR_MHPMCOUNTER3    0xb03
