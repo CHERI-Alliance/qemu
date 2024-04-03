@@ -489,6 +489,15 @@ static bool trans_fence_i(DisasContext *ctx, arg_fence_i *a)
     return true;
 }
 
+static bool is_cap_csr(uint32_t csrno)
+{
+#ifdef TARGET_CHERI
+    return get_csr_cap_info(csrno) != NULL;
+#else
+    return false;
+#endif
+}
+
 static bool do_csr_post(DisasContext *ctx)
 {
     /* We may have changed important cpu state -- exit to main loop. */
@@ -502,6 +511,7 @@ static bool do_csrr(DisasContext *ctx, int rd, int rc)
 {
     TCGv dest = dest_gpr(ctx, rd);
     TCGv_i32 csr = tcg_constant_i32(rc);
+    cheri_debug_assert(!is_cap_csr(rc));
 
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
         gen_io_start();
@@ -514,6 +524,7 @@ static bool do_csrr(DisasContext *ctx, int rd, int rc)
 static bool do_csrw(DisasContext *ctx, int rc, TCGv src)
 {
     TCGv_i32 csr = tcg_constant_i32(rc);
+    cheri_debug_assert(!is_cap_csr(rc));
 
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
         gen_io_start();
@@ -526,6 +537,7 @@ static bool do_csrrw(DisasContext *ctx, int rd, int rc, TCGv src, TCGv mask)
 {
     TCGv dest = dest_gpr(ctx, rd);
     TCGv_i32 csr = tcg_constant_i32(rc);
+    cheri_debug_assert(!is_cap_csr(rc));
 
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
         gen_io_start();
@@ -537,6 +549,14 @@ static bool do_csrrw(DisasContext *ctx, int rd, int rc, TCGv src, TCGv mask)
 
 static bool trans_csrrw(DisasContext *ctx, arg_csrrw *a)
 {
+#ifdef TARGET_CHERI
+    if (is_cap_csr(a->csr)) {
+        gen_helper_csrrw_cap(cpu_env, tcg_constant_i32(a->csr),
+                             tcg_constant_i32(a->rd), tcg_constant_i32(a->rs1));
+        return true;
+    }
+#endif
+
     TCGv src = get_gpr(ctx, a->rs1, EXT_NONE);
 
     /*
@@ -553,6 +573,13 @@ static bool trans_csrrw(DisasContext *ctx, arg_csrrw *a)
 
 static bool trans_csrrs(DisasContext *ctx, arg_csrrs *a)
 {
+#ifdef TARGET_CHERI
+    if (is_cap_csr(a->csr)) {
+        gen_helper_csrrs_cap(cpu_env, tcg_constant_i32(a->csr),
+                             tcg_constant_i32(a->rd), tcg_constant_i32(a->rs1));
+        return true;
+    }
+#endif
     /*
      * If rs1 == 0, the insn shall not write to the csr at all, nor
      * cause any of the side effects that might occur on a csr write.
@@ -571,6 +598,13 @@ static bool trans_csrrs(DisasContext *ctx, arg_csrrs *a)
 
 static bool trans_csrrc(DisasContext *ctx, arg_csrrc *a)
 {
+#ifdef TARGET_CHERI
+    if (is_cap_csr(a->csr)) {
+        gen_helper_csrrc_cap(cpu_env, tcg_constant_i32(a->csr),
+                             tcg_constant_i32(a->rd), tcg_constant_i32(a->rs1));
+        return true;
+    }
+#endif
     /*
      * If rs1 == 0, the insn shall not write to the csr at all, nor
      * cause any of the side effects that might occur on a csr write.
@@ -588,6 +622,14 @@ static bool trans_csrrc(DisasContext *ctx, arg_csrrc *a)
 
 static bool trans_csrrwi(DisasContext *ctx, arg_csrrwi *a)
 {
+#ifdef TARGET_CHERI
+    if (is_cap_csr(a->csr)) {
+        gen_helper_csrrwi_cap(cpu_env, tcg_constant_i32(a->csr),
+                              tcg_constant_i32(a->rd),
+                              tcg_constant_i32(a->rs1));
+        return true;
+    }
+#endif
     TCGv src = tcg_constant_tl(a->rs1);
 
     /*
@@ -604,6 +646,14 @@ static bool trans_csrrwi(DisasContext *ctx, arg_csrrwi *a)
 
 static bool trans_csrrsi(DisasContext *ctx, arg_csrrsi *a)
 {
+#ifdef TARGET_CHERI
+    if (is_cap_csr(a->csr)) {
+        gen_helper_csrrsi_cap(cpu_env, tcg_constant_i32(a->csr),
+                              tcg_constant_i32(a->rd),
+                              tcg_constant_i32(a->rs1));
+        return true;
+    }
+#endif
     /*
      * If rs1 == 0, the insn shall not write to the csr at all, nor
      * cause any of the side effects that might occur on a csr write.
@@ -622,6 +672,14 @@ static bool trans_csrrsi(DisasContext *ctx, arg_csrrsi *a)
 
 static bool trans_csrrci(DisasContext *ctx, arg_csrrci *a)
 {
+#ifdef TARGET_CHERI
+    if (is_cap_csr(a->csr)) {
+        gen_helper_csrrci_cap(cpu_env, tcg_constant_i32(a->csr),
+                              tcg_constant_i32(a->rd),
+                              tcg_constant_i32(a->rs1));
+        return true;
+    }
+#endif
     /*
      * If rs1 == 0, the insn shall not write to the csr at all, nor
      * cause any of the side effects that might occur on a csr write.
