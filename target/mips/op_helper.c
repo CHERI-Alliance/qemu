@@ -2121,15 +2121,6 @@ void helper_smp_yield(CPUMIPSState *env) {
 }
 
 #ifdef TARGET_CHERI
-target_ulong helper_cgethigh(CPUArchState *env, uint32_t cb)
-{
-    /*
-     * CGetHigh: Move Metadata bits to a General-Purpose Register
-     * TODO: could do this directly from TCG now.
-     */
-    return CAP_cc(compress_mem)(get_readonly_capreg(env, cb));
-}
-
 target_ulong helper_cgetbase(CPUArchState *env, uint32_t cb)
 {
     /*

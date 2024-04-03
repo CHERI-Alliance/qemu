@@ -837,6 +837,15 @@ void CHERI_HELPER_IMPL(mtc2_dumpcstate(CPUArchState *env, target_ulong arg1))
         qemu_log_unlock(logfile);
 }
 
+target_ulong CHERI_HELPER_IMPL(cgethigh(CPUArchState *env, uint32_t cb))
+{
+    /*
+     * CGetHigh: Move Metadata bits to a General-Purpose Register
+     * TODO: could do this directly from TCG now.
+     */
+    return CAP_cc(compress_mem)(get_readonly_capreg(env, cb));
+}
+
 target_ulong CHERI_HELPER_IMPL(cgetperm(CPUArchState *env, uint32_t cb))
 {
     /*
