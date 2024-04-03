@@ -723,13 +723,14 @@ static int write_mscounteren(CPURISCVState *env, int csrno, target_ulong val)
 /* Machine Trap Handling */
 static int read_mscratch(CPURISCVState *env, int csrno, target_ulong *val)
 {
-    *val = env->mscratch;
+    *val = GET_SPECIAL_REG_ARCH(env, mscratch, MScratchC);
     return 0;
 }
 
 static int write_mscratch(CPURISCVState *env, int csrno, target_ulong val)
 {
-    env->mscratch = val;
+    
+    SET_SPECIAL_REG(env, mscratch, MScratchC, val);
     return 0;
 }
 

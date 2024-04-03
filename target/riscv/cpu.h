@@ -217,6 +217,7 @@ struct CPURISCVState {
 #else
     target_ulong mtvec;
     target_ulong mepc;
+    target_ulong mscratch;
 #endif
     target_ulong mcause;
     target_ulong mtval;  /* since: priv-1.10.0 */
@@ -276,7 +277,6 @@ struct CPURISCVState {
     target_ulong mcounteren;
 
     target_ulong sscratch;
-    target_ulong mscratch;
 
     /* temporary htif regs */
     uint64_t mfromhost;
