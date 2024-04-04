@@ -552,6 +552,13 @@ static inline __attribute__((always_inline)) bool load_store_implementation(
     return true;
 }
 
+static inline void gen_cap_get_flags(DisasContext *ctx, int regnum, TCGv flags)
+{
+    // Morello flags are just different from CHERI flags.
+    gen_cap_get_cursor(ctx, regnum, flags);
+    tcg_gen_andi_i64(flags, flags, 0xFFULL << (64 - MORELLO_FLAG_BITS));
+}
+
 // All the instructions
 
 TRANS_F(ADR)
