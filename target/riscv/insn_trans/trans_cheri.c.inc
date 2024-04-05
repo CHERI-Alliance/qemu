@@ -311,20 +311,6 @@ static bool trans_jalr_pcc(DisasContext *ctx, arg_jalr_pcc *a)
     return true;
 }
 
-static inline bool trans_cinvoke(DisasContext *ctx, arg_cinvoke *a)
-{
-    TCGv_i32 code_regnum = tcg_const_i32(a->rs1);
-    TCGv_i32 data_regnum = tcg_const_i32(a->rs2);
-    gen_helper_cinvoke(cpu_env, code_regnum, data_regnum);
-    tcg_temp_free_i32(code_regnum);
-    tcg_temp_free_i32(data_regnum);
-
-    tcg_gen_lookup_and_goto_ptr();
-    // PC has been updated -> exit translation block
-    ctx->base.is_jmp = DISAS_NORETURN;
-    return true;
-}
-
 // Loads
 static bool gen_ddc_load(DisasContext *ctx, int rd, int rs1, MemOp memop)
 {

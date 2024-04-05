@@ -96,10 +96,6 @@ gclen       0001000  00110 ..... 000 ..... 0110011 @c2
 # There is an existing @sfence_vma format with rs1+rs2 fields, but let's define a new name
 @r_2source ....... ..... .....   ... ..... ....... %rs2 %rs1
 
-### Two operands (source1 and source2)
-cinvoke  1111110  ..... ..... 000 00001 1011011 @r_2source
-
-
 ### Instructions with 12-bit immediates:
 # We have to add a new i format with unsigned immediate for csetboundsimm:
 %imm_i_unsigned    20:12
