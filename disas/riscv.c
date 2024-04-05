@@ -558,6 +558,7 @@ typedef enum {
     rv_op_csealentry,
     rv_op_cloadtags,
 
+    rv_op_sentry,
     rv_op_gctag,
     rv_op_gcperm,
     rv_op_gchi,
@@ -1317,6 +1318,7 @@ const rv_opcode_data opcode_data[] = {
     [rv_op_csealentry] = { "csealentry", rv_codec_r, rv_fmt_cd_cs1, NULL, 0, 0, 0 },
     [rv_op_cloadtags] = { "cloadtags", rv_codec_r, rv_fmt_rd_cs1, NULL, 0, 0, 0 },
 
+    [rv_op_sentry] = { "sentry", rv_codec_r, rv_fmt_cd_cs1, NULL, 0, 0, 0 },
     [rv_op_gctag] = { "gctag", rv_codec_r, rv_fmt_rd_cs1, NULL, 0, 0, 0 },
     [rv_op_gcperm] = { "gcperm", rv_codec_r, rv_fmt_rd_cs1, NULL, 0, 0, 0 },
     [rv_op_gchi] = { "gchi", rv_codec_r, rv_fmt_rd_cs1, NULL, 0, 0, 0 },
@@ -1996,6 +1998,7 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa, int flags)
                 case 0b00100: op = rv_op_gchi; break;
                 case 0b00101: op = rv_op_gcbase; break;
                 case 0b00110: op = rv_op_gclen; break;
+                case 0b01000: op = rv_op_sentry; break;
                 }
                 break;
             case 73:  op = rv_op_modesw_cap; break;

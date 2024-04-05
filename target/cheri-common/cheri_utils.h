@@ -37,6 +37,9 @@
 
 #include "cheri_defs.h"
 
+/* cap_set_sealed does not need a type for cheri bakewell */
+#define SEALED_TYPE_UNUSED 0
+
 #ifdef TARGET_AARCH64
 #define PRINT_CAP_FMT_EXTRA " bv: %d"
 #define PRINT_CAP_ARGS_EXTRA(cr) , (cr)->cr_bounds_valid
