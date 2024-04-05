@@ -1767,3 +1767,24 @@ target_ulong CHERI_HELPER_IMPL(sceq(CPUArchState *env, uint32_t cs1,
 
     return cap_exactly_equal(cs1p, cs2p);
 }
+
+void CHERI_HELPER_IMPL(sentry(CPUArchState *env, uint32_t cd, uint32_t cs1))
+{
+    GET_HOST_RETPC_IF_TRAPPING_CHERI_ARCH();
+    DEFINE_RESULT_VALID;
+    const cap_register_t *cs1p = get_readonly_capreg(env, cs1);
+    cap_register_t result = *cs1p;
+
+    if (!cs1p->cr_tag) {
+        raise_cheri_exception_or_invalidate(env, CapEx_TagViolation, cs1);
+    } else if (!cap_is_unsealed(cs1p)) {
+        raise_cheri_exception_or_invalidate(env, CapEx_SealViolation, cs1);
+    }
+
+    if (RESULT_VALID) {
+        cap_set_sealed(&result, SEALED_TYPE_UNUSED);
+    } else {
+        result.cr_tag = 0;
+    }
+    update_capreg(env, cd, &result);
+}
