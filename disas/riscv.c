@@ -576,7 +576,6 @@ typedef enum {
     rv_op_cfromptr,
     rv_op_csub,
     rv_op_cbuildcap,
-    rv_op_ccopytype,
     rv_op_ccseal,
     rv_op_ctestsubset,
 
@@ -1353,7 +1352,6 @@ const rv_opcode_data opcode_data[] = {
     [rv_op_cfromptr] = { "cfromptr", rv_codec_r, rv_fmt_cd_cs1_rs2, NULL, 0, 0, 0 },
     [rv_op_csub] = { "csub", rv_codec_r, rv_fmt_rd_cs1_cs2, NULL, 0, 0, 0 },
     [rv_op_cbuildcap] = { "cbuildcap", rv_codec_r, rv_fmt_cd_cs1_cs2, NULL, 0, 0, 0 },
-    [rv_op_ccopytype] = { "ccopytype", rv_codec_r, rv_fmt_cd_cs1_cs2, NULL, 0, 0, 0 },
     [rv_op_ccseal] = { "ccseal", rv_codec_r, rv_fmt_cd_cs1_cs2, NULL, 0, 0, 0 },
     [rv_op_ctestsubset] = { "ctestsubset", rv_codec_r, rv_fmt_rd_cs1_cs2, NULL, 0, 0, 0 },
 
@@ -1618,7 +1616,6 @@ static rv_opcode decode_cheri_inst(rv_inst inst) {
     CHERI_THREEOP_CASE(csub,        0010100,  ..... ..... 000 ..... 1011011 @r)
     // 0010101-0011100 unused
     CHERI_THREEOP_CASE(cbuildcap,   0011101,  ..... ..... 000 ..... 1011011 @r)
-    CHERI_THREEOP_CASE(ccopytype,   0011110,  ..... ..... 000 ..... 1011011 @r)
     CHERI_THREEOP_CASE(ccseal,      0011111,  ..... ..... 000 ..... 1011011 @r)
     CHERI_THREEOP_CASE(ctestsubset, 0100000,  ..... ..... 000 ..... 1011011 @r)
     // 1111011 unused

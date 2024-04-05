@@ -206,7 +206,6 @@ TRANSLATE_CAP_CAP(csealentry)
 
 // Three operand (cap cap cap)
 TRANSLATE_CAP_CAP_CAP(cbuildcap)
-TRANSLATE_CAP_CAP_CAP(ccopytype)
 TRANSLATE_CAP_CAP_CAP(ccseal)
 TRANSLATE_CAP_CAP_CAP(cseal)
 TRANSLATE_CAP_CAP_CAP(cunseal)
