@@ -671,6 +671,7 @@ TRANSLATE_INT_CAP_HELPER(gcbase, cgetbase)
 TRANSLATE_INT_CAP_HELPER(gclen, cgetlen)
 
 TRANSLATE_CAP_CAP_HELPER(cmv, cmove)
+TRANSLATE_CAP_CAP_HELPER(sentry, csealentry)
 
 static bool trans_caddi(DisasContext *ctx, arg_caddi *a)
 {
