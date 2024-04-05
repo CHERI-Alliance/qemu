@@ -1287,7 +1287,7 @@ cheri_tag_prot_clear_or_trap(CPUArchState *env, target_ulong va,
     return tag;
 }
 
-void squash_mutable_permissions(CPUArchState *env, target_ulong *pesbt,
+static void squash_mutable_permissions(CPUArchState *env, target_ulong *pesbt,
                                 const cap_register_t *source)
 {
 #ifdef TARGET_AARCH64
