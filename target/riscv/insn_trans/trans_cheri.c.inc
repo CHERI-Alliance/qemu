@@ -208,7 +208,6 @@ TRANSLATE_CAP_CAP(csealentry)
 TRANSLATE_CAP_CAP_CAP(cbuildcap)
 TRANSLATE_CAP_CAP_CAP(ccseal)
 TRANSLATE_CAP_CAP_CAP(cseal)
-TRANSLATE_CAP_CAP_CAP(cunseal)
 
 // Not quite (cap cap cap) but the index argument can be handled the same way
 static bool trans_cspecialrw(DisasContext *ctx, arg_cspecialrw *a)
