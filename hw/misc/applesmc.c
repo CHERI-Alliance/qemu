@@ -341,7 +341,6 @@ static void applesmc_isa_realize(DeviceState *dev, Error **errp)
     }
 
     QLIST_INIT(&s->data_def);
-    qdev_applesmc_isa_reset(dev);
 }
 
 static Property applesmc_isa_properties[] = {
