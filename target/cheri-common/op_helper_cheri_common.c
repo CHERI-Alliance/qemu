@@ -1965,6 +1965,126 @@ target_ulong CHERI_HELPER_IMPL(sceq(CPUArchState *env, uint32_t cs1,
     return cap_exactly_equal(cs1p, cs2p);
 }
 
+void CHERI_HELPER_IMPL(cbld(CPUArchState *env, uint32_t cd, uint32_t cs1,
+             uint32_t cs2))
+{
+    const cap_register_t *cs1p = get_readonly_capreg(env, cs1);
+    const cap_register_t *cs2p = get_readonly_capreg(env, cs2);
+    GET_HOST_RETPC_IF_TRAPPING_CHERI_ARCH();
+    cap_register_t result = *cs2p;
+    DEFINE_RESULT_VALID;
+
+    if (!cheri_in_capmode(env)) {
+#ifdef TARGET_RISCV
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+#endif
+        return;
+    }
+
+    if (cs1 == 0) {
+        /*
+         * If cs1 is the c0 register, we have to copy cs2 to cd and clear
+         * cd's tag.
+         */
+        _cap_valid = false;
+    }
+    else if (!cs1p->cr_tag) {
+        raise_cheri_exception_or_invalidate(env, CapEx_TagViolation,
+                CapExType_Data, cs1);
+    }
+    else if (cap_get_length_full(cs1p) == 0) {
+        /*
+         * In cheri bakewell, malformed bounds decode as base 0, top 0.
+         * We take length = top - base = 0 as an indication for a malformed
+         * capability.
+         */
+        raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation,
+                CapExType_Data, cs1);
+    } else if (cap_has_reserved_bits_set(cs1p)) {
+        /* None of the exception types seems like a really good fit here... */
+        raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation,
+                CapExType_Data, cs1);
+    } else if (!cap_is_unsealed(cs1p)) {
+        raise_cheri_exception_or_invalidate(env, CapEx_SealViolation,
+                CapExType_Data, cs1);
+    } else if ((cs2p->cr_arch_perm & cs1p->cr_arch_perm) != cs2p->cr_arch_perm) {
+        /*
+         * There's no need to decompress cs1p or cs2p manually.
+         * get_readonly_capreg returns a fully decompressed capability.
+         */
+        raise_cheri_exception_or_invalidate(env, CapEx_PermissionViolation,
+                CapExType_Data, cs1);
+    } else if (!valid_ap(cs2p->cr_arch_perm)) {
+        raise_cheri_exception_or_invalidate(env, CapEx_PermissionViolation,
+                CapExType_Data, cs2);
+    } else if ((cap_get_sdp(cs2p) & cap_get_sdp(cs1p)) != cap_get_sdp(cs2p)) {
+        raise_cheri_exception_or_invalidate(env, CapEx_PermissionViolation,
+                CapExType_Data, cs1);
+    } else if (cap_get_base(cs2p) < cap_get_base(cs1p)) {
+        raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation,
+                CapExType_Data, cs1);
+    } else if (cap_get_top_full(cs2p) > cap_get_top_full(cs1p)) {
+        raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation,
+                CapExType_Data, cs1);
+    } else if (cap_get_base(cs2p) > cap_get_top_full(cs2p)) {
+        // check for length < 0 - possible because cs2 might be untagged
+        raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation,
+                CapExType_Data, cs2);
+    } else if (cap_get_length_full(cs2p) == 0) {
+        /* see the comment above about the malformed check */
+        raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation,
+                CapExType_Data, cs2);
+    } else if (cap_has_reserved_bits_set(cs2p)) {
+        raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation,
+                CapExType_Data, cs2);
+    }
+
+    /*
+     * The v9 code for cbuildcap unsealed result at this point and sealed it
+     * again immediately afterwards if cs2 is sealed.
+     * result is a copy of cs2, the sealed bit was copied as well. We believe
+     * that there's no need for manually updating it here.
+     */
+
+    if (!RESULT_VALID) {
+        result.cr_tag = 0; /* Not a valid subset. */
+    } else {
+        /* Check if the capability bounds are canonical by deriving. */
+        cap_register_t derived = *cs1p;
+        if (!cap_is_unsealed(&derived)) {
+            derived.cr_tag = 0;
+        }
+        cap_set_cursor(&derived, cap_get_base(&result));
+        CAP_cc(setbounds)(&derived, cap_get_length_full(&result));
+        cap_set_cursor(&derived, cap_get_cursor(&result));
+
+        /* We checked above that
+           cs2p->cr_arch_perm & cs1p->cr_arch_perm) == cs2p->cr_arch_perm */
+        derived.cr_arch_perm = cs2p->cr_arch_perm;
+        CAP_cc(ap_compress)(&derived);
+
+        /* We checked above that
+           (cap_get_sdp(cs2p) & cap_get_sdp(cs1p) == cap_get_sdp(cs2p) */
+        CAP_cc(update_sdp)(&derived, cap_get_sdp(cs2p));
+
+        if (!cap_is_unsealed(cs2p)) {
+            cap_set_sealed(&derived, SEALED_TYPE_UNUSED);
+        }
+        result.cr_tag = 1; /* Set tag to true for comparison with derived. */
+        if (cap_exactly_equal(&result, &derived)) {
+            /*
+             * If this was a valid derivation sequence return that to ensure
+             * canonical bounds encoding.
+             */
+            result = derived;
+        } else {
+            /* Valid subset but not canonical -> return the untagged input. */
+            result.cr_tag = 0;
+        }
+    }
+    update_capreg(env, cd, &result);
+}
+
 void CHERI_HELPER_IMPL(sentry(CPUArchState *env, uint32_t cd, uint32_t cs1))
 {
     GET_HOST_RETPC_IF_TRAPPING_CHERI_ARCH();
