@@ -204,7 +204,6 @@ TRANSLATE_CAP_CAP(ccleartag)
 TRANSLATE_CAP_CAP(cmove)
 
 // Three operand (cap cap cap)
-TRANSLATE_CAP_CAP_CAP(cbuildcap)
 
 // Not quite (cap cap cap) but the index argument can be handled the same way
 static bool trans_cspecialrw(DisasContext *ctx, arg_cspecialrw *a)
