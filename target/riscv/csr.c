@@ -1348,7 +1348,7 @@ static int write_pmpaddr(CPURISCVState *env, int csrno, target_ulong val)
 #ifdef TARGET_CHERI
 /* handlers for capabilty csr registers */
 void write_mscratchc(CPURISCVState *env, cap_register_t* src);
-cap_register_t *read_mscratchc(CPURISCVState *env);
+cap_register_t read_mscratchc(CPURISCVState *env);
 
 
 void write_mscratchc(CPURISCVState *env, cap_register_t* src)
@@ -1356,9 +1356,9 @@ void write_mscratchc(CPURISCVState *env, cap_register_t* src)
     env->MScratchC = *src;
 }
 
-cap_register_t *read_mscratchc(CPURISCVState *env)
+cap_register_t read_mscratchc(CPURISCVState *env)
 {
-    return &env->MScratchC;
+    return env->MScratchC;
 }
 
 #endif
