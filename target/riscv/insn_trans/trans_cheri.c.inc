@@ -95,7 +95,7 @@ static inline bool gen_cheri_int_int(DisasContext *ctx, arg_r2 *a,
 }
 
 typedef void(cheri_cap_cap_cap_helper)(TCGv_env, TCGv_i32, TCGv_i32, TCGv_i32);
-static inline bool gen_cheri_cap_cap_cap(arg_ccc *arg,
+static inline bool gen_cheri_cap_cap_cap(DisasContext *ctx, arg_ccc *arg,
                                          cheri_cap_cap_cap_helper *gen_func)
 {
     gen_func(cpu_env, tcg_constant_i32(arg->cd), tcg_constant_i32(arg->cs1),
@@ -103,7 +103,9 @@ static inline bool gen_cheri_cap_cap_cap(arg_ccc *arg,
     return true;
 }
 // We assume that all these instructions can trap (e.g. seal violation)
-#define TRANSLATE_CAP_CAP_CAP(name) DO_TRANSLATE(name, gen_cheri_cap_cap_cap, a)
+#define TRANSLATE_CAP_CAP_CAP_HELPER(name, helper)                             \
+    DO_TRANSLATE_HELPER(name, gen_cheri_cap_cap_cap, helper, ctx, a)
+#define TRANSLATE_CAP_CAP_CAP(name) TRANSLATE_CAP_CAP_CAP_HELPER(name, name)
 
 typedef void(cheri_cap_cap_int_helper)(TCGv_env, TCGv_i32, TCGv_i32, TCGv);
 static inline bool gen_cheri_cap_cap_int(DisasContext *ctx, arg_ccr *a,
@@ -190,7 +192,7 @@ TRANSLATE_CAP_CAP_CAP(cunseal)
 // Not quite (cap cap cap) but the index argument can be handled the same way
 static bool trans_cspecialrw(DisasContext *ctx, arg_cspecialrw *a)
 {
-    if (gen_cheri_cap_cap_cap(a, &gen_helper_cspecialrw)) {
+    if (gen_cheri_cap_cap_cap(ctx, a, &gen_helper_cspecialrw)) {
         if (a->cs1 != 0 && a->cs2 == CheriSCR_DDC) {
             // When DDC changes we have to exit the current translation block
             // since we cache DDC properties in the flags to optimize out
@@ -556,7 +558,7 @@ static inline bool trans_amoswap_c(DisasContext *ctx, arg_amoswap_c *a)
         // Note: we ignore the Acquire/release flags since using
         // helper_exit_atomic forces exlusive execution so we get SC semantics.
         arg_ccc ccc = { .cd = a->rd, .cs1 = a->rs1, .cs2 = a->rs2 };
-        gen_cheri_cap_cap_cap(&ccc, &gen_helper_amoswap_cap);
+        gen_cheri_cap_cap_cap(ctx, &ccc, &gen_helper_amoswap_cap);
     }
     return true;
 }
@@ -702,5 +704,6 @@ TRANSLATE_CAP_CAP_INT_HELPER(scbnds, csetboundsexact)
 TRANSLATE_CAP_CAP_INT_HELPER(scbndsr, csetbounds)
 TRANSLATE_CAP_CAP_INT_HELPER(schi, csethigh)
 TRANSLATE_CAP_CAP_INT(scmode)
+TRANSLATE_CAP_CAP_CAP_HELPER(cbld, cbuildcap)
 
 TRANSLATE_INT_CAP_CAP_HELPER(sceq, cseqx)

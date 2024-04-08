@@ -641,18 +641,25 @@ void CHERI_HELPER_IMPL(cbuildcap(CPUArchState *env, uint32_t cd, uint32_t cb,
 {
     GET_HOST_RETPC_IF_TRAPPING_CHERI_ARCH();
     DEFINE_RESULT_VALID;
-    // CBuildCap traps on cbp == NULL so we use reg0 as $ddc. This saves
-    // encoding space and also means a cbuildcap relative to $ddc can be one
-    // instr instead of two.
-    const cap_register_t *cbp = get_capreg_0_is_ddc(env, cb);
     const cap_register_t *ctp = get_readonly_capreg(env, ct);
-    /*
-     * CBuildCap: create capability from untagged register.
-     * XXXAM: Note this is experimental and may change.
-     */
+    cap_register_t result = *ctp;
+
+#ifdef TARGET_RISCV
+    /* New behaviour in the RISC-V standard (no longer reads ddc): */
+    if (cb == 0) {
+        /* If cs1 is the NULL register, we copy cs2 to cd and clear cd's tag. */
+        result.cr_tag = false;
+        update_capreg(env, cd, &result);
+        return;
+    }
+#endif
+    const cap_register_t *cbp = get_capreg_0_is_ddc(env, cb);
     if (!cbp->cr_tag) {
         raise_cheri_exception_or_invalidate(env, CapEx_TagViolation, cb);
-    } else if (is_cap_sealed(cbp)) {
+    } else if (!cbp->cr_bounds_valid) {
+        /* Malformed bounds should raise a length violation. */
+        raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation, cb);
+    } else if (!cap_is_unsealed(cbp)) {
         raise_cheri_exception_or_invalidate(env, CapEx_SealViolation, cb);
     } else if (cap_get_base(ctp) < cap_get_base(cbp)) {
         raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation, cb);
@@ -664,30 +671,19 @@ void CHERI_HELPER_IMPL(cbuildcap(CPUArchState *env, uint32_t cd, uint32_t cb,
     } else if ((cap_get_all_perms(ctp) & cap_get_all_perms(cbp)) !=
                cap_get_all_perms(ctp)) {
         raise_cheri_exception_or_invalidate(env, CapEx_UserDefViolation, cb);
+    } else if (cap_has_invalid_perms_encoding(ctp)) {
+        raise_cheri_exception_or_invalidate(env, CapEx_UserDefViolation, ct);
     } else if (cap_has_reserved_bits_set(ctp)) {
-        // TODO: It would be nice to use a different exception code for this
-        //  case but this should match Flute.
-        // See also https://github.com/CTSRD-CHERI/cheri-architecture/issues/48
         raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation, ct);
     }
 
-    cap_register_t result = *ctp;
-
-    CAP_cc(update_otype)(&result, CAP_OTYPE_UNSEALED);
-    /*
-     * cbuildcap is allowed to seal at any ambiently-available otype,
-     * subject to their construction conditions.  Otherwise, the result is
-     * unsealed.
-     */
-    if (cap_is_sealed_entry(ctp)) {
-        CAP_cc(update_otype)(&result, CAP_OTYPE_SENTRY);
-    }
     if (!RESULT_VALID) {
         result.cr_tag = 0; /* Not a valid subset. */
     } else {
         /* Check if the capability bounds are canonical by deriving. */
         cap_register_t derived = *cbp;
-        if (is_cap_sealed(&derived)) {
+        assert(!cap_has_reserved_bits_set(&derived));
+        if (!cap_is_unsealed(&derived)) {
             derived.cr_tag = 0;
         }
         cap_set_cursor(&derived, cap_get_base(&result));
@@ -699,7 +695,7 @@ void CHERI_HELPER_IMPL(cbuildcap(CPUArchState *env, uint32_t cd, uint32_t cb,
         cap_set_exec_mode(&derived, cap_get_exec_mode(ctp));
 #endif
         if (cap_is_sealed_entry(ctp)) {
-            CAP_cc(update_otype)(&derived, CAP_OTYPE_SENTRY);
+            cap_make_sealed_entry(&derived);
         }
         result.cr_tag = 1; /* Set tag to true for comparison with derived. */
         if (cap_exactly_equal(&result, &derived)) {

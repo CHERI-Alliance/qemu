@@ -113,6 +113,16 @@ static inline bool cap_has_reserved_bits_set(const cap_register_t *c)
     return CAP_cc(get_reserved)(c) != 0;
 }
 
+/**
+ * Returns true if the permissions encoding in @p c could not have been
+ * produced by a valid ACPERM sequence.
+ */
+static inline bool cap_has_invalid_perms_encoding(const cap_register_t *c)
+{
+    /* TODO: implement this for the RISC-V standard. */
+    return false;
+}
+
 // The top of the capability (exclusive -- i.e., one past the end)
 static inline target_ulong cap_get_top(const cap_register_t *c)
 {
