@@ -62,8 +62,7 @@ enum {
         _CC_ENCODE_EBT_FIELD(_CC_N(RESET_EXP) >> _CC_N(FIELD_EXPONENT_LOW_PART_SIZE), EXPONENT_HIGH_PART) |
         _CC_ENCODE_EBT_FIELD(_CC_N(RESET_EXP) & _CC_N(FIELD_EXPONENT_LOW_PART_MAX_VALUE), EXPONENT_LOW_PART),
     _CC_N(NULL_PESBT) = _CC_ENCODE_FIELD(0, UPERMS) | _CC_ENCODE_FIELD(0, HWPERMS) | _CC_ENCODE_FIELD(0, RESERVED) |
-                        _CC_ENCODE_FIELD(0, FLAGS) | _CC_ENCODE_FIELD(1, INTERNAL_EXPONENT) |
-                        _CC_ENCODE_FIELD(_CC_N(OTYPE_UNSEALED), OTYPE) |
+                        _CC_ENCODE_FIELD(1, INTERNAL_EXPONENT) | _CC_ENCODE_FIELD(_CC_N(OTYPE_UNSEALED), OTYPE) |
                         _CC_ENCODE_FIELD(_CC_N(NULL_T), EXP_NONZERO_TOP) | _CC_ENCODE_FIELD(0, EXP_NONZERO_BOTTOM) |
                         _CC_ENCODE_FIELD(_CC_N(NULL_EXP) >> _CC_N(FIELD_EXPONENT_LOW_PART_SIZE), EXPONENT_HIGH_PART) |
                         _CC_ENCODE_FIELD(_CC_N(NULL_EXP) & _CC_N(FIELD_EXPONENT_LOW_PART_MAX_VALUE), EXPONENT_LOW_PART),
@@ -89,7 +88,7 @@ enum {
 #define _CC_MAX_TOP _CC_N(MAX_TOP)
 #define _CC_CURSOR_MASK _CC_N(CURSOR_MASK)
 // Check that the sizes of the individual fields match up
-_CC_STATIC_ASSERT_SAME(_CC_N(FIELD_EBT_SIZE) + _CC_N(FIELD_OTYPE_SIZE) + _CC_N(FIELD_FLAGS_SIZE) +
+_CC_STATIC_ASSERT_SAME(_CC_N(FIELD_EBT_SIZE) + _CC_N(FIELD_OTYPE_SIZE) + _CC_N(FIELD_RESERVED2_SIZE) +
                            _CC_N(FIELD_RESERVED_SIZE) + _CC_N(FIELD_HWPERMS_SIZE) + _CC_N(FIELD_UPERMS_SIZE),
                        _CC_ADDR_WIDTH);
 _CC_STATIC_ASSERT_SAME(_CC_N(FIELD_INTERNAL_EXPONENT_SIZE) + _CC_N(FIELD_EXP_ZERO_TOP_SIZE) +
@@ -113,7 +112,6 @@ _CC_STATIC_ASSERT(_CC_N(MAX_RESERVED_OTYPE) <= _CC_N(MAX_REPRESENTABLE_OTYPE), "
 // Forward-declare the accessors since we use them inside the struct body:
 typedef struct _cc_N(cap) _cc_N(cap_t);
 #define _cc_cap_t _cc_N(cap_t)
-static inline uint8_t _cc_N(get_flags)(const _cc_cap_t* cap);
 static inline uint32_t _cc_N(get_otype)(const _cc_cap_t* cap);
 static inline uint32_t _cc_N(get_perms)(const _cc_cap_t* cap);
 static inline uint8_t _cc_N(get_reserved)(const _cc_cap_t* cap);
@@ -156,7 +154,6 @@ struct _cc_N(cap) {
     inline uint32_t type() const { return _cc_N(get_otype)(this); }
     inline bool is_sealed() const { return type() != _CC_N(OTYPE_UNSEALED); }
     inline uint8_t reserved_bits() const { return _cc_N(get_reserved)(this); }
-    inline uint8_t flags() const { return _cc_N(get_flags)(this); }
     inline bool operator==(const _cc_N(cap) & other) const;
 #endif
 };
@@ -259,7 +256,6 @@ struct _cc_N(bounds_bits) {
 ALL_WRAPPERS(HWPERMS, perms, uint32_t)
 ALL_WRAPPERS(UPERMS, uperms, uint32_t)
 ALL_WRAPPERS(OTYPE, otype, uint32_t)
-ALL_WRAPPERS(FLAGS, flags, uint8_t)
 ALL_WRAPPERS(RESERVED, reserved, uint8_t)
 #undef ALL_WRAPPERS
 
