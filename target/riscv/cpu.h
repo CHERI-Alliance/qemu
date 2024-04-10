@@ -218,7 +218,7 @@ struct CPURISCVState {
 
 #ifdef TARGET_CHERI
     cap_register_t mtidc;     // SCR 27 Machine thread identifier cap. (MTIDC)
-    cap_register_t mtcc;      // SCR 28 Machine trap code cap. (MTCC)
+    cap_register_t mtvecc;    // SCR 28 Machine trap code cap. (MTCC)
     cap_register_t mtdc;      // SCR 29 Machine trap data cap. (MTDC)
     cap_register_t mscratchc; // SCR 30 Machine scratch cap. (MScratchC)
     cap_register_t mepcc;     // SCR 31 Machine exception PC cap. (MEPCC)
@@ -847,7 +847,7 @@ static inline cap_register_t *riscv_get_scr(CPUArchState *env, uint32_t index)
     case CheriSCR_SEPCC: return &env->sepcc;
     case CheriSCR_STIDC: return &env->stidc;
 
-    case CheriSCR_MTCC: return &env->mtcc;
+    case CheriSCR_MTCC: return &env->mtvecc;
     case CheriSCR_MTDC: return &env->mtdc;
     case CheriSCR_MScratchC: return &env->mscratchc;
     case CheriSCR_MEPCC: return &env->mepcc;

@@ -767,7 +767,7 @@ static RISCVException write_mie(CPURISCVState *env, int csrno,
 static RISCVException read_mtvec(CPURISCVState *env, int csrno,
                                  target_ulong *val)
 {
-    *val = GET_SPECIAL_REG_ARCH(env, mtvec, mtcc);
+    *val = GET_SPECIAL_REG_ARCH(env, mtvec, mtvecc);
     return RISCV_EXCP_NONE;
 }
 
@@ -776,7 +776,7 @@ static RISCVException write_mtvec(CPURISCVState *env, int csrno,
 {
     /* bits [1:0] encode mode; 0 = direct, 1 = vectored, 2 >= reserved */
     if ((val & 3) < 2) {
-        SET_SPECIAL_REG(env, mtvec, mtcc, val);
+        SET_SPECIAL_REG(env, mtvec, mtvecc, val);
     } else {
         qemu_log_mask(LOG_UNIMP, "CSR_MTVEC: reserved mode not supported\n");
     }
@@ -1810,9 +1810,72 @@ static cap_register_t read_mscratchc(CPURISCVState *env)
     return env->mscratchc;
 }
 
-#endif
+// Version of update special reg, that also implements vectored handling with
+// the mode in the low order bits fo the new value. vector handling requires
+// that the capability be able to represent addr + HICAUSE*4 == addr + 63*4
+static void update_vec_reg(CPURISCVState *env, cap_register_t *scr,
+                           const char *name, target_ulong new_value)
+{
+    /* The new behaviour is that SCR updates affect the address. */
+    target_ulong new_cursor = new_value;
 
-#ifdef TARGET_CHERI
+    if (!cap_is_unsealed(scr)) {
+        error_report("Attempting to modify sealed %s: " PRINT_CAP_FMTSTR "\r\n",
+                     name, PRINT_CAP_ARGS(scr));
+        qemu_log_instr_extra(
+            env, "Attempting to modify sealed %s: " PRINT_CAP_FMTSTR "\n", name,
+            PRINT_CAP_ARGS(scr));
+        // Clear the tag bit and update the cursor:
+        cap_mark_unrepresentable(new_cursor, scr);
+    } else if (!is_representable_cap_with_addr(scr, new_cursor)) {
+        error_report(
+            "Attempting to set unrepresentable cursor (0x" TARGET_FMT_lx
+            ") on %s: " PRINT_CAP_FMTSTR "\r\n",
+            new_cursor, name, PRINT_CAP_ARGS(scr));
+        qemu_log_instr_extra(
+            env,
+            "Attempting to set unrepresentable cursor (0x" TARGET_FMT_lx
+            ") on %s: " PRINT_CAP_FMTSTR "\r\n",
+            new_cursor, name, PRINT_CAP_ARGS(scr));
+        cap_mark_unrepresentable(new_cursor, scr);
+    } else if (!is_representable_cap_with_addr(scr,
+                                               new_value + RISCV_HICAUSE * 4)) {
+        error_report("Attempting to set vector register with unrepresentable "
+                     "range (0x" TARGET_FMT_lx ") on %s: " PRINT_CAP_FMTSTR
+                     "\r\n",
+                     new_cursor, name, PRINT_CAP_ARGS(scr));
+        qemu_log_instr_extra(
+            env,
+            "Attempting to set unrepresentable vector register with "
+            "unrepresentable range (0x" TARGET_FMT_lx
+            ") on %s: " PRINT_CAP_FMTSTR "\r\n",
+            new_cursor, name, PRINT_CAP_ARGS(scr));
+        cap_mark_unrepresentable(new_cursor, scr);
+    } else {
+        cap_set_cursor(scr, new_cursor);
+    }
+    cheri_log_instr_changed_capreg(env, name, scr);
+}
+
+static void write_mtvecc(CPURISCVState *env, cap_register_t *src)
+{
+    target_ulong new_tvec = cap_get_cursor(src);
+    /* The low two bits encode the mode, but only 0 and 1 are valid. */
+    if ((new_tvec & 3) > 1) {
+        /* Invalid mode, keep the old one. */
+        new_tvec &= ~(target_ulong)3;
+        new_tvec |= cap_get_cursor(&env->mtvecc) & 3;
+    }
+
+    cap_set_cursor(src, new_tvec);
+    update_vec_reg(env, &env->mtvecc, "MTVECC", new_tvec);
+}
+
+static cap_register_t read_mtvecc(CPURISCVState *env)
+{
+    return env->mtvecc;
+}
+
 static RISCVException read_ccsr(CPURISCVState *env, int csrno, target_ulong *val)
 {
     // We report the same values for all modes and don't perform dirty tracking
@@ -2262,15 +2325,15 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
 
 riscv_csr_cap_ops csr_cap_ops[] = {
     { "mscratchc", read_mscratchc, write_mscratchc },
+    { "mtvecc", read_mtvecc, write_mtvecc },
 };
 
 riscv_csr_cap_ops *get_csr_cap_info(int csrnum)
 {
     switch (csrnum) {
-    case CSR_MSCRATCHC:
-        return &csr_cap_ops[0];
-    default:
-        return NULL;
+    case CSR_MSCRATCHC: return &csr_cap_ops[0];
+    case CSR_MTVECC: return &csr_cap_ops[1];
+    default: return NULL;
     }
 }
 #endif
