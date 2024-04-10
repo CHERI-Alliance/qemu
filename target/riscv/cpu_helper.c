@@ -1459,10 +1459,10 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         env->mtval2 = mtval2;
         riscv_log_instr_csr_changed(env, CSR_MTVAL2);
 
-        target_ulong mtvec = GET_SPECIAL_REG_ADDR(env, mtvec, MTCC);
+        target_ulong mtvec = GET_SPECIAL_REG_ADDR(env, mtvec, MTVECC);
         target_ulong new_pc = (mtvec >> 2 << 2) +
             ((async && (mtvec & 3) == 1) ? cause * 4 : 0);
-        riscv_update_pc_for_exc_handler(env, &env->MTCC, new_pc);
+        riscv_update_pc_for_exc_handler(env, &env->MTVECC, new_pc);
         riscv_cpu_set_mode(env, PRV_M);
     }
 

@@ -612,6 +612,8 @@
 #define RISCV_EXCP_CHERI                         0x1c
 #endif
 
+#define RISCV_HICAUSE                            0x3f
+
 #define RISCV_EXCP_INT_FLAG                0x80000000
 #define RISCV_EXCP_INT_MASK                0x7fffffff
 

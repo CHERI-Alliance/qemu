@@ -312,7 +312,7 @@ static void riscv_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     if (riscv_has_ext(env, RVH)) {
         qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "hedeleg ", env->hedeleg);
     }
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mtvec   ", GET_SPECIAL_REG_ARCH(env, mtvec, MTCC));
+    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mtvec   ", GET_SPECIAL_REG_ARCH(env, mtvec, MTVECC));
     qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "stvec   ", GET_SPECIAL_REG_ARCH(env, stvec, STCC));
     if (riscv_has_ext(env, RVH)) {
         qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "vstvec  ", GET_SPECIAL_REG_ARCH(env, vstvec, VSTCC));
@@ -747,6 +747,7 @@ static void riscv_cpu_reset(DeviceState *dev)
     set_max_perms_capability(&env->MTCC, 0);
     null_capability(&env->MTDC);
     null_capability(&env->MScratchC);
+    set_max_perms_capability(&env->MTVECC,0);
     set_max_perms_capability(&env->MEPCC, 0);
 #endif /* TARGET_CHERI */
 #ifdef CONFIG_DEBUG_TCG
