@@ -69,7 +69,7 @@ typedef int32_t cc64_saddr_t;
 #pragma GCC diagnostic ignored "-Wpedantic"
 enum {
     _CC_FIELD(HWPERMS, 63, 52),
-    _CC_FIELD(FLAGS, 51, 51),
+    _CC_FIELD(RESERVED2, 51, 51),
     _CC_FIELD(OTYPE, 50, 47),
     _CC_FIELD(EBT, 46, 32),
 
