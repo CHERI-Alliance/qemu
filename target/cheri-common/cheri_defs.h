@@ -42,7 +42,10 @@
 
 #define ASSERT_IF_CHERI() assert(0)
 
-#include "cheri-compressed-cap/cheri_compressed_cap.h"
+/* See the comment in vmstat-types.c about clang-format. */
+#include "cheri-compressed-cap/cheri_compressed_cap_64.h"
+#include "cheri-compressed-cap/cheri_compressed_cap_128.h"
+#include "cheri-compressed-cap/cheri_compressed_cap_128m.h"
 
 #define CHERI_DECLARE_ALIGNED_CC_CAP_T(suffix) \
     typedef struct cc##suffix##_aligned_cap_t {                       \
