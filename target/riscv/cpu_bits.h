@@ -578,6 +578,8 @@ typedef enum RISCVException {
 #endif
 } RISCVException;
 
+#define RISCV_HICAUSE                            0x3f
+
 #define RISCV_EXCP_INT_FLAG                0x80000000
 #define RISCV_EXCP_INT_MASK                0x7fffffff
 

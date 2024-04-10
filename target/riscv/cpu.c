@@ -760,6 +760,7 @@ static void riscv_cpu_reset(DeviceState *dev)
     set_max_perms_capability(&env->mtcc, 0);
     null_capability(&env->mtdc);
     null_capability(&env->mscratchc);
+    set_max_perms_capability(&env->MTVECC,0);
     set_max_perms_capability(&env->mepcc, 0);
 #endif /* TARGET_CHERI */
 #ifdef CONFIG_DEBUG_TCG
