@@ -332,7 +332,18 @@ const VMStateInfo vmstate_info_uint64 = {
  * out to somewhere else.
  */
 
-#include "../target/cheri-common/cheri-compressed-cap/cheri_compressed_cap.h"
+/*
+ * TODO: These include statements were wrapped into
+ *   // clang-format off
+ *   // clang-format on
+ * It seems that this prevents the clang-format tool from changing the
+ * indentation of the definitions in these include files. 
+ * We can bring back these statements if anyone is using clang-format with
+ * this code.
+ */
+#include "../target/cheri-common/cheri-compressed-cap/cheri_compressed_cap_64.h"
+#include "../target/cheri-common/cheri-compressed-cap/cheri_compressed_cap_128.h"
+#include "../target/cheri-common/cheri-compressed-cap/cheri_compressed_cap_128m.h"
 
 static int get_cap64_register(QEMUFile *f, void *pv, size_t size,
                               const VMStateField *field)
