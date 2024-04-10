@@ -90,7 +90,6 @@ struct SCRInfo {
                             .name = "SScratchC"},
     [CheriSCR_SEPCC] = {.r = true, .w = true, .access = S_ASR, .name = "SEPCC"},
 
-    [CheriSCR_MTCC] = {.r = true, .w = true, .access = M_ASR, .name = "MTCC"},
     [CheriSCR_MTDC] = {.r = true, .w = true, .access = M_ASR, .name = "MTDC"},
     [CheriSCR_MScratchC] = {.r = true,
                             .w = true,
@@ -116,7 +115,6 @@ static inline cap_register_t *get_scr(CPUArchState *env, uint32_t index)
     case CheriSCR_SScratchC: return &env->SScratchC;
     case CheriSCR_SEPCC: return &env->SEPCC;
 
-    case CheriSCR_MTCC: return &env->MTCC;
     case CheriSCR_MTDC: return &env->MTDC;
     case CheriSCR_MScratchC: return &env->MScratchC;
     case CheriSCR_MEPCC: return &env->MEPCC;
@@ -434,8 +432,7 @@ void HELPER(cspecialrw)(CPUArchState *env, uint32_t cd, uint32_t cs,
         }
 #endif
         switch (index) {
-        case CheriSCR_STCC:
-        case CheriSCR_MTCC: {
+        case CheriSCR_STCC: {
             target_ulong new_tvec = SCR_TO_PROGRAM_COUNTER(env, &new_val);
             /* The low two bits encode the mode, but only 0 and 1 are valid. */
             if ((new_tvec & 3) > 1) {
