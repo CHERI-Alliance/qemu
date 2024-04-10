@@ -239,7 +239,6 @@ static struct SCR {
     { .index = CheriSCR_SScratchC, .name = "sscratchc"},
     { .index = CheriSCR_SEPCC, .name = "sepcc", .code = true },
 
-    { .index = CheriSCR_MTCC, .name = "mtcc", .code = true },
     { .index = CheriSCR_MTDC, .name = "mtdc"},
     { .index = CheriSCR_MScratchC, .name = "mscratchc"},
     { .index = CheriSCR_MEPCC, .name = "mepcc", .code = true },
