@@ -1451,8 +1451,8 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         env->mcause = cause | ~(((target_ulong)-1) >> async);
         riscv_log_instr_csr_changed(env, CSR_MCAUSE);
 
-        COPY_SPECIAL_REG(env, mepc, MEPCC, pc, PCC);
-        LOG_SPECIAL_REG(env, CSR_MEPC, CheriSCR_MEPCC);
+        COPY_SPECIAL_REG(env, mepc, MEPCC, pc, PCC);       
+        riscv_log_instr_csr_changed(env, CSR_MEPC);
 
         env->mbadaddr = tval;
         riscv_log_instr_csr_changed(env, CSR_MBADADDR);

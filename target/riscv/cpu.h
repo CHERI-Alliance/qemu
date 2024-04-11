@@ -212,7 +212,7 @@ struct CPURISCVState {
 #ifdef TARGET_CHERI
     cap_register_t MTDC;      // SCR 29 Machine trap data cap. (MTDC)
     cap_register_t MScratchC; // SCR 30 Machine scratch cap. (MScratchC)
-    cap_register_t MEPCC;     // SCR 31 Machine exception PC cap. (MEPCC)
+    cap_register_t MEPCC;     // Machine exception PC cap. (MEPCC)
     cap_register_t MTVECC;
 #else
     target_ulong mtvec;
