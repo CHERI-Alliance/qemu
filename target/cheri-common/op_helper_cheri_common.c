@@ -633,7 +633,7 @@ void CHERI_HELPER_IMPL(cbuildcap(CPUArchState *env, uint32_t cd, uint32_t cb,
         CAP_cc(update_perms)(&derived, cap_get_perms(cbp) & cap_get_perms(ctp));
         CAP_cc(update_uperms)(&derived,
                               cap_get_uperms(cbp) & cap_get_uperms(ctp));
-        CAP_cc(update_flags)(&derived, cap_get_flags(ctp));
+        /* TODO: cheri p1 set derived's flags to match ctp's here. */
         if (cap_is_sealed_entry(ctp)) {
             CAP_cc(update_otype)(&derived, CAP_OTYPE_SENTRY);
         }
