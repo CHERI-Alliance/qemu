@@ -313,7 +313,7 @@ static void riscv_cpu_dump_state(CPUState *cs, FILE *f, int flags)
         qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "hedeleg ", env->hedeleg);
     }
     qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mtvec   ", GET_SPECIAL_REG_ARCH(env, mtvec, MTVECC));
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "stvec   ", GET_SPECIAL_REG_ARCH(env, stvec, STCC));
+    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "stvec   ", GET_SPECIAL_REG_ARCH(env, stvec, STVECC));
     if (riscv_has_ext(env, RVH)) {
         qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "vstvec  ", GET_SPECIAL_REG_ARCH(env, vstvec, VSTCC));
     }
@@ -740,6 +740,7 @@ static void riscv_cpu_reset(DeviceState *dev)
     set_max_perms_capability(&env->DDC, 0);
     // Supervisor mode trap handling
     set_max_perms_capability(&env->STCC, 0);
+    set_max_perms_capability(&env->STVECC, 0);
     null_capability(&env->STDC_CAP);
     null_capability(&env->SScratchC);
     set_max_perms_capability(&env->SEPCC, 0);

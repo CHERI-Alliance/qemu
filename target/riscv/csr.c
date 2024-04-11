@@ -850,7 +850,7 @@ static int write_sie(CPURISCVState *env, int csrno, target_ulong val)
 
 static int read_stvec(CPURISCVState *env, int csrno, target_ulong *val)
 {
-    *val = GET_SPECIAL_REG_ARCH(env, stvec, STCC);
+    *val = GET_SPECIAL_REG_ARCH(env, stvec, STVECC);
     return 0;
 }
 
@@ -858,7 +858,7 @@ static int write_stvec(CPURISCVState *env, int csrno, target_ulong val)
 {
     /* bits [1:0] encode mode; 0 = direct, 1 = vectored, 2 >= reserved */
     if ((val & 3) < 2) {
-        SET_SPECIAL_REG(env, stvec, STCC, val);
+        SET_SPECIAL_REG(env, stvec, STVECC, val);
     } else {
         qemu_log_mask(LOG_UNIMP, "CSR_STVEC: reserved mode not supported\n");
     }
@@ -1420,6 +1420,27 @@ cap_register_t read_mtvecc(CPURISCVState *env)
     return env->MTVECC;
 }
 
+void write_stvecc(CPURISCVState *env, cap_register_t* src);
+void write_stvecc(CPURISCVState *env, cap_register_t* src)
+{
+
+    target_ulong new_tvec = cap_get_cursor(src);
+    /* The low two bits encode the mode, but only 0 and 1 are valid. */
+    if ((new_tvec & 3) > 1) {
+        /* Invalid mode, keep the old one. */
+        new_tvec &= ~(target_ulong)3;
+        new_tvec |= cap_get_cursor(&env->STVECC) & 3;
+    }
+
+    cap_set_cursor(src,new_tvec);
+    update_vec_reg(env, &env->STVECC, "STVECC", new_tvec);
+}
+
+cap_register_t read_stvecc(CPURISCVState *env);
+cap_register_t read_stvecc(CPURISCVState *env)
+{
+    return env->STVECC;
+}
 
 static int read_ccsr(CPURISCVState *env, int csrno, target_ulong *val)
 {
@@ -1813,6 +1834,7 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
 riscv_csr_cap_ops csr_cap_ops[]={
     {"mscratchc", read_mscratchc, write_mscratchc},
     {"mtvecc", read_mtvecc, write_mtvecc},
+    {"stvecc", read_stvecc, write_stvecc},
 };
 
 
@@ -1820,6 +1842,7 @@ riscv_csr_cap_ops* get_csr_cap_info(int csrnum){
     switch (csrnum){
         case CSR_MSCRATCHC: return &csr_cap_ops[0];
         case CSR_MTVECC: return &csr_cap_ops[1];
+        case CSR_STVECC: return &csr_cap_ops[2];
         default: return NULL;
     }
 }

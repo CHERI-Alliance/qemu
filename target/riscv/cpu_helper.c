@@ -156,8 +156,8 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env, bool hs_mode_trap)
         riscv_log_instr_csr_changed(env, CSR_VSSTATUS);
         /* mstatus may be modified again by do_interrupt */
 
-        COPY_SPECIAL_REG(env, vstvec, VSTCC, stvec, STCC);
-        COPY_SPECIAL_REG(env, stvec, STCC, stvec_hs, STCC_HS);
+        COPY_SPECIAL_REG(env, vstvec, VSTCC, stvec, STVECC);
+        COPY_SPECIAL_REG(env, stvec, STVECC, stvec_hs, STCC_HS);
         LOG_SPECIAL_REG(env, CSR_VSTVEC, CheriSCR_BSTCC);
         LOG_SPECIAL_REG(env, CSR_STVEC, CheriSCR_STCC);
 
@@ -201,8 +201,8 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env, bool hs_mode_trap)
         env->mstatus &= ~mstatus_mask;
         env->mstatus |= env->vsstatus;
 
-        COPY_SPECIAL_REG(env, stvec_hs, STCC_HS, stvec, STCC);
-        COPY_SPECIAL_REG(env, stvec, STCC, vstvec, VSTCC);
+        COPY_SPECIAL_REG(env, stvec_hs, STCC_HS, stvec, STVECC);
+        COPY_SPECIAL_REG(env, stvec, STVECC, vstvec, VSTCC);
         LOG_SPECIAL_REG(env, CSR_STVEC, CheriSCR_STCC);
 
         env->sscratch_hs = env->sscratch;
@@ -1418,10 +1418,10 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         env->htval = htval;
         riscv_log_instr_csr_changed(env, CSR_HTVAL);
 
-        target_ulong stvec = GET_SPECIAL_REG_ADDR(env, stvec, STCC);
+        target_ulong stvec = GET_SPECIAL_REG_ADDR(env, stvec, STVECC);
         target_ulong new_pc = (stvec >> 2 << 2) +
             ((async && (stvec & 3) == 1) ? cause * 4 : 0);
-        riscv_update_pc_for_exc_handler(env, &env->STCC, new_pc);
+        riscv_update_pc_for_exc_handler(env, &env->STVECC, new_pc);
         riscv_cpu_set_mode(env, PRV_S);
     } else {
         /* handle the trap in M-mode */
