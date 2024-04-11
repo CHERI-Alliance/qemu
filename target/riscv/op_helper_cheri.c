@@ -82,7 +82,6 @@ struct SCRInfo {
     [CheriSCR_PCC] = {.r = true, .w = false, .access = U_Always, .name = "PCC"},
     [CheriSCR_DDC] = {.r = true, .w = true, .access = U_Always, .name = "DDC"},
 
-    [CheriSCR_STCC] = {.r = true, .w = true, .access = S_ASR, .name = "STCC"},
     [CheriSCR_STDC] = {.r = true, .w = true, .access = S_ASR, .name = "STDC"},
     [CheriSCR_SScratchC] = {.r = true,
                             .w = true,
@@ -110,7 +109,6 @@ static inline cap_register_t *get_scr(CPUArchState *env, uint32_t index)
     case CheriSCR_PCC: return &env->PCC;
     case CheriSCR_DDC: return &env->DDC;
 
-    case CheriSCR_STCC: return &env->STCC;
     case CheriSCR_STDC: return &env->STDC_CAP;
     case CheriSCR_SScratchC: return &env->SScratchC;
     case CheriSCR_SEPCC: return &env->SEPCC;
@@ -432,18 +430,6 @@ void HELPER(cspecialrw)(CPUArchState *env, uint32_t cd, uint32_t cs,
         }
 #endif
         switch (index) {
-        case CheriSCR_STCC: {
-            target_ulong new_tvec = SCR_TO_PROGRAM_COUNTER(env, &new_val);
-            /* The low two bits encode the mode, but only 0 and 1 are valid. */
-            if ((new_tvec & 3) > 1) {
-                /* Invalid mode, keep the old one. */
-                new_tvec &= ~(target_ulong)3;
-                new_tvec |= SCR_TO_PROGRAM_COUNTER(env, scr) & 3;
-            }
-            *scr = new_val;
-            SCR_SET_PROGRAM_COUNTER(env, scr, scr_info[index].name, new_tvec);
-            break;
-        }
         case CheriSCR_DDC:
             if (!new_val.cr_tag) {
                 qemu_log_instr_or_mask_msg(
