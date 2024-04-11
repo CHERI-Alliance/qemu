@@ -204,6 +204,7 @@ struct CPURISCVState {
     cap_register_t stdc;      // SCR 13 Supervisor trap data cap. (STDC)
     cap_register_t sscratchc; // SCR 14 Supervisor scratch cap. (SScratchC)
     cap_register_t sepcc;     // SCR 15 Supervisor exception PC cap. (SEPCC)
+    cap_register_t STVECC;
 #else
     target_ulong stvec;
     target_ulong sepc;

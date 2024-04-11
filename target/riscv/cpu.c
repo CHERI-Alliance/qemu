@@ -753,6 +753,7 @@ static void riscv_cpu_reset(DeviceState *dev)
     set_max_perms_capability(&env->ddc, 0);
     // Supervisor mode trap handling
     set_max_perms_capability(&env->stcc, 0);
+    set_max_perms_capability(&env->STVECC, 0);
     null_capability(&env->stdc);
     null_capability(&env->sscratchc);
     set_max_perms_capability(&env->sepcc, 0);
