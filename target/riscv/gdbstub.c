@@ -234,7 +234,6 @@ static struct SCR {
     const char *name;
     bool code;
 } scrs[] = {
-    { .index = CheriSCR_STCC, .name = "stcc", .code = true },
     { .index = CheriSCR_STDC, .name = "stdc"},
     { .index = CheriSCR_SScratchC, .name = "sscratchc"},
     { .index = CheriSCR_SEPCC, .name = "sepcc", .code = true },
