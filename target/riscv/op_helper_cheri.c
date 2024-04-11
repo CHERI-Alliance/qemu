@@ -94,7 +94,6 @@ struct SCRInfo {
                             .w = true,
                             .access = M_ASR,
                             .name = "MScratchC"},
-    [CheriSCR_MEPCC] = {.r = true, .w = true, .access = M_ASR, .name = "MEPCC"},
 
     [CheriSCR_BSTCC] = {.r = true, .w = true, .access = H_ASR, .name= "BSTCC"},
     [CheriSCR_BSTDC] = {.r = true, .w = true, .access = H_ASR, .name= "BSTCC"},
@@ -374,25 +373,6 @@ void HELPER(cspecialrw)(CPUArchState *env, uint32_t cd, uint32_t cs,
         // See helper_sret/helper_mret for more context.
         switch(index) {
         case CheriSCR_SEPCC:
-        case CheriSCR_MEPCC: {
-            cap_register_t legalized = *scr;
-            target_ulong addr = cap_get_cursor(&legalized);
-            addr &= ~(target_ulong)(riscv_has_ext(env, RVC) ? 1 : 3);
-            if (addr != cap_get_cursor(scr)) {
-                warn_report("Clearing low bit(s) of %s (contained an unaligned "
-                            "capability): " PRINT_CAP_FMTSTR,
-                            scr_info[index].name, PRINT_CAP_ARGS(scr));
-                legalized._cr_cursor = addr;
-                if (!cap_is_unsealed(scr)) {
-                    warn_report("Invalidating sealed %s (contained an unaligned "
-                                "capability): " PRINT_CAP_FMTSTR,
-                                scr_info[index].name, PRINT_CAP_ARGS(scr));
-                    legalized.cr_tag = false;
-                }
-            }
-            update_capreg(env, cd, &legalized);
-            break;
-        }
         default:
             update_capreg(env, cd, scr);
             break;

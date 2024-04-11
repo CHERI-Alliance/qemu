@@ -1520,7 +1520,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         riscv_log_instr_csr_changed(env, CSR_MCAUSE);
 
         COPY_SPECIAL_REG(env, mepc, mepcc, pc, pcc);
-        LOG_SPECIAL_REG(env, CSR_MEPC, CheriSCR_MEPCC);
+        riscv_log_instr_csr_changed(env, CSR_MEPC);
 
         env->mtval = tval;
         riscv_log_instr_csr_changed(env, CSR_MTVAL);
