@@ -162,9 +162,9 @@
 
 #ifdef TARGET_CHERI
 /* Machine trap setup,scratch and handling capabilities*/
-#define CSR_MTVECC          0x765
-#define CSR_MSCRATCHC       0x760
-#define CSR_MEPCC           0x761
+#define CSR_MTVECC          0x305
+#define CSR_MSCRATCHC       0x340
+#define CSR_MEPCC           0x341
 #define CSR_MTDC            0x74c
 #endif
 
@@ -185,9 +185,9 @@
 
 #ifdef TARGET_CHERI
 /* Supervisor trap setup, scratch and handling */
-#define CSR_STVECC          0x505
-#define CSR_SSCRATCHC       0x540
-#define CSR_SEPCC           0x541
+#define CSR_STVECC          0x105
+#define CSR_SSCRATCHC       0x140
+#define CSR_SEPCC           0x141
 #define CSR_STDC            0x163
 #endif
 
