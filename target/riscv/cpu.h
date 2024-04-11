@@ -205,7 +205,7 @@ struct CPURISCVState {
 
 #ifdef TARGET_CHERI
     cap_register_t stidc;     // SCR 11 Supervisor thread identifier cap. (STIDC)
-    cap_register_t stcc;      // SCR 12 Supervisor trap code cap. (STCC)
+    cap_register_t stvecc;    // SCR 12 Supervisor trap code cap. (STCC)
     cap_register_t stdc;      // SCR 13 Supervisor trap data cap. (STDC)
     cap_register_t sscratchc; // SCR 14 Supervisor scratch cap. (SScratchC)
     cap_register_t sepcc;     // SCR 15 Supervisor exception PC cap. (SEPCC)
@@ -841,7 +841,7 @@ static inline cap_register_t *riscv_get_scr(CPUArchState *env, uint32_t index)
 
     case CheriSCR_UTIDC: return &env->utidc;
 
-    case CheriSCR_STCC: return &env->stcc;
+    case CheriSCR_STCC: return &env->stvecc;
     case CheriSCR_STDC: return &env->stdc;
     case CheriSCR_SScratchC: return &env->sscratchc;
     case CheriSCR_SEPCC: return &env->sepcc;
