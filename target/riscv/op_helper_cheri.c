@@ -87,7 +87,6 @@ struct SCRInfo {
                             .w = true,
                             .access = S_ASR,
                             .name = "SScratchC"},
-    [CheriSCR_SEPCC] = {.r = true, .w = true, .access = S_ASR, .name = "SEPCC"},
 
     [CheriSCR_MTDC] = {.r = true, .w = true, .access = M_ASR, .name = "MTDC"},
     [CheriSCR_MScratchC] = {.r = true,
@@ -110,7 +109,6 @@ static inline cap_register_t *get_scr(CPUArchState *env, uint32_t index)
 
     case CheriSCR_STDC: return &env->STDC_CAP;
     case CheriSCR_SScratchC: return &env->SScratchC;
-    case CheriSCR_SEPCC: return &env->SEPCC;
 
     case CheriSCR_MTDC: return &env->MTDC;
     case CheriSCR_MScratchC: return &env->MScratchC;
@@ -393,12 +391,6 @@ void HELPER(cspecialrw)(CPUArchState *env, uint32_t cd, uint32_t cs,
         assert(scr_info[index].r && "Bug? Should be readable");
         // For xEPCC we clear the low address bit(s) when reading to match xEPC.
         // See helper_sret/helper_mret for more context.
-        switch(index) {
-        case CheriSCR_SEPCC:
-        default:
-            update_capreg(env, cd, scr);
-            break;
-        }
     }
     if (cs != 0) {
         assert(scr_info[index].w && "Bug? Should be writable");

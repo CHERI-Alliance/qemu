@@ -169,7 +169,7 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env, bool hs_mode_trap)
         COPY_SPECIAL_REG(env, vsepc, VSEPCC, sepc, SEPCC);
         COPY_SPECIAL_REG(env, sepc, SEPCC, sepc_hs, SEPCC_HS);
         LOG_SPECIAL_REG(env, CSR_VSEPC, CheriSCR_BSEPCC);
-        LOG_SPECIAL_REG(env, CSR_SEPC, CheriSCR_SEPCC);
+        riscv_log_instr_csr_changed(env, CSR_SEPC);
 
         env->vscause = env->scause;
         env->scause = env->scause_hs;
@@ -211,7 +211,7 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env, bool hs_mode_trap)
 
         COPY_SPECIAL_REG(env, sepc_hs, SEPCC_HS, sepc, SEPCC);
         COPY_SPECIAL_REG(env, sepc, SEPCC, vsepc, VSEPCC);
-        LOG_SPECIAL_REG(env, CSR_SEPC, CheriSCR_SEPCC);
+        riscv_log_instr_csr_changed(env, CSR_SEPC);
 
         env->scause_hs = env->scause;
         env->scause = env->vscause;
@@ -1411,7 +1411,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         riscv_log_instr_csr_changed(env, CSR_SCAUSE);
 
         COPY_SPECIAL_REG(env, sepc, SEPCC, pc, PCC);
-        LOG_SPECIAL_REG(env, CSR_SEPC, CheriSCR_SEPCC);
+        riscv_log_instr_csr_changed(env, CSR_SEPC);
 
         env->sbadaddr = tval;
         riscv_log_instr_csr_changed(env, CSR_SBADADDR);
