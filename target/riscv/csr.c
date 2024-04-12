@@ -1902,6 +1902,40 @@ cap_register_t read_mepcc(CPURISCVState *env)
 }
 
 
+void write_sepcc(CPURISCVState *env, cap_register_t* src);
+void write_sepcc(CPURISCVState *env, cap_register_t* src)
+{
+
+    target_ulong new_sepcc = cap_get_cursor(src) & (~0x1); // Zero bit zero
+    cap_set_cursor(src, new_sepcc);
+    env->SEPCC = *src;
+}
+
+cap_register_t read_sepcc(CPURISCVState *env);
+cap_register_t read_sepcc(CPURISCVState *env)
+{
+    cap_register_t retval = env->SEPCC;
+    target_ulong val = cap_get_cursor(&retval);
+    // RISC-V privileged spec 4.1.7 Supervisor Exception Program Counter (sepc)
+    // "The low bit of sepc (sepc[0]) is always zero. [...] Whenever IALIGN=32,
+    // sepc[1] is masked on reads so that it appears to be 0."
+    val &= ~(target_ulong)(riscv_has_ext(env, RVC) ? 1 : 3);
+    if (val != cap_get_cursor(&retval)) {
+        warn_report("Clearing low bit(s) of MEPCC (contained an unaligned "
+                    "capability): " PRINT_CAP_FMTSTR,PRINT_CAP_ARGS(&retval));
+        cap_set_cursor(&retval, val);
+    }
+    if (!cap_is_unsealed(&retval)) {
+        warn_report("Invalidating sealed MEPCC (contained an unaligned "
+                    "capability): " PRINT_CAP_FMTSTR, PRINT_CAP_ARGS(&retval));
+        retval.cr_tag = false;
+    }
+
+    cap_set_cursor(&retval,val);
+    return retval;
+}
+
+
 static RISCVException read_ccsr(CPURISCVState *env, int csrno, target_ulong *val)
 {
     // We report the same values for all modes and don't perform dirty tracking
@@ -2333,6 +2367,7 @@ riscv_csr_cap_ops csr_cap_ops[]={
     {"mtvecc", read_mtvecc, write_mtvecc},
     {"stvecc", read_stvecc, write_stvecc},
     {"mepcc", read_mepcc, write_mepcc},
+    {"sepcc", read_sepcc, write_sepcc},
 };
 
 
@@ -2342,6 +2377,7 @@ riscv_csr_cap_ops* get_csr_cap_info(int csrnum){
         case CSR_MTVECC: return &csr_cap_ops[1];
         case CSR_STVECC: return &csr_cap_ops[2];
         case CSR_MEPCC: return &csr_cap_ops[3];
+        case CSR_SEPCC: return &csr_cap_ops[4];
         default: return NULL;
     }
 }

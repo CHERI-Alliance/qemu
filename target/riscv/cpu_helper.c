@@ -254,7 +254,7 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env, bool hs_mode_trap)
         COPY_SPECIAL_REG(env, vsepc, vsepcc, sepc, sepcc);
         COPY_SPECIAL_REG(env, sepc, sepcc, sepc_hs, sepcc_hs);
         LOG_SPECIAL_REG(env, CSR_VSEPC, CheriSCR_BSEPCC);
-        LOG_SPECIAL_REG(env, CSR_SEPC, CheriSCR_SEPCC);
+        riscv_log_instr_csr_changed(env, CSR_SEPC);
 
         env->vscause = env->scause;
         env->scause = env->scause_hs;
@@ -296,7 +296,7 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env, bool hs_mode_trap)
 
         COPY_SPECIAL_REG(env, sepc_hs, sepcc_hs, sepc, sepcc);
         COPY_SPECIAL_REG(env, sepc, sepcc, vsepc, vsepcc);
-        LOG_SPECIAL_REG(env, CSR_SEPC, CheriSCR_SEPCC);
+        riscv_log_instr_csr_changed(env, CSR_SEPC);
 
         env->scause_hs = env->scause;
         env->scause = env->vscause;
@@ -1480,7 +1480,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         riscv_log_instr_csr_changed(env, CSR_SCAUSE);
 
         COPY_SPECIAL_REG(env, sepc, sepcc, pc, pcc);
-        LOG_SPECIAL_REG(env, CSR_SEPC, CheriSCR_SEPCC);
+        riscv_log_instr_csr_changed(env, CSR_SEPC);
 
         env->stval = tval;
         riscv_log_instr_csr_changed(env, CSR_STVAL);

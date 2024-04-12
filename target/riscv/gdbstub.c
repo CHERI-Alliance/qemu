@@ -236,7 +236,6 @@ static struct SCR {
 } scrs[] = {
     { .index = CheriSCR_STDC, .name = "stdc"},
     { .index = CheriSCR_SScratchC, .name = "sscratchc"},
-    { .index = CheriSCR_SEPCC, .name = "sepcc", .code = true },
 
     { .index = CheriSCR_MTDC, .name = "mtdc"},
     { .index = CheriSCR_MScratchC, .name = "mscratchc"},
