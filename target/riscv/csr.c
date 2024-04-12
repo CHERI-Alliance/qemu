@@ -1857,6 +1857,16 @@ static void update_vec_reg(CPURISCVState *env, cap_register_t *scr,
     cheri_log_instr_changed_capreg(env, name, scr);
 }
 
+static void write_sscratchc(CPURISCVState *env, cap_register_t* src)
+{
+    env->sscratchc = *src;
+}
+
+static cap_register_t read_sscratchc(CPURISCVState *env)
+{
+    return env->sscratchc;
+}
+
 static void write_mtvecc(CPURISCVState *env, cap_register_t *src)
 {
     target_ulong new_tvec = cap_get_cursor(src);
@@ -2411,6 +2421,7 @@ riscv_csr_cap_ops csr_cap_ops[] = {
     { "stvecc", read_stvecc, write_stvecc },
     { "mepcc", read_mepcc, write_mepcc },
     { "sepcc", read_sepcc, write_sepcc },
+    { "sscratchc", read_sscratchc, write_sscratchc },
 };
 
 riscv_csr_cap_ops *get_csr_cap_info(int csrnum)
@@ -2421,6 +2432,7 @@ riscv_csr_cap_ops *get_csr_cap_info(int csrnum)
     case CSR_STVECC: return &csr_cap_ops[2];
     case CSR_MEPCC: return &csr_cap_ops[3];
     case CSR_SEPCC: return &csr_cap_ops[4];
+    case CSR_SSCRATCHC: return &csr_cap_ops[5];
     default: return NULL;
     }
 }
