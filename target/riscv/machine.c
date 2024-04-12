@@ -212,7 +212,7 @@ const VMStateDescription vmstate_riscv_cpu = {
         VMSTATE_UINTTL(env.scounteren, RISCVCPU),
         VMSTATE_UINTTL(env.mcounteren, RISCVCPU),
         VMSTATE_UINTTL(env.sscratch, RISCVCPU),
-        VMSTATE_UINTTL_OR_CAP(env.mscratch, env.MScratchC, RISCVCPU),
+        VMSTATE_UINTTL_OR_CAP(env.mscratch, env.mscratchc, RISCVCPU),
         VMSTATE_UINTTL_OR_CAP(env.mtvec, env.MTVECC, RISCVCPU),
         VMSTATE_UINT64(env.mfromhost, RISCVCPU),
         VMSTATE_UINT64(env.mtohost, RISCVCPU),

@@ -1815,13 +1815,13 @@ static void update_vec_reg(CPURISCVState *env, cap_register_t *scr,
 void write_mscratchc(CPURISCVState *env, cap_register_t* src);
 void write_mscratchc(CPURISCVState *env, cap_register_t* src)
 {
-    env->MScratchC = *src;
+    env->mscratchc = *src;
 }
 
 cap_register_t read_mscratchc(CPURISCVState *env);
 cap_register_t read_mscratchc(CPURISCVState *env)
 {
-    return env->MScratchC;
+    return env->mscratchc;
 }
 
 
