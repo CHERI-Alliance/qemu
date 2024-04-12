@@ -85,10 +85,6 @@ struct SCRInfo {
     [CheriSCR_STDC] = {.r = true, .w = true, .access = S_ASR, .name = "STDC"},
     
     [CheriSCR_MTDC] = {.r = true, .w = true, .access = M_ASR, .name = "MTDC"},
-    [CheriSCR_MScratchC] = {.r = true,
-                            .w = true,
-                            .access = M_ASR,
-                            .name = "MScratchC"},
 
     [CheriSCR_BSTCC] = {.r = true, .w = true, .access = H_ASR, .name= "BSTCC"},
     [CheriSCR_BSTDC] = {.r = true, .w = true, .access = H_ASR, .name= "BSTCC"},
@@ -106,7 +102,6 @@ static inline cap_register_t *get_scr(CPUArchState *env, uint32_t index)
     case CheriSCR_STDC: return &env->STDC_CAP;
 
     case CheriSCR_MTDC: return &env->MTDC;
-    case CheriSCR_MScratchC: return &env->MScratchC;
 
     case CheriSCR_BSTCC: return &env->VSTCC;
     case CheriSCR_BSTDC: return &env->VSTDC;
