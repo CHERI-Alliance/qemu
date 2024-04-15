@@ -103,17 +103,6 @@ void riscv_log_instr_scr_changed(CPURISCVState *env, int scrno)
 }
 #endif
 
-static inline  cap_register_t *get_cap_csr(CPUArchState *env, int csrno,const char **name)
-{
-    switch (csrno)
-    {
-        case CSR_DSCRATCH0C: *name="MSCRATCH"; return &env->MScratchC;
-        default:
-            *name=NULL;
-            return &env->DDC; // for now just pass the default data capability
-    }
-}
-
 int check_csr_cap_permissions(CPURISCVState *env, int csrno,int write_mask);
 int check_csr_cap_permissions(CPURISCVState *env, int csrno,int write_mask)
 {
