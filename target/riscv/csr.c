@@ -1548,6 +1548,17 @@ cap_register_t read_dscratch1c(CPURISCVState *env)
     return env->dscratch1c;
 }
 
+void write_dpcc(CPURISCVState *env, cap_register_t* src);
+void write_dpcc(CPURISCVState *env, cap_register_t* src)
+{
+    env->dpcc = *src;
+}
+
+cap_register_t read_dpcc(CPURISCVState *env);
+cap_register_t read_dpcc(CPURISCVState *env)
+{
+    return env->dpcc;
+}
 
 static int read_ccsr(CPURISCVState *env, int csrno, target_ulong *val)
 {
@@ -1947,6 +1958,7 @@ riscv_csr_cap_ops csr_cap_ops[]={
     {"sscratchc", read_sscratchc, write_sscratchc},
     {"dscratch0c", read_dscratch0c, write_dscratch0c},
     {"dscratch1c", read_dscratch1c, write_dscratch1c},
+    {"dpcc", read_dpcc, write_dpcc},
 };
 
 
@@ -1960,6 +1972,7 @@ riscv_csr_cap_ops* get_csr_cap_info(int csrnum){
         case CSR_SSCRATCHC: return &csr_cap_ops[5];
         case CSR_DSCRATCH0C: return &csr_cap_ops[6];
         case CSR_DSCRATCH1C: return &csr_cap_ops[7];
+        case CSR_DPCC: return &csr_cap_ops[8];
         default: return NULL;
     }
 }
