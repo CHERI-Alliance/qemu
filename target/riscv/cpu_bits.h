@@ -259,17 +259,19 @@
 /* Debug Mode Registers */
 #define CSR_DCSR            0x7b0
 #define CSR_DPC             0x7b1
-#define CSR_DSCRATCH        0x7b2
+#define CSR_DSCRATCH0        0x7b2
+#define CSR_DSCRATCH1        0x7b3
 
 #ifdef TARGET_CHERI
 /* CHERI Debug mode capabilities */
-#define CSR_DPCC            0x7b9
-#define CSR_DSCRATCH0C      0x7ba
-#define CSR_DSCRATCH1C      0x7bb
-#define CSR_DDDC            0x7bc
+#define CSR_DPCC            0x7b1
+#define CSR_DSCRATCH0C      0x7b2
+#define CSR_DSCRATCH1C      0x7b3
+#define CSR_DSCRATCH1C      0x7b3
 
-/* CHERI default and infinit capabiltiies */
+/* CHERI default and infinite capabiltiies used for legacy mode*/
 #define CSR_DDC             0x416
+#define CSR_DDDC            0x7bc
 #define CSR_DINFC           0x7bd
 
 #endif

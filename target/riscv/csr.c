@@ -1949,6 +1949,30 @@ cap_register_t read_sepcc(CPURISCVState *env)
     return retval;
 }
 
+void write_dscratch0c(CPURISCVState *env, cap_register_t* src);
+void write_dscratch0c(CPURISCVState *env, cap_register_t* src)
+{
+    env->dscratch0c = *src;
+}
+
+cap_register_t read_dscratch0c(CPURISCVState *env);
+cap_register_t read_dscratch0c(CPURISCVState *env)
+{
+    return env->dscratch0c;
+}
+
+void write_dscratch1c(CPURISCVState *env, cap_register_t* src);
+void write_dscratch1c(CPURISCVState *env, cap_register_t* src)
+{
+    env->dscratch1c = *src;
+}
+
+cap_register_t read_dscratch1c(CPURISCVState *env);
+cap_register_t read_dscratch1c(CPURISCVState *env)
+{
+    return env->dscratch1c;
+}
+
 
 static RISCVException read_ccsr(CPURISCVState *env, int csrno, target_ulong *val)
 {
@@ -2383,6 +2407,8 @@ riscv_csr_cap_ops csr_cap_ops[]={
     {"mepcc", read_mepcc, write_mepcc},
     {"sepcc", read_sepcc, write_sepcc},
     {"sscratchc", read_sscratchc, write_sscratchc},
+    {"dscratch0c", read_dscratch0c, write_dscratch0c},
+    {"dscratch1c", read_dscratch1c, write_dscratch1c},
 };
 
 
@@ -2394,6 +2420,8 @@ riscv_csr_cap_ops* get_csr_cap_info(int csrnum){
         case CSR_MEPCC: return &csr_cap_ops[3];
         case CSR_SEPCC: return &csr_cap_ops[4];
         case CSR_SSCRATCHC: return &csr_cap_ops[5];
+        case CSR_DSCRATCH0C: return &csr_cap_ops[6];
+        case CSR_DSCRATCH1C: return &csr_cap_ops[7];
         default: return NULL;
     }
 }
