@@ -200,6 +200,10 @@ struct CPURISCVState {
 #endif
 
 #ifdef TARGET_CHERI
+    cap_register_t jvtc;      // Jump vector table capability
+#endif
+
+#ifdef TARGET_CHERI
     cap_register_t stdc;      // SCR 13 Supervisor trap data cap. (STDC)
     cap_register_t sscratchc; // SCR 14 Supervisor scratch cap. (SScratchC)
     cap_register_t sepcc;     // SCR 15 Supervisor exception PC cap. (SEPCC)

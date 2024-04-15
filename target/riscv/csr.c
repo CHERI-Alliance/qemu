@@ -1997,6 +1997,17 @@ cap_register_t read_dddc(CPURISCVState *env)
     return env->dddc;
 }
 
+static void write_jvtc(CPURISCVState *env, cap_register_t* src)
+{
+    env->jvtc = *src;
+}
+
+static cap_register_t read_jvtc(CPURISCVState *env)
+{
+    return env->jvtc;
+}
+
+
 
 static RISCVException read_ccsr(CPURISCVState *env, int csrno, target_ulong *val)
 {
@@ -2435,6 +2446,7 @@ riscv_csr_cap_ops csr_cap_ops[]={
     {"dscratch1c", read_dscratch1c, write_dscratch1c},
     {"dpcc", read_dpcc, write_dpcc},
     {"dddc", read_dddc, write_dddc},
+    {"jvtc", read_jvtc, write_jvtc},
 };
 
 
@@ -2450,6 +2462,7 @@ riscv_csr_cap_ops* get_csr_cap_info(int csrnum){
         case CSR_DSCRATCH1C: return &csr_cap_ops[7];
         case CSR_DPCC: return &csr_cap_ops[8];
         case CSR_DDDC: return &csr_cap_ops[9];
+        case CSR_JVTC: return &csr_cap_ops[10];
         default: return NULL;
     }
 }
