@@ -1387,33 +1387,28 @@ static void update_vec_reg(CPURISCVState *env, cap_register_t *scr,
     cheri_log_instr_changed_capreg(env, name, scr);
 }
 
-void write_mscratchc(CPURISCVState *env, cap_register_t* src);
-void write_mscratchc(CPURISCVState *env, cap_register_t* src)
+static void write_mscratchc(CPURISCVState *env, cap_register_t* src)
 {
     env->MScratchC = *src;
 }
 
-cap_register_t read_mscratchc(CPURISCVState *env);
-cap_register_t read_mscratchc(CPURISCVState *env)
+static cap_register_t read_mscratchc(CPURISCVState *env)
 {
     return env->MScratchC;
 }
 
 
-void write_sscratchc(CPURISCVState *env, cap_register_t* src);
-void write_sscratchc(CPURISCVState *env, cap_register_t* src)
+static void write_sscratchc(CPURISCVState *env, cap_register_t* src)
 {
     env->SScratchC = *src;
 }
 
-cap_register_t read_sscratchc(CPURISCVState *env);
-cap_register_t read_sscratchc(CPURISCVState *env)
+static cap_register_t read_sscratchc(CPURISCVState *env)
 {
     return env->SScratchC;
 }
 
-void write_mtvecc(CPURISCVState *env, cap_register_t* src);
-void write_mtvecc(CPURISCVState *env, cap_register_t* src)
+static void write_mtvecc(CPURISCVState *env, cap_register_t* src)
 {
 
     target_ulong new_tvec = cap_get_cursor(src);
@@ -1428,14 +1423,12 @@ void write_mtvecc(CPURISCVState *env, cap_register_t* src)
     update_vec_reg(env, &env->MTVECC, "MTVECC", new_tvec);
 }
 
-cap_register_t read_mtvecc(CPURISCVState *env);
-cap_register_t read_mtvecc(CPURISCVState *env)
+static cap_register_t read_mtvecc(CPURISCVState *env)
 {
     return env->MTVECC;
 }
 
-void write_stvecc(CPURISCVState *env, cap_register_t* src);
-void write_stvecc(CPURISCVState *env, cap_register_t* src)
+static void write_stvecc(CPURISCVState *env, cap_register_t* src)
 {
 
     target_ulong new_tvec = cap_get_cursor(src);
@@ -1450,15 +1443,13 @@ void write_stvecc(CPURISCVState *env, cap_register_t* src)
     update_vec_reg(env, &env->STVECC, "STVECC", new_tvec);
 }
 
-cap_register_t read_stvecc(CPURISCVState *env);
-cap_register_t read_stvecc(CPURISCVState *env)
+static cap_register_t read_stvecc(CPURISCVState *env)
 {
     return env->STVECC;
 }
 
 
-void write_mepcc(CPURISCVState *env, cap_register_t* src);
-void write_mepcc(CPURISCVState *env, cap_register_t* src)
+static void write_mepcc(CPURISCVState *env, cap_register_t* src)
 {
 
     target_ulong new_mepcc = cap_get_cursor(src) & (~0x1); // Zero bit zero
@@ -1466,8 +1457,7 @@ void write_mepcc(CPURISCVState *env, cap_register_t* src)
     env->MEPCC = *src;
 }
 
-cap_register_t read_mepcc(CPURISCVState *env);
-cap_register_t read_mepcc(CPURISCVState *env)
+static cap_register_t read_mepcc(CPURISCVState *env)
 {
     cap_register_t retval = env->MEPCC;
     target_ulong val = cap_get_cursor(&retval);
@@ -1491,8 +1481,7 @@ cap_register_t read_mepcc(CPURISCVState *env)
 }
 
 
-void write_sepcc(CPURISCVState *env, cap_register_t* src);
-void write_sepcc(CPURISCVState *env, cap_register_t* src)
+static void write_sepcc(CPURISCVState *env, cap_register_t* src)
 {
 
     target_ulong new_sepcc = cap_get_cursor(src) & (~0x1); // Zero bit zero
@@ -1500,8 +1489,7 @@ void write_sepcc(CPURISCVState *env, cap_register_t* src)
     env->SEPCC = *src;
 }
 
-cap_register_t read_sepcc(CPURISCVState *env);
-cap_register_t read_sepcc(CPURISCVState *env)
+static cap_register_t read_sepcc(CPURISCVState *env)
 {
     cap_register_t retval = env->SEPCC;
     target_ulong val = cap_get_cursor(&retval);
@@ -1524,50 +1512,42 @@ cap_register_t read_sepcc(CPURISCVState *env)
     return retval;
 }
 
-void write_dscratch0c(CPURISCVState *env, cap_register_t* src);
-void write_dscratch0c(CPURISCVState *env, cap_register_t* src)
+static void write_dscratch0c(CPURISCVState *env, cap_register_t* src)
 {
     env->dscratch0c = *src;
 }
 
-cap_register_t read_dscratch0c(CPURISCVState *env);
-cap_register_t read_dscratch0c(CPURISCVState *env)
+static cap_register_t read_dscratch0c(CPURISCVState *env)
 {
     return env->dscratch0c;
 }
 
-void write_dscratch1c(CPURISCVState *env, cap_register_t* src);
-void write_dscratch1c(CPURISCVState *env, cap_register_t* src)
+static void write_dscratch1c(CPURISCVState *env, cap_register_t* src)
 {
     env->dscratch1c = *src;
 }
 
-cap_register_t read_dscratch1c(CPURISCVState *env);
-cap_register_t read_dscratch1c(CPURISCVState *env)
+static cap_register_t read_dscratch1c(CPURISCVState *env)
 {
     return env->dscratch1c;
 }
 
-void write_dpcc(CPURISCVState *env, cap_register_t* src);
-void write_dpcc(CPURISCVState *env, cap_register_t* src)
+static void write_dpcc(CPURISCVState *env, cap_register_t* src)
 {
     env->dpcc = *src;
 }
 
-cap_register_t read_dpcc(CPURISCVState *env);
-cap_register_t read_dpcc(CPURISCVState *env)
+static cap_register_t read_dpcc(CPURISCVState *env)
 {
     return env->dpcc;
 }
 
-void write_dddc(CPURISCVState *env, cap_register_t* src);
-void write_dddc(CPURISCVState *env, cap_register_t* src)
+static void write_dddc(CPURISCVState *env, cap_register_t* src)
 {
     env->dddc = *src;
 }
 
-cap_register_t read_dddc(CPURISCVState *env);
-cap_register_t read_dddc(CPURISCVState *env)
+static cap_register_t read_dddc(CPURISCVState *env)
 {
     return env->dddc;
 }
