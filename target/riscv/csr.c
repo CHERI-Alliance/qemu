@@ -1985,6 +1985,19 @@ cap_register_t read_dpcc(CPURISCVState *env)
     return env->dpcc;
 }
 
+void write_dddc(CPURISCVState *env, cap_register_t* src);
+void write_dddc(CPURISCVState *env, cap_register_t* src)
+{
+    env->dddc = *src;
+}
+
+cap_register_t read_dddc(CPURISCVState *env);
+cap_register_t read_dddc(CPURISCVState *env)
+{
+    return env->dddc;
+}
+
+
 static RISCVException read_ccsr(CPURISCVState *env, int csrno, target_ulong *val)
 {
     // We report the same values for all modes and don't perform dirty tracking
@@ -2421,6 +2434,7 @@ riscv_csr_cap_ops csr_cap_ops[]={
     {"dscratch0c", read_dscratch0c, write_dscratch0c},
     {"dscratch1c", read_dscratch1c, write_dscratch1c},
     {"dpcc", read_dpcc, write_dpcc},
+    {"dddc", read_dddc, write_dddc},
 };
 
 
@@ -2435,6 +2449,7 @@ riscv_csr_cap_ops* get_csr_cap_info(int csrnum){
         case CSR_DSCRATCH0C: return &csr_cap_ops[6];
         case CSR_DSCRATCH1C: return &csr_cap_ops[7];
         case CSR_DPCC: return &csr_cap_ops[8];
+        case CSR_DDDC: return &csr_cap_ops[9];
         default: return NULL;
     }
 }
