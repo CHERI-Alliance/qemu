@@ -282,6 +282,7 @@ struct CPURISCVState {
     cap_register_t dscratch0c;
     cap_register_t dscratch1c;
     cap_register_t dpcc;
+    cap_register_t dddc;
 #endif
     /* temporary htif regs */
     uint64_t mfromhost;
