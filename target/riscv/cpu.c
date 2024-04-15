@@ -748,6 +748,8 @@ static void riscv_cpu_reset(DeviceState *dev)
     null_capability(&env->MScratchC);
     set_max_perms_capability(&env->MTVECC,0);
     set_max_perms_capability(&env->MEPCC, 0);
+    null_capability(&env->dscratch0c);
+    null_capability(&env->dscratch1c);
 #endif /* TARGET_CHERI */
 #ifdef CONFIG_DEBUG_TCG
     env->_pc_is_current = true;
