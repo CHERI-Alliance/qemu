@@ -300,6 +300,9 @@
 #define CSR_UTID            0x480
 #define CSR_UTIDC           CSR_UTID
 
+/* CHERI Jump Vector Table Capability*/
+#define CSR_JVTC            0x017
+
 #ifdef TARGET_CHERI_RISCV_V9
 /* Fake CSR numbers for the legacy *TDC registers */
 #define CSR_MTDC  0xBFF /* last M-mode custom read-write index */

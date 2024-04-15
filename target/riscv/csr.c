@@ -1931,6 +1931,8 @@ cap_register_t *get_cap_csr(CPUArchState *env, uint32_t index)
         return &env->sepcc;
     case CSR_SSCRATCHC:
         return &env->sscratchc;
+    case CSR_JVTC:
+      return &env->jvtc;
     case CSR_DDC:
         return &env->ddc;
     case CSR_MTIDC:
@@ -2714,6 +2716,8 @@ static riscv_csr_cap_ops csr_cap_ops[] = {
       CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
     { "ddc", CSR_DDC, read_capcsr_reg, write_cap_csr_reg,
       CSR_OP_REQUIRE_CRE | CSR_OP_IA_CONVERSION },
+    { "jvtc", CSR_JVTC, read_capcsr_reg, write_cap_csr_reg,
+      CSR_OP_IA_CONVERSION | CSR_OP_EXTENDED_REG },
     { "mtidc", CSR_MTIDC, read_capcsr_reg, write_cap_csr_reg,
       CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
     { "stidc", CSR_STIDC, read_capcsr_reg, write_cap_csr_reg,
