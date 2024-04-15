@@ -111,18 +111,6 @@ static inline cap_register_t *get_scr(CPUArchState *env, uint32_t index)
     }
 }
 
-
-static inline  cap_register_t *get_cap_csr(CPUArchState *env, int csrno,const char **name)
-{
-    switch (csrno)
-    {
-        case CSR_DSCRATCH0C: *name="MSCRATCH"; return &env->MScratchC;
-        default:
-            *name=NULL;
-            return &env->DDC; // for now just pass the default data capability
-    }
-}
-
 #ifdef CONFIG_TCG_LOG_INSTR
 void riscv_log_instr_scr_changed(CPURISCVState *env, int scrno)
 {
