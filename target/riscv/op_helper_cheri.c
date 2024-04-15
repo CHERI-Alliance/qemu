@@ -429,10 +429,6 @@ void HELPER(amoswap_cap)(CPUArchState *env, uint32_t dest_reg,
         raise_cheri_exception(env, CapEx_PermitStoreViolation, addr_reg);
     } else if (!cap_has_perms(cbp, CAP_PERM_STORE_CAP)) {
         raise_cheri_exception(env, CapEx_PermitStoreCapViolation, addr_reg);
-    } else if (!cap_has_perms(cbp, CAP_PERM_STORE_LOCAL) &&
-               get_capreg_tag(env, val_reg) &&
-               !(get_capreg_hwperms(env, val_reg) & CAP_PERM_GLOBAL)) {
-        raise_cheri_exception(env, CapEx_PermitStoreLocalCapViolation, val_reg);
     }
 
     if (!cap_is_in_bounds(cbp, addr, CHERI_CAP_SIZE)) {
