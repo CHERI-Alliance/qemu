@@ -99,7 +99,14 @@ static inline void cheri_update_pcc(cap_register_t *pcc, target_ulong pc_addr,
 }
 
 static inline bool cap_has_capmode_flag(const cap_register_t *cap) {
-    return (cap_get_flags(cap) & CHERI_FLAG_CAPMODE) == CHERI_FLAG_CAPMODE;
+    /*
+     * TODO: Implement this using bakewell's mode bit.
+     *
+     * For now, we default to capmode == false. If capmode was enabled, all
+     * addresses would have to be capabilities. This requires changes to
+     * qmemu's hard-wired rom code.
+     */
+    return false;
 }
 
 static inline bool cheri_in_capmode(CPUArchState *env) {
