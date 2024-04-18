@@ -2011,6 +2011,16 @@ static cap_register_t read_mtdc(CPURISCVState *env)
     return env->mtdc;
 }
 
+static void write_stdc(CPURISCVState *env, cap_register_t* src)
+{
+    env->STDC = *src;
+}
+
+static cap_register_t read_stdc(CPURISCVState *env)
+{
+    return env->STDC;
+}
+
 
 
 static RISCVException read_ccsr(CPURISCVState *env, int csrno, target_ulong *val)
@@ -2453,6 +2463,7 @@ riscv_csr_cap_ops csr_cap_ops[]={
     {"jvtc", read_jvtc, write_jvtc},
     {"dinf", read_dinfc, write_dinfc},
     {"mtdc", read_mtdc, write_mtdc},
+    {"stdc", read_stdc, write_stdc},
 };
 
 
@@ -2471,6 +2482,7 @@ riscv_csr_cap_ops* get_csr_cap_info(int csrnum){
         case CSR_JVTC: return &csr_cap_ops[10];
         case CSR_DINFC: return &csr_cap_ops[11];
         case CSR_MTDC: return &csr_cap_ops[12];
+        case CSR_STDC: return &csr_cap_ops[13];
         default: return NULL;
     }
 }
