@@ -2007,6 +2007,19 @@ static cap_register_t read_jvtc(CPURISCVState *env)
     return env->jvtc;
 }
 
+static void write_dinfc(CPURISCVState *env, cap_register_t* src)
+{
+    /* Writing to dinf is allowed but ignored*/
+    qemu_log_mask(CPU_LOG_INT, "Attempting to write dinfc is ignored\n");
+}
+
+static cap_register_t read_dinfc(CPURISCVState *env)
+{
+    cap_register_t inf;
+    set_max_perms_capability(&inf,0);
+    return inf;
+}
+
 
 
 static RISCVException read_ccsr(CPURISCVState *env, int csrno, target_ulong *val)
@@ -2447,6 +2460,7 @@ riscv_csr_cap_ops csr_cap_ops[]={
     {"dpcc", read_dpcc, write_dpcc},
     {"dddc", read_dddc, write_dddc},
     {"jvtc", read_jvtc, write_jvtc},
+    {"dinf", read_dinfc, write_dinfc},
 };
 
 
@@ -2463,6 +2477,7 @@ riscv_csr_cap_ops* get_csr_cap_info(int csrnum){
         case CSR_DPCC: return &csr_cap_ops[8];
         case CSR_DDDC: return &csr_cap_ops[9];
         case CSR_JVTC: return &csr_cap_ops[10];
+        case CSR_DINFC: return &csr_cap_ops[11];
         default: return NULL;
     }
 }
