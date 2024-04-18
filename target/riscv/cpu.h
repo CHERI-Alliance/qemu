@@ -203,7 +203,7 @@ struct CPURISCVState {
 #endif  
 
 #ifdef TARGET_CHERI
-    cap_register_t STDC_CAP;  // SCR 13 Supervisor trap data cap. (STDC)
+    cap_register_t STDC;  // SCR 13 Supervisor trap data cap. (STDC)
     cap_register_t SScratchC; // SCR 14 Supervisor scratch cap. (SScratchC)
     cap_register_t SEPCC;     // SCR 15 Supervisor exception PC cap. (SEPCC)
     cap_register_t STVECC; 

@@ -98,9 +98,6 @@ static inline cap_register_t *get_scr(CPUArchState *env, uint32_t index)
     switch (index) {
     case CheriSCR_PCC: return &env->PCC;
     case CheriSCR_DDC: return &env->DDC;
-
-    case CheriSCR_STDC: return &env->STDC_CAP;
-
     case CheriSCR_BSTCC: return &env->VSTCC;
     case CheriSCR_BSTDC: return &env->VSTDC;
     case CheriSCR_BSScratchC: return &env->VSScratchC;
