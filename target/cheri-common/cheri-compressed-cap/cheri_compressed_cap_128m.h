@@ -118,8 +118,6 @@ enum {
     _CC_FIELD(EXPONENT_HIGH_PART, 82, 80),
     _CC_FIELD(EXP_NONZERO_BOTTOM, 79, 67),
     _CC_FIELD(EXPONENT_LOW_PART, 66, 64),
-
-    _CC_FIELD(RESERVED2, 81, 82), /* No reserved2 field */
 };
 #pragma GCC diagnostic pop
 

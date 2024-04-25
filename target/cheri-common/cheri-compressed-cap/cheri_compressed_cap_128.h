@@ -70,7 +70,8 @@ typedef int64_t cc128_saddr_t;
 enum {
     _CC_FIELD(UPERMS, 127, 124),
     _CC_FIELD(HWPERMS, 123, 112),
-    _CC_FIELD(RESERVED, 111, 109),
+    _CC_FIELD(RESERVED, 111, 110),
+    _CC_FIELD(FLAGS, 109, 109),
     _CC_FIELD(OTYPE, 108, 91),
     _CC_FIELD(EBT, 90, 64),
 
@@ -87,7 +88,6 @@ enum {
     _CC_FIELD(EXPONENT_HIGH_PART, 80, 78),
     _CC_FIELD(EXP_NONZERO_BOTTOM, 77, 67),
     _CC_FIELD(EXPONENT_LOW_PART, 66, 64),
-    _CC_FIELD(RESERVED2, 81, 82), /* No reserved2 field */
 };
 #pragma GCC diagnostic pop
 
