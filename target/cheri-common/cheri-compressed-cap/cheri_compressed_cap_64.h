@@ -90,6 +90,9 @@ enum {
     _CC_FIELD(UPERMS, 31, 32),   /* No uperms */
 };
 #pragma GCC diagnostic pop
+
+#define CC64_FIELD_FLAGS_USED 1
+
 _CC_STATIC_ASSERT_SAME(CC64_FIELD_UPERMS_SIZE, 0);
 _CC_STATIC_ASSERT_SAME(CC64_FIELD_RESERVED_SIZE, 0);
 

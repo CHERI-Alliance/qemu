@@ -44,7 +44,7 @@ typedef int32_t cc64r_saddr_t;
 #pragma GCC diagnostic ignored "-Wpedantic"
 enum {
     _CC_FIELD(HWPERMS, 63, 52),
-    _CC_FIELD(FLAGS, 51, 51),
+    _CC_FIELD(RESERVED, 51, 51),
     _CC_FIELD(OTYPE, 50, 47),
     _CC_FIELD(EBT, 46, 32),
 
@@ -63,13 +63,14 @@ enum {
     _CC_FIELD(EXPONENT_LOW_PART, 34, 32),
 
     /* The following fields are unused for the 64r format. */
-    _CC_FIELD(RESERVED, 31, 32),
+    _CC_FIELD(FLAGS, 31, 32),
     _CC_FIELD(UPERMS, 31, 32),
 };
 #pragma GCC diagnostic pop
 
 _CC_STATIC_ASSERT_SAME(CC64R_FIELD_UPERMS_SIZE, 0);
-_CC_STATIC_ASSERT_SAME(CC64R_FIELD_RESERVED_SIZE, 0);
+
+#define CC64R_FIELD_FLAGS_USED 0
 
 #define CC64R_OTYPE_BITS CC64R_FIELD_OTYPE_SIZE
 #define CC64R_BOT_WIDTH CC64R_FIELD_EXP_ZERO_BOTTOM_SIZE

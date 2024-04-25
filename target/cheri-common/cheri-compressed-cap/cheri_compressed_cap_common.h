@@ -61,6 +61,10 @@ enum {
         _CC_ENCODE_EBT_FIELD(0, EXP_NONZERO_BOTTOM) |
         _CC_ENCODE_EBT_FIELD(_CC_N(RESET_EXP) >> _CC_N(FIELD_EXPONENT_LOW_PART_SIZE), EXPONENT_HIGH_PART) |
         _CC_ENCODE_EBT_FIELD(_CC_N(RESET_EXP) & _CC_N(FIELD_EXPONENT_LOW_PART_MAX_VALUE), EXPONENT_LOW_PART),
+    /*
+     * Please note that we don't have to exclude unused fields.
+     * _CC_ENCODE_FIELD(value, field_name) is 0 when the field's size is 0.
+     */
     _CC_N(NULL_PESBT) = _CC_ENCODE_FIELD(0, UPERMS) | _CC_ENCODE_FIELD(0, HWPERMS) | _CC_ENCODE_FIELD(0, RESERVED) |
                         _CC_ENCODE_FIELD(0, FLAGS) | _CC_ENCODE_FIELD(1, INTERNAL_EXPONENT) |
                         _CC_ENCODE_FIELD(_CC_N(OTYPE_UNSEALED), OTYPE) |
