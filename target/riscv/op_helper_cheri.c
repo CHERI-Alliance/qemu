@@ -152,7 +152,7 @@ void HELPER(csrrw_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
 
     ret = check_csr_cap_permissions(env,csr,1);
     if (ret) {
-        riscv_raise_exception(env, RISCV_EXCP_CHERI, GETPC());
+        riscv_raise_exception(env, -ret, GETPC());
     }
 
     rs_cap = *get_cap_in_gpregs(&env->gpcapregs,rs1);
@@ -181,7 +181,7 @@ void HELPER(csrrs_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
     if (rs1) {
         ret = check_csr_cap_permissions(env,csr,1);
         if (ret) {
-            riscv_raise_exception(env, RISCV_EXCP_CHERI, GETPC());
+            riscv_raise_exception(env, -ret, GETPC());
         }
         rs_cap = *get_cap_in_gpregs(&env->gpcapregs,rs1);
     }
@@ -213,7 +213,7 @@ void HELPER(csrrc_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
     if(rs1) {
         ret = check_csr_cap_permissions(env,csr,1);
         if (ret) {
-            riscv_raise_exception(env, RISCV_EXCP_CHERI, GETPC());
+            riscv_raise_exception(env, -ret, GETPC());
         }
         rs_cap = *get_cap_in_gpregs(&env->gpcapregs,rs1);
     }
@@ -244,7 +244,7 @@ void HELPER(csrrwi_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
     ret = check_csr_cap_permissions(env,csr,1);
 
     if (ret) {
-        riscv_raise_exception(env, RISCV_EXCP_CHERI, GETPC());
+        riscv_raise_exception(env, -ret, GETPC());
     }
 
     csr_cap = csr_cap_info->read(env);
@@ -270,7 +270,7 @@ void HELPER(csrrsi_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
     if (rs1_val) {
         ret = check_csr_cap_permissions(env,csr,1);
         if (ret) {
-            riscv_raise_exception(env, RISCV_EXCP_CHERI, GETPC());
+riscv_raise_exception(env, -ret, GETPC());
         }
     }
 
@@ -301,7 +301,7 @@ void HELPER(csrrci_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
     if (rs1_val) {
         ret = check_csr_cap_permissions(env,csr,1);
         if(ret){
-            riscv_raise_exception(env, RISCV_EXCP_CHERI, GETPC());
+            riscv_raise_exception(env, -ret, GETPC());
         }
     }
 
