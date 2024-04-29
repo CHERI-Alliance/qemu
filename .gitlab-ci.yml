@@ -43,31 +43,49 @@ default:
 
 build_qemu_riscvcheri_64:
     stage: build
+    rules:
+        - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+        - if: $CI_PIPELINE_SOURCE == "push"
     script:
         - scripts/riscv_cheri/build_riscv_cheri riscv64cheri 
 
 build_qemu_riscvcheri_32:
     stage: build
+    rules:
+        - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+        - if: $CI_PIPELINE_SOURCE == "push"
     script:
         - scripts/riscv_cheri/build_riscv_cheri riscv32cheri 
 
 build_qemu_riscv_64:
     stage: build
+    rules:
+        - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+        - if: $CI_PIPELINE_SOURCE == "push"
     script:
         - scripts/riscv_cheri/build_riscv_cheri riscv64 
 
 build_qemu_riscv_32:
     stage: build
+    rules:
+        - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+        - if: $CI_PIPELINE_SOURCE == "push"
     script:
         - scripts/riscv_cheri/build_riscv_cheri riscv32 
 
 build_qemu_morellocheri:
     stage: build
+    rules:
+        - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+        - if: $CI_PIPELINE_SOURCE == "push"
     script:
         - scripts/riscv_cheri/build_riscv_cheri morello
 
 build_qemu_mipscheri:
     stage: build
+    rules:
+        - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+        - if: $CI_PIPELINE_SOURCE == "push"
     script:
         - scripts/riscv_cheri/build_riscv_cheri mips64cheri128
 
