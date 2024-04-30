@@ -100,7 +100,6 @@ DEF_HELPER_2(mtc0_capfilter_lo, void, env, tl)
 DEF_HELPER_2(mtc0_capfilter_hi, void, env, tl)
 DEF_HELPER_2(mtc0_capfilter_perms, void, env, tl)
 
-DEF_HELPER_4(ccopytype, void, env, i32, i32, i32)
 DEF_HELPER_4(cincoffset, void, env, i32, i32, tl)
 DEF_HELPER_4(csetaddr, void, env, i32, i32, tl)
 DEF_HELPER_4(csetflags, void, env, i32, i32, tl)
