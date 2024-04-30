@@ -112,7 +112,7 @@ DEF_HELPER_4(scbnds, void, env, i32, i32, tl)
 DEF_HELPER_4(csetbounds, void, env, i32, i32, tl)
 DEF_HELPER_4(csetboundsexact, void, env, i32, i32, tl)
 #endif
-#ifndef TARGET_AARCH64
+#if CAP_CC(FIELD_FLAGS_USED) == 1
 DEF_HELPER_4(csetflags, void, env, i32, i32, tl)
 #endif
 DEF_HELPER_4(csetoffset, void, env, i32, i32, tl)

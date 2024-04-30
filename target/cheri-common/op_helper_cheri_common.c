@@ -1066,7 +1066,7 @@ void CHERI_HELPER_IMPL(csetboundsexact(CPUArchState *env, uint32_t cd,
 }
 #endif /* TARGET_RISCV */
 
-#ifndef TARGET_AARCH64
+#if CAP_CC(FIELD_FLAGS_USED) == 1
 /* Morello does not have flags in the capaibility metadata */
 void CHERI_HELPER_IMPL(csetflags(CPUArchState *env, uint32_t cd, uint32_t cb,
                                  target_ulong flags))
