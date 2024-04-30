@@ -336,6 +336,7 @@ const VMStateInfo vmstate_info_uint64 = {
 #include "../target/cheri-common/cheri-compressed-cap/cheri_compressed_cap_64.h"
 #include "../target/cheri-common/cheri-compressed-cap/cheri_compressed_cap_128.h"
 #include "../target/cheri-common/cheri-compressed-cap/cheri_compressed_cap_128m.h"
+#include "../target/cheri-common/cheri-compressed-cap/cheri_compressed_cap_128r.h"
 // clang-format on
 
 static int get_cap64_register(QEMUFile *f, void *pv, size_t size,
