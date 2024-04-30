@@ -334,6 +334,7 @@ const VMStateInfo vmstate_info_uint64 = {
 
 // clang-format off
 #include "../target/cheri-common/cheri-compressed-cap/cheri_compressed_cap_64.h"
+#include "../target/cheri-common/cheri-compressed-cap/cheri_compressed_cap_64r.h"
 #include "../target/cheri-common/cheri-compressed-cap/cheri_compressed_cap_128.h"
 #include "../target/cheri-common/cheri-compressed-cap/cheri_compressed_cap_128m.h"
 #include "../target/cheri-common/cheri-compressed-cap/cheri_compressed_cap_128r.h"

@@ -44,6 +44,7 @@
 
 // clang-format off
 #include "cheri-compressed-cap/cheri_compressed_cap_64.h"
+#include "cheri-compressed-cap/cheri_compressed_cap_64r.h"
 #include "cheri-compressed-cap/cheri_compressed_cap_128.h"
 #include "cheri-compressed-cap/cheri_compressed_cap_128m.h"
 #include "cheri-compressed-cap/cheri_compressed_cap_128r.h"
@@ -59,6 +60,7 @@
                    "QEMU_ALIGNED() broken?");
 
 CHERI_DECLARE_ALIGNED_CC_CAP_T(64)
+CHERI_DECLARE_ALIGNED_CC_CAP_T(64r)
 CHERI_DECLARE_ALIGNED_CC_CAP_T(128)
 CHERI_DECLARE_ALIGNED_CC_CAP_T(128m)
 CHERI_DECLARE_ALIGNED_CC_CAP_T(128r)
