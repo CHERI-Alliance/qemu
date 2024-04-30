@@ -82,6 +82,7 @@ DEF_HELPER_FLAGS_2(cram, TCG_CALL_NO_RWG_SE, tl, env, tl)
 DEF_HELPER_4(cbuildcap, void, env, i32, i32, i32)
 DEF_HELPER_4(ccseal, void, env, i32, i32, i32)
 DEF_HELPER_4(cseal, void, env, i32, i32, i32)
+DEF_HELPER_4(cunseal, void, env, i32, i32, i32)
 
 // Three operands (cap cap int)
 DEF_HELPER_4(candaddr, void, env, i32, i32, tl)

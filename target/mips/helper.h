@@ -104,7 +104,6 @@ DEF_HELPER_4(ccopytype, void, env, i32, i32, i32)
 DEF_HELPER_4(cincoffset, void, env, i32, i32, tl)
 DEF_HELPER_4(csetaddr, void, env, i32, i32, tl)
 DEF_HELPER_4(csetflags, void, env, i32, i32, tl)
-DEF_HELPER_4(cunseal, void, env, i32, i32, i32)
 #endif
 
 /* Special functions */
