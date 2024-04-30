@@ -44,7 +44,9 @@ typedef int64_t cc128r_saddr_t;
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
 enum {
-    _CC_FIELD(RESERVED, 127, 92),
+    _CC_FIELD(RESERVED2, 127, 121),
+    _CC_FIELD(SDP, 120, 117),
+    _CC_FIELD(RESERVED, 116, 92),
     _CC_FIELD(SEALED, 91, 91),
     _CC_FIELD(EBT, 90, 64),
 
@@ -67,7 +69,6 @@ enum {
     _CC_FIELD(OTYPE, 81, 82),
     _CC_FIELD(UPERMS, 81, 82),
     _CC_FIELD(HWPERMS, 81, 82),
-    _CC_FIELD(RESERVED2, 81, 82),
 };
 #pragma GCC diagnostic pop
 
