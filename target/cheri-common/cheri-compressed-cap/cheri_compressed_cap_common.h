@@ -120,7 +120,7 @@ typedef struct _cc_N(cap) _cc_N(cap_t);
 static inline uint8_t _cc_N(get_flags)(const _cc_cap_t* cap);
 static inline uint32_t _cc_N(get_otype)(const _cc_cap_t* cap);
 static inline uint32_t _cc_N(get_perms)(const _cc_cap_t* cap);
-static inline uint8_t _cc_N(get_reserved)(const _cc_cap_t* cap);
+static inline uint32_t _cc_N(get_reserved)(const _cc_cap_t* cap);
 static inline uint32_t _cc_N(get_uperms)(const _cc_cap_t* cap);
 
 // In order to allow vector loads and store from memory we can optionally reverse the first two fields.
@@ -159,7 +159,7 @@ struct _cc_N(cap) {
     inline uint32_t permissions() const { return _cc_N(get_perms)(this); }
     inline uint32_t type() const { return _cc_N(get_otype)(this); }
     inline bool is_sealed() const { return type() != _CC_N(OTYPE_UNSEALED); }
-    inline uint8_t reserved_bits() const { return _cc_N(get_reserved)(this); }
+    inline uint32_t reserved_bits() const { return _cc_N(get_reserved)(this); }
     inline uint8_t flags() const { return _cc_N(get_flags)(this); }
     inline bool operator==(const _cc_N(cap) & other) const;
 #endif
@@ -264,7 +264,7 @@ ALL_WRAPPERS(HWPERMS, perms, uint32_t)
 ALL_WRAPPERS(UPERMS, uperms, uint32_t)
 ALL_WRAPPERS(OTYPE, otype, uint32_t)
 ALL_WRAPPERS(FLAGS, flags, uint8_t)
-ALL_WRAPPERS(RESERVED, reserved, uint8_t)
+ALL_WRAPPERS(RESERVED, reserved, uint32_t)
 #undef ALL_WRAPPERS
 
 /// Extract the bits used for bounds and infer the top two bits of T
