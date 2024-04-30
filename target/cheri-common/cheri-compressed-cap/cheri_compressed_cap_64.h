@@ -86,8 +86,11 @@ enum {
     _CC_FIELD(EXPONENT_HIGH_PART, 42, 40),
     _CC_FIELD(EXP_NONZERO_BOTTOM, 39, 35),
     _CC_FIELD(EXPONENT_LOW_PART, 34, 32),
-    _CC_FIELD(RESERVED, 31, 32), /* No reserved bits */
-    _CC_FIELD(UPERMS, 31, 32),   /* No uperms */
+    /* The following fields are unused for the 64 format. */
+    _CC_FIELD(UPERMS, 31, 32),
+    _CC_FIELD(RESERVED, 31, 32),
+    _CC_FIELD(RESERVED2, 31, 32),
+    _CC_FIELD(SEALED, 31, 32),
 };
 #pragma GCC diagnostic pop
 
