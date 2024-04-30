@@ -46,6 +46,7 @@
 #include "cheri-compressed-cap/cheri_compressed_cap_64.h"
 #include "cheri-compressed-cap/cheri_compressed_cap_128.h"
 #include "cheri-compressed-cap/cheri_compressed_cap_128m.h"
+#include "cheri-compressed-cap/cheri_compressed_cap_128r.h"
 // clang-format on
 
 #define CHERI_DECLARE_ALIGNED_CC_CAP_T(suffix) \
@@ -60,6 +61,7 @@
 CHERI_DECLARE_ALIGNED_CC_CAP_T(64)
 CHERI_DECLARE_ALIGNED_CC_CAP_T(128)
 CHERI_DECLARE_ALIGNED_CC_CAP_T(128m)
+CHERI_DECLARE_ALIGNED_CC_CAP_T(128r)
 
 #if TARGET_LONG_BITS == 32
 #  define CHERI_CAP_SIZE 8
