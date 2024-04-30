@@ -94,7 +94,9 @@ enum {
 #define _CC_CURSOR_MASK _CC_N(CURSOR_MASK)
 // Check that the sizes of the individual fields match up
 _CC_STATIC_ASSERT_SAME(_CC_N(FIELD_EBT_SIZE) + _CC_N(FIELD_OTYPE_SIZE) + _CC_N(FIELD_FLAGS_SIZE) +
-                           _CC_N(FIELD_RESERVED_SIZE) + _CC_N(FIELD_HWPERMS_SIZE) + _CC_N(FIELD_UPERMS_SIZE),
+                           _CC_N(FIELD_SEALED_SIZE) +
+                           _CC_N(FIELD_RESERVED_SIZE) + _CC_N(FIELD_RESERVED2_SIZE) +
+                           _CC_N(FIELD_HWPERMS_SIZE) + _CC_N(FIELD_UPERMS_SIZE),
                        _CC_ADDR_WIDTH);
 _CC_STATIC_ASSERT_SAME(_CC_N(FIELD_INTERNAL_EXPONENT_SIZE) + _CC_N(FIELD_EXP_ZERO_TOP_SIZE) +
                            _CC_N(FIELD_EXP_ZERO_BOTTOM_SIZE),
@@ -122,6 +124,7 @@ static inline uint32_t _cc_N(get_otype)(const _cc_cap_t* cap);
 static inline uint32_t _cc_N(get_perms)(const _cc_cap_t* cap);
 static inline uint32_t _cc_N(get_reserved)(const _cc_cap_t* cap);
 static inline uint32_t _cc_N(get_uperms)(const _cc_cap_t* cap);
+static inline uint8_t _cc_N(get_sealed)(const _cc_cap_t* cap);
 
 // In order to allow vector loads and store from memory we can optionally reverse the first two fields.
 struct _cc_N(cap) {
@@ -162,7 +165,7 @@ struct _cc_N(cap) {
 #if _CC_N(FIELD_OTYPE_USED) == 1
         return type() != _CC_N(OTYPE_UNSEALED);
 #else
-        return false; /* TODO: check bakewell's sealed bit */
+        return _cc_N(get_sealed)(this);
 #endif
     }
     inline uint32_t reserved_bits() const { return _cc_N(get_reserved)(this); }
@@ -269,6 +272,7 @@ struct _cc_N(bounds_bits) {
 ALL_WRAPPERS(HWPERMS, perms, uint32_t)
 ALL_WRAPPERS(UPERMS, uperms, uint32_t)
 ALL_WRAPPERS(OTYPE, otype, uint32_t)
+ALL_WRAPPERS(SEALED, sealed, uint8_t)
 ALL_WRAPPERS(FLAGS, flags, uint8_t)
 /*
  * At this point in the transition from v9 to bakewell, 128r's reserved
@@ -484,7 +488,7 @@ static inline bool _cc_N(is_cap_sealed)(const _cc_cap_t* cp) {
 #if _CC_N(FIELD_OTYPE_USED) == 1
     return _cc_N(get_otype)(cp) != _CC_N(OTYPE_UNSEALED);
 #else
-    return false; /* TODO: check bakewell's sealed bit */
+    return _cc_N(get_sealed)(cp);
 #endif
 }
 
