@@ -652,6 +652,42 @@ void CHERI_HELPER_IMPL(cbuildcap(CPUArchState *env, uint32_t cd, uint32_t cb,
     update_capreg(env, cd, &result);
 }
 
+void CHERI_HELPER_IMPL(ccopytype(CPUArchState *env, uint32_t cd, uint32_t cb,
+                                 uint32_t ct))
+{
+    GET_HOST_RETPC_IF_TRAPPING_CHERI_ARCH();
+    DEFINE_RESULT_VALID;
+    const cap_register_t *cbp = get_readonly_capreg(env, cb);
+    const cap_register_t *ctp = get_readonly_capreg(env, ct);
+    if (!cbp->cr_tag) {
+        raise_cheri_exception_or_invalidate(env, CapEx_TagViolation, cb);
+    } else if (is_cap_sealed(cbp)) {
+        raise_cheri_exception_or_invalidate(env, CapEx_SealViolation, cb);
+    }
+    if (cap_is_sealed_with_reserved_otype(ctp) || cap_is_unsealed(ctp)) {
+        if (CHERI_TAG_CLEAR_ON_INVALID(env)) {
+            RESULT_VALID = false;
+        } else {
+            // For reserved otypes we return a null-derived value.
+            cap_register_t result;
+            update_capreg(env, cd,
+                          int_to_cap(cap_get_otype_signext(ctp), &result));
+            return;
+        }
+    }
+    if (cap_get_otype_unsigned(ctp) < cap_get_base(cbp)) {
+        raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation, cb);
+    } else if (cap_get_otype_unsigned(ctp) >= cap_get_top(cbp)) {
+        raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation, cb);
+    }
+    cap_register_t result = *cbp;
+    if (!RESULT_VALID) {
+        result.cr_tag = 0;
+    }
+    try_set_cap_cursor(env, &result, cb, cd, cap_get_otype_signext(ctp),
+                       /*precise_repr_check=*/true, GETPC(),
+                       OOB_INFO(ccopytype));
+}
 
 static void cseal_common(CPUArchState *env, uint32_t cd, uint32_t cs,
                          uint32_t ct, bool conditional,
