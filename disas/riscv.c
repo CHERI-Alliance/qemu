@@ -1797,7 +1797,7 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa, int flags)
             switch (((inst >> 12) & 0b111)) {
             case 0: op = rv_op_fence; break;
             case 1: op = rv_op_fence_i; break;
-            case 2:
+            case 4:
                 if (isa == rv64 && flags & RISCV_DIS_FLAG_CHERI) {
                     op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_clc : rv_op_lc;
                 } else {
