@@ -1131,6 +1131,9 @@ static inline void gen_cap_load_pesbt(DisasContext *ctx, int regnum, TCGv pesbt)
 
 WRAP_PESBT_ALL(OTYPE)
 WRAP_PESBT_ALL(HWPERMS)
+#ifndef TARGET_ARRCH64
+WRAP_PESBT_ALL(FLAGS)
+#endif
 
 // Set the tag bit of register to the lowest bit of tagbit
 static inline void gen_cap_set_tag(DisasContext *ctx, int regnum, TCGv tagbit,

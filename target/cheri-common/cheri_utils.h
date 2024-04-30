@@ -46,13 +46,13 @@
 #endif
 
 #define PRINT_CAP_FMTSTR_L1                                                    \
-    "v:%d s:%d p:%08x b:" TARGET_FMT_lx " l:" TARGET_FMT_lx
+    "v:%d s:%d p:%08x f:%d b:" TARGET_FMT_lx " l:" TARGET_FMT_lx
 #define COMBINED_PERMS_VALUE(cr)                                               \
     (unsigned)(((cap_get_uperms(cr) & CAP_UPERMS_ALL) << CAP_UPERMS_SHFT) |    \
                (cap_get_perms(cr) & CAP_PERMS_ALL))
 #define PRINT_CAP_ARGS_L1(cr)                                                  \
     (cr)->cr_tag, cap_is_sealed_with_type(cr), COMBINED_PERMS_VALUE(cr),       \
-        cap_get_base(cr), cap_get_length_sat(cr)
+        cap_get_flags(cr), cap_get_base(cr), cap_get_length_sat(cr)
 #define PRINT_CAP_FMTSTR_L2                                                    \
     "o:" TARGET_FMT_lx " t:" TARGET_FMT_lx PRINT_CAP_FMT_EXTRA
 #define PRINT_CAP_ARGS_L2(cr)                                                  \
@@ -90,6 +90,11 @@ static inline uint32_t cap_get_uperms(const cap_register_t *c)
 static inline uint32_t cap_get_perms(const cap_register_t *c)
 {
     return CAP_cc(get_perms)(c);
+}
+
+static inline uint8_t cap_get_flags(const cap_register_t *c)
+{
+    return CAP_cc(get_flags)(c);
 }
 
 static inline bool cap_has_reserved_bits_set(const cap_register_t *c)
