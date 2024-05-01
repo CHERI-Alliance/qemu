@@ -562,9 +562,39 @@ static inline bool trans_amoswap_c(DisasContext *ctx, arg_amoswap_c *a)
 static inline bool trans_modesw(DisasContext *ctx, arg_modesw *a)
 {
     gen_helper_modesw(cpu_env);
+
+    /*
+     * The helper changed the hart's mode from integer pointer to capability
+     * or vice versa.
+     *
+     * There's a number of RISC-V instructions whose behaviour depends on the
+     * mode. For some of them, the mode is checked at translation time (not at
+     * execution time).
+     * -> We have to process the mode update before any further translations.
+     *
+     * This comes down to ending the current translation block (tb). The tb is
+     * then cached and executed. After that, the status is updated by
+     * cheri_cpu_get_tb_cpu_state before the next tb is translated.
+     *
+     * We were wondering if the tb cache would cause issues in a scenario
+     * such as
+     *    - tb with modesw is executed
+     *    - mode update
+     *    - next tb is to be translated - but it's already in the cache
+     *    - cached tb is executed - but it was translated based on
+     *      previous mode
+     *
+     * This cannot happen. The key for locating a cached tb in the hashtable
+     * includes the cpu status (part of which is the mode).
+     */
+
+    /* TODO: Why do we have to update tcg's pc manually in this case? */
     gen_update_cpu_pc(ctx->pc_succ_insn);
+    /* create tcg instruction to exit the tb */
     exit_tb(ctx);
+    /* This indicates to riscv_tr_tb_stop that no cleanup is needed. */
     ctx->base.is_jmp = DISAS_NORETURN;
+
     return true;
 }
 
