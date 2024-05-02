@@ -95,7 +95,7 @@ enum {
 // Check that the sizes of the individual fields match up
 _CC_STATIC_ASSERT_SAME(_CC_N(FIELD_EBT_SIZE) + _CC_N(FIELD_OTYPE_SIZE) + _CC_N(FIELD_FLAGS_SIZE) +
                            _CC_N(FIELD_SEALED_SIZE) +
-                           _CC_N(FIELD_SDP_SIZE) +
+                           _CC_N(FIELD_AP_SIZE) + _CC_N(FIELD_SDP_SIZE) +
                            _CC_N(FIELD_RESERVED_SIZE) + _CC_N(FIELD_RESERVED2_SIZE) +
                            _CC_N(FIELD_HWPERMS_SIZE) + _CC_N(FIELD_UPERMS_SIZE),
                        _CC_ADDR_WIDTH);
@@ -270,6 +270,7 @@ struct _cc_N(bounds_bits) {
     static inline void _cc_N(update_##FN)(_cc_cap_t * cap, _cc_addr_t value) {                                         \
         cap->cr_pesbt = _cc_N(cap_pesbt_deposit_##FN)(cap->cr_pesbt, value);                                           \
     }
+ALL_WRAPPERS(AP, ap, uint8_t)
 ALL_WRAPPERS(SDP, sdp, uint8_t)
 ALL_WRAPPERS(HWPERMS, perms, uint32_t)
 ALL_WRAPPERS(UPERMS, uperms, uint32_t)

@@ -92,6 +92,7 @@ enum {
     _CC_FIELD(RESERVED2, 81, 82),
     _CC_FIELD(SEALED, 81, 82),
     _CC_FIELD(SDP, 81, 82),
+    _CC_FIELD(AP, 81, 82),
 };
 #pragma GCC diagnostic pop
 
