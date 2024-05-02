@@ -60,6 +60,7 @@ DEF_HELPER_3(raise_exception_ddc_bounds, noreturn, env, tl, i32)
 DEF_HELPER_FLAGS_2(cgetaddr, TCG_CALL_NO_WG, tl, env, i32)
 DEF_HELPER_2(cgetoffset, tl, env, i32)
 DEF_HELPER_2(cgetsealed, tl, env, i32)
+DEF_HELPER_2(cgettype, tl, env, i32)
 
 // Two operands (cap cap)
 DEF_HELPER_3(ccleartag, void, env, i32, i32)
