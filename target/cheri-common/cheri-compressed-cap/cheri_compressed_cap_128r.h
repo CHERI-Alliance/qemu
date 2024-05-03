@@ -44,8 +44,7 @@ typedef int64_t cc128r_saddr_t;
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
 enum {
-    _CC_FIELD(UPERMS, 127, 124),
-    _CC_FIELD(RESERVED, 123, 91),
+    _CC_FIELD(RESERVED, 127, 91),
     _CC_FIELD(EBT, 90, 64),
 
     _CC_FIELD(INTERNAL_EXPONENT, 90, 90),
@@ -65,6 +64,7 @@ enum {
     /* The following fields are unused for the 128r format. */
     _CC_FIELD(FLAGS, 81, 82),
     _CC_FIELD(OTYPE, 81, 82),
+    _CC_FIELD(UPERMS, 81, 82),
     _CC_FIELD(HWPERMS, 81, 82),
 };
 #pragma GCC diagnostic pop
@@ -72,6 +72,7 @@ enum {
 #define CC128R_FIELD_FLAGS_USED 0
 #define CC128R_FIELD_OTYPE_USED 0
 #define CC128R_FIELD_HWPERMS_USED 0
+#define CC128R_FIELD_UPERMS_USED 0
 
 #define CC128R_OTYPE_BITS CC128R_FIELD_OTYPE_SIZE
 #define CC128R_BOT_WIDTH CC128R_FIELD_EXP_ZERO_BOTTOM_SIZE
@@ -91,11 +92,11 @@ enum {
 #define CC128R_PERM_ACCESS_SYS_REGS (1 << 10)
 #define CC128R_PERM_SETCID (1 << 11)
 
-#define CC128R_PERMS_ALL (0)
-#define CC128R_UPERMS_ALL (0xf)  /* [15...18] */
-#define CC128R_UPERMS_SHFT (15)
-#define CC128R_UPERMS_MEM_SHFT (12)
-#define CC128R_MAX_UPERM (3)
+#define CC128R_PERMS_ALL       (0)
+#define CC128R_UPERMS_ALL      (0)
+#define CC128R_UPERMS_SHFT     (0)
+#define CC128R_UPERMS_MEM_SHFT (0)
+#define CC128R_MAX_UPERM       (0)
 
 /* Unused for 128r, but referenced by cheri_compressed_cap_common.h, so they
    have to be defined. */
