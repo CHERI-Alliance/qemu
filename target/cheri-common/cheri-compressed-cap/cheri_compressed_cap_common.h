@@ -158,7 +158,13 @@ struct _cc_N(cap) {
     inline uint32_t software_permissions() const { return _cc_N(get_uperms)(this); }
     inline uint32_t permissions() const { return _cc_N(get_perms)(this); }
     inline uint32_t type() const { return _cc_N(get_otype)(this); }
-    inline bool is_sealed() const { return type() != _CC_N(OTYPE_UNSEALED); }
+    inline bool is_sealed() const {
+#if _CC_N(FIELD_OTYPE_USED) == 1
+        return type() != _CC_N(OTYPE_UNSEALED);
+#else
+        return false; /* TODO: check bakewell's sealed bit */
+#endif
+    }
     inline uint32_t reserved_bits() const { return _cc_N(get_reserved)(this); }
     inline uint8_t flags() const { return _cc_N(get_flags)(this); }
     inline bool operator==(const _cc_N(cap) & other) const;
@@ -462,7 +468,13 @@ static inline void _cc_N(decompress_mem)(uint64_t pesbt, uint64_t cursor, bool t
     _cc_N(decompress_raw)(pesbt ^ _CC_N(NULL_XOR_MASK), cursor, tag, cdp);
 }
 
-static inline bool _cc_N(is_cap_sealed)(const _cc_cap_t* cp) { return _cc_N(get_otype)(cp) != _CC_N(OTYPE_UNSEALED); }
+static inline bool _cc_N(is_cap_sealed)(const _cc_cap_t* cp) {
+#if _CC_N(FIELD_OTYPE_USED) == 1
+    return _cc_N(get_otype)(cp) != _CC_N(OTYPE_UNSEALED);
+#else
+    return false; /* TODO: check bakewell's sealed bit */
+#endif
+}
 
 /// Check that the expanded bounds match the compressed cr_pesbt value.
 static inline bool _cc_N(pesbt_is_correct)(const _cc_cap_t* csp) {
@@ -897,6 +909,7 @@ static inline _cc_cap_t _cc_N(make_max_perms_cap)(_cc_addr_t base, _cc_addr_t cu
     creg._cr_cursor = cursor;
     creg.cr_bounds_valid = true;
     creg._cr_top = top;
+    /* There's no need to exclude unused fields here. */
     creg.cr_pesbt = _CC_ENCODE_FIELD(_CC_N(UPERMS_ALL), UPERMS) | _CC_ENCODE_FIELD(_CC_N(PERMS_ALL), HWPERMS) |
                     _CC_ENCODE_FIELD(_CC_N(OTYPE_UNSEALED), OTYPE);
     creg.cr_tag = true;

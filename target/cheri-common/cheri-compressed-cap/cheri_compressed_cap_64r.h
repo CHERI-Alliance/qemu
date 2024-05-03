@@ -44,8 +44,7 @@ typedef int32_t cc64r_saddr_t;
 #pragma GCC diagnostic ignored "-Wpedantic"
 enum {
     _CC_FIELD(HWPERMS, 63, 52),
-    _CC_FIELD(RESERVED, 51, 51),
-    _CC_FIELD(OTYPE, 50, 47),
+    _CC_FIELD(RESERVED, 51, 47),
     _CC_FIELD(EBT, 46, 32),
 
     _CC_FIELD(INTERNAL_EXPONENT, 46, 46),
@@ -63,6 +62,7 @@ enum {
     _CC_FIELD(EXPONENT_LOW_PART, 34, 32),
 
     /* The following fields are unused for the 64r format. */
+    _CC_FIELD(OTYPE, 31, 32),
     _CC_FIELD(FLAGS, 31, 32),
     _CC_FIELD(UPERMS, 31, 32),
 };
@@ -71,6 +71,7 @@ enum {
 _CC_STATIC_ASSERT_SAME(CC64R_FIELD_UPERMS_SIZE, 0);
 
 #define CC64R_FIELD_FLAGS_USED 0
+#define CC64R_FIELD_OTYPE_USED 0
 
 #define CC64R_OTYPE_BITS CC64R_FIELD_OTYPE_SIZE
 #define CC64R_BOT_WIDTH CC64R_FIELD_EXP_ZERO_BOTTOM_SIZE
@@ -97,9 +98,12 @@ _CC_STATIC_ASSERT(CC64R_PERM_SETCID < CC64R_FIELD_HWPERMS_MAX_VALUE,
 #define CC64R_UPERMS_SHFT (15)
 #define CC64R_MAX_UPERM (0)
 
-// We reserve 16 otypes
+/* Unused for 64r, but referenced by cheri_compressed_cap_common.h, so they
+   have to be defined. */
 enum _CC_N(OTypes) {
-    CC64R_MAX_REPRESENTABLE_OTYPE = ((1u << CC64R_OTYPE_BITS) - 1u),
+    /* see the comment in cheri_compressed_cap_128r.h about max representable
+       otype */
+    CC64R_MAX_REPRESENTABLE_OTYPE = 16,
     _CC_SPECIAL_OTYPE(OTYPE_UNSEALED, 0),
     _CC_SPECIAL_OTYPE(OTYPE_SENTRY, 1),
     _CC_SPECIAL_OTYPE(OTYPE_RESERVED2, 2),
@@ -117,7 +121,7 @@ _CC_STATIC_ASSERT_SAME(CC64R_MANTISSA_WIDTH, CC64R_FIELD_EXP_ZERO_BOTTOM_SIZE);
 #include "cheri_compressed_cap_common.h"
 
 // Sanity-check mask is the expected NULL encoding
-_CC_STATIC_ASSERT_SAME(CC64R_NULL_XOR_MASK, UINT32_C(0x7c302));
+_CC_STATIC_ASSERT_SAME(CC64R_NULL_XOR_MASK, UINT32_C(0x04302));
 
 #define CC64R_FIELD(name, last, start) _CC_FIELD(name, last, start)
 #define CC64R_ENCODE_FIELD(value, name) _CC_ENCODE_FIELD(value, name)

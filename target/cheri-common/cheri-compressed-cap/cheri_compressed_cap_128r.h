@@ -46,8 +46,7 @@ typedef int64_t cc128r_saddr_t;
 enum {
     _CC_FIELD(UPERMS, 127, 124),
     _CC_FIELD(HWPERMS, 123, 112),
-    _CC_FIELD(RESERVED, 111, 109),
-    _CC_FIELD(OTYPE, 108, 91),
+    _CC_FIELD(RESERVED, 111, 91),
     _CC_FIELD(EBT, 90, 64),
 
     _CC_FIELD(INTERNAL_EXPONENT, 90, 90),
@@ -66,10 +65,12 @@ enum {
 
     /* The following fields are unused for the 128r format. */
     _CC_FIELD(FLAGS, 81, 82),
+    _CC_FIELD(OTYPE, 81, 82),
 };
 #pragma GCC diagnostic pop
 
 #define CC128R_FIELD_FLAGS_USED 0
+#define CC128R_FIELD_OTYPE_USED 0
 
 #define CC128R_OTYPE_BITS CC128R_FIELD_OTYPE_SIZE
 #define CC128R_BOT_WIDTH CC128R_FIELD_EXP_ZERO_BOTTOM_SIZE
@@ -102,9 +103,17 @@ _CC_STATIC_ASSERT((CC128R_HIGHEST_PERM << 1) > CC128R_FIELD_HWPERMS_MAX_VALUE,
 #define CC128R_UPERMS_MEM_SHFT (12)
 #define CC128R_MAX_UPERM (3)
 
+/* Unused for 128r, but referenced by cheri_compressed_cap_common.h, so they
+   have to be defined. */
 enum _CC_N(OTypes) {
     CC128R_FIRST_NONRESERVED_OTYPE = 0,
-    CC128R_MAX_REPRESENTABLE_OTYPE = ((1u << CC128R_OTYPE_BITS) - 1u),
+    /*
+     * When otype is used for a format, we can calculate the maximum
+     * representable otype from the size of the otype field. We use a dummy
+     * constant here to satisfy the min < max assert in
+     * cheri_compressed_cap_common.h.
+     */
+    CC128R_MAX_REPRESENTABLE_OTYPE = 16,
     _CC_SPECIAL_OTYPE(OTYPE_UNSEALED, 0),
     _CC_SPECIAL_OTYPE(OTYPE_SENTRY, 1),
     _CC_SPECIAL_OTYPE(OTYPE_INDIRECT_PAIR, 2),
@@ -130,7 +139,7 @@ _CC_STATIC_ASSERT_SAME(CC128R_MANTISSA_WIDTH, CC128R_FIELD_EXP_ZERO_BOTTOM_SIZE)
 #include "cheri_compressed_cap_common.h"
 
 /* Sanity-check mask is the expected NULL encoding */
-_CC_STATIC_ASSERT_SAME(CC128R_NULL_XOR_MASK, UINT64_C(0x00001ffffc018004));
+_CC_STATIC_ASSERT_SAME(CC128R_NULL_XOR_MASK, UINT64_C(0x0000000004018004));
 
 #define CC128R_FIELD(name, last, start)      _CC_FIELD(name, last, start)
 #define CC128R_ENCODE_FIELD(value, name)     _CC_ENCODE_FIELD(value, name)
