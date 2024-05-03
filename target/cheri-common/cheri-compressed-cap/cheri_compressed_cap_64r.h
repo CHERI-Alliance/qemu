@@ -73,6 +73,7 @@ _CC_STATIC_ASSERT_SAME(CC64R_FIELD_UPERMS_SIZE, 0);
 #define CC64R_FIELD_FLAGS_USED 0
 #define CC64R_FIELD_OTYPE_USED 0
 #define CC64R_FIELD_HWPERMS_USED 0
+#define CC64R_FIELD_UPERMS_USED 0
 
 #define CC64R_OTYPE_BITS CC64R_FIELD_OTYPE_SIZE
 #define CC64R_BOT_WIDTH CC64R_FIELD_EXP_ZERO_BOTTOM_SIZE
@@ -92,10 +93,10 @@ _CC_STATIC_ASSERT_SAME(CC64R_FIELD_UPERMS_SIZE, 0);
 #define CC64R_PERM_ACCESS_SYS_REGS (1 << 10)
 #define CC64R_PERM_SETCID (1 << 11)
 
-#define CC64R_PERMS_ALL (0)
-#define CC64R_UPERMS_ALL (0)    /* [15...18] */
-#define CC64R_UPERMS_SHFT (15)
-#define CC64R_MAX_UPERM (0)
+#define CC64R_PERMS_ALL   (0)
+#define CC64R_UPERMS_ALL  (0)
+#define CC64R_UPERMS_SHFT (0)
+#define CC64R_MAX_UPERM   (0)
 
 /* Unused for 64r, but referenced by cheri_compressed_cap_common.h, so they
    have to be defined. */

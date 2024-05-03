@@ -124,6 +124,8 @@ enum {
 #define CC128M_FIELD_FLAGS_USED 0
 #define CC128M_FIELD_OTYPE_USED 1
 #define CC128M_FIELD_HWPERMS_USED 1
+/* TODO: review this, the definition and comment above aren't very clear... */
+#define CC128M_FIELD_UPERMS_USED 1
 
 #define CC128M_OTYPE_BITS CC128M_FIELD_OTYPE_SIZE
 #define CC128M_BOT_WIDTH CC128M_FIELD_EXP_ZERO_BOTTOM_SIZE
