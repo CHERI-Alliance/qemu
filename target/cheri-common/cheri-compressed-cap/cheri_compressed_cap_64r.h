@@ -43,8 +43,7 @@ typedef int32_t cc64r_saddr_t;
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
 enum {
-    _CC_FIELD(HWPERMS, 63, 52),
-    _CC_FIELD(RESERVED, 51, 47),
+    _CC_FIELD(RESERVED, 63, 47),
     _CC_FIELD(EBT, 46, 32),
 
     _CC_FIELD(INTERNAL_EXPONENT, 46, 46),
@@ -65,6 +64,7 @@ enum {
     _CC_FIELD(OTYPE, 31, 32),
     _CC_FIELD(FLAGS, 31, 32),
     _CC_FIELD(UPERMS, 31, 32),
+    _CC_FIELD(HWPERMS, 31, 32),
 };
 #pragma GCC diagnostic pop
 
@@ -72,6 +72,7 @@ _CC_STATIC_ASSERT_SAME(CC64R_FIELD_UPERMS_SIZE, 0);
 
 #define CC64R_FIELD_FLAGS_USED 0
 #define CC64R_FIELD_OTYPE_USED 0
+#define CC64R_FIELD_HWPERMS_USED 0
 
 #define CC64R_OTYPE_BITS CC64R_FIELD_OTYPE_SIZE
 #define CC64R_BOT_WIDTH CC64R_FIELD_EXP_ZERO_BOTTOM_SIZE
@@ -90,10 +91,8 @@ _CC_STATIC_ASSERT_SAME(CC64R_FIELD_UPERMS_SIZE, 0);
 #define CC64R_PERM_UNSEAL (1 << 9)
 #define CC64R_PERM_ACCESS_SYS_REGS (1 << 10)
 #define CC64R_PERM_SETCID (1 << 11)
-_CC_STATIC_ASSERT(CC64R_PERM_SETCID < CC64R_FIELD_HWPERMS_MAX_VALUE,
-        "permissions not representable?");
 
-#define CC64R_PERMS_ALL (0xfff) /* [0...11] */
+#define CC64R_PERMS_ALL (0)
 #define CC64R_UPERMS_ALL (0)    /* [15...18] */
 #define CC64R_UPERMS_SHFT (15)
 #define CC64R_MAX_UPERM (0)
