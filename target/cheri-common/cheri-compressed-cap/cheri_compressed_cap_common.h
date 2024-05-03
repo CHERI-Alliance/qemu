@@ -270,7 +270,19 @@ ALL_WRAPPERS(HWPERMS, perms, uint32_t)
 ALL_WRAPPERS(UPERMS, uperms, uint32_t)
 ALL_WRAPPERS(OTYPE, otype, uint32_t)
 ALL_WRAPPERS(FLAGS, flags, uint8_t)
+/*
+ * At this point in the transition from v9 to bakewell, 128r's reserved
+ * field is larger than 32 bits. This triggers a compiler warning as
+ * _cc_debug_assert(value <= _CC_N(FIELD_##X##_MAX_VALUE)
+ * is always true if value is uint32_t and the max value is larger than
+ * UINT32_MAX.
+ * Use pragmas to squelch this warning. When all fields are migrated to
+ * bakewell, reserved will be smaller than 32 bits again.
+ */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wtype-limits"
 ALL_WRAPPERS(RESERVED, reserved, uint32_t)
+#pragma GCC diagnostic pop
 #undef ALL_WRAPPERS
 
 /// Extract the bits used for bounds and infer the top two bits of T

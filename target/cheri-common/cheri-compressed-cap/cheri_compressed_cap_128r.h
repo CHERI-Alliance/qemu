@@ -45,8 +45,7 @@ typedef int64_t cc128r_saddr_t;
 #pragma GCC diagnostic ignored "-Wpedantic"
 enum {
     _CC_FIELD(UPERMS, 127, 124),
-    _CC_FIELD(HWPERMS, 123, 112),
-    _CC_FIELD(RESERVED, 111, 91),
+    _CC_FIELD(RESERVED, 123, 91),
     _CC_FIELD(EBT, 90, 64),
 
     _CC_FIELD(INTERNAL_EXPONENT, 90, 90),
@@ -66,11 +65,13 @@ enum {
     /* The following fields are unused for the 128r format. */
     _CC_FIELD(FLAGS, 81, 82),
     _CC_FIELD(OTYPE, 81, 82),
+    _CC_FIELD(HWPERMS, 81, 82),
 };
 #pragma GCC diagnostic pop
 
 #define CC128R_FIELD_FLAGS_USED 0
 #define CC128R_FIELD_OTYPE_USED 0
+#define CC128R_FIELD_HWPERMS_USED 0
 
 #define CC128R_OTYPE_BITS CC128R_FIELD_OTYPE_SIZE
 #define CC128R_BOT_WIDTH CC128R_FIELD_EXP_ZERO_BOTTOM_SIZE
@@ -90,14 +91,7 @@ enum {
 #define CC128R_PERM_ACCESS_SYS_REGS (1 << 10)
 #define CC128R_PERM_SETCID (1 << 11)
 
-#define CC128R_HIGHEST_PERM CC128R_PERM_SETCID
-
-_CC_STATIC_ASSERT(CC128R_HIGHEST_PERM < CC128R_FIELD_HWPERMS_MAX_VALUE,
-        "permissions not representable?");
-_CC_STATIC_ASSERT((CC128R_HIGHEST_PERM << 1) > CC128R_FIELD_HWPERMS_MAX_VALUE,
-        "all permission bits should be used");
-
-#define CC128R_PERMS_ALL (0xfff) /* [0...11] */
+#define CC128R_PERMS_ALL (0)
 #define CC128R_UPERMS_ALL (0xf)  /* [15...18] */
 #define CC128R_UPERMS_SHFT (15)
 #define CC128R_UPERMS_MEM_SHFT (12)
