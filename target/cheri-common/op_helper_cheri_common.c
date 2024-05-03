@@ -1699,35 +1699,81 @@ target_ulong CHERI_HELPER_IMPL(gctag(CPUArchState *env, uint32_t cb))
 
 target_ulong CHERI_HELPER_IMPL(gcperm(CPUArchState *env, uint32_t cb))
 {
+    /*
+     * get_readonly_capreg returns a fully decompressed capability. Its
+     * cr_arch_perm field is in sync with the AP bits. We can access
+     * cr_arch_perm without prior decompression.
+     */
     const cap_register_t *cbp = get_readonly_capreg(env, cb);
-    target_ulong res;
+    uint8_t ap_bits = 0;
 
     /*
-     * For now, we use the existing internal representation of the permissions
-     * (which is based on P1). We try to build a response whose format is in
-     * line with the Bakewell spec. The content isn't correct yet, we'll
-     * have to refactor this part later.
+     * This instruction is allowed only in capability pointer mode, i.e.
+     * purecap or hybrid + M bit + CRE=1 for current CPU mode.
+     * cheri_in_capmode will check those combinations.
+     */
+    if (!cheri_in_capmode(env)) {
+        /* TODO: raise an "illegal instruction" exception */
+
+        /*
+         * TODO: What should we return after throwing an exception?
+         * Will the returned value be used at all?
+         *
+         * We looked at
+         * target/mips/op_helper_cheri.c
+         *     CHERI_HELPER_IMPL(ccall_notrap...
+         *     ccall_common
+         * -> they return 0 after throwing an exception
+         */
+        return 0;
+    }
+
+    /*
+     * If acperm can't produce the permissions of our input capability, we
+     * have to clear all the AP bits in our result.
      */
 
-    /* V9's uperms match (more or less) the SDP in Bakewell. */
-    res = cap_get_uperms(cbp) << 16;
-
-    if (cap_has_perms(cbp, CAP_ACCESS_SYS_REGS))
-        res |= (1 << 4);
-    if (cap_has_perms(cbp, CAP_PERM_EXECUTE))
-        res |= (1 << 3);
-    if (cap_has_perms(cbp, CAP_PERM_LOAD)) {
-        res |= (1 << 2);
-        if (cap_has_perms(cbp, CAP_PERM_LOAD_CAP))
-            res |= (1 << 0);
+    /* "ASR permission cannot be set without X permission" */
+    if ((cbp->cr_arch_perm & (CAP_AP_ASR | CAP_AP_X)) == CAP_AP_ASR) {
+        goto out;
     }
-    if (cap_has_perms(cbp, CAP_PERM_STORE)) {
-        res |= (1 << 1);
-        if (cap_has_perms(cbp, CAP_PERM_STORE_CAP))
-            res |= (1 << 0);
+    /*
+     * "C-permission cannot be set without at least one of R-permission or
+     * W-permission being set."
+     */
+    if ((cbp->cr_arch_perm & (CAP_AP_C | CAP_AP_R | CAP_AP_W)) == CAP_AP_C) {
+        goto out;
     }
 
-    return res;
+    /*
+     * "M-bit cannot be set without X-permission being set" has already been
+     * checked by cheri_in_capmode.
+     */
+
+#if CAP_CC(ADDR_WIDTH) == 32
+    /* ASR requires that at least one other permission be set. */
+    if ((cbp->cr_arch_perm &
+          (CAP_AP_ASR | CAP_AP_C | CAP_AP_R | CAP_AP_W | CAP_AP_X)) == CAP_AP_ASR) {
+        goto out;
+    }
+    /* If R is not set, C and X must not be set either. */
+    if (!(cbp->cr_arch_perm & CAP_AP_R)) {
+        if (cbp->cr_arch_perm & (CAP_AP_C | CAP_AP_X)) {
+            goto out;
+        }
+    }
+    /* It's an error if X and R are set, but W and C aren't. */
+    if ((cbp->cr_arch_perm & (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X)) ==
+            (CAP_AP_X | CAP_AP_R)) {
+        goto out;
+    }
+#endif
+
+    /* The M bit is not part of gcperm's bitfield. */
+    ap_bits = (cbp->cr_arch_perm & ~CAP_AP_M);
+
+out:
+    return (cap_get_sdp(cbp) << 16) | ap_bits;
 }
 
 target_ulong CHERI_HELPER_IMPL(gchi(CPUArchState *env, uint32_t cb))
