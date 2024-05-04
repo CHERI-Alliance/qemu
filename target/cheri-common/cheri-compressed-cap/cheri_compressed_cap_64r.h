@@ -122,6 +122,8 @@ enum _CC_N(OTypes) {
 
 _CC_STATIC_ASSERT_SAME(CC64R_MANTISSA_WIDTH, CC64R_FIELD_EXP_ZERO_BOTTOM_SIZE);
 
+#define CC64R_AP_FCTS AP_FCTS_QUADR
+
 #include "cheri_compressed_cap_common.h"
 
 // Sanity-check mask is the expected NULL encoding
