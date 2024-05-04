@@ -145,6 +145,7 @@ struct _cc_N(cap) {
     uint8_t cr_bounds_valid; /* Set if bounds decode was given an invalid cap */
     uint8_t cr_exp;          /* Exponent */
     uint8_t cr_extra;        /* Additional data stored by the caller */
+    uint8_t cr_arch_perm;    /* decoded architectural permissions (AP) */
 #ifdef __cplusplus
     inline _cc_addr_t base() const { return cr_base; }
     inline _cc_addr_t address() const { return _cr_cursor; }
@@ -441,6 +442,197 @@ static inline bool _cc_N(compute_base_top)(_cc_bounds_bits bounds, _cc_addr_t cu
     return true;
 }
 
+#define CAP_AP_C   (1 << 0)
+#define CAP_AP_W   (1 << 1)
+#define CAP_AP_R   (1 << 2)
+#define CAP_AP_X   (1 << 3)
+#define CAP_AP_ASR (1 << 4)
+#define CAP_AP_M   (1 << 5)
+
+#if _CC_N(AP_FCTS) == AP_FCTS_NONE
+static inline void _cc_N(ap_compress)(__attribute__((unused)) _cc_cap_t *cap)
+{
+}
+
+static inline void _cc_N(ap_decompress)(__attribute__((unused)) _cc_cap_t *cap)
+{
+}
+#elif _CC_N(AP_FCTS) == AP_FCTS_IDENT
+static inline void _cc_N(ap_compress)(_cc_cap_t *cap)
+{
+    _cc_N(update_ap)(cap, cap->cr_arch_perm);
+}
+
+static inline void _cc_N(ap_decompress)(_cc_cap_t *cap)
+{
+    cap->cr_arch_perm = _cc_N(get_ap)(cap);
+}
+#elif _CC_N(AP_FCTS) == AP_FCTS_QUADR
+
+#define CAP_AP_Q0 ((uint8_t)(0b00 <<3))
+#define CAP_AP_Q1 ((uint8_t)(0b01 <<3))
+#define CAP_AP_Q2 ((uint8_t)(0b10 <<3))
+#define CAP_AP_Q3 ((uint8_t)(0b11 <<3))
+
+#define CAP_AP_Q_MASK ((uint8_t)(0b11 <<3))
+
+static inline void _cc_N(ap_compress)(_cc_cap_t *cap)
+{
+    uint8_t res = 0;
+
+    if (cap->cr_arch_perm & CAP_AP_X) {
+      res |= CAP_AP_Q1;
+      if (cap->cr_arch_perm & CAP_AP_M) {
+          res |= 1;
+      }
+      switch (cap->cr_arch_perm &
+              (CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_ASR)) {
+          case CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_ASR:
+              res |= 0;
+              break;
+          case CAP_AP_R | CAP_AP_C:
+              res |= 2;
+              break;
+          case CAP_AP_R | CAP_AP_W | CAP_AP_C:
+              res |= 4;
+              break;
+          case CAP_AP_R | CAP_AP_W:
+              res |= 6;
+              break;
+          default:
+              /* We set res = UINT8_MAX to indicate an error. */
+              res = UINT8_MAX;
+      }
+    }
+    else if (cap->cr_arch_perm & CAP_AP_C) {
+      res |= CAP_AP_Q3;
+      switch (cap->cr_arch_perm &
+              (CAP_AP_R | CAP_AP_W | CAP_AP_X | CAP_AP_ASR)) {
+          case CAP_AP_R:
+              res |= 0x3;
+              break;
+          case CAP_AP_R | CAP_AP_W:
+              res |= 0x7;
+              break;
+          default:
+              res = UINT8_MAX;
+      }
+    }
+    else {
+      res |= CAP_AP_Q0;
+
+      if (cap->cr_arch_perm & (CAP_AP_C | CAP_AP_X | CAP_AP_ASR)) {
+          res = UINT8_MAX;
+      }
+      else {
+          switch (cap->cr_arch_perm & (CAP_AP_R | CAP_AP_W)) {
+              case 0:
+                  break;
+              case CAP_AP_R:
+                  res |= 1;
+                  break;
+              case CAP_AP_W:
+                  res |= 4;
+                  break;
+              case CAP_AP_R | CAP_AP_W:
+                  res |= 5;
+                  break;
+          }
+      }
+    }
+
+    /*
+     * TODO: We should warn about invalid permissions here.
+     * _cc_debug_assert(res != UINT8_MAX) is too strong, we want to continue
+     * running so the testsuite can test our error handling.
+     */
+    if (res == UINT8_MAX) {
+        res = 0;
+        cap->cr_arch_perm = 0;
+    }
+    _cc_N(update_ap)(cap, res);
+}
+
+static inline void _cc_N(ap_decompress)(_cc_cap_t *cap)
+{
+    uint8_t perm_comp = _cc_N(get_ap)(cap);
+    uint8_t res = 0;
+
+    switch (perm_comp & CAP_AP_Q_MASK) {
+        case CAP_AP_Q0:
+            switch (perm_comp & ~CAP_AP_Q_MASK) {
+                case 0:
+                    break;
+                case 1:
+                    res |= CAP_AP_R;
+                    break;
+                case 4:
+                    res |= CAP_AP_W;
+                    break;
+                case 5:
+                    res |= CAP_AP_R | CAP_AP_W;
+                    break;
+                default:
+                    /*
+                     * Unsupported encoding in quadrant 0. All permissions are
+                     * implicitly denied.
+                     */
+                    res = 0;
+            }
+            break;
+        case CAP_AP_Q1:
+            res |= CAP_AP_X;
+            if (perm_comp & 1) {
+                res |= CAP_AP_M;
+            }
+            switch ((perm_comp & ~CAP_AP_Q_MASK) >> 1) {
+                case 0:
+                    res |= CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_X | CAP_AP_ASR;
+                    break;
+                case 1:
+                    res |= CAP_AP_R | CAP_AP_C | CAP_AP_X;
+                    break;
+                case 2:
+                    res |= CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_X;
+                    break;
+                case 3:
+                    res |= CAP_AP_R | CAP_AP_W | CAP_AP_X;
+                    break;
+                default:
+                    /* TODO: this cannot happen */
+                    res = 0;
+                    break;
+            }
+            break;
+        case CAP_AP_Q2:
+            /*
+             * Unsupported encoding in quadrant 2. All permissions are
+             * implicitly granted.
+             */
+            res |= CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_X | CAP_AP_ASR;
+            break;
+        case CAP_AP_Q3:
+            switch (perm_comp & ~CAP_AP_Q_MASK) {
+                case 3:
+                    res |= CAP_AP_R | CAP_AP_C;
+                    break;
+                case 7:
+                    res |= CAP_AP_R | CAP_AP_W | CAP_AP_C;
+                    break;
+                default:
+                    /*
+                     * Unsupported encoding in quadrant 3. All permissions are
+                     * implicitly granted.
+                     */
+                    res |= CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_X | CAP_AP_ASR;
+            }
+            break;
+    }
+
+    cap->cr_arch_perm = res;
+}
+#endif
+
 /// Expand a PESBT+address+tag input to a _cc_cap_t, but don't check that the tagged value is derivable.
 /// This is an internal helper and should not not be used outside of this header.
 static inline void _cc_N(unsafe_decompress_raw)(_cc_addr_t pesbt, _cc_addr_t cursor, bool tag, _cc_cap_t* cdp) {
@@ -453,6 +645,7 @@ static inline void _cc_N(unsafe_decompress_raw)(_cc_addr_t pesbt, _cc_addr_t cur
     bool valid = _cc_N(compute_base_top)(bounds, cursor, &cdp->cr_base, &cdp->_cr_top);
     cdp->cr_bounds_valid = valid;
     cdp->cr_exp = bounds.E;
+    _cc_N(ap_decompress)(cdp);
 }
 
 static inline void _cc_N(decompress_raw)(_cc_addr_t pesbt, _cc_addr_t cursor, bool tag, _cc_cap_t* cdp) {
@@ -925,6 +1118,12 @@ static inline _cc_cap_t _cc_N(make_max_perms_cap)(_cc_addr_t base, _cc_addr_t cu
     _cc_N(update_ebt)(&creg, _cc_N(compute_ebt)(creg.cr_base, creg._cr_top, NULL, &exact_input));
     assert(exact_input && "Invalid arguments");
     assert(_cc_N(is_representable_cap_exact)(&creg));
+    /*
+     * The bakewell spec says in section 5.2 (CHERI Execution Mode Encoding)
+     * that the infinite capability does not have the M bit set.
+     */
+    creg.cr_arch_perm = CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X | CAP_AP_ASR;
+    _cc_N(ap_compress)(&creg);
     return creg;
 }
 
