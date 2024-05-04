@@ -90,6 +90,11 @@ static inline uint32_t cap_get_uperms(const cap_register_t *c)
     return CAP_cc(get_uperms)(c);
 }
 
+static inline uint32_t cap_get_sdp(const cap_register_t *c)
+{
+    return CAP_cc(get_sdp)(c);
+}
+
 /*
  * qemu uses the CAP_PERMS_xxx defines in lots of places, including code
  * that'll be shared between v9 and bakewell. We keep using those defines
