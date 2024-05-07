@@ -90,9 +90,59 @@ static inline uint32_t cap_get_uperms(const cap_register_t *c)
     return CAP_cc(get_uperms)(c);
 }
 
+/*
+ * qemu uses the CAP_PERMS_xxx defines in lots of places, including code
+ * that'll be shared between v9 and bakewell. We keep using those defines
+ * although they're based on the permissions in v9. For bakewell, we have
+ * to map AP settings to CAP_PERMS_xxx.
+ */
 static inline uint32_t cap_get_perms(const cap_register_t *c)
 {
+#if CAP_CC(FIELD_HWPERMS_USED) == 1
     return CAP_cc(get_perms)(c);
+#else
+    uint32_t res = 0;
+
+    /* We can safely assume that c->cr_arch_perm and c's AP field are in sync. */
+    if (c->cr_arch_perm & CAP_AP_R) {
+        res |= CAP_PERM_LOAD;
+        /*
+         * As of May 2024, bakewell has no local/global mechanism. Read or
+         * write implies global.
+         */
+        res |= CAP_PERM_GLOBAL;
+        if (c->cr_arch_perm & CAP_AP_C) {
+            res |= CAP_PERM_LOAD_CAP;
+        }
+    }
+    if (c->cr_arch_perm & CAP_AP_W) {
+        res |= CAP_PERM_STORE;
+        /* see above */
+        res |= CAP_PERM_GLOBAL;
+        /* Without local/global, store implies store local. */
+        res |= CAP_PERM_STORE_LOCAL;
+        if (c->cr_arch_perm & CAP_AP_C) {
+            res |= CAP_PERM_STORE_CAP;
+            /* Write access to a capability implies seal + unseal. */
+            res |= CAP_PERM_SEAL | CAP_PERM_UNSEAL;
+            /*
+             * As of May 2024, bakewell has no compartment id. Write access
+             * to a capability implies the right of set all its metadata.
+             */
+            res |= CAP_PERM_SETCID;
+        }
+    }
+    if (c->cr_arch_perm & CAP_AP_X) {
+        res |= CAP_PERM_EXECUTE;
+        /* Execute implies executing via a sealed capability. */
+        res |= CAP_PERM_CINVOKE;
+    }
+    if (c->cr_arch_perm & CAP_AP_ASR) {
+        res |= CAP_ACCESS_SYS_REGS;
+    }
+
+    return res;
+#endif
 }
 
 static inline uint8_t cap_get_flags(const cap_register_t *c)
