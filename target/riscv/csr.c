@@ -1462,18 +1462,33 @@ static RISCVException write_mtinst(CPURISCVState *env, int csrno,
     return RISCV_EXCP_NONE;
 }
 
-static RISCVException read_menvcfg(CPURISCVState *env, int csrno, target_ulong *val)
+static RISCVException read_menvcfg(CPURISCVState *env, int csrno,
+                                   target_ulong *val)
 {
     *val = env->menvcfg;
     return RISCV_EXCP_NONE;
 }
 
-static RISCVException write_menvcfg(CPURISCVState *env, int csrno, target_ulong val)
+static RISCVException write_menvcfg(CPURISCVState *env, int csrno,
+                                    target_ulong val)
 {
     env->menvcfg = val;
     return RISCV_EXCP_NONE;
 }
 
+static RISCVException read_senvcfg(CPURISCVState *env, int csrno,
+                                   target_ulong *val)
+{
+    *val = env->senvcfg;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_senvcfg(CPURISCVState *env, int csrno,
+                                    target_ulong val)
+{
+    env->senvcfg = val;
+    return RISCV_EXCP_NONE;
+}
 
 /* Physical Memory Protection */
 static RISCVException read_mseccfg(CPURISCVState *env, int csrno,
@@ -2191,6 +2206,7 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_MCCSR] =               CSR_OP_FN_RW(any, read_ccsr, write_ccsr, "mccsr"),
 #endif
 
+    [CSR_SENVCFG] =             CSR_OP_RW(any, senvcfg),
     [CSR_MENVCFG] =             CSR_OP_RW(any, menvcfg),
     /* Physical Memory Protection */
     [CSR_MSECCFG]    = CSR_OP_FN_RW(epmp, read_mseccfg, write_mseccfg, "mseccfg"),

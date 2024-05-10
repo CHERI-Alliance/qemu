@@ -746,6 +746,7 @@ static void riscv_cpu_reset(DeviceState *dev)
     }
     env->mseccfg = 0;
     env->menvcfg = 0;
+    env->senvcfg = 0;
     // All general purpose capability registers are reset to NULL:
     reset_capregs(env);
     /*
