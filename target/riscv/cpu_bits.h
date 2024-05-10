@@ -222,6 +222,9 @@
 #define CSR_VSIP            0x244
 #define CSR_VSATP           0x280
 
+#define CSR_MENVCFG         0x30a
+
+
 #define CSR_MTINST          0x34a
 #define CSR_MTVAL2          0x34b
 
