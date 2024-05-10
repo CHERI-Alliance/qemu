@@ -279,6 +279,8 @@
 #define CSR_TDATA2          0x7a2
 #define CSR_TDATA3          0x7a3
 
+#define CSR_MSECCFG         0x747
+
 /* Debug Mode Registers */
 #define CSR_DCSR            0x7b0
 #define CSR_DPC             0x7b1

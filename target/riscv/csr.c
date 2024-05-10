@@ -1303,6 +1303,18 @@ static int write_mtinst(CPURISCVState *env, int csrno, target_ulong val)
     return 0;
 }
 
+static int read_mseccfg(CPURISCVState *env, int csrno, target_ulong *val)
+{
+    *val = env->mseccfg;
+    return 0;
+}
+
+static int write_mseccfg(CPURISCVState *env, int csrno, target_ulong val)
+{
+    env->mseccfg = val;
+    return 0;
+}
+
 /* Physical Memory Protection */
 static int read_pmpcfg(CPURISCVState *env, int csrno, target_ulong *val)
 {
@@ -1907,6 +1919,8 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_MCOUNTEREN] =          CSR_OP_RW(any, mcounteren),
 
     [CSR_MSTATUSH] =            CSR_OP_RW(any32, mstatush),
+
+    [CSR_MSECCFG] =             CSR_OP_RW(any, mseccfg),
 
     [CSR_MSCOUNTEREN] =         CSR_OP_RW(any, mscounteren),
 
