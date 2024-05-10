@@ -1467,6 +1467,7 @@ static const char *csr_name(int csrno)
     case 0x03bf: return "pmpaddr15";
     case 0x0747: return "mseccfg";
     case 0x030a: return "menvcfg";
+    case 0x010a: return "senvcfg";
     case 0x0780: return "mtohost";
     case 0x0781: return "mfromhost";
     case 0x0782: return "mreset";

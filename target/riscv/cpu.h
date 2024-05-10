@@ -297,7 +297,6 @@ struct CPURISCVState {
     /* physical memory protection */
     pmp_table_t pmp_state;
     target_ulong mseccfg;
-    target_ulong menvcfg;
 
     /* True if in debugger mode.  */
     bool debugger;
@@ -365,6 +364,8 @@ struct CPURISCVState {
 
     target_ulong mhartid;
 
+    target_ulong menvcfg;
+    target_ulong senvcfg;
     uint32_t features;
 
 #ifdef CONFIG_USER_ONLY

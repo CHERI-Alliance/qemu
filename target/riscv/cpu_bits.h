@@ -223,6 +223,8 @@
 #define CSR_VSATP           0x280
 
 #define CSR_MENVCFG         0x30a
+#define CSR_SENVCFG         0x10a
+
 
 
 #define CSR_MTINST          0x34a
