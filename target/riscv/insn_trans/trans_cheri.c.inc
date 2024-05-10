@@ -225,8 +225,8 @@ static bool trans_cspecialrw(DisasContext *ctx, arg_cspecialrw *a)
 // Three operand (cap cap int)
 TRANSLATE_CAP_CAP_INT(candperm)
 TRANSLATE_CAP_CAP_INT(cfromptr)
-TRANSLATE_CAP_CAP_INT(csetbounds)
 TRANSLATE_CAP_CAP_INT(scbnds)
+TRANSLATE_CAP_CAP_INT(scbndsr)
 TRANSLATE_CAP_CAP_INT(csetoffset)
 
 // Three operand (int cap cap)
@@ -252,7 +252,7 @@ static inline bool gen_cheri_cap_cap_imm(int cd, int cs1, target_long imm,
 static bool trans_csetboundsimm(DisasContext *ctx, arg_csetboundsimm *a)
 {
     tcg_debug_assert(a->imm >= 0);
-    return gen_cheri_cap_cap_imm(a->rd, a->rs1, a->imm, &gen_helper_csetbounds);
+    return gen_cheri_cap_cap_imm(a->rd, a->rs1, a->imm, &gen_helper_scbndsr);
 }
 
 /// Control-flow instructions

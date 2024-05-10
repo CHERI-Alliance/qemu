@@ -566,8 +566,8 @@ typedef enum {
 
     // Three operand
     rv_op_cspecialrw,
-    rv_op_csetbounds,
     rv_op_scbnds,
+    rv_op_scbndsr,
     rv_op_candperm,
     rv_op_csetoffset,
     rv_op_ctoptr,
@@ -1338,8 +1338,8 @@ const rv_opcode_data opcode_data[] = {
 
     // Three operand
     [rv_op_cspecialrw] = { "cspecialrw", rv_codec_r, rv_fmt_cd_scr_cs1, NULL, 0, 0, 0 },
-    [rv_op_csetbounds] = { "csetbounds", rv_codec_r, rv_fmt_cd_cs1_rs2, NULL, 0, 0, 0 },
     [rv_op_scbnds] = { "scbnds", rv_codec_r, rv_fmt_cd_cs1_rs2, NULL, 0, 0, 0 },
+    [rv_op_scbndsr] = { "scbndsr", rv_codec_r, rv_fmt_cd_cs1_rs2, NULL, 0, 0, 0 },
     [rv_op_candperm] = { "candperm", rv_codec_r, rv_fmt_cd_cs1_rs2, NULL, 0, 0, 0 },
     [rv_op_csetoffset] = { "csetoffset", rv_codec_r, rv_fmt_cd_cs1_rs2, NULL, 0, 0, 0 },
     [rv_op_ctoptr] = { "ctoptr", rv_codec_r, rv_fmt_rd_cs1_cs2, NULL, 0, 0, 0 },
@@ -1598,7 +1598,6 @@ static rv_opcode decode_cheri_inst(rv_inst inst) {
     // 0000000, unused
     CHERI_THREEOP_CASE(cspecialrw,  0000001,  ..... ..... 000 ..... 1011011 @r)
     // 0000010-0000111 unused
-    CHERI_THREEOP_CASE(csetbounds,  0001000,  ..... ..... 000 ..... 1011011 @r)
     // 0001010 unused
     CHERI_THREEOP_CASE(candperm,    0001101,  ..... ..... 000 ..... 1011011 @r)
     CHERI_THREEOP_CASE(csetoffset,  0001111,  ..... ..... 000 ..... 1011011 @r)
@@ -1988,6 +1987,7 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa, int flags)
             case 51: op = rv_op_schi; break;
             case 52: op = rv_op_sceq; break;
             case 56: op = rv_op_scbnds; break;
+            case 57: op = rv_op_scbndsr; break;
             case 64:
                 switch ((inst >> 20) & 0b11111) {
                 case 0b00000: op = rv_op_gctag; break;

@@ -105,10 +105,11 @@ DEF_HELPER_4(cfromptr, void, env, i32, i32, tl)
 #define CJALR_DONT_MAKE_SENTRY 0
 #endif
 DEF_HELPER_5(cjalr, void, env, i32, i32, tl, tl)
-DEF_HELPER_4(csetbounds, void, env, i32, i32, tl)
-#if TARGET_RISCV
+#ifdef TARGET_RISCV
+DEF_HELPER_4(scbndsr, void, env, i32, i32, tl)
 DEF_HELPER_4(scbnds, void, env, i32, i32, tl)
-#else
+#else 
+DEF_HELPER_4(csetbounds, void, env, i32, i32, tl)
 DEF_HELPER_4(csetboundsexact, void, env, i32, i32, tl)
 #endif
 #ifndef TARGET_AARCH64
