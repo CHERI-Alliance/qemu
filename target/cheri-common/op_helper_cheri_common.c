@@ -1037,12 +1037,20 @@ static void do_setbounds(bool must_be_exact, CPUArchState *env, uint32_t cd,
     update_capreg(env, cd, &result);
 }
 
-void CHERI_HELPER_IMPL(csetbounds(CPUArchState *env, uint32_t cd, uint32_t cb,
+#ifdef TARGET_RISCV
+void CHERI_HELPER_IMPL(scbndsr(CPUArchState *env, uint32_t cd, uint32_t cb,
                                   target_ulong rt))
 {
     do_setbounds(false, env, cd, cb, rt, GETPC());
 }
 
+#else
+void CHERI_HELPER_IMPL(csetbounds(CPUArchState *env, uint32_t cd, uint32_t cb,
+                                  target_ulong rt))
+{
+    do_setbounds(false, env, cd, cb, rt, GETPC());
+}
+#endif
 #ifdef TARGET_RISCV
 void CHERI_HELPER_IMPL(scbnds(CPUArchState *env, uint32_t cd,
                                        uint32_t cb, target_ulong rt))
