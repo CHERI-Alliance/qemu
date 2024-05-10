@@ -352,8 +352,8 @@ static inline const cap_register_t *int_to_cap(target_ulong x,
     return cr;
 }
 
-/**
- * Clear the tag bit of a capability that became unrepresenable and update
+/*
+ * Clear the tag bit of a capability that became unrepresentable and update
  * the cursor to point to @p addr.
  * Only clearing the tag bit instead of updating the offset to be semantically
  * valid improves timing on the FPGA and with the shift towards address-based
