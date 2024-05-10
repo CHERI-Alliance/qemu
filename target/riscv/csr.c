@@ -1327,6 +1327,18 @@ static int write_menvcfg(CPURISCVState *env, int csrno, target_ulong val)
     return 0;
 }
 
+static int read_senvcfg(CPURISCVState *env, int csrno, target_ulong *val)
+{
+    *val = env->senvcfg;
+    return 0;
+}
+
+static int write_senvcfg(CPURISCVState *env, int csrno, target_ulong val)
+{
+    env->senvcfg = val;
+    return 0;
+}
+
 
 /* Physical Memory Protection */
 static int read_pmpcfg(CPURISCVState *env, int csrno, target_ulong *val)
@@ -1935,6 +1947,7 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
 
     [CSR_MSECCFG] =             CSR_OP_RW(any, mseccfg),
     [CSR_MENVCFG] =             CSR_OP_RW(any, menvcfg),
+    [CSR_SENVCFG] =             CSR_OP_RW(any, senvcfg),
 
     [CSR_MSCOUNTEREN] =         CSR_OP_RW(any, mscounteren),
 
