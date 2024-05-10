@@ -347,6 +347,7 @@ struct CPURISCVState {
     target_ulong mhartid;
 
     target_ulong mseccfg;
+    target_ulong menvcfg;
     uint32_t features;
 
 #ifdef CONFIG_USER_ONLY
