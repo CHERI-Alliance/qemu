@@ -260,7 +260,10 @@ struct _cc_N(bounds_bits) {
     uint16_t B; // bottom bits (currently 14 bits)
     uint16_t T; // top bits (12 bits plus two implied bits)
     uint8_t E;  // exponent
-    bool IE;    // internal exponent flag
+    union {
+        bool IE; // cheri v9's internal exponent flag
+        bool EF; // cheri bakewell's exponent format
+    };
 };
 #define _cc_bounds_bits struct _cc_N(bounds_bits)
 
