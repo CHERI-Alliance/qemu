@@ -123,6 +123,7 @@ enum {
     _CC_FIELD(SEALED, 81, 82),
     _CC_FIELD(SDP, 81, 82),
     _CC_FIELD(AP, 81, 82),
+    _CC_FIELD(EF, 81, 82),
     _CC_FIELD(T8, 81, 82),
 };
 #pragma GCC diagnostic pop
@@ -132,6 +133,7 @@ enum {
 #define CC128M_FIELD_HWPERMS_USED 1
 /* TODO: review this, the definition and comment above aren't very clear... */
 #define CC128M_FIELD_UPERMS_USED 1
+#define CC128M_FIELD_EF_USED 0
 #define CC128M_FIELD_T8_USED 0
 
 #define CC128M_OTYPE_BITS CC128M_FIELD_OTYPE_SIZE
