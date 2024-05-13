@@ -1002,13 +1002,18 @@ static inline bool _cc_N(setbounds_impl)(_cc_cap_t* cap, _cc_length_t req_len, _
     if (req_base < cap->cr_base || req_top > cap->_cr_top) {
         cap->cr_tag = 0;
     }
+#if _CC_N(FIELD_T8_USED) == 1
+    _CC_STATIC_ASSERT(_CC_EXP_LOW_WIDTH == 2, "expected 2 bits to be used by");
+    _CC_STATIC_ASSERT(_CC_EXP_HIGH_WIDTH == 2, "expected 2 bits to be used by");
+#else
+    _CC_STATIC_ASSERT(_CC_EXP_LOW_WIDTH == 3, "expected 3 bits to be used by");
+    _CC_STATIC_ASSERT(_CC_EXP_HIGH_WIDTH == 3, "expected 3 bits to be used by");
+#endif
     /*
      * With compressed capabilities we may need to increase the range of
      * memory addresses to be wider than requested so it is
      * representable.
      */
-    _CC_STATIC_ASSERT(_CC_EXP_LOW_WIDTH == 3, "expected 3 bits to be used by");  // expected 3 bits to
-    _CC_STATIC_ASSERT(_CC_EXP_HIGH_WIDTH == 3, "expected 3 bits to be used by"); // expected 3 bits to
     bool exact = false;
     uint32_t new_ebt = _cc_N(compute_ebt)(req_base, req_top, alignment_mask, &exact);
     _cc_addr_t new_base;
