@@ -70,6 +70,7 @@ enum {
     _CC_FIELD(OTYPE, 81, 82),
     _CC_FIELD(UPERMS, 81, 82),
     _CC_FIELD(HWPERMS, 81, 82),
+    _CC_FIELD(EF, 81, 82),
     _CC_FIELD(T8, 81, 82),
 };
 #pragma GCC diagnostic pop
@@ -78,6 +79,7 @@ enum {
 #define CC128R_FIELD_OTYPE_USED 0
 #define CC128R_FIELD_HWPERMS_USED 0
 #define CC128R_FIELD_UPERMS_USED 0
+#define CC128R_FIELD_EF_USED 0
 #define CC128R_FIELD_T8_USED 0
 
 #define CC128R_OTYPE_BITS CC128R_FIELD_OTYPE_SIZE

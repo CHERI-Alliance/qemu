@@ -93,6 +93,7 @@ enum {
     _CC_FIELD(SEALED, 31, 32),
     _CC_FIELD(SDP, 31, 32),
     _CC_FIELD(AP, 31, 32),
+    _CC_FIELD(EF, 31, 32),
     _CC_FIELD(T8, 31, 32),
 };
 #pragma GCC diagnostic pop
@@ -101,6 +102,7 @@ enum {
 #define CC64_FIELD_OTYPE_USED 1
 #define CC64_FIELD_HWPERMS_USED 1
 #define CC64_FIELD_UPERMS_USED 1
+#define CC64_FIELD_EF_USED 0
 #define CC64_FIELD_T8_USED 0
 
 _CC_STATIC_ASSERT_SAME(CC64_FIELD_UPERMS_SIZE, 0);
