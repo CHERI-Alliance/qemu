@@ -51,7 +51,7 @@ enum {
     _CC_FIELD(SEALED, 91, 91),
     _CC_FIELD(EBT, 90, 64),
 
-    _CC_FIELD(INTERNAL_EXPONENT, 90, 90),
+    _CC_FIELD(EF, 90, 90),
     _CC_FIELD(TOP_ENCODED, 89, 78),
     _CC_FIELD(BOTTOM_ENCODED, 77, 64),
 
@@ -66,11 +66,11 @@ enum {
     _CC_FIELD(EXPONENT_LOW_PART, 66, 64),
 
     /* The following fields are unused for the 128r format. */
+    _CC_FIELD(INTERNAL_EXPONENT, 81, 82),
     _CC_FIELD(FLAGS, 81, 82),
     _CC_FIELD(OTYPE, 81, 82),
     _CC_FIELD(UPERMS, 81, 82),
     _CC_FIELD(HWPERMS, 81, 82),
-    _CC_FIELD(EF, 81, 82),
     _CC_FIELD(T8, 81, 82),
 };
 #pragma GCC diagnostic pop
@@ -79,7 +79,7 @@ enum {
 #define CC128R_FIELD_OTYPE_USED 0
 #define CC128R_FIELD_HWPERMS_USED 0
 #define CC128R_FIELD_UPERMS_USED 0
-#define CC128R_FIELD_EF_USED 0
+#define CC128R_FIELD_EF_USED 1
 #define CC128R_FIELD_T8_USED 0
 
 #define CC128R_OTYPE_BITS CC128R_FIELD_OTYPE_SIZE
@@ -144,7 +144,7 @@ _CC_STATIC_ASSERT_SAME(CC128R_MANTISSA_WIDTH, CC128R_FIELD_EXP_ZERO_BOTTOM_SIZE)
 #include "cheri_compressed_cap_common.h"
 
 /* Sanity-check mask is the expected NULL encoding */
-_CC_STATIC_ASSERT_SAME(CC128R_NULL_XOR_MASK, UINT64_C(0x0000000004018004));
+_CC_STATIC_ASSERT_SAME(CC128R_NULL_XOR_MASK, UINT64_C(0x0000000000018004));
 
 #define CC128R_FIELD(name, last, start)      _CC_FIELD(name, last, start)
 #define CC128R_ENCODE_FIELD(value, name)     _CC_ENCODE_FIELD(value, name)
