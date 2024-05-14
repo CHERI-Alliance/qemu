@@ -44,33 +44,49 @@ enum {
     // For the reset capability we use an internal exponent and need
     // 2^ADDR_WIDTH, which uses the max exponent.
     _CC_N(RESET_EXP) = _CC_N(MAX_EXPONENT),
+#if _CC_N(FIELD_EF_USED) == 1
+    _CC_N(RESET_T) = 0,
+    // The value that is encoded in { T8, TE, BE }. Bakewell stores the
+    // difference between max exponent and the actual exponent.
+    _CC_N(RESET_EXP_CODED) = (_CC_N(MAX_EXPONENT) - _CC_N(RESET_EXP)),
+#else
     _CC_N(RESET_T) = 1u << (_CC_N(ADDR_WIDTH) - _CC_N(RESET_EXP) - _CC_N(FIELD_EXPONENT_HIGH_PART_SIZE)),
+    _CC_N(RESET_EXP_CODED) = _CC_N(RESET_EXP),
+#endif
+
 #ifdef CC_IS_MORELLO
     // Due to magic constant XOR aversion (i.e. fields are either entirely
     // inverted or not at all, rather than select bits within them like in
     // normal CHERI Concentrate), NULL is special in Morello.
     _CC_N(NULL_EXP) = _CC_N(MAX_ENCODABLE_EXPONENT),
     _CC_N(NULL_T) = 0,
+    _CC_N(NULL_EXP_CODED) = _CC_N(NULL_EXP),
 #else
     // NULL uses identical bounds encoding to the reset capability.
     _CC_N(NULL_EXP) = _CC_N(RESET_EXP),
     _CC_N(NULL_T) = _CC_N(RESET_T),
+    _CC_N(NULL_EXP_CODED) = _CC_N(RESET_EXP_CODED),
 #endif
+
     _CC_N(RESET_EBT) =
-        _CC_ENCODE_EBT_FIELD(1, INTERNAL_EXPONENT) | _CC_ENCODE_EBT_FIELD(_CC_N(RESET_T), EXP_NONZERO_TOP) |
+        _CC_ENCODE_EBT_FIELD(1, INTERNAL_EXPONENT) | _CC_ENCODE_EBT_FIELD(0, EF) |
+        _CC_ENCODE_EBT_FIELD(_CC_N(RESET_T), EXP_NONZERO_TOP) |
         _CC_ENCODE_EBT_FIELD(0, EXP_NONZERO_BOTTOM) |
-        _CC_ENCODE_EBT_FIELD(_CC_N(RESET_EXP) >> _CC_N(FIELD_EXPONENT_LOW_PART_SIZE), EXPONENT_HIGH_PART) |
-        _CC_ENCODE_EBT_FIELD(_CC_N(RESET_EXP) & _CC_N(FIELD_EXPONENT_LOW_PART_MAX_VALUE), EXPONENT_LOW_PART),
+        _CC_ENCODE_EBT_FIELD(_CC_N(RESET_EXP_CODED) >> (_CC_N(FIELD_EXPONENT_HIGH_PART_SIZE) + _CC_N(FIELD_EXPONENT_LOW_PART_SIZE)), T8) |
+        _CC_ENCODE_EBT_FIELD(_CC_N(RESET_EXP_CODED) >> _CC_N(FIELD_EXPONENT_LOW_PART_SIZE), EXPONENT_HIGH_PART) |
+        _CC_ENCODE_EBT_FIELD(_CC_N(RESET_EXP_CODED) & _CC_N(FIELD_EXPONENT_LOW_PART_MAX_VALUE), EXPONENT_LOW_PART),
     /*
      * Please note that we don't have to exclude unused fields.
      * _CC_ENCODE_FIELD(value, field_name) is 0 when the field's size is 0.
      */
     _CC_N(NULL_PESBT) = _CC_ENCODE_FIELD(0, UPERMS) | _CC_ENCODE_FIELD(0, HWPERMS) | _CC_ENCODE_FIELD(0, RESERVED) |
-                        _CC_ENCODE_FIELD(0, FLAGS) | _CC_ENCODE_FIELD(1, INTERNAL_EXPONENT) |
+                        _CC_ENCODE_FIELD(0, FLAGS) |
+                        _CC_ENCODE_FIELD(1, INTERNAL_EXPONENT) | _CC_ENCODE_FIELD(0, EF) |
                         _CC_ENCODE_FIELD(_CC_N(OTYPE_UNSEALED), OTYPE) |
                         _CC_ENCODE_FIELD(_CC_N(NULL_T), EXP_NONZERO_TOP) | _CC_ENCODE_FIELD(0, EXP_NONZERO_BOTTOM) |
-                        _CC_ENCODE_FIELD(_CC_N(NULL_EXP) >> _CC_N(FIELD_EXPONENT_LOW_PART_SIZE), EXPONENT_HIGH_PART) |
-                        _CC_ENCODE_FIELD(_CC_N(NULL_EXP) & _CC_N(FIELD_EXPONENT_LOW_PART_MAX_VALUE), EXPONENT_LOW_PART),
+                        _CC_ENCODE_FIELD(_CC_N(NULL_EXP_CODED) >> (_CC_N(FIELD_EXPONENT_HIGH_PART_SIZE) + _CC_N(FIELD_EXPONENT_LOW_PART_SIZE)), T8) |
+                        _CC_ENCODE_FIELD(_CC_N(NULL_EXP_CODED) >> _CC_N(FIELD_EXPONENT_LOW_PART_SIZE), EXPONENT_HIGH_PART) |
+                        _CC_ENCODE_FIELD(_CC_N(NULL_EXP_CODED) & _CC_N(FIELD_EXPONENT_LOW_PART_MAX_VALUE), EXPONENT_LOW_PART),
     // We mask on store/load so this invisibly keeps null 0 whatever we choose
     // it to be.
     _CC_N(NULL_XOR_MASK) = _CC_N(NULL_PESBT),
