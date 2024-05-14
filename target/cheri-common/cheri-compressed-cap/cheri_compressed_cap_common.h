@@ -806,8 +806,8 @@ static inline uint32_t _cc_N(compute_ebt)(_cc_addr_t req_base, _cc_length_t req_
         //  lostSignificantTop  : bool = false;
         //  lostSignificantBase : bool = false;
         //  incE : bool = false;
-        uint32_t ebt_bits = _CC_ENCODE_EBT_FIELD(0, INTERNAL_EXPONENT) | _CC_ENCODE_EBT_FIELD(req_top, EXP_ZERO_TOP) |
-                            _CC_ENCODE_EBT_FIELD(req_base, EXP_ZERO_BOTTOM);
+        uint32_t ebt_bits = _CC_ENCODE_EBT_FIELD(0, INTERNAL_EXPONENT) | _CC_ENCODE_EBT_FIELD(1, EF) |
+                            _CC_ENCODE_EBT_FIELD(req_top, EXP_ZERO_TOP) | _CC_ENCODE_EBT_FIELD(req_base, EXP_ZERO_BOTTOM);
 #ifdef CC_IS_MORELLO
         // Due to morello conditionally inverting bits, we need to invert the bits that would be an internal exponent
         // here
@@ -888,18 +888,27 @@ static inline uint32_t _cc_N(compute_ebt)(_cc_addr_t req_base, _cc_length_t req_
     const _cc_addr_t Bbits = bot_ie << _CC_N(FIELD_EXPONENT_LOW_PART_SIZE);
     const _cc_addr_t Tbits = top_ie << _CC_N(FIELD_EXPONENT_LOW_PART_SIZE);
     const uint8_t newE = E + (incE ? 1 : 0);
-
+#if _CC_N(FIELD_EF_USED) == 1
+    /* _cc_N(get_exponent) above returned a valid exponent. If we decided to
+     * increment it, we should have checked that it's still valid. */
+    _cc_debug_assert(newE <= _CC_N(MAX_EXPONENT));
+    const uint8_t newE_coded = _CC_N(MAX_EXPONENT) - newE;
+#else
+    const uint8_t newE_coded = newE;
+#endif
     //  };
     //  let exact = not(lostSignificantBase | lostSignificantTop);
     *exact = !lostSignificantBase && !lostSignificantTop;
-    // Split E between T and B
+    // Split E between T8, T and B
+    const uint8_t t8 = newE_coded >> (_CC_N(FIELD_EXPONENT_LOW_PART_SIZE) + _CC_N(FIELD_EXPONENT_HIGH_PART_SIZE));
     const _cc_addr_t expHighBits =
-        _cc_N(getbits)(newE >> _CC_N(FIELD_EXPONENT_LOW_PART_SIZE), 0, _CC_N(FIELD_EXPONENT_HIGH_PART_SIZE));
-    const _cc_addr_t expLowBits = _cc_N(getbits)(newE, 0, _CC_N(FIELD_EXPONENT_LOW_PART_SIZE));
+        _cc_N(getbits)(newE_coded >> _CC_N(FIELD_EXPONENT_LOW_PART_SIZE), 0, _CC_N(FIELD_EXPONENT_HIGH_PART_SIZE));
+    const _cc_addr_t expLowBits = _cc_N(getbits)(newE_coded, 0, _CC_N(FIELD_EXPONENT_LOW_PART_SIZE));
     const _cc_addr_t Te = Tbits | expHighBits;
     const _cc_addr_t Be = Bbits | expLowBits;
-    return _CC_ENCODE_EBT_FIELD(1, INTERNAL_EXPONENT) | _CC_ENCODE_EBT_FIELD(Te, TOP_ENCODED) |
-           _CC_ENCODE_EBT_FIELD(Be, BOTTOM_ENCODED);
+    return _CC_ENCODE_EBT_FIELD(1, INTERNAL_EXPONENT) | _CC_ENCODE_EBT_FIELD(0, EF) |
+           _CC_ENCODE_EBT_FIELD(t8, T8) |
+           _CC_ENCODE_EBT_FIELD(Te, TOP_ENCODED) | _CC_ENCODE_EBT_FIELD(Be, BOTTOM_ENCODED);
 }
 
 static inline bool _cc_N(precise_is_representable_new_addr)(const _cc_cap_t* oldcap, _cc_addr_t new_cursor) {
