@@ -880,6 +880,89 @@ static inline QEMU_ALWAYS_INLINE void caddi_impl(CPUArchState *env,
                        /*precise_repr_check=*/false, retpc, oob_info);
 }
 
+#ifdef TARGET_RISCV
+void CHERI_HELPER_IMPL(acperm(CPUArchState *env, uint32_t cd, uint32_t cs1,
+                              target_ulong rs1))
+{
+    const cap_register_t *cbp = get_readonly_capreg(env, cs1);
+    /* We do not touch the M bit here, don't copy it into perms. */
+    uint32_t perms =
+        ((cap_get_sdp(cbp) << 16) | (cbp->cr_arch_perm & ~CAP_AP_M)) & rs1;
+    cap_register_t result = *cbp;
+
+    /* see the comment about capmode in the gcperm helper */
+    if (!cheri_in_capmode(env)) {
+        /* TODO: raise an "illegal instruction" exception */
+        return;
+    }
+
+    if (!cap_is_unsealed(cbp)) {
+        result.cr_tag = 0;
+    }
+
+    /* Enforce the restrictions as per the bakewell specification. */
+
+    /* "Clear ASR-permission unless X-permission is set" */
+    if (!(perms & CAP_AP_ASR)) {
+        perms &= ~CAP_AP_X;
+    }
+
+    /* "Clear C-permission unless R-permission or W-permission are set" */
+    if (!(perms & (CAP_AP_R|CAP_AP_W))) {
+        perms &= ~CAP_AP_C;
+    }
+
+    /*
+     * As of Jun 2024, we skip common rule 3 is about the M bit.
+     * Our policy is that acperm does not modify M.
+     *
+     * TODO: Review this and handle M if the info in the bakewell
+     * specification is sufficient for implementing this.
+     */
+
+#if CAP_CC(ADDR_WIDTH) == 32
+    /* "Clear ASR-permission if all other permissions are not set" */
+    if (!(perms & (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X))) {
+        perms &= ~CAP_AP_ASR;
+    }
+    /* "Clear C-permission and X-permission if R-permission is not set" */
+    if (!(perms & CAP_AP_R)) {
+        perms &= ~(CAP_AP_X | CAP_AP_C);
+    }
+    /*
+     * "Clear X-permission if X-permission and R-permission are set, but
+     * C-permission and W-permission are not set"
+     */
+    if ((perms & (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X)) ==
+            (CAP_AP_X | CAP_AP_R)) {
+        perms &= ~CAP_AP_X;
+    }
+#endif
+
+    /*
+     * All unused bits in perms are 0, we don't have to mask out higher
+     * bits above the sdp field.
+     */
+    CAP_cc(update_sdp)(&result, perms >> 16);
+
+    /*
+     * Update result's C, W, R, X, ASR to match the bits in perm.
+     * Yet again, this leaves result's M bit alone.
+     */
+    result.cr_arch_perm &=
+        ~(CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X | CAP_AP_ASR);
+    result.cr_arch_perm |=
+        perms & (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X | CAP_AP_ASR);
+
+    /*
+     * Sync the AP field with th cr_arch_perm update.
+     * TODO: should compress_raw call ap_compress internally?
+     */
+    CAP_cc(ap_compress)(&result);
+
+    update_capreg(env, cd, &result);
+}
+#else
 void CHERI_HELPER_IMPL(candperm(CPUArchState *env, uint32_t cd, uint32_t cb,
                                 target_ulong rt))
 {
@@ -905,6 +988,7 @@ void CHERI_HELPER_IMPL(candperm(CPUArchState *env, uint32_t cd, uint32_t cb,
     CAP_cc(update_uperms)(&result, cap_get_uperms(cbp) & rt_uperms);
     update_capreg(env, cd, &result);
 }
+#endif
 
 void do_cincoffset(CPUArchState *env, uint32_t cd, uint32_t cb, target_ulong rt)
 {

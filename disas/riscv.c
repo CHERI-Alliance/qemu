@@ -568,7 +568,7 @@ typedef enum {
     rv_op_cspecialrw,
     rv_op_scbnds,
     rv_op_scbndsr,
-    rv_op_candperm,
+    rv_op_acperm,
     rv_op_csetoffset,
     rv_op_ctoptr,
     rv_op_cfromptr,
@@ -1340,7 +1340,7 @@ const rv_opcode_data opcode_data[] = {
     [rv_op_cspecialrw] = { "cspecialrw", rv_codec_r, rv_fmt_cd_scr_cs1, NULL, 0, 0, 0 },
     [rv_op_scbnds] = { "scbnds", rv_codec_r, rv_fmt_cd_cs1_rs2, NULL, 0, 0, 0 },
     [rv_op_scbndsr] = { "scbndsr", rv_codec_r, rv_fmt_cd_cs1_rs2, NULL, 0, 0, 0 },
-    [rv_op_candperm] = { "candperm", rv_codec_r, rv_fmt_cd_cs1_rs2, NULL, 0, 0, 0 },
+    [rv_op_acperm] = { "acperm", rv_codec_r, rv_fmt_cd_cs1_rs2, NULL, 0, 0, 0 },
     [rv_op_csetoffset] = { "csetoffset", rv_codec_r, rv_fmt_cd_cs1_rs2, NULL, 0, 0, 0 },
     [rv_op_ctoptr] = { "ctoptr", rv_codec_r, rv_fmt_rd_cs1_cs2, NULL, 0, 0, 0 },
     [rv_op_cfromptr] = { "cfromptr", rv_codec_r, rv_fmt_cd_cs1_rs2, NULL, 0, 0, 0 },
@@ -1599,7 +1599,6 @@ static rv_opcode decode_cheri_inst(rv_inst inst) {
     CHERI_THREEOP_CASE(cspecialrw,  0000001,  ..... ..... 000 ..... 1011011 @r)
     // 0000010-0000111 unused
     // 0001010 unused
-    CHERI_THREEOP_CASE(candperm,    0001101,  ..... ..... 000 ..... 1011011 @r)
     CHERI_THREEOP_CASE(csetoffset,  0001111,  ..... ..... 000 ..... 1011011 @r)
     CHERI_THREEOP_CASE(ctoptr,      0010010,  ..... ..... 000 ..... 1011011 @r)
     CHERI_THREEOP_CASE(cfromptr,    0010011,  ..... ..... 000 ..... 1011011 @r)
@@ -1984,6 +1983,7 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa, int flags)
             case 47: op = rv_op_maxu; break;
             case 48: op = rv_op_cadd; break;
             case 49: op = rv_op_scaddr; break;
+            case 50: op = rv_op_acperm; break;
             case 51: op = rv_op_schi; break;
             case 52: op = rv_op_sceq; break;
             case 56: op = rv_op_scbnds; break;

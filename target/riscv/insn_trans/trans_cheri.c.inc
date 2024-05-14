@@ -223,7 +223,6 @@ static bool trans_cspecialrw(DisasContext *ctx, arg_cspecialrw *a)
 }
 
 // Three operand (cap cap int)
-TRANSLATE_CAP_CAP_INT(candperm)
 TRANSLATE_CAP_CAP_INT(cfromptr)
 TRANSLATE_CAP_CAP_INT(scbnds)
 TRANSLATE_CAP_CAP_INT(scbndsr)
@@ -735,5 +734,6 @@ TRANSLATE_CAP_CAP_IMM_BW(caddi)
 TRANSLATE_CAP_CAP_INT_BW(scaddr)
 TRANSLATE_CAP_CAP_INT_BW(schi)
 TRANSLATE_INT_CAP_CAP_BW(sceq)
+TRANSLATE_CAP_CAP_INT_BW(acperm)
 
 TRANSLATE_CAP_CAP_BW(sentry)
