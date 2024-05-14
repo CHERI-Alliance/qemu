@@ -694,6 +694,7 @@ static bool trans_cadd(DisasContext *ctx, arg_cadd *a)
     return gen_cheri_cap_cap_int(ctx, a, &gen_helper_cincoffset);
 }
 
+TRANSLATE_CAP_CAP_INT_HELPER(acperm, candperm)
 TRANSLATE_CAP_CAP_INT_HELPER(scaddr, csetaddr)
 TRANSLATE_CAP_CAP_INT_HELPER(scbnds, csetboundsexact)
 TRANSLATE_CAP_CAP_INT_HELPER(scbndsr, csetbounds)

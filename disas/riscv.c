@@ -598,6 +598,7 @@ typedef enum {
     rv_op_cadd,
     rv_op_caddi,
 
+    rv_op_acperm,
     rv_op_scaddr,
     rv_op_scbnds,
     rv_op_scbndsr,
@@ -1393,6 +1394,7 @@ const rv_opcode_data opcode_data[] = {
 
     [rv_op_cadd] = { "cadd", rv_codec_r, rv_fmt_cd_cs1_rs2, NULL, 0, 0, 0 },
     [rv_op_caddi] = { "caddi", rv_codec_i, rv_fmt_cd_cs1_imm, NULL, 0, 0, 0 },
+    [rv_op_acperm] = { "acperm", rv_codec_r, rv_fmt_cd_cs1_rs2, NULL, 0, 0, 0 },
     [rv_op_scaddr] = { "scaddr", rv_codec_r, rv_fmt_cd_cs1_rs2, NULL, 0, 0, 0 },
     [rv_op_scbnds] = { "scbnds", rv_codec_r, rv_fmt_cd_cs1_rs2, NULL, 0, 0, 0 },
     [rv_op_scbndsr] = { "scbndsr", rv_codec_r, rv_fmt_cd_cs1_rs2, NULL, 0, 0, 0 },
@@ -2058,6 +2060,7 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa, int flags)
             case 47: op = rv_op_maxu; break;
             case 48: op = rv_op_cadd; break;
             case 49: op = rv_op_scaddr; break;
+            case 50: op = rv_op_acperm; break;
             case 51: op = rv_op_schi; break;
             case 52: op = rv_op_sceq; break;
             case 56: op = rv_op_scbnds; break;
