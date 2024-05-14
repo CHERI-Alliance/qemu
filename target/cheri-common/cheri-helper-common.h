@@ -88,7 +88,6 @@ DEF_HELPER_4(cunseal, void, env, i32, i32, i32)
 
 // Three operands (cap cap int)
 DEF_HELPER_4(candaddr, void, env, i32, i32, tl)
-DEF_HELPER_4(candperm, void, env, i32, i32, tl)
 DEF_HELPER_4(cfromptr, void, env, i32, i32, tl)
 
 // Rather than waste TCG vals on a few bits of flags, they can be placed in the
@@ -108,10 +107,12 @@ DEF_HELPER_5(cjalr, void, env, i32, i32, tl, tl)
 #ifdef TARGET_RISCV
 DEF_HELPER_4(scbndsr, void, env, i32, i32, tl)
 DEF_HELPER_4(scbnds, void, env, i32, i32, tl)
+DEF_HELPER_4(acperm, void, env, i32, i32, tl)
 DEF_HELPER_5(scbndsi, void, env, i32, i32, i32, i32)
 #else 
 DEF_HELPER_4(csetbounds, void, env, i32, i32, tl)
 DEF_HELPER_4(csetboundsexact, void, env, i32, i32, tl)
+DEF_HELPER_4(candperm, void, env, i32, i32, tl)
 #endif
 #if CAP_CC(FIELD_FLAGS_USED) == 1
 DEF_HELPER_4(csetflags, void, env, i32, i32, tl)
