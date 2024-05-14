@@ -316,14 +316,28 @@ static inline _cc_bounds_bits _cc_N(extract_bounds_bits)(_cc_addr_t pesbt) {
     _CC_STATIC_ASSERT(sizeof(result.E) * __CHAR_BIT__ >=
                           _CC_N(FIELD_EXPONENT_LOW_PART_SIZE) + _CC_N(FIELD_EXPONENT_HIGH_PART_SIZE),
                       "E field too small");
-    result.IE = (bool)(uint32_t)_CC_EXTRACT_FIELD(pesbt, INTERNAL_EXPONENT);
     uint8_t L_msb;
+#if _CC_N(FIELD_EF_USED) == 1
+    result.EF = (bool)(uint32_t)_CC_EXTRACT_FIELD(pesbt, EF);
+    if (!result.EF) {
+        uint8_t e_enc = (uint8_t)(_CC_EXTRACT_FIELD(pesbt, EXPONENT_LOW_PART) |
+                (_CC_EXTRACT_FIELD(pesbt, EXPONENT_HIGH_PART) << _CC_N(FIELD_EXPONENT_LOW_PART_SIZE)) |
+                (_CC_EXTRACT_FIELD(pesbt, T8) << ( _CC_N(FIELD_EXPONENT_LOW_PART_SIZE) + _CC_N(FIELD_EXPONENT_HIGH_PART_SIZE))));
+        if (e_enc > _CC_MAX_EXPONENT) {
+            /* The capability is malformed. */
+            memset(&result, 0x0, sizeof(result));
+            return result;
+        }
+        result.E = _CC_MAX_EXPONENT - e_enc;
+#else
+    result.IE = (bool)(uint32_t)_CC_EXTRACT_FIELD(pesbt, INTERNAL_EXPONENT);
     if (result.IE) {
         result.E = (uint8_t)(_CC_EXTRACT_FIELD(pesbt, EXPONENT_LOW_PART) |
                              (_CC_EXTRACT_FIELD(pesbt, EXPONENT_HIGH_PART) << _CC_N(FIELD_EXPONENT_LOW_PART_SIZE)));
         // Do not offset by 1! We also need to encode E=0 even with IE
         // Also allow nonsense values over 64 - BWidth + 2: this is expected by sail-generated tests
         // E = MIN(64 - BWidth + 2, E);
+#endif
         result.B = (uint16_t)_CC_EXTRACT_FIELD(pesbt, EXP_NONZERO_BOTTOM) << _CC_N(FIELD_EXPONENT_LOW_PART_SIZE);
         result.T = (uint16_t)_CC_EXTRACT_FIELD(pesbt, EXP_NONZERO_TOP) << _CC_N(FIELD_EXPONENT_HIGH_PART_SIZE);
         L_msb = 1;
@@ -334,7 +348,8 @@ static inline _cc_bounds_bits _cc_N(extract_bounds_bits)(_cc_addr_t pesbt) {
         pesbt ^= _CC_N(NULL_XOR_MASK);
 #endif
         result.E = 0;
-        L_msb = 0;
+        /* This returns 0 if the current format does not use a T8 field. */
+        L_msb = _CC_EXTRACT_FIELD(pesbt, T8);
         result.B = (uint16_t)_CC_EXTRACT_FIELD(pesbt, EXP_ZERO_BOTTOM);
         result.T = (uint16_t)_CC_EXTRACT_FIELD(pesbt, EXP_ZERO_TOP);
     }
