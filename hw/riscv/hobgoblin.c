@@ -82,6 +82,8 @@ static const memmapEntry_t memmap[] = {
     [HOBGOBLIN_SPI] =      { 0x60210000,     0x1000, ""},
     [HOBGOBLIN_GPIO0] =    { 0x60300000,    0x10000, ""},
     [HOBGOBLIN_GPIO1] =    { 0x60310000,    0x10000, ""},
+    /* Each virtio transport channel uses 512 byte */
+    [HOBGOBLIN_VIRTIO] =   { 0x70000000,    0x10000, ""},
     [HOBGOBLIN_DRAM] =     { 0x80000000, 0x40000000,
         "riscv.hobgoblin.ram"},
 };
@@ -329,6 +331,18 @@ static void hobgoblin_add_eth(HobgoblinState_t *s)
     s->eth = eth;
 }
 
+static void hobgoblin_add_virtio(HobgoblinState_t *s)
+{
+    const memmapEntry_t *mem_virtio = &memmap[HOBGOBLIN_VIRTIO];
+
+    for (int i = 0; i < NUM_VIRTIO_TRANSPORTS; i++) {
+        hwaddr offset = 0x200 * i;
+        assert(offset < mem_virtio->size);
+        hwaddr base = mem_virtio->base + offset;
+        qemu_irq irq = hobgoblin_make_plic_irq(s, HOBGOBLIN_VIRTIO0_IRQ + i);
+        sysbus_create_simple("virtio-mmio", base, irq);
+    }
+}
 
 static void hobgoblin_machine_init(MachineState *machine)
 {
@@ -357,6 +371,7 @@ static void hobgoblin_machine_init(MachineState *machine)
     hobgoblin_add_gpio(s);
     hobgoblin_add_spi(s);
     hobgoblin_add_eth(s);
+    hobgoblin_add_virtio(s);
 
     /* load images into memory to boot the platform */
     int ret = hobgoblin_load_images(machine, s);
