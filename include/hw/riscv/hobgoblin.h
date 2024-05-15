@@ -25,11 +25,17 @@
 
 #define MACHINE_TYPE_HOBGOBLIN  MACHINE_TYPE_NAME("hobgoblin")
 
+enum board_type {
+    BOARD_TYPE_GENESYS2,
+    BOARD_TYPE_PROFPGA,
+};
+
 typedef struct {
     /*< private >*/
     MachineState machine; /* QOM: derived from MachineState/TYPE_MACHINE */
     /*< properties >*/
     bool boot_from_rom;
+    enum board_type board_type;
     /*< devices >*/
     RISCVHartArrayState soc;
     DeviceState *plic;
