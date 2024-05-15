@@ -53,8 +53,11 @@ enum {
     HOBGOBLIN_SPI,
     HOBGOBLIN_GPIO0,
     HOBGOBLIN_GPIO1,
+    HOBGOBLIN_VIRTIO,
     HOBGOBLIN_DRAM
 };
+
+#define NUM_VIRTIO_TRANSPORTS   4
 
 enum {
     /* Interrupt 0 is reserved */
@@ -63,6 +66,8 @@ enum {
     HOBGOBLIN_GPIO0_IRQ    = 7,
     HOBGOBLIN_GPIO1_IRQ    = 8,
     HOBGOBLIN_ETH_IRQ      = 15,
+    HOBGOBLIN_VIRTIO0_IRQ  = 28,
+    HOBGOBLIN_VIRTIO3_IRQ  = 31,
     /* ----------- */
     HOBGOBLIN_MAX_IRQ
 };
