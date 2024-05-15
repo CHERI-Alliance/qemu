@@ -88,6 +88,11 @@ static const memmapEntry_t memmap[] = {
         "riscv.hobgoblin.ram"},
 };
 
+static const memmapEntry_t pro_fpga_memmap[] = {
+    [0] =                  { 0x2000000000, 0x400000000,
+        "riscv.hobgoblin.ram2"},
+};
+
 /* sifive_plic_create() parameters */
 #define HOBGOBLIN_PLIC_NUM_SOURCES      32
 #define HOBGOBLIN_PLIC_NUM_PRIORITIES   7
@@ -363,6 +368,10 @@ static void hobgoblin_machine_init(MachineState *machine)
     /* SRAM exists on FPGA only */
     hobgoblin_add_memory_area(system_memory, &memmap[HOBGOBLIN_SRAM]);
 
+    if (s->board_type == BOARD_TYPE_PROFPGA) {
+        hobgoblin_add_memory_area(system_memory, &pro_fpga_memmap[0]);
+    }
+
     /* add interrupt controller */
     hobgoblin_add_interrupt_controller(s, smp_cpus);
 
@@ -396,9 +405,45 @@ static void hobgoblin_machine_set_boot_from_rom(Object *obj, bool value,
     s->boot_from_rom = value;
 }
 
+static char *hobgoblin_machine_get_board_type(Object *obj, Error **errp)
+{
+    HobgoblinState_t *s = HOBGOBLIN_MACHINE_STATE(obj);
+    const char *result;
+
+    switch (s->board_type) {
+    case BOARD_TYPE_GENESYS2:
+        result = "genesys2";
+        break;
+    case BOARD_TYPE_PROFPGA:
+        result = "profpga";
+        break;
+    default:
+        result = "Unknown";
+        break;
+    }
+
+    return (char*)result;
+}
+
+static void hobgoblin_machine_set_board_type(Object *obj, const char *value,
+                                             Error **errp)
+{
+    HobgoblinState_t *s = HOBGOBLIN_MACHINE_STATE(obj);
+
+    if (!strcmp(value, "genesys2"))
+        s->board_type = BOARD_TYPE_GENESYS2;
+    else if (!strcmp(value, "profpga"))
+        s->board_type = BOARD_TYPE_PROFPGA;
+    else
+        error_setg(errp, "Unrecognised board-type");
+}
+
 static void hobgoblin_machine_instance_init(Object *obj)
 {
-    /* Nothing to be done here. */
+    HobgoblinState_t *s = HOBGOBLIN_MACHINE_STATE(obj);
+
+    s->boot_from_rom = false;
+    s->board_type = BOARD_TYPE_GENESYS2;
 }
 
 static void hobgoblin_machine_class_init(ObjectClass *oc, void *data)
@@ -415,6 +460,12 @@ static void hobgoblin_machine_class_init(ObjectClass *oc, void *data)
                                    hobgoblin_machine_set_boot_from_rom);
     object_class_property_set_description(oc, "boot-from-rom",
         "Load BIOS (default fsbl_rom.xexe) into ROM and boot into it");
+
+    object_class_property_add_str(oc, "board-type",
+                                  hobgoblin_machine_get_board_type,
+                                  hobgoblin_machine_set_board_type);
+    object_class_property_set_description(oc, "board-type",
+        "Set the board type (genesys2 (default) or profpga)");
 }
 
 static const TypeInfo hobgoblin_typeinfo = {
