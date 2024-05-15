@@ -745,8 +745,8 @@ static inline bool trans_sc(DisasContext *ctx, arg_sc *a)
     return false;
 }
 
-typedef arg_i arg_cincoffsetimm;
-static inline bool trans_cincoffsetimm(DisasContext *ctx, arg_cincoffsetimm *a)
+typedef arg_cci arg_caddi;
+static inline bool trans_caddi(DisasContext *ctx, arg_caddi *a)
 {
     g_assert_not_reached();
     return false;

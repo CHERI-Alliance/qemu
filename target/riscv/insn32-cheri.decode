@@ -139,7 +139,6 @@ cinvoke  1111110  ..... ..... 000 00001 1011011 @r_2source
 %imm_i_unsigned    20:12
 @i_unsigned   ............    ..... ... ..... ....... &i      imm=%imm_i_unsigned     %rs1 %rd
 
-&cci imm cs1 cd
 @cci ............    ..... ... ..... ....... &cci %cd %cs1 imm=%imm_i
 
 # Explicit capability/DDC atomics:
