@@ -782,6 +782,14 @@ static inline bool trans_sc(DisasContext *ctx, arg_sc *a)
     g_assert_not_reached();
     return false;
 }
+
+typedef arg_icc arg_caddi;
+static inline bool trans_caddi(DisasContext *ctx, arg_caddi *a)
+{
+    g_assert_not_reached();
+    return false;
+}
+
 #endif
 // Helpers to generate a virtual address that has been checked by the CHERI
 // capability helpers: If ctx->capmode is set, the register number will be
