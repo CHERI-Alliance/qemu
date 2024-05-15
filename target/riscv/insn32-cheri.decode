@@ -103,9 +103,8 @@ gclen       0001000  00110 ..... 000 ..... 0110011 @cr
 %imm_i_unsigned    20:12
 @i_unsigned   ............    ..... ... ..... ....... &i      imm=%imm_i_unsigned     %rs1 %rd
 
-&icc    imm cs1 cd
 
-@icc     ............    ..... ... ..... ....... &icc     imm=%imm_i %cs1 %cd
+
 
 # Explicit capability/DDC atomics:
 @atom_ld_cap_or_ddc .......   ..... ..... ... ..... ....... &atomic aq=1 rl=1 rs2=0  %rs1 %rd
@@ -113,6 +112,7 @@ gclen       0001000  00110 ..... 000 ..... 0110011 @cr
 
 csetboundsimm ............     ..... 010 ..... 1011011 @i_unsigned
 
+@icc     ............    ..... ... ..... ....... &icc     imm=%imm_i %cs1 %cd
 caddi         ............     ..... 010 ..... 0011011 @icc
 
 ### Memory Loads (including Load-Reserved) with Explicit Address Type
