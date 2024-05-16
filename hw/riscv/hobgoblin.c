@@ -61,7 +61,7 @@ typedef struct {
 static const memmapEntry_t memmap[] = {
     [HOBGOBLIN_MROM] =     {     0x1000,      0x100,
         "riscv.hobgoblin.mrom"},
-    [HOBGOBLIN_BOOT_ROM] = { 0x10000000, 0x00010000,
+    [HOBGOBLIN_BOOT_ROM] = { 0x10000000, 0x00020000,
         "riscv.hobgoblin.boot.rom"},
     [HOBGOBLIN_BOOT_RAM] = { 0x10400000, 0x00008000,
         "riscv.hobgoblin.boot.ram"},
