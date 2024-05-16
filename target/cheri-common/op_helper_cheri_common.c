@@ -1043,11 +1043,20 @@ void CHERI_HELPER_IMPL(csetbounds(CPUArchState *env, uint32_t cd, uint32_t cb,
     do_setbounds(false, env, cd, cb, rt, GETPC());
 }
 
+#ifdef TARGET_RISCV
+void CHERI_HELPER_IMPL(scbnds(CPUArchState *env, uint32_t cd,
+                                       uint32_t cb, target_ulong rt))
+{
+    do_setbounds(true, env, cd, cb, rt, GETPC());
+}
+
+#else
 void CHERI_HELPER_IMPL(csetboundsexact(CPUArchState *env, uint32_t cd,
                                        uint32_t cb, target_ulong rt))
 {
     do_setbounds(true, env, cd, cb, rt, GETPC());
 }
+#endif /* TARGET_RISCV */
 
 #ifndef TARGET_AARCH64
 /* Morello does not have flags in the capaibility metadata */
