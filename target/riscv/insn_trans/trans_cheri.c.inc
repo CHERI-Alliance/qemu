@@ -249,10 +249,20 @@ static inline bool gen_cheri_cap_cap_imm(int cd, int cs1, target_long imm,
     return true;
 }
 
-static bool trans_csetboundsimm(DisasContext *ctx, arg_csetboundsimm *a)
+static bool trans_scbndsi(DisasContext *ctx, arg_scbndsi *a)
 {
     tcg_debug_assert(a->imm >= 0);
-    return gen_cheri_cap_cap_imm(a->rd, a->rs1, a->imm, &gen_helper_scbndsr);
+    TCGv_i32 dest_regnum = tcg_const_i32(a->cd);
+    TCGv_i32 source_regnum = tcg_const_i32(a->cs1);
+    TCGv_i32 imm_value = tcg_const_i32(a->imm);
+    TCGv_i32 scale_val = tcg_const_i32(a->scal);
+
+    gen_helper_scbndsi(cpu_env, dest_regnum, source_regnum, imm_value, scale_val );
+    tcg_temp_free_i32(imm_value);
+    tcg_temp_free_i32(scale_val);
+    tcg_temp_free_i32(source_regnum);
+    tcg_temp_free_i32(dest_regnum);
+    return true;
 }
 
 /// Control-flow instructions

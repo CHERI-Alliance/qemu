@@ -108,6 +108,7 @@ DEF_HELPER_5(cjalr, void, env, i32, i32, tl, tl)
 #ifdef TARGET_RISCV
 DEF_HELPER_4(scbndsr, void, env, i32, i32, tl)
 DEF_HELPER_4(scbnds, void, env, i32, i32, tl)
+DEF_HELPER_5(scbndsi, void, env, i32, i32, i32, i32)
 #else 
 DEF_HELPER_4(csetbounds, void, env, i32, i32, tl)
 DEF_HELPER_4(csetboundsexact, void, env, i32, i32, tl)
