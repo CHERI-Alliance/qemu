@@ -98,10 +98,10 @@ gclen       0001000  00110 ..... 000 ..... 0110011 @cr
 # There is an existing @sfence_vma format with rs1+rs2 fields, but let's define a new name
 @r_2source ....... ..... .....   ... ..... ....... %rs2 %rs1
 
-### Instructions with 12-bit immediates:
-# We have to add a new i format with unsigned immediate for csetboundsimm:
-%imm_i_unsigned    20:12
-@i_unsigned   ............    ..... ... ..... ....... &i      imm=%imm_i_unsigned     %rs1 %rd
+# We have to add a new i format with unsigned immediate for scbndsi
+%imm_i_unsigned    20:5
+%imm_scale         25:1
+@is_unsigned  ...... . ..... ..... ... ..... ....... scal=%imm_scale imm=%imm_i_unsigned     %cs1 %cd
 
 
 
@@ -110,7 +110,7 @@ gclen       0001000  00110 ..... 000 ..... 0110011 @cr
 @atom_ld_cap_or_ddc .......   ..... ..... ... ..... ....... &atomic aq=1 rl=1 rs2=0  %rs1 %rd
 @atom_st_cap_or_ddc .......   ..... ..... ... ..... ....... &atomic aq=1 rl=1 rd=0   %rs2 %rs1
 
-csetboundsimm ............     ..... 010 ..... 1011011 @i_unsigned
+scbndsi  000001 . ..... ..... 101 ..... 0010011 @is_unsigned
 
 @icc     ............    ..... ... ..... ....... &icc     imm=%imm_i %cs1 %cd
 caddi         ............     ..... 010 ..... 0011011 @icc

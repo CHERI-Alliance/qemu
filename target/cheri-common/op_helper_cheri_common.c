@@ -1058,6 +1058,13 @@ void CHERI_HELPER_IMPL(scbnds(CPUArchState *env, uint32_t cd,
     do_setbounds(true, env, cd, cb, rt, GETPC());
 }
 
+void CHERI_HELPER_IMPL(scbndsi(CPUArchState *env, uint32_t cd,
+                                       uint32_t cb, uint32_t imm,uint32_t s))
+{
+    do_setbounds(true, env, cd, cb, s ? imm << 4 : imm, GETPC());
+}
+
+
 #else
 void CHERI_HELPER_IMPL(csetboundsexact(CPUArchState *env, uint32_t cd,
                                        uint32_t cb, target_ulong rt))
