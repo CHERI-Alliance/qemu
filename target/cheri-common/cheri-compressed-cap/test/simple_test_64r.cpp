@@ -98,3 +98,27 @@ TEST_CASE_AP_DECOMP((CAP_AP_Q3 | 7), CAP_AP_C | CAP_AP_R | CAP_AP_W)
 /* invalid in Q3 -> all permissions (no M-bit, see above) */
 TEST_CASE_AP_DECOMP((CAP_AP_Q3 | 1),
         (CAP_AP_X | CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_ASR))
+
+
+TEST_CASE("bounds encoding, internal exponent, T8 = 1", "[bounds]") {
+    /* params are base, cursor, top */
+    _cc_cap_t cap = CompressedCap64r::make_max_perms_cap(0x0, 0x1000, 0x8000);
+
+    /*
+     * 00 SDP
+     * 01000 AP quadrant 1, execute + ASR
+     * 0000 reserved
+     * 0 S
+     * 0 EF
+     * 1 T8
+     * 000000 T[7:2]
+     * 00 TE
+     * 00000000 B[9:2]
+     * 01 BE
+     *
+     * internal exponent, E = 24 - 0b10001 = 7
+     * LCout = 0, LMSB = 1
+     * c_t = 0, c_b = 0
+     */
+    CHECK(cap.cr_pesbt == 0x10040001);
+}
