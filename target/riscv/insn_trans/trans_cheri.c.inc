@@ -244,6 +244,14 @@ static bool trans_csetboundsimm(DisasContext *ctx, arg_cincoffsetimm *a)
     return gen_cheri_cap_cap_imm(a->rd, a->rs1, a->imm, &gen_helper_csetbounds);
 }
 
+static bool trans_scbndsi(DisasContext *ctx, arg_scbndsi *a)
+{
+    /* TODO: reserved encodings should not be reachable here */
+    tcg_debug_assert(a->imm >= 0);
+    target_ulong imm = a->scale ? a->imm << 4 : a->imm;
+    return gen_cheri_cap_cap_imm(a->cd, a->cs1, imm, &gen_helper_csetboundsexact);
+}
+
 /// Control-flow instructions
 static void gen_cjal(DisasContext *ctx, int rd, target_ulong imm)
 {

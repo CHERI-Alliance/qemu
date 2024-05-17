@@ -139,7 +139,12 @@ cinvoke  1111110  ..... ..... 000 00001 1011011 @r_2source
 %imm_i_unsigned    20:12
 @i_unsigned   ............    ..... ... ..... ....... &i      imm=%imm_i_unsigned     %rs1 %rd
 
-@cci ............    ..... ... ..... ....... &cci %cd %cs1 imm=%imm_i
+# The RISC-V CHERI spec adds a new R format with a scaled unsigned immediate for scbndsi
+%imm5_unsigned 20:5
+%imm_scale     25:1
+
+@is_unsigned  ...... . ..... ..... ... ..... ....... scale=%imm_scale imm=%imm5_unsigned %cs1 %cd
+@cci          ............   ..... ... ..... ....... &cci %cd %cs1 imm=%imm_i
 
 # Explicit capability/DDC atomics:
 @atom_ld_cap_or_ddc .......   ..... ..... ... ..... ....... &atomic aq=1 rl=1 rs2=0  %rs1 %rd
@@ -148,7 +153,8 @@ cinvoke  1111110  ..... ..... 000 00001 1011011 @r_2source
 cincoffsetimm ............     ..... 001 ..... 1011011 @i
 csetboundsimm ............     ..... 010 ..... 1011011 @i_unsigned
 
-caddi         ............     ..... 010 ..... 0011011 @cci
+scbndsi       000001 . ..... ..... 101 ..... 0010011 @is_unsigned
+caddi         ............   ..... 010 ..... 0011011 @cci
 
 ### Memory Loads (including Load-Reserved) with Explicit Address Type
 ld_b_ddc       1111101  00000 ..... 000 ..... 1011011 @r2
