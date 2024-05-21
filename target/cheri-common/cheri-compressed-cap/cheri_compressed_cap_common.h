@@ -407,6 +407,21 @@ static inline bool _cc_N(compute_base_top)(_cc_bounds_bits bounds, _cc_addr_t cu
     // For the remaining computations we have to clamp E to max_E
     //  let E = min(maxE, unsigned(c.E)) in
     uint8_t E = _CC_MIN(_CC_MAX_EXPONENT, bounds.E);
+
+#if _CC_N(FIELD_EF_USED) == 1
+    // let a_mid = truncate(a >> E, cap_mantissa_width) in
+    uint16_t a_mid = (uint16_t)_cc_N(truncate_addr)(cursor >> E, _CC_MANTISSA_WIDTH);
+    // let R = c.B - (0b01 @ zeros(cap_mantissa_width - 2)) in /* wraps */
+    uint16_t R = (int16_t)bounds.B - (1U << (_CC_MANTISSA_WIDTH - 2));
+    R %= (1U << _CC_MANTISSA_WIDTH);
+
+    // let aHi = if a_mid <_u R then 1 else 0 in
+    int aHi = a_mid < R ? 1 : 0;
+    // let bHi = if c.B   <_u R then 1 else 0 in
+    int bHi = bounds.B < R ? 1 : 0;
+    // let tHi = if c.T   <_u R then 1 else 0 in
+    int tHi = bounds.T < R ? 1 : 0;
+#else
     /* Extract bits we need to make the top correction and calculate representable limit */
     // let a3 = truncate(a >> (E + mantissa_width - 3), 3) in
     // let B3 = truncateLSB(c.B, 3) in
@@ -423,6 +438,7 @@ static inline bool _cc_N(compute_base_top)(_cc_bounds_bits bounds, _cc_addr_t cu
     int aHi = a3 < R3 ? 1 : 0;
     int bHi = B3 < R3 ? 1 : 0;
     int tHi = T3 < R3 ? 1 : 0;
+#endif
 
     /* Compute region corrections for top and base relative to a */
     // let correction_base = bHi - aHi in
