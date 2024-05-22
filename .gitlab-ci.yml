@@ -101,3 +101,5 @@ nightly_build:
         - $CI_PROJECT_DIR/$PACKAGE_NAME
         expire_in: 1 week
 
+include:
+  - template: Jobs/SAST.gitlab-ci.yml
