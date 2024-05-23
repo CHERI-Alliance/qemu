@@ -145,3 +145,27 @@ TEST_CASE("bounds encoding, exponent > 0, T8==0", "[bounds]") {
      */
     CHECK(cap.cr_pesbt == 0x1002c132);
 }
+
+TEST_CASE("bounds encoding, exponent > 0, T8==0, c_b==-1", "[bounds]") {
+    _cc_cap_t cap = CompressedCap64r::make_max_perms_cap(0x9F000000,
+            0xA0000000, 0xAC000000);
+
+    /*
+     * 00 SDP
+     * 01000 AP quadrant 1, execute + ASR
+     * 0000 reserved
+     * 0 S
+     * 0 EF
+     * 0 T8
+     * 100000 T[7:2]
+     * 01 TE
+     * 11111000 B[9:2]
+     * 01 BE
+     *
+     * internal exponent, E = 24 - 0b00101 = 19
+     * LCout = 1, LMSB = 1
+     * A < R is true, B < R is false, T < R is true
+     * c_t = 0, c_b = -1
+     */
+     CHECK(cap.cr_pesbt == 0x100207e1);
+}
