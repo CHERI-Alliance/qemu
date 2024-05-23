@@ -2054,6 +2054,7 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa, int flags)
                 case 0b00100: op = rv_op_gchi; break;
                 case 0b00101: op = rv_op_gcbase; break;
                 case 0b00110: op = rv_op_gclen; break;
+                case 0b00111: op = rv_op_cram; break;
                 case 0b01000: op = rv_op_sentry; break;
                 }
                 break;
