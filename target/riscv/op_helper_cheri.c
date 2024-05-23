@@ -188,9 +188,10 @@ void HELPER(csrrs_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
 
     csr_cap = csr_cap_info->read(env);
     cap_register_t *dest = get_cap_in_gpregs(&env->gpcapregs,rd);
-    *dest = csr_cap;
-    cheri_log_instr_changed_gp_capreg(env, rd, &csr_cap);
-
+    if(rd) {
+        *dest = csr_cap;
+        cheri_log_instr_changed_gp_capreg(env, rd, &csr_cap);
+    }
     if (rs1){
         target_ulong new_val;
         new_val = cap_get_cursor(&csr_cap) | cap_get_cursor(&rs_cap);
@@ -220,9 +221,10 @@ void HELPER(csrrc_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
 
     csr_cap = csr_cap_info->read(env);
     cap_register_t *dest = get_cap_in_gpregs(&env->gpcapregs,rd);
-    *dest = csr_cap;
-    cheri_log_instr_changed_gp_capreg(env, rd, &csr_cap);
-
+    if(rd) {
+        *dest = csr_cap;
+        cheri_log_instr_changed_gp_capreg(env, rd, &csr_cap);
+    }
     if (rs1) {
         target_ulong addr;
         addr = cap_get_cursor(&csr_cap) & ( ~cap_get_cursor(&rs_cap) );
