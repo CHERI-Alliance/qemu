@@ -45,6 +45,8 @@
 #define PRINT_CAP_ARGS_EXTRA(cr) , (unsigned)cap_get_exec_mode(cr)
 #endif
 
+#ifdef TARGET_CHERI
+
 #define PRINT_CAP_FMTSTR_L1                                                    \
     "v:%d s:%d p:" TARGET_FMT_lx " b:" TARGET_FMT_lx " l:" TARGET_FMT_lx
 #define PRINT_CAP_ARGS_L1(cr)                                                  \
@@ -58,8 +60,6 @@
 
 #define PRINT_CAP_FMTSTR PRINT_CAP_FMTSTR_L1 " " PRINT_CAP_FMTSTR_L2
 #define PRINT_CAP_ARGS(cr) PRINT_CAP_ARGS_L1(cr), PRINT_CAP_ARGS_L2(cr)
-
-#ifdef TARGET_CHERI
 
 static inline target_ulong cap_get_cursor(const cap_register_t *c)
 {
