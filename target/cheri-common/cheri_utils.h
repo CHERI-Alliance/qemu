@@ -48,6 +48,8 @@
 #define PRINT_CAP_ARGS_EXTRA(cr)
 #endif
 
+#ifdef TARGET_CHERI
+
 #define PRINT_CAP_FMTSTR_L1                                                    \
     "v:%d s:%d p:%08x f:%d b:" TARGET_FMT_lx " l:" TARGET_FMT_lx
 #define COMBINED_PERMS_VALUE(cr)                                               \
@@ -67,7 +69,6 @@
 
 #define GET_HOST_RETPC() const uintptr_t _host_return_address = GETPC()
 
-#ifdef TARGET_CHERI
 
 static inline target_ulong cap_get_cursor(const cap_register_t *c)
 {
