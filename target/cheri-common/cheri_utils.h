@@ -37,6 +37,7 @@
 
 #include "cheri_defs.h"
 
+#ifdef TARGET_CHERI
 #ifdef TARGET_AARCH64
 #define PRINT_CAP_MODE(cr) (unsigned)(cap_get_cursor(cr) & 1)
 #else
@@ -49,8 +50,6 @@
     (cr)->cr_tag, PRINT_CAP_MODE(cr), (unsigned)cap_get_all_perms(cr),         \
         cap_get_otype_signext(cr), cap_get_base(cr), cap_get_cursor(cr),       \
         cap_get_top(cr), (cr)->cr_bounds_valid
-
-#ifdef TARGET_CHERI
 
 static inline target_ulong cap_get_cursor(const cap_register_t *c)
 {
