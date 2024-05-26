@@ -53,7 +53,7 @@
     (cr)->cr_tag, cap_is_sealed_with_type(cr), cap_get_all_perms(cr),          \
         cap_get_base(cr), cap_get_length_sat(cr)
 #define PRINT_CAP_FMTSTR_L2                                                    \
-    "o:" TARGET_FMT_lx " t:" TARGET_FMT_lx PRINT_CAP_FMT_EXTRA
+    "\n             |o:" TARGET_FMT_lx " t:" TARGET_FMT_lx PRINT_CAP_FMT_EXTRA
 #define PRINT_CAP_ARGS_L2(cr)                                                  \
     (target_ulong) cap_get_offset(cr),                                         \
         cap_get_otype_unsigned(cr) PRINT_CAP_ARGS_EXTRA(cr)
