@@ -47,6 +47,15 @@
 
 #ifdef TARGET_CHERI
 
+/*
+ * We take the presence of otype and flags fields as an indication that we're
+ * using the v9 capability format. (We tried an alternative approach to make
+ * each field conditional and include it in the output only if it's used.
+ * This ended in a horrible mess...)
+ * TODO: Should we have a bakewell vs v9 macro?
+ */
+#ifndef TARGET_RISCV
+/* We're using the cheri v9 capability format. */
 #define PRINT_CAP_FMTSTR_L1                                                    \
     "v:%d s:%d p:" TARGET_FMT_lx " b:" TARGET_FMT_lx " l:" TARGET_FMT_lx
 #define PRINT_CAP_ARGS_L1(cr)                                                  \
@@ -57,6 +66,20 @@
 #define PRINT_CAP_ARGS_L2(cr)                                                  \
     (target_ulong) cap_get_offset(cr),                                         \
         cap_get_otype_unsigned(cr) PRINT_CAP_ARGS_EXTRA(cr)
+#else
+/* We're using the RISC-V standard capability format. */
+#define PRINT_CAP_FMTSTR_L1 \
+    "v:%d p:%2x t:%d b:" TARGET_FMT_lx " a:" TARGET_FMT_lx \
+    " t:" TARGET_FMT_lx
+#define PRINT_CAP_ARGS_L1(cr)                                                  \
+    (cr)->cr_tag, (unsigned)cap_get_all_perms(cr),                             \
+        !cap_get_otype_unsigned(cr), cap_get_base(cr), cap_get_cursor(cr),     \
+        cap_get_top(cr)
+
+#define COMBINED_PERMS_VALUE(unused) 0
+#define PRINT_CAP_FMTSTR_L2 "%s"
+#define PRINT_CAP_ARGS_L2(unused) ""
+#endif
 
 #define PRINT_CAP_FMTSTR PRINT_CAP_FMTSTR_L1 " " PRINT_CAP_FMTSTR_L2
 #define PRINT_CAP_ARGS(cr) PRINT_CAP_ARGS_L1(cr), PRINT_CAP_ARGS_L2(cr)
