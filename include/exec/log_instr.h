@@ -129,8 +129,8 @@
 #define qemu_log_instr_dbg_cap(env, name, value) do {                   \
         if (qemu_log_instr_enabled(env))                                \
             qemu_log_instr_extra(                                       \
-                env, "    Write %s|" PRINT_CAP_FMTSTR_L1 "\n"           \
-                "             |" PRINT_CAP_FMTSTR_L2 "\n",              \
+                env, "    Write %s|" PRINT_CAP_FMTSTR_L1                \
+                PRINT_CAP_FMTSTR_L2 "\n",                               \
                 name, PRINT_CAP_ARGS_L1(value),                         \
                 PRINT_CAP_ARGS_L2(value));                              \
     } while (0)

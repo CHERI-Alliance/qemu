@@ -315,8 +315,8 @@ static inline void emit_text_reg(log_reginfo_t *rinfo)
 #else
     if (reginfo_is_cap(rinfo)) {
         if (reginfo_has_cap(rinfo))
-            qemu_log("    Write %s|" PRINT_CAP_FMTSTR_L1 "\n"
-                     "             |" PRINT_CAP_FMTSTR_L2 "\n",
+            qemu_log("    Write %s|" PRINT_CAP_FMTSTR_L1
+                     PRINT_CAP_FMTSTR_L2 "\n",
                      rinfo->name,
                      PRINT_CAP_ARGS_L1(&rinfo->cap),
                      PRINT_CAP_ARGS_L2(&rinfo->cap));
