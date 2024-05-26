@@ -50,6 +50,15 @@
 
 #ifdef TARGET_CHERI
 
+/*
+ * We take the presence of otype and flags fields as an indication that we're
+ * using the v9 capability format. (We tried an alternative approach to make
+ * each field conditional and include it in the output only if it's used.
+ * This ended in a horrible mess...)
+ * TODO: Should we have a bakewell vs v9 macro?
+ */
+#if (CAP_CC(FIELD_FLAGS_USED) == 1) && (CAP_CC(FIELD_OTYPE_USED) == 1)
+/* We're using the cheri v9 capability format. */
 #define PRINT_CAP_FMTSTR_L1                                                    \
     "v:%d s:%d p:%08x f:%d b:" TARGET_FMT_lx " l:" TARGET_FMT_lx
 #define COMBINED_PERMS_VALUE(cr)                                               \
@@ -63,6 +72,19 @@
 #define PRINT_CAP_ARGS_L2(cr)                                                  \
     (target_ulong) cap_get_offset(cr),                                         \
         cap_get_otype_unsigned(cr) PRINT_CAP_ARGS_EXTRA(cr)
+#else
+/* We're using the cheri bakewell capability format. */
+#define PRINT_CAP_FMTSTR_L1 \
+    "v:%d sdp:%1x ap:%2x s:%d b:" TARGET_FMT_lx " a:" TARGET_FMT_lx \
+    " t:" TARGET_FMT_lx
+#define PRINT_CAP_ARGS_L1(cr) \
+    (cr)->cr_tag, cap_get_sdp(cr), (cr)->cr_arch_perm, !cap_is_unsealed(cr), \
+    cap_get_base(cr), cap_get_cursor(cr), cap_get_top(cr)
+
+#define COMBINED_PERMS_VALUE(unused) 0
+#define PRINT_CAP_FMTSTR_L2 "%s"
+#define PRINT_CAP_ARGS_L2(unused) ""
+#endif
 
 #define PRINT_CAP_FMTSTR PRINT_CAP_FMTSTR_L1 " " PRINT_CAP_FMTSTR_L2
 #define PRINT_CAP_ARGS(cr) PRINT_CAP_ARGS_L1(cr), PRINT_CAP_ARGS_L2(cr)
