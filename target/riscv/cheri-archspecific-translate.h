@@ -6,5 +6,5 @@
 
 #pragma once
 
-#define CHERI_TRANSLATE_DDC_RELOCATION(ctx) (!(ctx)->cheri_v9_semantics)
-#define CHERI_TRANSLATE_PCC_RELOCATION(ctx) (!(ctx)->cheri_v9_semantics)
+#define CHERI_TRANSLATE_DDC_RELOCATION(ctx) false
+#define CHERI_TRANSLATE_PCC_RELOCATION(ctx) false
