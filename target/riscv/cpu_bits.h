@@ -376,17 +376,9 @@
 #define CSR_MHPMCOUNTER31H  0xb9f
 
 #ifdef TARGET_CHERI
-#define CSR_UCCSR           0x8C0
-#define CSR_SCCSR           0x9C0
-#define CSR_MCCSR           0xBC0
-
 /* See Capability Control and Status Registers (CCSRs) in CHERI ISA spec. */
-#define XCCSR_ENABLE        0x1 /* Capability extensions enabled */
-#define XCCSR_DIRTY         0x2 /* Capability register written */
 #define SCCSR_SGCLG         0x4 /* Supervisor Global Cap Load Generation */
 #define SCCSR_UGCLG         0x8 /* User Global Cap Load Generation */
-#define XCCSR_NO_RELOCATION 0x40000000 /* CHERI without DDC/PCC relocation. */
-#define XCCSR_TAG_CLEARING  0x80000000 /* CHERI has tag-clearing semantics. */
 #endif
 
 /*

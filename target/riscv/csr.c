@@ -176,17 +176,6 @@ static RISCVException any32(CPURISCVState *env, int csrno)
 
 }
 
-#ifdef TARGET_CHERI
-static RISCVException umode(CPURISCVState *env, int csrno)
-{
-    if (riscv_has_ext(env, RVU)) {
-        return RISCV_EXCP_NONE;
-    }
-
-    return RISCV_EXCP_ILLEGAL_INST;
-}
-#endif
-
 static RISCVException smode(CPURISCVState *env, int csrno)
 {
     if (riscv_has_ext(env, RVS)) {
@@ -2056,57 +2045,6 @@ static cap_register_t read_ddc(CPURISCVState *env)
     return env->DDC;
 }
 
-
-static RISCVException read_ccsr(CPURISCVState *env, int csrno, target_ulong *val)
-{
-    // We report the same values for all modes and don't perform dirty tracking
-    // The capability cause has moved to xTVAL so we don't report it here.
-    RISCVCPU *cpu = env_archcpu(env);
-    target_ulong ccsr = 0;
-    ccsr = set_field(ccsr, XCCSR_ENABLE, cpu->cfg.ext_cheri);
-    /* Read-only feature bits. */
-    ccsr = set_field(ccsr, XCCSR_TAG_CLEARING, CHERI_TAG_CLEAR_ON_INVALID(env));
-    ccsr = set_field(ccsr, XCCSR_NO_RELOCATION, CHERI_NO_RELOCATION(env));
-
-#if !defined(TARGET_RISCV32)
-    if (csrno == CSR_SCCSR)
-        ccsr |= env->sccsr;
-#endif
-
-    qemu_log_mask(CPU_LOG_INT, "Reading xCCSR(%#x): %x\n", csrno, (int)ccsr);
-    *val = ccsr;
-    return RISCV_EXCP_NONE;
-}
-
-static RISCVException write_ccsr(CPURISCVState *env, int csrno, target_ulong val)
-{
-    switch (csrno) {
-    default:
-        error_report("Attempting to write " TARGET_FMT_lx
-                     "to xCCSR(%#x), this is not supported (yet?).",
-                     val, csrno);
-        return RISCV_EXCP_INST_ACCESS_FAULT;
-#if !defined(TARGET_RISCV32)
-    case CSR_SCCSR: {
-        static const target_ulong gclgmask = (SCCSR_SGCLG | SCCSR_UGCLG);
-        /* Take the GCLG bits from the store and update state bits */
-        env->sccsr = set_field(env->sccsr, gclgmask, get_field(val, gclgmask));
-
-        /*
-         * Our TLB effectively caches whether the PTE and CCSR bits match at the
-         * time the PTE is copied up into the TLB.  While PTE updates use
-         * SFENCE.VMA to ensure visibility in the TLB, the CCSR writes must
-         * implicitly cause TLB invalidation.
-         */
-        tlb_flush(env_cpu(env));
-        break;
-      }
-#endif
-    }
-
-    return RISCV_EXCP_NONE;
-}
-
 static inline bool csr_needs_asr(CPURISCVState *env, int csrno) {
     switch (csrno) {
     case CSR_CYCLE:
@@ -2424,15 +2362,6 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
 
     [CSR_MTVAL2] =              CSR_OP_RW(hmode, mtval2),
     [CSR_MTINST] =              CSR_OP_RW(hmode, mtinst),
-
-#ifdef TARGET_CHERI
-    // CHERI CSRs: For now we always report enabled and dirty and don't support
-    // turning off CHERI.  sccsr contains global capability load generation bits
-    // that can be written, but the other two are constant.
-    [CSR_UCCSR] =               CSR_OP_FN_RW(umode, read_ccsr, write_ccsr, "uccsr"),
-    [CSR_SCCSR] =               CSR_OP_FN_RW(smode, read_ccsr, write_ccsr, "sccsr"),
-    [CSR_MCCSR] =               CSR_OP_FN_RW(any, read_ccsr, write_ccsr, "mccsr"),
-#endif
 
     [CSR_SENVCFG] =             CSR_OP_RW(any, senvcfg),
     [CSR_MENVCFG] =             CSR_OP_RW(any, menvcfg),
