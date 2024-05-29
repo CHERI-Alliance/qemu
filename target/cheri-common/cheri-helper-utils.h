@@ -219,7 +219,6 @@ static inline void cheri_update_pcc_for_exc_return(cap_register_t *pcc,
 
 static inline const char* cheri_cause_str(CheriCapExcCause cause) {
     switch (cause) {
-    case CapEx_None: return "None";
     case CapEx_LengthViolation: return "Length Violation";
     case CapEx_TagViolation: return "Tag Violation";
     case CapEx_SealViolation: return "Seal Violation";
@@ -233,6 +232,9 @@ static inline const char* cheri_cause_str(CheriCapExcCause cause) {
     case CapEx_UnalignedBase: return "Unaligned Base";
     case CapEx_CapLoadGen: return "Cap Load Gen Mismatch";
     case CapEx_GlobalViolation: return "Global Violation";
+    case CapEx_AccessCCallIDCViolation: return "IDC used in CCall delay slot";
+#ifndef TARGET_RISCV
+    case CapEx_None: return "None";
     case CapEx_PermitExecuteViolation: return "Permit_Execute Violation";
     case CapEx_PermitLoadViolation: return "Permit_Load Violation";
     case CapEx_PermitStoreViolation: return "Permit_Store Violation";
@@ -241,10 +243,10 @@ static inline const char* cheri_cause_str(CheriCapExcCause cause) {
     case CapEx_PermitStoreLocalCapViolation: return "Permit_Store_Local_Capability Violation";
     case CapEx_PermitSealViolation: return "Permit_Seal Violation";
     case CapEx_AccessSystemRegsViolation: return "Access_System_Registers Violation";
-    case CapEx_AccessCCallIDCViolation: return "IDC used in CCall delay slot";
     case CapEx_PermitCCallViolation: return "Permit_CCall Violation";
     case CapEx_PermitUnsealViolation: return "Permit_Unseal Violation";
     case CapEx_PermitSetCIDViolation: return "Permit_SetCID Violation";
+#endif
     }
     // default: return "Unknown cause";
     __builtin_unreachable();
