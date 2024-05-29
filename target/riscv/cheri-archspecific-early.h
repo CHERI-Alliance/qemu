@@ -44,37 +44,46 @@
 #define CAP_TAG_GET_MANY_SHFT 2
 #endif
 
-/* Table 3.3: Capability Exception Codes */
+/* Capability Exception Codes */
 typedef enum CheriCapExc {
-    CapEx_None                          = 0x0,
-    CapEx_LengthViolation               = 0x1,
-    CapEx_TagViolation                  = 0x2,
-    CapEx_SealViolation                 = 0x3,
-    CapEx_TypeViolation                 = 0x4,
-    CapEx_CallTrap                      = 0x5,
-    CapEx_ReturnTrap                    = 0x6,
-    CapEx_TSSUnderFlow                  = 0x7,
-    CapEx_UserDefViolation              = 0x8,
-    CapEx_TLBNoStoreCap                 = 0x9,
-    CapEx_InexactBounds                 = 0xA,
-    CapEx_UnalignedBase                 = 0xB,
-    CapEx_CapLoadGen                    = 0xC,
+    CapEx_TagViolation                  = 0x0,
+    CapEx_SealViolation                 = 0x1,
+    CapEx_PermissionViolation           = 0x2,
+    CapEx_LengthViolation               = 0x3,
+    // Other types need to map to the ones above
+    CapEx_TypeViolation                 = 0x4,  // This should go away as we do not have type
+    CapEx_CallTrap                      = 0x5,  // not used
+    CapEx_ReturnTrap                    = 0x6,  // not used
+    CapEx_TSSUnderFlow                  = 0x7,  // not used
+    CapEx_UserDefViolation              = 0x8,  // looks to be permissions
+    CapEx_TLBNoStoreCap                 = 0x9,  // not used 
+    CapEx_InexactBounds                 = 0xA,  // should not be used as we would clear tags instead
+    CapEx_UnalignedBase                 = 0xB,  // possibly not used on riscv
+    CapEx_CapLoadGen                    = 0xC,  // not used
     // 0xd - 0xf reserved
-    CapEx_GlobalViolation               = 0x10,
-    CapEx_PermitExecuteViolation        = 0x11,
-    CapEx_PermitLoadViolation           = 0x12,
-    CapEx_PermitStoreViolation          = 0x13,
-    CapEx_PermitLoadCapViolation        = 0x14,
-    CapEx_PermitStoreCapViolation       = 0x15,
-    CapEx_PermitStoreLocalCapViolation  = 0x16,
-    CapEx_PermitSealViolation           = 0x17,
-    CapEx_AccessSystemRegsViolation     = 0x18,
-    CapEx_PermitCCallViolation          = 0x19,
-    CapEx_AccessCCallIDCViolation       = 0x1A,
-    CapEx_PermitUnsealViolation         = 0x1B,
-    CapEx_PermitSetCIDViolation         = 0x1C,
+    CapEx_GlobalViolation               = CapEx_PermissionViolation,
+    CapEx_PermitExecuteViolation        = CapEx_PermissionViolation,
+    CapEx_PermitLoadViolation           = CapEx_PermissionViolation,
+    CapEx_PermitStoreViolation          = CapEx_PermissionViolation,
+    CapEx_PermitLoadCapViolation        = CapEx_PermissionViolation,
+    CapEx_PermitStoreCapViolation       = CapEx_PermissionViolation,
+    CapEx_PermitStoreLocalCapViolation  = CapEx_PermissionViolation,
+    CapEx_PermitSealViolation           = CapEx_PermissionViolation,
+    CapEx_AccessSystemRegsViolation     = CapEx_PermissionViolation,
+    CapEx_PermitCCallViolation          = CapEx_PermissionViolation,
+    CapEx_AccessCCallIDCViolation       = 0x1A, // not used
+    CapEx_PermitUnsealViolation         = CapEx_PermissionViolation,
+    CapEx_PermitSetCIDViolation         = CapEx_PermissionViolation,
     // 0x1d - 0x1f reserved
 } CheriCapExcCause;
+
+typedef enum _CheriCapExcType_ {
+    CapExType_InstrAccess               = 0x0,
+    CapExType_Data                      = 0x1,
+    CapExType_Branch                    = 0x2,
+    // 0x3->0xf Reserved
+} CheriCapExcType;
+
 
 enum CheriSCR {
     CheriSCR_PCC = 0,
