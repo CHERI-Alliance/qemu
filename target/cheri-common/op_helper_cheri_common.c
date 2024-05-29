@@ -434,7 +434,7 @@ void cheri_jump_and_link_checked(CPUArchState *env, uint32_t link_reg,
     /* Morello takes the exception at the target. */
 #if !CHERI_CONTROLFLOW_CHECK_AT_TARGET
     if (!target->cr_tag) {
-        raise_cheri_exception(env, CapEx_TagViolation, target_reg);
+        raise_cheri_exception_branch(env, CapEx_TagViolation, target_reg);
     } else if (cap_is_sealed_with_type(target) ||
                (!cap_is_unsealed(target) &&
                 target_addr != cap_get_cursor(target))) {
@@ -442,9 +442,10 @@ void cheri_jump_and_link_checked(CPUArchState *env, uint32_t link_reg,
          * Note: "sentry" caps can be called using cjalr, but only if the
          * immediate offset is 0, i.e. target_addr==target.address.
          */
-        raise_cheri_exception(env, CapEx_SealViolation, target_reg);
+        raise_cheri_exception_branch(env, CapEx_SealViolation, target_reg);
     } else if (!cap_has_perms(target, CAP_PERM_EXECUTE)) {
-        raise_cheri_exception(env, CapEx_PermitExecuteViolation, target_reg);
+        raise_cheri_exception_branch(env, CapEx_PermitExecuteViolation,
+                                     target_reg);
     } else if (!validate_jump_target(env, target, target_addr, target_reg,
                                      _host_return_address)) {
         assert(false && "Should have raised an exception");
@@ -481,27 +482,32 @@ void CHERI_HELPER_IMPL(cinvoke(CPUArchState *env, uint32_t code_regnum,
      * CInvoke: Call into a new security domain (with matching otypes)
      */
     if (!code_cap->cr_tag) {
-        raise_cheri_exception(env, CapEx_TagViolation, code_regnum);
+        raise_cheri_exception_branch(env, CapEx_TagViolation, code_regnum);
     } else if (!data_cap->cr_tag) {
-        raise_cheri_exception(env, CapEx_TagViolation, data_regnum);
+        raise_cheri_exception_branch(env, CapEx_TagViolation, data_regnum);
     } else if (!cap_is_sealed_with_type(code_cap)) {
-        raise_cheri_exception(env, CapEx_SealViolation, code_regnum);
+        raise_cheri_exception_branch(env, CapEx_SealViolation, code_regnum);
     } else if (!cap_is_sealed_with_type(data_cap)) {
-        raise_cheri_exception(env, CapEx_SealViolation, data_regnum);
-    } else if (cap_get_otype_unsigned(code_cap) != cap_get_otype_unsigned(data_cap) ||
+        raise_cheri_exception_branch(env, CapEx_SealViolation, data_regnum);
+    } else if (cap_get_otype_unsigned(code_cap) !=
+                   cap_get_otype_unsigned(data_cap) ||
                !cap_is_sealed_with_type(code_cap)) {
-        raise_cheri_exception(env, CapEx_TypeViolation, code_regnum);
+        raise_cheri_exception_branch(env, CapEx_TypeViolation, code_regnum);
     } else if (!cap_has_perms(code_cap, CAP_PERM_CINVOKE)) {
-        raise_cheri_exception(env, CapEx_PermitCCallViolation, code_regnum);
+        raise_cheri_exception_branch(env, CapEx_PermitCCallViolation,
+                                     code_regnum);
     } else if (!cap_has_perms(data_cap, CAP_PERM_CINVOKE)) {
-        raise_cheri_exception(env, CapEx_PermitCCallViolation, data_regnum);
+        raise_cheri_exception_branch(env, CapEx_PermitCCallViolation,
+                                     data_regnum);
     } else if (!cap_has_perms(code_cap, CAP_PERM_EXECUTE)) {
-        raise_cheri_exception(env, CapEx_PermitExecuteViolation, code_regnum);
+        raise_cheri_exception_branch(env, CapEx_PermitExecuteViolation,
+                                     code_regnum);
     } else if (cap_has_perms(data_cap, CAP_PERM_EXECUTE)) {
-        raise_cheri_exception(env, CapEx_PermitExecuteViolation, data_regnum);
+        raise_cheri_exception_branch(env, CapEx_PermitExecuteViolation,
+                                     data_regnum);
     } else if (!validate_jump_target(env, code_cap, cap_get_cursor(code_cap),
                                      code_regnum, _host_return_address)) {
-        raise_cheri_exception(env, CapEx_LengthViolation, code_regnum);
+        raise_cheri_exception_branch(env, CapEx_LengthViolation, code_regnum);
     } else {
         // Unseal code and data cap now that the checks have succeeded.
         cap_register_t idc = *data_cap;

@@ -76,6 +76,27 @@ typedef enum CheriCapExc {
     // 0x1d - 0x1f reserved
 } CheriCapExcCause;
 
+#ifdef TARGET_CHERI_RISCV_STD_093
+/* Cheri standard 0.9.3 Exception Types */
+typedef enum {
+    CapEx093_Type_InstrAccess = 0x0,
+    CapEx093_Type_Data = 0x1,
+    CapEx093_Type_Branch = 0x2,
+    CapEx093_Type_Last = CapEx093_Type_Branch,
+    CapEx093_Type_None = 0xff,
+} Cheri093CapExcType;
+
+typedef enum {
+    CapEx093_TagViolation = 0x0,
+    CapEx093_SealViolation = 0x1,
+    CapEx093_PermissionViolation = 0x2,
+    CapEx093_InvalidAddressViolation = 0x3,
+    CapEx093_BoundsViolation = 0x4,
+    CapEx093_Last = CapEx093_BoundsViolation,
+    CapEx093_None = 0xff,
+} Cheri093CapExcCause;
+#endif
+
 enum CheriSCR {
     CheriSCR_PCC = 0,
     CheriSCR_DDC = 1,
