@@ -254,6 +254,18 @@ static inline const char* cheri_cause_str(CheriCapExcCause cause) {
     abort();
 }
 
+static inline const char* cheri_type_str(CheriCapExcType type) {
+    switch (type) {
+    case CapExType_Branch: return "Branch Violation";
+    case CapExType_InstrAccess: return "Access Violation";
+    case CapExType_Data: return "Data Violation";
+    }
+    // default: return "Unknown cause";
+    __builtin_unreachable();
+    abort();
+}
+
+
 void store_cap_to_memory(CPUArchState *env, uint32_t cs, target_ulong vaddr,
                          uintptr_t retpc);
 void store_cap_to_memory_mmu_index(CPUArchState *env, uint32_t cs,
