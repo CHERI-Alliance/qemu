@@ -203,6 +203,15 @@ typedef enum CheriTbFlags {
     TB_FLAG_CHERI_SPARE_INDEX_START = 16,
 } CheriTbFlags;
 
+/* Cheri Exception Types */
+typedef enum _CheriCapExcType_ {
+    CapExType_InstrAccess               = 0x0,
+    CapExType_Data                      = 0x1,
+    CapExType_Branch                    = 0x2,
+    // 0x3->0xf Reserved
+} CheriCapExcType;
+
+
 #else // !TARGET_CHERI
 
 #define ASSERT_IF_CHERI()

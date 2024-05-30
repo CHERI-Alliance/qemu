@@ -605,25 +605,26 @@ int gdb_get_capreg(GByteArray *buf, const cap_register_t *cap);
 int gdb_get_general_purpose_capreg(GByteArray *buf, CPUArchState *env,
                                    unsigned regnum);
 
-#define raise_cheri_exception(env, cause, reg)                                 \
-    raise_cheri_exception_impl(env, cause, reg, 0, true, _host_return_address)
+#define raise_cheri_exception(env, cause, type, reg)                           \
+    raise_cheri_exception_impl(env, cause, type, reg, 0, true,                 \
+                               _host_return_address)
 
-#define raise_cheri_exception_addr(env, cause, reg, addr)                      \
-    raise_cheri_exception_impl(env, cause, reg, addr, true,                    \
+#define raise_cheri_exception_addr(env, cause, type, reg, addr)                \
+    raise_cheri_exception_impl(env, cause, type, reg, addr, true,              \
                                _host_return_address)
 
 #ifdef TARGET_AARCH64
-#define raise_cheri_exception_if(env, cause, addr, reg)                        \
-    raise_cheri_exception_impl_if_wnr(env, cause, reg, addr, true, /*pc=*/0,   \
-                                      true, false)
-#define raise_cheri_exception_addr_wnr(env, cause, reg, addr, is_write)        \
-    raise_cheri_exception_impl_if_wnr(env, cause, reg, addr, true,             \
+#define raise_cheri_exception_if(env, cause, type, addr, reg)                  \
+    raise_cheri_exception_impl_if_wnr(env, cause, type, reg, addr, true,       \
+                                      /*pc=*/0, true, false)
+#define raise_cheri_exception_addr_wnr(env, cause, type, reg, addr, is_write)  \
+    raise_cheri_exception_impl_if_wnr(env, cause, type, reg, addr, true,       \
                                       _host_return_address, false, is_write)
 #else
-#define raise_cheri_exception_if(env, cause, addr, reg)                        \
-    raise_cheri_exception_impl(env, cause, reg, addr, true, /*pc=*/0)
-#define raise_cheri_exception_addr_wnr(env, cause, reg, addr, is_write)        \
-    raise_cheri_exception_addr(env, cause, reg, addr)
+#define raise_cheri_exception_if(env, cause, type, addr, reg)                  \
+    raise_cheri_exception_impl(env, cause, type, reg, addr, true, /*pc=*/0)
+#define raise_cheri_exception_addr_wnr(env, cause, type, reg, addr, is_write)  \
+    raise_cheri_exception_addr(env, cause, type, reg, addr)
 #endif
 
 static inline void cap_set_cursor(cap_register_t *cap, uint64_t new_addr)
