@@ -77,14 +77,6 @@ typedef enum CheriCapExc {
     // 0x1d - 0x1f reserved
 } CheriCapExcCause;
 
-typedef enum _CheriCapExcType_ {
-    CapExType_InstrAccess               = 0x0,
-    CapExType_Data                      = 0x1,
-    CapExType_Branch                    = 0x2,
-    // 0x3->0xf Reserved
-} CheriCapExcType;
-
-
 enum CheriSCR {
     CheriSCR_PCC = 0,
     CheriSCR_DDC = 1,

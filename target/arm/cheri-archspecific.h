@@ -86,7 +86,8 @@ static inline ARMFaultType cheri_cause_to_arm_fault(CheriCapExcCause cause)
 }
 
 static inline void QEMU_NORETURN raise_cheri_exception_impl_if_wnr(
-    CPUArchState *env, CheriCapExcCause cause, unsigned regnum,
+    CPUArchState *env, CheriCapExcCause cause,
+    __attribute__((unused)) CheriCapExcType type, unsigned regnum,
     target_ulong addr, bool instavail, uintptr_t hostpc, bool instruction_fetch,
     bool is_write)
 {
@@ -124,10 +125,11 @@ static inline void QEMU_NORETURN raise_cheri_exception_impl_if_wnr(
 }
 
 static inline void QEMU_NORETURN raise_cheri_exception_impl(
-    CPUArchState *env, CheriCapExcCause cause, unsigned regnum,
+    CPUArchState *env, CheriCapExcCause cause,
+    __attribute__((unused)) CheriCapExcType type, unsigned regnum,
     target_ulong addr, bool instavail, uintptr_t hostpc)
 {
-    raise_cheri_exception_impl_if_wnr(env, cause, regnum, addr, instavail,
+    raise_cheri_exception_impl_if_wnr(env, cause, type, regnum, addr, instavail,
                                       hostpc, false, false);
 }
 
@@ -136,8 +138,8 @@ static inline void QEMU_NORETURN raise_load_tag_exception(CPUArchState *env,
                                                           int cb,
                                                           uintptr_t retpc)
 {
-    raise_cheri_exception_impl_if_wnr(env, CapEx_TLBNoStoreCap, cb, va, false,
-                                      retpc, false, false);
+    raise_cheri_exception_impl_if_wnr(env, CapEx_TLBNoStoreCap, CapExType_Data,
+                                      cb, va, false, retpc, false, false);
 }
 
 static inline void QEMU_NORETURN raise_store_tag_exception(CPUArchState *env,
@@ -145,8 +147,8 @@ static inline void QEMU_NORETURN raise_store_tag_exception(CPUArchState *env,
                                                            int reg,
                                                            uintptr_t retpc)
 {
-    raise_cheri_exception_impl_if_wnr(env, CapEx_TLBNoStoreCap, reg, va, false,
-                                      retpc, false, true);
+    raise_cheri_exception_impl_if_wnr(env, CapEx_TLBNoStoreCap, CapExType_Data,
+                                      reg, va, false, retpc, false, true);
 }
 
 static inline void QEMU_NORETURN raise_unaligned_load_exception(

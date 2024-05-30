@@ -2142,7 +2142,8 @@ RISCVException riscv_csrrw(CPURISCVState *env, int csrno, target_ulong *ret_valu
             return RISCV_EXCP_INST_ACCESS_FAULT;
         }
         raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
-                                   /*regnum=*/0, 0, true, retpc);
+                                   CapExType_InstrAccess, /*regnum=*/0, 0, true,
+                                   retpc);
 #endif
     }
 #endif // TARGET_CHERI
