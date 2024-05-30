@@ -165,7 +165,8 @@ struct CPURISCVState {
     // least significant bits are used to index the special purpose capability
     // register file described in Table 5.3, otherwise, they index the
     // general-purpose capability register file.
-    uint8_t last_cap_index;  // Used to populate xtval
+    uint8_t last_cap_index;  // formerly used for populate xtval, now just info
+    uint8_t last_cap_type;  // Used to populate xtval
 #endif
 
 #ifdef CONFIG_USER_ONLY
