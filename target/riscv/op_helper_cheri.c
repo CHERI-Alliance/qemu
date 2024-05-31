@@ -261,9 +261,11 @@ void HELPER(auipcc)(CPUArchState *env, uint32_t cd, target_ulong new_cursor)
 void HELPER(cjal)(CPUArchState *env, uint32_t cd, target_ulong target_addr,
                   target_ulong link_addr)
 {
-    cheri_jump_and_link_checked(env, cd, link_addr, CHERI_EXC_REGNUM_PCC,
-                                cheri_get_recent_pcc(env), target_addr,
-                                0, GETPC());
+    // cjal should not perform full checking other than to check the target
+    // is in bounds.
+    const cap_register_t *pcc = cheri_get_recent_pcc(env);
+    validate_jump_target(env, pcc, target_addr, cd, link_addr);
+    cheri_jump_and_link(env, pcc, target_addr, cd, link_addr, 0);
 }
 
 void HELPER(modesw)(CPUArchState *env, int to_capmode)
