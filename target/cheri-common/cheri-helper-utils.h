@@ -223,7 +223,6 @@ static inline const char* cheri_cause_str(CheriCapExcCause cause) {
     case CapEx_LengthViolation: return "Length Violation";
     case CapEx_TagViolation: return "Tag Violation";
     case CapEx_SealViolation: return "Seal Violation";
-    case CapEx_TypeViolation: return "Type Violation";
     case CapEx_CallTrap: return "Call Trap";
     case CapEx_ReturnTrap: return "Return Trap";
     case CapEx_TSSUnderFlow: return "Underflow of Trusted System Stack";
@@ -235,6 +234,7 @@ static inline const char* cheri_cause_str(CheriCapExcCause cause) {
     case CapEx_GlobalViolation: return "Global Violation";
     case CapEx_AccessCCallIDCViolation: return "IDC used in CCall delay slot";
 #ifndef TARGET_RISCV
+    case CapEx_TypeViolation: return "Type Violation";
     case CapEx_None: return "None";
     case CapEx_PermitExecuteViolation: return "Permit_Execute Violation";
     case CapEx_PermitLoadViolation: return "Permit_Load Violation";
