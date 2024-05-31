@@ -99,12 +99,12 @@ static inline bool validate_jump_target(CPUArchState *env,
 {
     target_ulong base = cap_get_base(cap);
     unsigned min_insn_size = riscv_has_ext(env, RVC) ? 2 : 4;
-    if (!cap_is_in_bounds(cap, addr, min_insn_size)) {
-        raise_cheri_exception_impl(env, CapEx_LengthViolation, CapExType_Branch,
+    if (!QEMU_IS_ALIGNED(base, min_insn_size)) {
+        raise_cheri_exception_impl(env, CapEx_AddressViolation, CapExType_Branch,
                                    regnum, addr, true, retpc);
     }
-    if (!QEMU_IS_ALIGNED(base, min_insn_size)) {
-        raise_cheri_exception_impl(env, CapEx_UnalignedBase, CapExType_Branch,
+    if (!cap_is_in_bounds(cap, addr, min_insn_size)) {
+        raise_cheri_exception_impl(env, CapEx_LengthViolation, CapExType_Branch,
                                    regnum, addr, true, retpc);
     }
     // XXX: Sail only checks bit 1 why not also bit zero? Is it because that is
