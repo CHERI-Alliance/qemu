@@ -1458,8 +1458,8 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         COPY_SPECIAL_REG(env, mepc, MEPCC, pc, PCC);       
         riscv_log_instr_csr_changed(env, CSR_MEPC);
 
-        env->mbadaddr = tval;
-        riscv_log_instr_csr_changed(env, CSR_MBADADDR);
+        env->mtval = tval;
+        riscv_log_instr_csr_changed(env, CSR_MTVAL);
         env->mtval2 = mtval2;
         riscv_log_instr_csr_changed(env, CSR_MTVAL2);
 

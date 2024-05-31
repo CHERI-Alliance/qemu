@@ -755,15 +755,15 @@ static int write_mcause(CPURISCVState *env, int csrno, target_ulong val)
     return 0;
 }
 
-static int read_mbadaddr(CPURISCVState *env, int csrno, target_ulong *val)
+static int read_mtval(CPURISCVState *env, int csrno, target_ulong *val)
 {
-    *val = env->mbadaddr;
+    *val = env->mtval;
     return 0;
 }
 
-static int write_mbadaddr(CPURISCVState *env, int csrno, target_ulong val)
+static int write_mtval(CPURISCVState *env, int csrno, target_ulong val)
 {
-    env->mbadaddr = val;
+    env->mtval = val;
     return 0;
 }
 
@@ -1909,7 +1909,7 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_MSCRATCH] =            CSR_OP_RW(any, mscratch),
     [CSR_MEPC] =                CSR_OP_RW(any, mepc),
     [CSR_MCAUSE] =              CSR_OP_RW(any, mcause),
-    [CSR_MBADADDR] =            CSR_OP_RW(any, mbadaddr),
+    [CSR_MTVAL] =            CSR_OP_RW(any, mtval),
     [CSR_MIP] =                 CSR_OP_RMW(any, mip),
 
     /* Supervisor Trap Setup */

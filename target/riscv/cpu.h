@@ -192,7 +192,6 @@ struct CPURISCVState {
     target_ulong sptbr;  /* until: priv-1.9.1 */
     target_ulong satp;   /* since: priv-1.10.0 */
     target_ulong sbadaddr;
-    target_ulong mbadaddr;
     target_ulong medeleg;
 
 #if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
