@@ -201,6 +201,7 @@ const VMStateDescription vmstate_riscv_cpu = {
         VMSTATE_UINTTL(env.mideleg, RISCVCPU),
         VMSTATE_UINTTL(env.satp, RISCVCPU),
         VMSTATE_UINTTL(env.stval, RISCVCPU),
+        VMSTATE_UINTTL(env.mtval, RISCVCPU),
         VMSTATE_UINTTL(env.medeleg, RISCVCPU),
         VMSTATE_UINTTL_OR_CAP(env.stvec, env.STVECC, RISCVCPU),
         VMSTATE_UINTTL_OR_CAP(env.sepc, env.sepcc, RISCVCPU),
