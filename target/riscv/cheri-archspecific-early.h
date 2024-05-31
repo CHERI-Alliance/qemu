@@ -51,7 +51,6 @@ typedef enum CheriCapExc {
     CapEx_PermissionViolation           = 0x2,
     CapEx_LengthViolation               = 0x3,
     // Other types need to map to the ones above
-    CapEx_TypeViolation                 = 0x4,  // This should go away as we do not have type
     CapEx_CallTrap                      = 0x5,  // not used
     CapEx_ReturnTrap                    = 0x6,  // not used
     CapEx_TSSUnderFlow                  = 0x7,  // not used
