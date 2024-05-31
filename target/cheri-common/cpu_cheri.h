@@ -98,7 +98,18 @@ static inline void cheri_update_pcc(cap_register_t *pcc, target_ulong pc_addr,
     pcc->_cr_cursor = pc_addr;
 }
 
-static inline bool cheri_in_capmode(CPUArchState *env) {
+static inline bool cheri_in_capmode(CPUArchState *env)
+{
+#ifdef TARGET_RISCV
+    /*
+     * For risc-v, we support only cheri bakewell. Capability pointer mode
+     * requires that both CRE for the current cpu mode and the M bit be set.
+     * If one of them isn't set, we're in integer pointer mode.
+     */
+    if (!riscv_cpu_mode_cre(env))
+        return false;
+#endif
+
     // Note: No need to synchronize the PCC.cursor value from TCG since
     // Every change to capmode will exit the current translation block.
     return cap_get_capmode(cheri_get_recent_pcc(env));
