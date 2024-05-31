@@ -649,6 +649,10 @@ void riscv_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
 char *riscv_isa_string(RISCVCPU *cpu);
 void riscv_cpu_list(void);
 
+#ifdef TARGET_CHERI
+static inline bool riscv_cpu_mode_cre(CPURISCVState *env);
+#endif
+
 #define cpu_list riscv_cpu_list
 #define cpu_mmu_index riscv_cpu_mmu_index
 
@@ -860,5 +864,35 @@ typedef struct {
 riscv_csr_cap_ops* get_csr_cap_info(int csrnum);
 #endif
 
+#ifdef TARGET_CHERI
+/* Do the CRE bits allow cheri access in the current CPU mode? */
+static inline bool riscv_cpu_mode_cre(CPURISCVState *env)
+{
+    if (env->mseccfg & MSECCFG_CRE) {
+        /* CRE bits allow cheri in M mode */
+        if (env->priv == PRV_M)
+            return true;
+
+        if (env->menvcfg & MENVCFG_CRE) {
+            /* CRE bits allow cheri in S mode (and in M mode) */
+            if (env->priv == PRV_S)
+                return true;
+
+            if (env->senvcfg & SENVCFG_CRE) {
+                /* CRE bits allow cheri in U mode (and in M, S modes) */
+                if (env->priv == PRV_U)
+                    return true;
+            }
+        }
+    }
+
+    /*
+     * For now, we do not support the hypervisor extension. It'll probably
+     * have another CRE bit for H mode.
+     */
+
+    return false;
+}
+#endif
 
 #endif /* RISCV_CPU_H */
