@@ -397,11 +397,12 @@ void HELPER(cjal)(CPUArchState *env, uint32_t cd, target_ulong target_addr,
 
 void HELPER(modesw)(CPUArchState *env, int to_capmode)
 {
+#if CAP_CC(FIELD_FLAGS_USED) == 1
     _Static_assert(CAP_FLAGS_ALL_BITS == 1, "Only one flag should exist");
+#endif
     assert(cheri_in_capmode(env) != to_capmode &&
            "Should have skipped this call during translate");
-    CAP_cc(update_flags)(&env->pcc,
-                         to_capmode ? CHERI_FLAG_CAPMODE : CHERI_FLAG_INTMODE);
+    cap_set_capmode(&env->pcc, to_capmode);
 }
 
 void HELPER(amoswap_cap)(CPUArchState *env, uint32_t dest_reg,
