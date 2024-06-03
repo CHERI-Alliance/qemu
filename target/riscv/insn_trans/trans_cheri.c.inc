@@ -558,6 +558,16 @@ static inline bool trans_amoswap_c(DisasContext *ctx, arg_amoswap_c *a)
     return true;
 }
 
+
+static inline bool trans_modesw(DisasContext *ctx, arg_modesw *a)
+{
+    gen_helper_modesw(cpu_env);
+    gen_update_cpu_pc(ctx->pc_succ_insn);
+    exit_tb(ctx);
+    ctx->base.is_jmp = DISAS_NORETURN;
+    return true;
+}
+
 // Explicit CAP/DDC atomic ops (no unsigned versions):
 // Reuses gen_lr_impl, defined in trans_rva.c.inc
 static inline bool gen_lr_impl(DisasContext *ctx, TCGv_cap_checked_ptr addr,

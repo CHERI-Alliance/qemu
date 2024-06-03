@@ -408,6 +408,13 @@ void HELPER(cjal)(CPUArchState *env, uint32_t cd, target_ulong target_addr,
                                 0, GETPC());
 }
 
+void HELPER(modesw)(CPUArchState *env)
+{
+    uint8_t is_capmode = cap_get_capmode(&env->PCC);
+    is_capmode = is_capmode ^ 1;
+    cap_set_capmode(&env->PCC,is_capmode);
+}
+
 void HELPER(amoswap_cap)(CPUArchState *env, uint32_t dest_reg,
                          uint32_t addr_reg, uint32_t val_reg)
 {

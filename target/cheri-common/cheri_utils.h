@@ -100,6 +100,28 @@ static inline uint8_t cap_get_flags(const cap_register_t *c)
     return CAP_cc(get_flags)(c);
 }
 
+static inline uint8_t cap_get_capmode(const cap_register_t *c)
+{
+#if CAP_CC(FIELD_FLAGS_USED) == 1
+    return CAP_cc(get_flags)(c);
+#else
+    CAP_cc(ap_decompress)((cap_register_t *)c);
+    return c->cr_arch_perm & CAP_AP_M;
+#endif
+}
+
+static inline void cap_set_capmode(cap_register_t *c, uint8_t mode)
+{
+#if CAP_CC(FIELD_FLAGS_USED) == 1
+    CAP_cc(update_flags)(c, mode);
+#else
+    CAP_cc(ap_decompress)((cap_register_t *)c);
+    c->cr_arch_perm  = (c->cr_arch_perm & ~CAP_AP_M) | (mode * CAP_AP_M) ;
+    CAP_cc(ap_compress)((cap_register_t *)c);
+#endif
+}
+
+
 static inline bool cap_has_reserved_bits_set(const cap_register_t *c)
 {
     return CAP_cc(get_reserved)(c) != 0;
