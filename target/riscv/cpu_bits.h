@@ -691,4 +691,16 @@ typedef enum RISCVException {
 #define UMTE_U_PM_INSN      U_PM_INSN
 #define UMTE_MASK     (UMTE_U_PM_ENABLE | MMTE_U_PM_CURRENT | UMTE_U_PM_INSN)
 
+
+/*
+ * The CRE bits are used only if cheri is enabled. Together with the M bit,
+ * they define if the system operates in integer or capability pointer mode.
+ *
+ * The size of the corresponding CSRs depends on (M)XLEN. As the CRE bits are
+ * always in the lower 32 bits, the definitions don't have to take this into
+ * account.
+ */
+#define MSECCFG_CRE                        (1 << 3)
+#define MENVCFG_CRE                        (1 << 28)
+#define SENVCFG_CRE                        (1 << 28)
 #endif
