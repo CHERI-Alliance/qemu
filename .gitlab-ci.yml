@@ -25,7 +25,7 @@ include:
 variables:
   BUILD_DIR: $CI_PROJECT_DIR/build
   INSTALL_DIR: $CI_PROJECT_DIR/install
-  PACKAGE_NAME: "qemu_cheri.tar.gz"
+  PACKAGE_NAME: "qemu-system-riscv64cheri"
 
 stages:
     - build
@@ -96,10 +96,10 @@ nightly_build:
     rules:
     - if: $CI_PIPELINE_SOURCE =="schedule"
     script:
-        - scripts/riscv_cheri/package $INSTALL_DIR $CI_PROJECT_DIR/$PACKAGE_NAME
+        - scripts/riscv_cheri/package $INSTALL_DIR
     artifacts:
         paths:
-        - $CI_PROJECT_DIR/$PACKAGE_NAME
+        - $INSTALL_DIR/bin/$PACKAGE_NAME
         expire_in: 1 week
 
 include:
