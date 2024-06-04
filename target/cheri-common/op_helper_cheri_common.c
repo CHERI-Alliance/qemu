@@ -1764,7 +1764,7 @@ target_ulong CHERI_HELPER_IMPL(gclen(CPUArchState *env, uint32_t cb))
 void CHERI_HELPER_IMPL(
         caddi(CPUArchState *env, uint32_t cd, uint32_t cs1, target_ulong val))
 {
-    return caddi_impl(env, cd, cs1, val, GETPC(), OOB_INFO(cadd));
+    caddi_impl(env, cd, cs1, val, GETPC(), OOB_INFO(cadd));
 }
 
 void CHERI_HELPER_IMPL(scaddr(CPUArchState *env, uint32_t cd, uint32_t cs1,
