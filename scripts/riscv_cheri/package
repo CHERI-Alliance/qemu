@@ -30,4 +30,3 @@ cd ${BUILD_DIR}
 ${REPO_DIR}/configure --target-list=${TARGET_LIST} ${QEMU_CONFIG}
 ninja ${NINJA_TARGET}
 ninja install
-tar -czf $2 $1
