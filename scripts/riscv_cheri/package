@@ -4,12 +4,11 @@
 set -e
 set -u
 set -o pipefail
-TARGET=riscv64cheri
-TARGET_LIST=${TARGET}-softmmu
-NINJA_TARGET=qemu-system-${TARGET}
+TARGET_LIST="riscv64cheri-softmmu,riscv32cheri-softmmu"
+NINJA_TARGETS="qemu-system-riscv64cheri qemu-system-riscv32cheri"
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 REPO_DIR=$(realpath ${SCRIPT_DIR}/../..)
-BUILD_DIR=${REPO_DIR}/build_${TARGET}
+BUILD_DIR=${REPO_DIR}/build
 
 QEMU_CONFIG="--disable-gtk \
     --audio-drv-list="" \
@@ -28,5 +27,5 @@ QEMU_CONFIG="--disable-gtk \
 mkdir -p ${BUILD_DIR} 
 cd ${BUILD_DIR}
 ${REPO_DIR}/configure --target-list=${TARGET_LIST} ${QEMU_CONFIG}
-ninja ${NINJA_TARGET}
+ninja ${NINJA_TARGETS}
 ninja install
