@@ -25,7 +25,8 @@ include:
 variables:
   BUILD_DIR: $CI_PROJECT_DIR/build
   INSTALL_DIR: $CI_PROJECT_DIR/install
-  PACKAGE_NAME: "qemu-system-riscv64cheri"
+  PACKAGE_NAME64: "qemu-system-riscv64cheri"
+  PACKAGE_NAME32: "qemu-system-riscv32cheri"
 
 stages:
     - build
@@ -99,7 +100,8 @@ nightly_build:
         - scripts/riscv_cheri/package $INSTALL_DIR
     artifacts:
         paths:
-        - $INSTALL_DIR/bin/$PACKAGE_NAME
+        - $INSTALL_DIR/bin/$PACKAGE_NAME32
+        - $INSTALL_DIR/bin/$PACKAGE_NAME64
         expire_in: 1 week
 
 include:
