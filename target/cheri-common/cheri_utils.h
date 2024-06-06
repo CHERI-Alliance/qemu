@@ -365,11 +365,17 @@ static inline bool cap_is_sealed_with_type(const cap_register_t *c)
     /*
      * Cheri bakewell has no concept of "sealed with a specific otype".
      *
-     * This function is called from cheri_jump_and_link_checked. Providing a
-     * bakewell dummy here is simpler than adding a v9/bakewell check to
-     * cheri_jump_and_link_checked.
+     * For bakewell, the only real user is cheri_jump_and_link_checked()
+     * else if (cap_is_sealed_with_type(target) || ...) {
+     *    ... throw "Seal Violation" exception
+     *
+     * If we defined cap_is_sealed_with_type to be equivalent to "capability
+     * is sealed", we'd get a seal violation exception for every jump that
+     * uses a sealed capability.
+     *
+     * Let's return false here and disable the special case in the check above.
      */
-    return !cap_is_unsealed(c);
+    return false;
 }
 
 static inline void cap_set_sealed(cap_register_t *c, uint32_t type)
