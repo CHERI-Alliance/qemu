@@ -220,20 +220,23 @@ static inline void cheri_update_pcc_for_exc_return(cap_register_t *pcc,
 
 static inline const char* cheri_cause_str(CheriCapExcCause cause) {
     switch (cause) {
-    case CapEx_LengthViolation: return "Length Violation";
     case CapEx_TagViolation: return "Tag Violation";
     case CapEx_SealViolation: return "Seal Violation";
+    case CapEx_LengthViolation: return "Length Violation";
+#ifdef TARGET_RISCV
+    case CapEx_PermissionViolation: return "Permission Violation";
+    case CapEx_AddressViolation: return "Address Violation";
+#else
+    case CapEx_GlobalViolation: return "Global Violation";
+    case CapEx_UserDefViolation: return "User-defined Permission Violation";
+    case CapEx_AccessCCallIDCViolation: return "IDC used in CCall delay slot";
+    case CapEx_UnalignedBase: return "Unaligned Base";
+    case CapEx_InexactBounds: return "Bounds Cannot Be Represented Exactly";
+    case CapEx_CapLoadGen: return "Cap Load Gen Mismatch";
+    case CapEx_TLBNoStoreCap: return "TLB prohibits Store Capability";
     case CapEx_CallTrap: return "Call Trap";
     case CapEx_ReturnTrap: return "Return Trap";
     case CapEx_TSSUnderFlow: return "Underflow of Trusted System Stack";
-    case CapEx_UserDefViolation: return "User-defined Permission Violation";
-    case CapEx_TLBNoStoreCap: return "TLB prohibits Store Capability";
-    case CapEx_InexactBounds: return "Bounds Cannot Be Represented Exactly";
-    case CapEx_UnalignedBase: return "Unaligned Base";
-    case CapEx_CapLoadGen: return "Cap Load Gen Mismatch";
-    case CapEx_GlobalViolation: return "Global Violation";
-    case CapEx_AccessCCallIDCViolation: return "IDC used in CCall delay slot";
-#ifndef TARGET_RISCV
     case CapEx_TypeViolation: return "Type Violation";
     case CapEx_None: return "None";
     case CapEx_PermitExecuteViolation: return "Permit_Execute Violation";
@@ -247,8 +250,6 @@ static inline const char* cheri_cause_str(CheriCapExcCause cause) {
     case CapEx_PermitCCallViolation: return "Permit_CCall Violation";
     case CapEx_PermitUnsealViolation: return "Permit_Unseal Violation";
     case CapEx_PermitSetCIDViolation: return "Permit_SetCID Violation";
-#else
-    case CapEx_AddressViolation: return "Address Violation";
 #endif
     }
     // default: return "Unknown cause";

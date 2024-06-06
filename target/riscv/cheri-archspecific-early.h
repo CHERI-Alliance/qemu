@@ -52,15 +52,10 @@ typedef enum CheriCapExc {
     CapEx_AddressViolation              = 0x3,
     CapEx_LengthViolation               = 0x4,
     // Other types need to map to the ones above
-    CapEx_CallTrap                      = 0x5,  // not used
-    CapEx_ReturnTrap                    = 0x6,  // not used
-    CapEx_TSSUnderFlow                  = 0x7,  // not used
-    CapEx_UserDefViolation              = 0x8,  // looks to be permissions
-    CapEx_TLBNoStoreCap                 = 0x9,  // not used 
-    CapEx_InexactBounds                 = 0xA,  // should not be used as we would clear tags instead
-    CapEx_UnalignedBase                 = 0xB,  // possibly not used on riscv
-    CapEx_CapLoadGen                    = 0xC,  // not used
     // 0xd - 0xf reserved
+    CapEx_UnalignedBase                 = CapEx_AddressViolation,  // possibly not used on riscv
+    CapEx_InexactBounds                 = CapEx_AddressViolation,  // should not be used as we would clear tags instead
+    CapEx_UserDefViolation              = CapEx_PermissionViolation,  // looks to be permissions only used by checkperm so not riscv
     CapEx_GlobalViolation               = CapEx_PermissionViolation,
     CapEx_PermitExecuteViolation        = CapEx_PermissionViolation,
     CapEx_PermitLoadViolation           = CapEx_PermissionViolation,
@@ -71,7 +66,7 @@ typedef enum CheriCapExc {
     CapEx_PermitSealViolation           = CapEx_PermissionViolation,
     CapEx_AccessSystemRegsViolation     = CapEx_PermissionViolation,
     CapEx_PermitCCallViolation          = CapEx_PermissionViolation,
-    CapEx_AccessCCallIDCViolation       = 0x1A, // not used
+    CapEx_AccessCCallIDCViolation       = CapEx_PermissionViolation, // not used
     CapEx_PermitUnsealViolation         = CapEx_PermissionViolation,
     CapEx_PermitSetCIDViolation         = CapEx_PermissionViolation,
     // 0x1d - 0x1f reserved
