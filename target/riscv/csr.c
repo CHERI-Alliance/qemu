@@ -1859,7 +1859,8 @@ static void write_mtvecc(CPURISCVState *env, cap_register_t* src)
     }
 
     cap_set_cursor(src,new_tvec);
-    update_vec_reg(env, &env->MTVECC, "MTVECC", new_tvec);
+    update_vec_reg(env, src, "MTVECC", new_tvec);
+    env->MTVECC = *src;
 }
 
 static cap_register_t read_mtvecc(CPURISCVState *env)
@@ -1879,7 +1880,8 @@ static void write_stvecc(CPURISCVState *env, cap_register_t* src)
     }
 
     cap_set_cursor(src,new_tvec);
-    update_vec_reg(env, &env->STVECC, "STVECC", new_tvec);
+    update_vec_reg(env, src, "STVECC", new_tvec);
+    env->STVECC = *src;
 }
 
 static cap_register_t read_stvecc(CPURISCVState *env)
