@@ -730,10 +730,25 @@ static bool trans_cadd(DisasContext *ctx, arg_cadd *a)
 
         if (a->rs2 == 0) {
             /*
-             * For rs2 == x0, cs1 should be moved to cd. The tag should not be
-             * cleared if cs1 is tagged or sealed.
-             * TODO: Handle this special case here.
+             * cadd cd, cs1, x0 copies cs1 to cd. cd's tag is not cleared if
+             * cs1 is sealed.
+             * The copy can be done on the tcg layer without a helper.
              */
+
+            gen_ensure_cap_decompressed(ctx, a->cs1);
+            /*
+             * This copies the complete cap_register_t, including the
+             * compressed representation and the decompressed fields such as
+             * cr_arch_perm.
+             */
+            gen_move_cap(gp_register_offset(a->cd), gp_register_offset(a->cs1));
+
+#ifdef ENABLE_STATIC_CAP_OPTS
+#error "Review the cap register copy operation. " \
+       "Do we have to call disas_capreg_state_set?"
+#endif
+
+            return true;
         }
     }
 
