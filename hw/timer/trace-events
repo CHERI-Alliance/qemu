@@ -49,6 +49,12 @@ cmsdk_apb_dualtimer_read(uint64_t offset, uint64_t data, unsigned size) "CMSDK A
 cmsdk_apb_dualtimer_write(uint64_t offset, uint64_t data, unsigned size) "CMSDK APB dualtimer write: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u"
 cmsdk_apb_dualtimer_reset(void) "CMSDK APB dualtimer: reset"
 
+# codasip-timer.c
+codasip_timer_update(uint64_t alarm_ns) "Setting alarm to: %" PRIu64 " ns"
+codasip_timer_interrupt(uint64_t now_ns) "Interrupt (now_ns: %" PRIu64 ")"
+codasip_timer_read(uint64_t offset, unsigned size) "Read [0x%" PRIx64 "/%u]"
+codasip_timer_write(uint64_t offset, unsigned size, uint64_t val64) "Write [0x%" PRIx64 "/%u] <- %" PRIu64
+
 # npcm7xx_timer.c
 npcm7xx_timer_read(const char *id, uint64_t offset, uint64_t value) " %s offset: 0x%04" PRIx64 " value 0x%08" PRIx64
 npcm7xx_timer_write(const char *id, uint64_t offset, uint64_t value) "%s offset: 0x%04" PRIx64 " value 0x%08" PRIx64

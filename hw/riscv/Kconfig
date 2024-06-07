@@ -86,6 +86,7 @@ config HOBGOBLIN
     bool
     select SIFIVE_CLINT
     select SIFIVE_PLIC
+    select CODASIP_TIMER
     select XILINX_SPI
     select XILINX_AXI_GPIO
     select XILINX_ETHLITE
