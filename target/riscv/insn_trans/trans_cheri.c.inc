@@ -699,5 +699,6 @@ TRANSLATE_CAP_CAP_INT_HELPER(scaddr, csetaddr)
 TRANSLATE_CAP_CAP_INT_HELPER(scbnds, csetboundsexact)
 TRANSLATE_CAP_CAP_INT_HELPER(scbndsr, csetbounds)
 TRANSLATE_CAP_CAP_INT_HELPER(schi, csethigh)
+TRANSLATE_CAP_CAP_INT(scmode)
 
 TRANSLATE_INT_CAP_CAP_HELPER(sceq, cseqx)

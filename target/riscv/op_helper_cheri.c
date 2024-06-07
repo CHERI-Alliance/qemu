@@ -486,3 +486,19 @@ target_ulong HELPER(sc_c_cap)(CPUArchState *env, uint32_t addr_reg,
     target_ulong addr = get_capreg_cursor(env, addr_reg);
     return sc_c_impl(env, addr_reg, val_reg, addr, GETPC());
 }
+
+void HELPER(scmode)(CPUArchState *env, uint32_t cd, uint32_t cs1,
+                    target_ulong imm)
+{
+    cap_register_t result = *get_readonly_capreg(env, cs1);
+    if (result.cr_tag && !cap_is_unsealed(&result)) {
+        result.cr_tag = 0;
+    }
+    /* Mode is only updated if X is present and the permissions are valid. */
+    /* TODO: check for invalid permissions (on untagged caps) */
+    if (cap_has_perms(&result, CAP_PERM_EXECUTE)) {
+        CheriExecMode mode = imm & 1 ? CHERI_EXEC_INTMODE : CHERI_EXEC_CAPMODE;
+        cap_set_exec_mode(&result, mode);
+    }
+    update_capreg(env, cd, &result);
+}

@@ -72,6 +72,7 @@ DEF_HELPER_3(sc_c_modedep, tl, env, i32, i32)
 DEF_HELPER_3(sc_c_ddc, tl, env, i32, i32)
 DEF_HELPER_3(sc_c_cap, tl, env, i32, i32)
 DEF_HELPER_2(modesw, void, env, int)
+DEF_HELPER_4(scmode, void, env, i32, i32, tl)
 #endif
 
 #ifdef CONFIG_TCG_LOG_INSTR
