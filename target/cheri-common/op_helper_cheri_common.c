@@ -1908,3 +1908,36 @@ void CHERI_HELPER_IMPL(sentry(CPUArchState *env, uint32_t cd, uint32_t cs1))
     }
     update_capreg(env, cd, &result);
 }
+
+void CHERI_HELPER_IMPL(scmode(CPUArchState *env, uint32_t cd, uint32_t cs1,
+                                target_ulong rs2))
+{
+    const cap_register_t *csp = get_readonly_capreg(env, cs1);
+    cap_register_t result = *csp;
+
+    if (!cheri_in_capmode(env)) {
+        /* TODO: Illegal Instruction exception */
+        return;
+    }
+
+    if (cd == 0) {
+        /*
+         * If cd == c0, the result is discarded. The permission check / update
+         * has no side effects. We can exit straight away.
+         */
+        return;
+    }
+
+    /* "cd's tag is cleared if cs1 is sealed." */
+    if (!cap_is_unsealed(csp))
+        result.cr_tag = 0;
+
+    if (valid_ap(csp->cr_arch_perm) && (csp->cr_arch_perm & CAP_AP_X)) {
+        result.cr_arch_perm = (rs2 & 0b1) ?
+            (result.cr_arch_perm | CAP_AP_M) : (result.cr_arch_perm & ~CAP_AP_M);
+
+        CAP_cc(ap_compress)(&result);
+    }
+
+    update_capreg(env, cd, &result);
+}
