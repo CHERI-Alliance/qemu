@@ -710,12 +710,22 @@ static bool trans_cadd(DisasContext *ctx, arg_cadd *a)
     TCGv_i32 source_regnum = tcg_const_i32(a->cs1);
     TCGv gpr_value;
 
-    if (a->rs2 == 0) {
-        /*
-         * For rs2 == x0, cs1 should be moved to cd. The tag should not be
-         * cleared if cs1 is tagged or sealed.
-         * TODO: Handle this special case here.
-         */
+    /*
+     * Handle the special cases here in tcg only if we're in capability
+     * pointer mode, i.e. if the cadd instruction is valid.
+     * If we're in integer pointer mode, we go into the helper and throw an
+     * exception.
+     * TODO: Update the check for capability pointer mode to take the CPU
+     * execution mode and the CRE bits into account (here and elsewhere).
+     */
+    if (ctx->capmode) {
+        if (a->rs2 == 0) {
+            /*
+             * For rs2 == x0, cs1 should be moved to cd. The tag should not be
+             * cleared if cs1 is tagged or sealed.
+             * TODO: Handle this special case here.
+             */
+        }
     }
 
     gpr_value = tcg_temp_new();
