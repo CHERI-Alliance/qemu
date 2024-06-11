@@ -410,6 +410,53 @@ static inline void cap_make_sealed_entry(cap_register_t *c)
 }
 #endif
 
+/*
+ * Check if cr_arch_perm contains a valid set of bakewell architectural
+ * permissions (AP). A set is valid if it could have been produced by acperm.
+ */
+static inline bool valid_ap(uint8_t cr_arch_perm)
+{
+    /* "ASR permission cannot be set without X permission" */
+    if ((cr_arch_perm & (CAP_AP_ASR | CAP_AP_X)) == CAP_AP_ASR) {
+        return false;
+    }
+    /*
+     * "C-permission cannot be set without at least one of R-permission or
+     * W-permission being set."
+     */
+    if ((cr_arch_perm & (CAP_AP_C | CAP_AP_R | CAP_AP_W)) == CAP_AP_C) {
+        return false;
+    }
+
+    /*
+     * We do not check that "M-bit cannot be set without X-permission being
+     * set". The handling of the M-bit depends on the specific instruction
+     * (M might be filtered out from cr_arch_perm, caller might have checked M,
+     * M might be updated based on X, ...)
+     */
+
+#if CAP_CC(ADDR_WIDTH) == 32
+    /* ASR requires that at least one other permission be set. */
+    if ((cr_arch_perm &
+          (CAP_AP_ASR | CAP_AP_C | CAP_AP_R | CAP_AP_W | CAP_AP_X)) == CAP_AP_ASR) {
+        return false;
+    }
+    /* If R is not set, C and X must not be set either. */
+    if (!(cr_arch_perm & CAP_AP_R)) {
+        if (cr_arch_perm & (CAP_AP_C | CAP_AP_X)) {
+            return false;
+        }
+    }
+    /* It's an error if X and R are set, but W and C aren't. */
+    if ((cr_arch_perm & (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X)) ==
+            (CAP_AP_X | CAP_AP_R)) {
+        return false;
+    }
+#endif
+
+    return true;
+}
+
 // Check if num_bytes bytes at addr can be read using capability c
 static inline bool cap_is_in_bounds(const cap_register_t *c, target_ulong addr,
                                     size_t num_bytes)
