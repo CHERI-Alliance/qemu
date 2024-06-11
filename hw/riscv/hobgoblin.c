@@ -86,6 +86,7 @@ static const memmapEntry_t memmap[] = {
     [HOBGOBLIN_SPI] =      { 0x60210000,     0x1000, ""},
     [HOBGOBLIN_GPIO0] =    { 0x60300000,    0x10000, ""},
     [HOBGOBLIN_GPIO1] =    { 0x60310000,    0x10000, ""},
+    [HOBGOBLIN_TIMER] =    { 0x60600000,     0x8000, ""},
     /* Each virtio transport channel uses 512 byte */
     [HOBGOBLIN_VIRTIO] =   { 0x70000000,    0x10000, ""},
     [HOBGOBLIN_DRAM] =     { 0x80000000, 0x40000000,
@@ -397,6 +398,20 @@ static void hobgoblin_add_axi_ethernet(HobgoblinState_t *s)
     s->eth = eth;
 }
 
+/* Codasip Timer at 100 MHz */
+static void hobgoblin_add_timer(HobgoblinState_t *s)
+{
+    SysBusDevice *ss;
+
+    s->timer = qdev_new("codasip,timer");
+    qdev_prop_set_uint32(s->timer, "clock-frequency", 100 * 1000000);
+    ss = SYS_BUS_DEVICE(s->timer);
+    sysbus_realize_and_unref(ss, &error_fatal);
+    sysbus_mmio_map(ss, 0, memmap[HOBGOBLIN_TIMER].base);
+    sysbus_connect_irq(ss, 0,
+                       qdev_get_gpio_in(DEVICE(s->plic), HOBGOBLIN_TIMER_IRQ));
+}
+
 static void hobgoblin_add_virtio(HobgoblinState_t *s)
 {
     const memmapEntry_t *mem_virtio = &memmap[HOBGOBLIN_VIRTIO];
@@ -448,6 +463,7 @@ static void hobgoblin_machine_init(MachineState *machine)
         hobgoblin_add_axi_ethernet(s);
         break;
     }
+    hobgoblin_add_timer(s);
     hobgoblin_add_virtio(s);
 
     /* load images into memory to boot the platform */
