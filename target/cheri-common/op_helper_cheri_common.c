@@ -1816,42 +1816,8 @@ target_ulong CHERI_HELPER_IMPL(gcperm(CPUArchState *env, uint32_t cb))
      * If acperm can't produce the permissions of our input capability, we
      * have to clear all the AP bits in our result.
      */
-
-    /* "ASR permission cannot be set without X permission" */
-    if ((cbp->cr_arch_perm & (CAP_AP_ASR | CAP_AP_X)) == CAP_AP_ASR) {
+    if (!valid_ap(cbp->cr_arch_perm))
         goto out;
-    }
-    /*
-     * "C-permission cannot be set without at least one of R-permission or
-     * W-permission being set."
-     */
-    if ((cbp->cr_arch_perm & (CAP_AP_C | CAP_AP_R | CAP_AP_W)) == CAP_AP_C) {
-        goto out;
-    }
-
-    /*
-     * "M-bit cannot be set without X-permission being set" has already been
-     * checked by cheri_in_capmode.
-     */
-
-#if CAP_CC(ADDR_WIDTH) == 32
-    /* ASR requires that at least one other permission be set. */
-    if ((cbp->cr_arch_perm &
-          (CAP_AP_ASR | CAP_AP_C | CAP_AP_R | CAP_AP_W | CAP_AP_X)) == CAP_AP_ASR) {
-        goto out;
-    }
-    /* If R is not set, C and X must not be set either. */
-    if (!(cbp->cr_arch_perm & CAP_AP_R)) {
-        if (cbp->cr_arch_perm & (CAP_AP_C | CAP_AP_X)) {
-            goto out;
-        }
-    }
-    /* It's an error if X and R are set, but W and C aren't. */
-    if ((cbp->cr_arch_perm & (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X)) ==
-            (CAP_AP_X | CAP_AP_R)) {
-        goto out;
-    }
-#endif
 
     /* The M bit is not part of gcperm's bitfield. */
     ap_bits = (cbp->cr_arch_perm & ~CAP_AP_M);
