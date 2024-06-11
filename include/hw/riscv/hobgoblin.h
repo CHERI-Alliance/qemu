@@ -48,6 +48,7 @@ typedef struct {
     DeviceState *spi;
     DeviceState *gpio[2];
     DeviceState *eth;
+    DeviceState *timer;
 } HobgoblinState_t;
 
 #define HOBGOBLIN_MACHINE_STATE(obj) \
@@ -67,6 +68,7 @@ enum {
     HOBGOBLIN_SPI,
     HOBGOBLIN_GPIO0,
     HOBGOBLIN_GPIO1,
+    HOBGOBLIN_TIMER,
     HOBGOBLIN_VIRTIO,
     HOBGOBLIN_DRAM
 };
@@ -79,6 +81,7 @@ enum {
     HOBGOBLIN_SPI_IRQ      = 4,
     HOBGOBLIN_GPIO0_IRQ    = 7,
     HOBGOBLIN_GPIO1_IRQ    = 8,
+    HOBGOBLIN_TIMER_IRQ    = 9,
     HOBGOBLIN_ETH_IRQ      = 15,
     HOBGOBLIN_AXIDMA_IRQ0  = 16,
     HOBGOBLIN_AXIDMA_IRQ1  = 17,
