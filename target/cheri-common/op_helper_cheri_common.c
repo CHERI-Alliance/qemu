@@ -903,8 +903,8 @@ void CHERI_HELPER_IMPL(acperm(CPUArchState *env, uint32_t cd, uint32_t cs1,
     /* Enforce the restrictions as per the bakewell specification. */
 
     /* "Clear ASR-permission unless X-permission is set" */
-    if (!(perms & CAP_AP_ASR)) {
-        perms &= ~CAP_AP_X;
+    if (!(perms & CAP_AP_X)) {
+        perms &= ~CAP_AP_ASR;
     }
 
     /* "Clear C-permission unless R-permission or W-permission are set" */
