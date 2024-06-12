@@ -30,12 +30,18 @@ enum board_type {
     BOARD_TYPE_PROFPGA,
 };
 
+enum eth_type {
+    ETH_TYPE_AXI_ETHERNET,
+    ETH_TYPE_ETHERNETLITE,
+};
+
 typedef struct {
     /*< private >*/
     MachineState machine; /* QOM: derived from MachineState/TYPE_MACHINE */
     /*< properties >*/
     bool boot_from_rom;
     enum board_type board_type;
+    enum eth_type eth_type;
     /*< devices >*/
     RISCVHartArrayState soc;
     DeviceState *plic;
@@ -54,7 +60,9 @@ enum {
     HOBGOBLIN_SRAM, /* exists on FPGA only */
     HOBGOBLIN_PLIC,
     HOBGOBLIN_CLINT,
-    HOBGOBLIN_ETH,
+    HOBGOBLIN_ETHLITE,
+    HOBGOBLIN_AXI_ETH,
+    HOBGOBLIN_AXI_DMA,
     HOBGOBLIN_UART0,
     HOBGOBLIN_SPI,
     HOBGOBLIN_GPIO0,
@@ -72,6 +80,8 @@ enum {
     HOBGOBLIN_GPIO0_IRQ    = 7,
     HOBGOBLIN_GPIO1_IRQ    = 8,
     HOBGOBLIN_ETH_IRQ      = 15,
+    HOBGOBLIN_AXIDMA_IRQ0  = 16,
+    HOBGOBLIN_AXIDMA_IRQ1  = 17,
     HOBGOBLIN_VIRTIO0_IRQ  = 28,
     HOBGOBLIN_VIRTIO3_IRQ  = 31,
     /* ----------- */
