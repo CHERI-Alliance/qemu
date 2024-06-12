@@ -51,6 +51,8 @@
 #define TYPE_XILINX_SPI "xlnx.xps-spi"
 #define TYPE_XLNX_AXI_GPIO "xlnx.axi-gpio"
 #define TYPE_XILINX_ETHLITE "xlnx.xps-ethernetlite"
+#define TYPE_XILINX_AXI_ETHERNET "xlnx.axi-ethernet"
+#define TYPE_XILINX_AXI_DMA "xlnx.axi-dma"
 
 typedef struct {
     hwaddr base;
@@ -69,7 +71,9 @@ static const memmapEntry_t memmap[] = {
         "riscv.hobgoblin.sram"},
     [HOBGOBLIN_PLIC] =     { 0x40000000,  0x4000000, ""},
     [HOBGOBLIN_CLINT] =    { 0x60014000,     0xc000, ""},
-    [HOBGOBLIN_ETH] =      { 0x60020000,     0x2000, ""},
+    [HOBGOBLIN_ETHLITE] =  { 0x60020000,     0x2000, ""},
+    [HOBGOBLIN_AXI_DMA] =  { 0x600a0000,    0x10000, ""},
+    [HOBGOBLIN_AXI_ETH] =  { 0x600c0000,    0x40000, ""},
     /*
      * The Hobgoblin FPGA uses a Xilinx AXI UART 16550 v2.0, which is at
      * 0x60100000 and uses 8 KiB in the address space. However, the lower 4 KiB
@@ -235,10 +239,10 @@ static qemu_irq hobgoblin_make_plic_irq(HobgoblinState_t *s, int number)
 }
 
 static void hobgoblin_connect_plic_irq(HobgoblinState_t *s,
-                                       SysBusDevice *busDev, int number)
+        SysBusDevice *busDev, int dev_irq, int number)
 {
     qemu_irq irq = hobgoblin_make_plic_irq(s, number);
-    sysbus_connect_irq(busDev, 0, irq);
+    sysbus_connect_irq(busDev, dev_irq, irq);
 }
 
 static void hobgoblin_add_uart(HobgoblinState_t *s,
@@ -273,7 +277,7 @@ static void hobgoblin_add_gpio(HobgoblinState_t *s)
         sysbus_realize_and_unref(bus_gpio, &error_fatal);
         sysbus_mmio_map(bus_gpio, 0, memmap[HOBGOBLIN_GPIO0 + i].base);
         /* connect PLIC interrupt */
-        hobgoblin_connect_plic_irq(s, bus_gpio, HOBGOBLIN_GPIO0_IRQ + i);
+        hobgoblin_connect_plic_irq(s, bus_gpio, 0, HOBGOBLIN_GPIO0_IRQ + i);
         /* publish GPIO device */
         s->gpio[i] = gpio;
     }
@@ -294,7 +298,7 @@ static void hobgoblin_add_spi(HobgoblinState_t *s)
     sysbus_realize_and_unref(bus_spi, &error_fatal);
     sysbus_mmio_map(bus_spi, 0, mem_spi->base);
     /* connect PLIC interrupt */
-    hobgoblin_connect_plic_irq(s, bus_spi, HOBGOBLIN_SPI_IRQ);
+    hobgoblin_connect_plic_irq(s, bus_spi, 0, HOBGOBLIN_SPI_IRQ);
 
     /* create SD Card in SPI mode */
     DeviceState *sd_card_spi = qdev_new(TYPE_SD_CARD);
@@ -314,9 +318,9 @@ static void hobgoblin_add_spi(HobgoblinState_t *s)
     s->spi = spi;
 }
 
-static void hobgoblin_add_eth(HobgoblinState_t *s)
+static void hobgoblin_add_ethernetlite(HobgoblinState_t *s)
 {
-    const memmapEntry_t *mem_eth = &memmap[HOBGOBLIN_ETH];
+    const memmapEntry_t *mem_eth = &memmap[HOBGOBLIN_ETHLITE];
 
     NICInfo *nd = &nd_table[0];
     const char *model = TYPE_XILINX_ETHLITE;
@@ -330,7 +334,64 @@ static void hobgoblin_add_eth(HobgoblinState_t *s)
     sysbus_realize_and_unref(bus_eth, &error_fatal);
     sysbus_mmio_map(bus_eth, 0, mem_eth->base);
     /* connect PLIC interrupt */
-    hobgoblin_connect_plic_irq(s, bus_eth, HOBGOBLIN_ETH_IRQ);
+    hobgoblin_connect_plic_irq(s, bus_eth, 0, HOBGOBLIN_ETH_IRQ);
+
+    /* publish ETH device */
+    s->eth = eth;
+}
+
+static void hobgoblin_add_axi_ethernet(HobgoblinState_t *s)
+{
+    const memmapEntry_t *mem_eth = &memmap[HOBGOBLIN_AXI_ETH];
+    const memmapEntry_t *mem_dma = &memmap[HOBGOBLIN_AXI_DMA];
+    NICInfo *nd = &nd_table[0];
+    const char *eth_model = TYPE_XILINX_AXI_ETHERNET;
+
+    qemu_check_nic_model(nd, eth_model);
+
+    DeviceState *eth = qdev_new(eth_model);
+    DeviceState *dma = qdev_new(TYPE_XILINX_AXI_DMA);
+
+    /* FIXME: attach to the sysbus instead */
+    object_property_add_child(qdev_get_machine(), "xilinx-eth", OBJECT(eth));
+    object_property_add_child(qdev_get_machine(), "xilinx-dma", OBJECT(dma));
+
+    Object *ds, *cs;
+    ds = object_property_get_link(OBJECT(dma),
+                                  "axistream-connected-target", NULL);
+    cs = object_property_get_link(OBJECT(dma),
+                                  "axistream-control-connected-target", NULL);
+    assert(ds && cs);
+    qdev_set_nic_properties(eth, nd);
+    qdev_prop_set_uint32(eth, "phyaddr", 1);
+    qdev_prop_set_uint32(eth, "rxmem", 0x4000);
+    qdev_prop_set_uint32(eth, "txmem", 0x4000);
+    object_property_set_link(OBJECT(eth), "axistream-connected", ds,
+                             &error_abort);
+    object_property_set_link(OBJECT(eth), "axistream-control-connected", cs,
+                             &error_abort);
+
+    SysBusDevice *eth_busdev = SYS_BUS_DEVICE(eth);
+    sysbus_realize_and_unref(eth_busdev, &error_fatal);
+    sysbus_mmio_map(eth_busdev, 0, mem_eth->base);
+    hobgoblin_connect_plic_irq(s, eth_busdev, 0, HOBGOBLIN_ETH_IRQ);
+
+    ds = object_property_get_link(OBJECT(eth),
+                                  "axistream-connected-target", NULL);
+    cs = object_property_get_link(OBJECT(eth),
+                                  "axistream-control-connected-target", NULL);
+    assert(ds && cs);
+    qdev_prop_set_uint32(dma, "freqhz", 100 * 1000000);
+    object_property_set_link(OBJECT(dma), "axistream-connected", ds,
+                             &error_abort);
+    object_property_set_link(OBJECT(dma), "axistream-control-connected", cs,
+                             &error_abort);
+
+    SysBusDevice *dma_busdev = SYS_BUS_DEVICE(dma);
+    sysbus_realize_and_unref(dma_busdev, &error_fatal);
+    sysbus_mmio_map(dma_busdev, 0, mem_dma->base);
+    hobgoblin_connect_plic_irq(s, dma_busdev, 0, HOBGOBLIN_AXIDMA_IRQ0);
+    hobgoblin_connect_plic_irq(s, dma_busdev, 1, HOBGOBLIN_AXIDMA_IRQ1);
 
     /* publish ETH device */
     s->eth = eth;
@@ -379,7 +440,14 @@ static void hobgoblin_machine_init(MachineState *machine)
     hobgoblin_add_uart(s, system_memory);
     hobgoblin_add_gpio(s);
     hobgoblin_add_spi(s);
-    hobgoblin_add_eth(s);
+    switch (s->eth_type) {
+    case ETH_TYPE_ETHERNETLITE:
+        hobgoblin_add_ethernetlite(s);
+        break;
+    case ETH_TYPE_AXI_ETHERNET:
+        hobgoblin_add_axi_ethernet(s);
+        break;
+    }
     hobgoblin_add_virtio(s);
 
     /* load images into memory to boot the platform */
@@ -438,12 +506,46 @@ static void hobgoblin_machine_set_board_type(Object *obj, const char *value,
         error_setg(errp, "Unrecognised board-type");
 }
 
+static char *hobgoblin_machine_get_eth_type(Object *obj, Error **errp)
+{
+    HobgoblinState_t *s = HOBGOBLIN_MACHINE_STATE(obj);
+    const char *result;
+
+    switch (s->eth_type) {
+    case ETH_TYPE_AXI_ETHERNET:
+        result = "axi-ethernet";
+        break;
+    case ETH_TYPE_ETHERNETLITE:
+        result = "ethernetlite";
+        break;
+    default:
+        result = "Unknown";
+        break;
+    }
+
+    return (char*)result;
+}
+
+static void hobgoblin_machine_set_eth_type(Object *obj, const char *value,
+                                           Error **errp)
+{
+    HobgoblinState_t *s = HOBGOBLIN_MACHINE_STATE(obj);
+
+    if (!strcmp(value, "axi-ethernet"))
+        s->eth_type = ETH_TYPE_AXI_ETHERNET;
+    else if (!strcmp(value, "ethernetlite"))
+        s->eth_type = ETH_TYPE_ETHERNETLITE;
+    else
+        error_setg(errp, "Unrecognised eth-type");
+}
+
 static void hobgoblin_machine_instance_init(Object *obj)
 {
     HobgoblinState_t *s = HOBGOBLIN_MACHINE_STATE(obj);
 
     s->boot_from_rom = false;
     s->board_type = BOARD_TYPE_GENESYS2;
+    s->eth_type = ETH_TYPE_AXI_ETHERNET;
 }
 
 static void hobgoblin_machine_class_init(ObjectClass *oc, void *data)
@@ -466,6 +568,12 @@ static void hobgoblin_machine_class_init(ObjectClass *oc, void *data)
                                   hobgoblin_machine_set_board_type);
     object_class_property_set_description(oc, "board-type",
         "Set the board type (genesys2 (default) or profpga)");
+
+    object_class_property_add_str(oc, "eth-type",
+                                  hobgoblin_machine_get_eth_type,
+                                  hobgoblin_machine_set_eth_type);
+    object_class_property_set_description(oc, "eth-type",
+        "Set the Ethernet type (axi-ethernet (default) or ethernetlite)");
 }
 
 static const TypeInfo hobgoblin_typeinfo = {
