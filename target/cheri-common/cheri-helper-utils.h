@@ -332,29 +332,28 @@ static inline QEMU_ALWAYS_INLINE target_ulong cap_check_common_reg(
     bool in_bounds = cap_is_in_bounds(cbp, addr, size);
 
     if (!cbp->cr_tag) {
-        raise_cheri_exception_addr_wnr(env, CapEx_TagViolation, CapExType_InstrAccess,
-        cb, addr, !is_load);
+        raise_cheri_exception_addr_wnr(env, CapEx_TagViolation, CapExType_Data,
+                                       cb, addr, !is_load);
     } else if (!cap_is_unsealed(cbp)) {
-        raise_cheri_exception_addr_wnr(env, CapEx_SealViolation, CapExType_InstrAccess, 
-        cb, addr, !is_load);
+        raise_cheri_exception_addr_wnr(env, CapEx_SealViolation, CapExType_Data,
+                                       cb, addr, !is_load);
     } else if (MISSING_REQUIRED_PERM(CAP_PERM_LOAD)) {
-        raise_cheri_exception_addr_wnr(env, CapEx_PermitLoadViolation, CapExType_InstrAccess,
-        cb, addr, false);
+        raise_cheri_exception_addr_wnr(env, CapEx_PermitLoadViolation,
+                                       CapExType_Data, cb, addr, false);
     } else if (MISSING_REQUIRED_PERM(CAP_PERM_LOAD_CAP)) {
-        raise_cheri_exception_addr_wnr(env, CapEx_PermitLoadCapViolation, 
-        CapExType_InstrAccess, cb, addr, false);
+        raise_cheri_exception_addr_wnr(env, CapEx_PermitLoadCapViolation,
+                                       CapExType_Data, cb, addr, false);
     } else if (!is_load || in_bounds) {
         if (MISSING_REQUIRED_PERM(CAP_PERM_STORE)) {
-            raise_cheri_exception_addr_wnr(env, CapEx_PermitStoreViolation, 
-                                           CapExType_InstrAccess, cb,
-                                            addr, true);
+            raise_cheri_exception_addr_wnr(env, CapEx_PermitStoreViolation,
+                                           CapExType_Data, cb, addr, true);
         } else if (MISSING_REQUIRED_PERM(CAP_PERM_STORE_CAP)) {
             raise_cheri_exception_addr_wnr(env, CapEx_PermitStoreCapViolation,
-                                           CapExType_InstrAccess, cb, addr, true);
+                                           CapExType_Data, cb, addr, true);
         } else if (MISSING_REQUIRED_PERM(CAP_PERM_STORE_LOCAL)) {
-            raise_cheri_exception_addr_wnr(
-                env, CapEx_PermitStoreLocalCapViolation, CapExType_InstrAccess, 
-                cb, addr, true);
+            raise_cheri_exception_addr_wnr(env,
+                                           CapEx_PermitStoreLocalCapViolation,
+                                           CapExType_Data, cb, addr, true);
         }
     }
 #undef MISSING_REQUIRED_PERM
@@ -365,8 +364,8 @@ static inline QEMU_ALWAYS_INLINE target_ulong cap_check_common_reg(
             "Failed capability bounds check: addr=" TARGET_FMT_lx
             " base=" TARGET_FMT_lx " top=" TARGET_FMT_lx "\n",
             addr, cap_get_base(cbp), cap_get_top(cbp));
-        raise_cheri_exception_addr_wnr(env, CapEx_LengthViolation, CapExType_InstrAccess,
-                                        cb, addr, !is_load);
+        raise_cheri_exception_addr_wnr(env, CapEx_LengthViolation,
+                                       CapExType_Data, cb, addr, !is_load);
     } else if (alignment_required &&
                !QEMU_IS_ALIGNED_P2(addr, alignment_required)) {
         if (unaligned_handler) {
