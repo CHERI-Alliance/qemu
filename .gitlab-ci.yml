@@ -98,6 +98,8 @@ nightly_build:
     - if: $CI_PIPELINE_SOURCE =="schedule"
     script:
         - scripts/riscv_cheri/package $INSTALL_DIR
+        - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file $INSTALL_DIR/bin/$PACKAGE_NAME32 "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/qemu-cheri/0.0.1/$PACKAGE_NAME32"'
+        - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file $INSTALL_DIR/bin/$PACKAGE_NAME64 "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/qemu-cheri/0.0.1/$PACKAGE_NAME64"'
     artifacts:
         paths:
         - $INSTALL_DIR/bin/$PACKAGE_NAME32
@@ -106,3 +108,4 @@ nightly_build:
 
 include:
   - template: Jobs/SAST.gitlab-ci.yml
+ 
