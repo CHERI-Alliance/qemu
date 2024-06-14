@@ -1303,23 +1303,31 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
 }
 #endif /* !CONFIG_USER_ONLY */
 
-#ifdef TARGET_CHERI
-/* TODO(am2419): do we log PCC as a changed register? */
-#define riscv_update_pc_for_exc_handler(env, src_cap, new_pc)           \
-    do {                                                                \
-        cheri_update_pcc_for_exc_handler(&env->pcc, src_cap, new_pc);   \
-        qemu_log_instr_dbg_cap(env, "PCC", &env->pcc);                  \
-    } while (false)
-#else
+#define __UPDATE_PC { \
+   riscv_update_pc(env, new_pc, /*can_be_unrepresentable=*/ true); \
+   qemu_log_instr_dbg_reg(env, "pc", new_pc); \
+}
+
 /*
  * TODO(am2419): We don't have a register ID for pc, move to a separate
  * logging helper that maps hwreg id to names for extra registers.
  * TODO(am2419): do we log PCC as a changed register?
  */
+#ifdef TARGET_CHERI
+#define riscv_update_pc_for_exc_handler(env, src_cap, new_pc) \
+    do { \
+        if (cheri_in_capmode(env)) { \
+            cheri_update_pcc_for_exc_handler(&env->PCC, src_cap, new_pc); \
+            qemu_log_instr_dbg_cap(env, "PCC", &env->PCC); \
+        } \
+        else { \
+          __UPDATE_PC \
+        } \
+    } while (false)
+#else
 #define riscv_update_pc_for_exc_handler(env, src_cap, new_pc)           \
     do {                                                                \
-        riscv_update_pc(env, new_pc, /*can_be_unrepresentable=*/true);  \
-        qemu_log_instr_dbg_reg(env, "pc", new_pc);                      \
+        __UPDATE_PC                                                     \
     } while (false)
 #endif /* TARGET_CHERI */
 
