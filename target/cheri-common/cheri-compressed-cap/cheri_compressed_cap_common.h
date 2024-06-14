@@ -859,8 +859,38 @@ static inline uint32_t _cc_N(compute_ebt)(_cc_addr_t req_base, _cc_length_t req_
         //  lostSignificantTop  : bool = false;
         //  lostSignificantBase : bool = false;
         //  incE : bool = false;
+
+        /*
+         * L8 is bit 8 of the bounds length.
+         *
+         * For RV32 and exponent E == 0, both B and T are 10 bits wide.
+         * A capability stores B[9:0] and T[7:0]. For the bounds length l
+         * (the req_length64 variable), we know T = B + l. If l[9] was 1
+         * we'd not have exponent 0, so l[9] must be 0.
+         *
+         * T[9:8] are not stored. Apart from B[9:0] and T[7:0], what else is
+         * required to recover T[9:8] from a stored capability?
+         *
+         *   B   .. .... ....
+         * + l   0. #### ####
+         *       ------------
+         * = T   xx .... ....
+         *
+         * (. == known bit (stored), # == known bit (not stored),
+         * x == unknown bit).
+         *
+         * T[9:8] = B[9:8] + l[8] + carry bit
+         * The carry bit is 1 if B[7:0] > T [7:0]
+         *
+         * Long story short: If we also store l[8] in the capability, we
+         * can recover T[9:8].
+         */
+        uint8_t l8 = _cc_N(getbits)(req_length64, 8, 1);
+
         uint32_t ebt_bits = _CC_ENCODE_EBT_FIELD(0, INTERNAL_EXPONENT) | _CC_ENCODE_EBT_FIELD(1, EF) |
-                            _CC_ENCODE_EBT_FIELD(req_top, EXP_ZERO_TOP) | _CC_ENCODE_EBT_FIELD(req_base, EXP_ZERO_BOTTOM);
+                            _CC_ENCODE_EBT_FIELD(l8, L8) |
+                            _CC_ENCODE_EBT_FIELD(req_top, EXP_ZERO_TOP) |
+                            _CC_ENCODE_EBT_FIELD(req_base, EXP_ZERO_BOTTOM);
 #ifdef CC_IS_MORELLO
         // Due to morello conditionally inverting bits, we need to invert the bits that would be an internal exponent
         // here
