@@ -55,7 +55,7 @@ enum {
     _CC_FIELD(TOP_ENCODED, 49, 42),
     _CC_FIELD(BOTTOM_ENCODED, 41, 32),
 
-    // Top/bottom offsets depending in INTERNAL_EXPONENT flag:
+    // Top/bottom offsets depending on INTERNAL_EXPONENT flag:
     // Without internal exponent:
     _CC_FIELD(EXP_ZERO_TOP, 49, 42),
     _CC_FIELD(EXP_ZERO_BOTTOM, 41, 32),
