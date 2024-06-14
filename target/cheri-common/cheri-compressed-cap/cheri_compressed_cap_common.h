@@ -275,7 +275,9 @@ TRUNCATE_LSB_FUNC(64)
 struct _cc_N(bounds_bits) {
     uint16_t B; // bottom bits (currently 14 bits)
     uint16_t T; // top bits (12 bits plus two implied bits)
-    uint8_t E;  // exponent
+    // for bakewell, the exponent is max_exp - { T8 (if present), TE, BE },
+    // this may become negative for invalid encodings
+    int8_t E;
     union {
         bool IE; // cheri v9's internal exponent flag
         bool EF; // cheri bakewell's exponent format
@@ -328,6 +330,10 @@ static inline _cc_bounds_bits _cc_N(extract_bounds_bits)(_cc_addr_t pesbt) {
             memset(&result, 0x0, sizeof(result));
             return result;
         }
+        /*
+         * This may become negative, such an exponent is invalid. Generally, we
+         * extract the values here and check them in _cc_N(bounds_bits_valid).
+         */
         result.E = _CC_MAX_EXPONENT - e_enc;
 #else
     result.IE = (bool)(uint32_t)_CC_EXTRACT_FIELD(pesbt, INTERNAL_EXPONENT);
@@ -368,17 +374,36 @@ static inline _cc_bounds_bits _cc_N(extract_bounds_bits)(_cc_addr_t pesbt) {
 
 // Certain bit patterns can result in invalid bounds bits. These values must never be tagged!
 static inline bool _cc_N(bounds_bits_valid)(_cc_bounds_bits bounds) {
-    // https://github.com/CTSRD-CHERI/sail-cheri-riscv/blob/7a308ef3661e43461c8431c391aaece7fba6e992/src/cheri_properties.sail#L104
     _cc_addr_t Bmsb = _cc_N(getbits)(bounds.B, _CC_MANTISSA_WIDTH - 1, 1);
+#if _CC_N(FIELD_EF_USED) == 0
+    // https://github.com/CTSRD-CHERI/sail-cheri-riscv/blob/7a308ef3661e43461c8431c391aaece7fba6e992/src/cheri_properties.sail#L104
     _cc_addr_t Bmsb2 = _cc_N(getbits)(bounds.B, _CC_MANTISSA_WIDTH - 2, 2);
     _cc_addr_t Tmsb = _cc_N(getbits)(bounds.T, _CC_MANTISSA_WIDTH - 1, 1);
     if (bounds.E >= _CC_MAX_EXPONENT) {
         return Tmsb == 0 && Bmsb2 == 0;
     } else if (bounds.E == _CC_MAX_EXPONENT - 1) {
         return Bmsb == 0;
-    } else {
-        return true;
     }
+#else
+    /*
+     * Perform the malformed capability bounds checks as defined in section
+     * 2.2.6 of the cheri bakewell specification.
+     */
+    if (!bounds.EF) {
+        if (bounds.E < 0) {
+            return false;
+#if _CC_N(FIELD_T8_USED) == 1
+        } else if (bounds.E == 0) {
+            return false;
+#endif
+        } else if (bounds.E == _CC_MAX_EXPONENT - 1) {
+            return Bmsb == 0;
+        } else if (bounds.E == _CC_MAX_EXPONENT) {
+            return bounds.B == 0;
+        }
+    }
+#endif
+    return true;
 }
 
 /// Returns the address with Morello flags (high address bits) removed and sign extended.
@@ -406,7 +431,9 @@ static inline bool _cc_N(compute_base_top)(_cc_bounds_bits bounds, _cc_addr_t cu
 
     // For the remaining computations we have to clamp E to max_E
     //  let E = min(maxE, unsigned(c.E)) in
-    uint8_t E = _CC_MIN(_CC_MAX_EXPONENT, bounds.E);
+    // For bakewell, a negative bounds.E is an error that'll be caught later.
+    // We can use any E for the calculations, the result will be discarded.
+    uint8_t E = bounds.E > 0 ?  _CC_MIN(_CC_MAX_EXPONENT, bounds.E) : 0;
 
 #if _CC_N(FIELD_EF_USED) == 1
     // let a_mid = truncate(a >> E, cap_mantissa_width) in
@@ -489,6 +516,15 @@ static inline bool _cc_N(compute_base_top)(_cc_bounds_bits bounds, _cc_addr_t cu
         _cc_debug_assert((_cc_addr_t)base <= top);
     } else {
         // _cc_debug_assert(!tagged && "Should not create invalid tagged capabilities");
+#if _CC_N(FIELD_EF_USED) == 1
+        /*
+         * For cheri bakewell, malformed bounds decode as zero (e.g. for the
+         * gcbase and gclen instructions).
+         */
+        *base_out = 0;
+        *top_out = 0;
+        return false;
+#endif
     }
     *base_out = (_cc_addr_t)base; // strip the (invalid) top bit
     *top_out = top;
