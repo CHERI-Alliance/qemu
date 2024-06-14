@@ -414,9 +414,7 @@ void HELPER(cjal)(CPUArchState *env, uint32_t cd, target_ulong target_addr,
 
 void HELPER(modesw)(CPUArchState *env)
 {
-    uint8_t is_capmode = cap_get_capmode(&env->PCC);
-    is_capmode = is_capmode ^ 1;
-    cap_set_capmode(&env->PCC,is_capmode);
+    cap_set_capmode(&env->PCC, !cap_get_capmode(&env->PCC));
 }
 
 void HELPER(amoswap_cap)(CPUArchState *env, uint32_t dest_reg,
