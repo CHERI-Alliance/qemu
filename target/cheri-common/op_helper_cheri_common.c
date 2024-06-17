@@ -953,7 +953,7 @@ void CHERI_HELPER_IMPL(acperm(CPUArchState *env, uint32_t cd, uint32_t cs1,
 
     /* see the comment about capmode in the gcperm helper */
     if (!cheri_in_capmode(env)) {
-        /* TODO: raise an "illegal instruction" exception */
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
         return;
     }
 
