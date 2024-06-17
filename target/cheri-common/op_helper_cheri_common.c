@@ -1993,7 +1993,9 @@ void CHERI_HELPER_IMPL(scmode(CPUArchState *env, uint32_t cd, uint32_t cs1,
     cap_register_t result = *csp;
 
     if (!cheri_in_capmode(env)) {
-        /* TODO: Illegal Instruction exception */
+#ifdef TARGET_RISCV
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+#endif
         return;
     }
 
