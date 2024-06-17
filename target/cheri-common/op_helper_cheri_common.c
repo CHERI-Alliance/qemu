@@ -1872,7 +1872,9 @@ target_ulong CHERI_HELPER_IMPL(gcperm(CPUArchState *env, uint32_t cb))
      * cheri_in_capmode will check those combinations.
      */
     if (!cheri_in_capmode(env)) {
-        /* TODO: raise an "illegal instruction" exception */
+#ifdef TARGET_RISCV
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+#endif
 
         /*
          * TODO: What should we return after throwing an exception?
