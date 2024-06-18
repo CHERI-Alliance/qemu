@@ -437,10 +437,12 @@ static inline bool valid_ap(uint8_t cr_arch_perm)
      */
 
 #if CAP_CC(ADDR_WIDTH) == 32
-    /* ASR requires that at least one other permission be set. */
-    if ((cr_arch_perm &
-          (CAP_AP_ASR | CAP_AP_C | CAP_AP_R | CAP_AP_W | CAP_AP_X)) == CAP_AP_ASR) {
-        return false;
+    /* ASR requires that all one other permissions be set. */
+    if (cr_arch_perm & CAP_AP_ASR) {
+        if ((cr_arch_perm & (CAP_AP_C | CAP_AP_R | CAP_AP_W | CAP_AP_X)) !=
+                (CAP_AP_C | CAP_AP_R | CAP_AP_W | CAP_AP_X)) {
+            return false;
+        }
     }
     /* If R is not set, C and X must not be set either. */
     if (!(cr_arch_perm & CAP_AP_R)) {
