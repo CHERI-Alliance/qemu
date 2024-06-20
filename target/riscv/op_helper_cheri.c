@@ -155,7 +155,7 @@ void HELPER(csrrw_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
         riscv_raise_exception(env, -ret, GETPC());
     }
 
-    rs_cap = *get_cap_in_gpregs(&env->gpcapregs,rs1);
+    rs_cap = *get_readonly_capreg(env,rs1);
     if (rd) {
         csr_cap = csr_cap_info->read(env);
         cap_register_t *rd_cap = get_cap_in_gpregs(&env->gpcapregs,rd);
@@ -183,7 +183,7 @@ void HELPER(csrrs_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
         if (ret) {
             riscv_raise_exception(env, -ret, GETPC());
         }
-        rs_cap = *get_cap_in_gpregs(&env->gpcapregs,rs1);
+        rs_cap = *get_readonly_capreg(env, rs1);
     }
 
     csr_cap = csr_cap_info->read(env);
@@ -216,7 +216,7 @@ void HELPER(csrrc_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
         if (ret) {
             riscv_raise_exception(env, -ret, GETPC());
         }
-        rs_cap = *get_cap_in_gpregs(&env->gpcapregs,rs1);
+        rs_cap = *get_readonly_capreg(env, rs1);
     }
 
     csr_cap = csr_cap_info->read(env);
