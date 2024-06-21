@@ -1316,7 +1316,14 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
 #ifdef TARGET_CHERI
 #define riscv_update_pc_for_exc_handler(env, src_cap, new_pc) \
     do { \
-        if (cheri_in_capmode(env)) { \
+        /* 
+         * Attention: Do not call cheri_in_capmode(env) here. This checks
+         * the current PCC. Its content is not reliable at this point, the
+         * exception might have been caused by an invalid PCC.
+         * Instead, we assume that if xTVECC contains a valid capability,
+         * the exception handler is meant to run in capability pointer mode.
+         */ \
+        if (src_cap && cap_has_perms(src_cap, CAP_PERM_EXECUTE)) { \
             cheri_update_pcc_for_exc_handler(&env->PCC, src_cap, new_pc); \
             qemu_log_instr_dbg_cap(env, "PCC", &env->PCC); \
         } \
