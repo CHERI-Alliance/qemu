@@ -27,6 +27,8 @@ variables:
   INSTALL_DIR: $CI_PROJECT_DIR/install
   PACKAGE_NAME64: "qemu-system-riscv64cheri"
   PACKAGE_NAME32: "qemu-system-riscv32cheri"
+  GIT_FETCH_EXTRA_FLAGS: --quiet --tags
+  GIT_DEPTH: 0
 
 stages:
     - build
