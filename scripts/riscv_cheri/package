@@ -27,5 +27,5 @@ QEMU_CONFIG="--disable-gtk \
 mkdir -p ${BUILD_DIR} 
 cd ${BUILD_DIR}
 ${REPO_DIR}/configure --target-list=${TARGET_LIST} ${QEMU_CONFIG}
-ninja ${NINJA_TARGETS}
+ninja ${NINJA_TARGETS} && ./${NINJA_TARGET} --version
 ninja install
