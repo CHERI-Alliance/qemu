@@ -100,7 +100,7 @@ TEST_CASE_AP_DECOMP((CAP_AP_Q3 | 1),
         (CAP_AP_X | CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_ASR))
 
 
-TEST_CASE("bounds encoding, internal exponent, T8 = 1", "[bounds]") {
+TEST_CASE("bounds encoding, internal exponent, L8 = 1", "[bounds]") {
     /* params are base, cursor, top */
     _cc_cap_t cap = CompressedCap64r::make_max_perms_cap(0x0, 0x1000, 0x8000);
 
@@ -110,7 +110,7 @@ TEST_CASE("bounds encoding, internal exponent, T8 = 1", "[bounds]") {
      * 0000 reserved
      * 0 S
      * 0 EF
-     * 1 T8
+     * 1 L8
      * 000000 T[7:2]
      * 00 TE
      * 00000000 B[9:2]
@@ -133,7 +133,7 @@ TEST_CASE("bounds encoding, exponent > 0, T8==0", "[bounds]") {
      * 0000 reserved
      * 0 S
      * 0 EF
-     * 0 T8
+     * 0 L8
      * 101100 T[7:2]
      * 00 TE
      * 01001100 B[9:2]
@@ -156,7 +156,7 @@ TEST_CASE("bounds encoding, exponent > 0, T8==0, c_b==-1", "[bounds]") {
      * 0000 reserved
      * 0 S
      * 0 EF
-     * 0 T8
+     * 0 L8
      * 100000 T[7:2]
      * 01 TE
      * 11111000 B[9:2]

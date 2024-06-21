@@ -46,7 +46,7 @@ enum {
     _CC_N(RESET_EXP) = _CC_N(MAX_EXPONENT),
 #if _CC_N(FIELD_EF_USED) == 1
     _CC_N(RESET_T) = 0,
-    // The value that is encoded in { T8, TE, BE }. Bakewell stores the
+    // The value that is encoded in { L8, TE, BE }. Bakewell stores the
     // difference between max exponent and the actual exponent.
     _CC_N(RESET_EXP_CODED) = (_CC_N(MAX_EXPONENT) - _CC_N(RESET_EXP)),
 #else
@@ -72,7 +72,7 @@ enum {
         _CC_ENCODE_EBT_FIELD(1, INTERNAL_EXPONENT) | _CC_ENCODE_EBT_FIELD(0, EF) |
         _CC_ENCODE_EBT_FIELD(_CC_N(RESET_T), EXP_NONZERO_TOP) |
         _CC_ENCODE_EBT_FIELD(0, EXP_NONZERO_BOTTOM) |
-        _CC_ENCODE_EBT_FIELD(_CC_N(RESET_EXP_CODED) >> (_CC_N(FIELD_EXPONENT_HIGH_PART_SIZE) + _CC_N(FIELD_EXPONENT_LOW_PART_SIZE)), T8) |
+        _CC_ENCODE_EBT_FIELD(_CC_N(RESET_EXP_CODED) >> (_CC_N(FIELD_EXPONENT_HIGH_PART_SIZE) + _CC_N(FIELD_EXPONENT_LOW_PART_SIZE)), L8) |
         _CC_ENCODE_EBT_FIELD(_CC_N(RESET_EXP_CODED) >> _CC_N(FIELD_EXPONENT_LOW_PART_SIZE), EXPONENT_HIGH_PART) |
         _CC_ENCODE_EBT_FIELD(_CC_N(RESET_EXP_CODED) & _CC_N(FIELD_EXPONENT_LOW_PART_MAX_VALUE), EXPONENT_LOW_PART),
     /*
@@ -84,7 +84,7 @@ enum {
                         _CC_ENCODE_FIELD(1, INTERNAL_EXPONENT) | _CC_ENCODE_FIELD(0, EF) |
                         _CC_ENCODE_FIELD(_CC_N(OTYPE_UNSEALED), OTYPE) |
                         _CC_ENCODE_FIELD(_CC_N(NULL_T), EXP_NONZERO_TOP) | _CC_ENCODE_FIELD(0, EXP_NONZERO_BOTTOM) |
-                        _CC_ENCODE_FIELD(_CC_N(NULL_EXP_CODED) >> (_CC_N(FIELD_EXPONENT_HIGH_PART_SIZE) + _CC_N(FIELD_EXPONENT_LOW_PART_SIZE)), T8) |
+                        _CC_ENCODE_FIELD(_CC_N(NULL_EXP_CODED) >> (_CC_N(FIELD_EXPONENT_HIGH_PART_SIZE) + _CC_N(FIELD_EXPONENT_LOW_PART_SIZE)), L8) |
                         _CC_ENCODE_FIELD(_CC_N(NULL_EXP_CODED) >> _CC_N(FIELD_EXPONENT_LOW_PART_SIZE), EXPONENT_HIGH_PART) |
                         _CC_ENCODE_FIELD(_CC_N(NULL_EXP_CODED) & _CC_N(FIELD_EXPONENT_LOW_PART_MAX_VALUE), EXPONENT_LOW_PART),
     // We mask on store/load so this invisibly keeps null 0 whatever we choose
@@ -119,13 +119,13 @@ _CC_STATIC_ASSERT_SAME(_CC_N(FIELD_EBT_SIZE) + _CC_N(FIELD_OTYPE_SIZE) + _CC_N(F
  * Please note that only one of internal exponent or EF will be used at a
  * time. Unused fields have size 0, they don't have to be commented out.
  */
-_CC_STATIC_ASSERT_SAME(_CC_N(FIELD_INTERNAL_EXPONENT_SIZE) + _CC_N(FIELD_EF_SIZE) +_CC_N(FIELD_T8_SIZE) +
+_CC_STATIC_ASSERT_SAME(_CC_N(FIELD_INTERNAL_EXPONENT_SIZE) + _CC_N(FIELD_EF_SIZE) +_CC_N(FIELD_L8_SIZE) +
                            _CC_N(FIELD_EXP_ZERO_TOP_SIZE) + _CC_N(FIELD_EXP_ZERO_BOTTOM_SIZE),
                        _CC_N(FIELD_EBT_SIZE));
-_CC_STATIC_ASSERT_SAME(_CC_N(FIELD_INTERNAL_EXPONENT_SIZE) + _CC_N(FIELD_EF_SIZE) +_CC_N(FIELD_T8_SIZE) +
+_CC_STATIC_ASSERT_SAME(_CC_N(FIELD_INTERNAL_EXPONENT_SIZE) + _CC_N(FIELD_EF_SIZE) +_CC_N(FIELD_L8_SIZE) +
                            _CC_N(FIELD_TOP_ENCODED_SIZE) + _CC_N(FIELD_BOTTOM_ENCODED_SIZE),
                        _CC_N(FIELD_EBT_SIZE));
-_CC_STATIC_ASSERT_SAME(_CC_N(FIELD_INTERNAL_EXPONENT_SIZE) + _CC_N(FIELD_EF_SIZE) +_CC_N(FIELD_T8_SIZE) +
+_CC_STATIC_ASSERT_SAME(_CC_N(FIELD_INTERNAL_EXPONENT_SIZE) + _CC_N(FIELD_EF_SIZE) +_CC_N(FIELD_L8_SIZE) +
                            _CC_N(FIELD_EXP_NONZERO_TOP_SIZE) + _CC_N(FIELD_EXP_NONZERO_BOTTOM_SIZE) +
                            _CC_N(FIELD_EXPONENT_HIGH_PART_SIZE) + _CC_N(FIELD_EXPONENT_LOW_PART_SIZE),
                        _CC_N(FIELD_EBT_SIZE));
@@ -275,7 +275,7 @@ TRUNCATE_LSB_FUNC(64)
 struct _cc_N(bounds_bits) {
     uint16_t B; // bottom bits (currently 14 bits)
     uint16_t T; // top bits (12 bits plus two implied bits)
-    // for bakewell, the exponent is max_exp - { T8 (if present), TE, BE },
+    // for bakewell, the exponent is max_exp - { L8 (if present), TE, BE },
     // this may become negative for invalid encodings
     int8_t E;
     union {
@@ -325,7 +325,7 @@ static inline _cc_bounds_bits _cc_N(extract_bounds_bits)(_cc_addr_t pesbt) {
     if (!result.EF) {
         uint8_t e_enc = (uint8_t)(_CC_EXTRACT_FIELD(pesbt, EXPONENT_LOW_PART) |
                 (_CC_EXTRACT_FIELD(pesbt, EXPONENT_HIGH_PART) << _CC_N(FIELD_EXPONENT_LOW_PART_SIZE)) |
-                (_CC_EXTRACT_FIELD(pesbt, T8) << ( _CC_N(FIELD_EXPONENT_LOW_PART_SIZE) + _CC_N(FIELD_EXPONENT_HIGH_PART_SIZE))));
+                (_CC_EXTRACT_FIELD(pesbt, L8) << ( _CC_N(FIELD_EXPONENT_LOW_PART_SIZE) + _CC_N(FIELD_EXPONENT_HIGH_PART_SIZE))));
         if (e_enc > _CC_MAX_EXPONENT) {
             /* The capability is malformed. */
             memset(&result, 0x0, sizeof(result));
@@ -355,8 +355,8 @@ static inline _cc_bounds_bits _cc_N(extract_bounds_bits)(_cc_addr_t pesbt) {
         pesbt ^= _CC_N(NULL_XOR_MASK);
 #endif
         result.E = 0;
-        /* This returns 0 if the current format does not use a T8 field. */
-        L_msb = _CC_EXTRACT_FIELD(pesbt, T8);
+        /* This returns 0 if the current format does not use an L8 field. */
+        L_msb = _CC_EXTRACT_FIELD(pesbt, L8);
         result.B = (uint16_t)_CC_EXTRACT_FIELD(pesbt, EXP_ZERO_BOTTOM);
         result.T = (uint16_t)_CC_EXTRACT_FIELD(pesbt, EXP_ZERO_TOP);
     }
@@ -393,7 +393,7 @@ static inline bool _cc_N(bounds_bits_valid)(_cc_bounds_bits bounds) {
     if (!bounds.EF) {
         if (bounds.E < 0) {
             return false;
-#if _CC_N(FIELD_T8_USED) == 1
+#if _CC_N(FIELD_L8_USED) == 1
         } else if (bounds.E == 0) {
             return false;
 #endif
@@ -952,15 +952,15 @@ static inline uint32_t _cc_N(compute_ebt)(_cc_addr_t req_base, _cc_length_t req_
     //  };
     //  let exact = not(lostSignificantBase | lostSignificantTop);
     *exact = !lostSignificantBase && !lostSignificantTop;
-    // Split E between T8, T and B
-    const uint8_t t8 = newE_coded >> (_CC_N(FIELD_EXPONENT_LOW_PART_SIZE) + _CC_N(FIELD_EXPONENT_HIGH_PART_SIZE));
+    // Split E between L8, T and B
+    const uint8_t l8 = newE_coded >> (_CC_N(FIELD_EXPONENT_LOW_PART_SIZE) + _CC_N(FIELD_EXPONENT_HIGH_PART_SIZE));
     const _cc_addr_t expHighBits =
         _cc_N(getbits)(newE_coded >> _CC_N(FIELD_EXPONENT_LOW_PART_SIZE), 0, _CC_N(FIELD_EXPONENT_HIGH_PART_SIZE));
     const _cc_addr_t expLowBits = _cc_N(getbits)(newE_coded, 0, _CC_N(FIELD_EXPONENT_LOW_PART_SIZE));
     const _cc_addr_t Te = Tbits | expHighBits;
     const _cc_addr_t Be = Bbits | expLowBits;
     return _CC_ENCODE_EBT_FIELD(1, INTERNAL_EXPONENT) | _CC_ENCODE_EBT_FIELD(0, EF) |
-           _CC_ENCODE_EBT_FIELD(t8, T8) |
+           _CC_ENCODE_EBT_FIELD(l8, L8) |
            _CC_ENCODE_EBT_FIELD(Te, TOP_ENCODED) | _CC_ENCODE_EBT_FIELD(Be, BOTTOM_ENCODED);
 }
 
@@ -1102,7 +1102,7 @@ static inline bool _cc_N(setbounds_impl)(_cc_cap_t* cap, _cc_length_t req_len, _
     if (req_base < cap->cr_base || req_top > cap->_cr_top) {
         cap->cr_tag = 0;
     }
-#if _CC_N(FIELD_T8_USED) == 1
+#if _CC_N(FIELD_L8_USED) == 1
     _CC_STATIC_ASSERT(_CC_EXP_LOW_WIDTH == 2, "expected 2 bits to be used by");
     _CC_STATIC_ASSERT(_CC_EXP_HIGH_WIDTH == 2, "expected 2 bits to be used by");
 #else
