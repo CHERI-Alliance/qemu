@@ -203,7 +203,7 @@ static inline void cap_set_capmode(cap_register_t *c, bool enable)
 
 static inline bool cap_has_reserved_bits_set(const cap_register_t *c)
 {
-    return CAP_cc(get_reserved)(c) != 0;
+    return (CAP_cc(get_reserved)(c) != 0) || (CAP_cc(get_reserved2)(c) != 0);
 }
 
 // The top of the capability (exclusive -- i.e., one past the end)
