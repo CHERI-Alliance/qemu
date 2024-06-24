@@ -304,6 +304,7 @@ ALL_WRAPPERS(OTYPE, otype, uint32_t)
 ALL_WRAPPERS(SEALED, sealed, uint8_t)
 ALL_WRAPPERS(FLAGS, flags, uint8_t)
 ALL_WRAPPERS(RESERVED, reserved, uint32_t)
+ALL_WRAPPERS(RESERVED2, reserved2, uint32_t)
 #undef ALL_WRAPPERS
 
 /// Extract the bits used for bounds and infer the top two bits of T
