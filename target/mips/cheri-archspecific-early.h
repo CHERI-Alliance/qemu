@@ -96,7 +96,17 @@ typedef enum CheriCapExc {
     CapEx_AccessCCallIDCViolation       = 0x1A,  /* Access IDC in a CCall delay slot */
     CapEx_PermitUnsealViolation         = 0x1B,  /* Permit_Unseal violation */
     CapEx_PermitSetCIDViolation         = 0x1C,  /* Permit_SetCID violation */
-    // 0x1d-0x1f Reserved
+    /*
+     * 0x1d-0x1f Reserved
+     * We nick some of those values for the defines below.
+     *
+     * Those exceptions are unused in mips, they're used only in cheri
+     * bakewell. Still, we want common code to refer to them without wrapping
+     * them in ifdefs everywhere. (Of course, such common code will not be
+     * used by mips).
+     */
+    CapEx_PermissionViolation,
+    CapEx_AddressViolation,
 } CheriCapExcCause;
 
 static inline const cap_register_t *cheri_get_ddc(CPUMIPSState *env) {

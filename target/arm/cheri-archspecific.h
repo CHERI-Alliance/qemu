@@ -49,7 +49,15 @@ typedef enum CheriCapExc {
     CapEx_AccessCCallIDCViolation,
     CapEx_PermitUnsealViolation,
     CapEx_PermitSetCIDViolation,
-    CapEx_AccessSystemRegsViolation
+    CapEx_AccessSystemRegsViolation,
+    /*
+     * These exceptions are used only in cheri bakewell, not in morello.
+     * Still, we want to use them in common code without wrapping them in
+     * ifdefs everywhere. (Of course, such common code will not be used
+     * by morello).
+     */
+    CapEx_PermissionViolation,
+    CapEx_AddressViolation,
 } CheriCapExcCause;
 
 static inline ARMFaultType cheri_cause_to_arm_fault(CheriCapExcCause cause)
