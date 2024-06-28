@@ -783,8 +783,16 @@ restart:
             qemu_log_mask(CPU_LOG_MMU, "%s Translate fail: X bit not set\n",
                           __func__);
             return TRANSLATE_FAIL;
-#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
-        } else if (access_type == MMU_DATA_CAP_STORE && !(pte & PTE_CW)) {
+#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32) && defined(BW_KERNEL_FULL_PTE_SUPPORT)
+            /*
+             * BW_KERNEL_FULL_PTE_SUPPORT is not defined anywhere. The idea is
+             * to effectively disable the cheri-specific PTE checks. We still
+             * want to have the code visible here rather than deleting it.
+             *
+             * As of Jul 2024, we're experimenting with linux kernels that
+             * have partial cheri support and do not set cheri PTE bits.
+             */
+         } else if (access_type == MMU_DATA_CAP_STORE && !(pte & PTE_CW)) {
             /* CW inhibited */
             return TRANSLATE_CHERI_FAIL;
 #endif
@@ -890,8 +898,9 @@ restart:
                  (access_type == MMU_DATA_CAP_STORE) || (pte & PTE_D))) {
                 *prot |= PAGE_WRITE;
             }
-#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
-            if ((pte & PTE_CR) == 0) {
+#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32) && defined(BW_KERNEL_FULL_PTE_SUPPORT)
+           /* see the comment above about BW_KERNEL_FULL_PTE_SUPPORT */
+           if ((pte & PTE_CR) == 0) {
                 if ((pte & PTE_CRM) == 0) {
                     *prot |= PAGE_LC_CLEAR;
                 } else {
