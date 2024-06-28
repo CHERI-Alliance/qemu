@@ -579,12 +579,15 @@ typedef enum {
 #define PTE_A               0x040 /* Accessed */
 #define PTE_D               0x080 /* Dirty */
 #define PTE_SOFT            0x300 /* Reserved for Software */
-#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
+#if defined(TARGET_CHERI_RISCV_V9) && !defined(TARGET_RISCV32)
 #define PTE_CRG             0x0800000000000000 /* Cap Read Generation */
 #define PTE_CRM             0x1000000000000000 /* Cap Read Modifier */
 #define PTE_CD              0x2000000000000000 /* Cap Dirty */
 #define PTE_CR              0x4000000000000000 /* Cap Read */
 #define PTE_CW              0x8000000000000000 /* Cap Write */
+#elif defined(TARGET_CHERI_RISCV_STD_093) && !defined(TARGET_RISCV32)
+#define PTE_CRG BIT_ULL(59) /* Cap Read Generation */
+#define PTE_CW  BIT_ULL(60) /* Cap Write */
 #endif
 
 /* Page table PPN shift amount */
