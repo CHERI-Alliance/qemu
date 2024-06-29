@@ -506,7 +506,7 @@ static char *hobgoblin_machine_get_board_type(Object *obj, Error **errp)
         break;
     }
 
-    return (char*)result;
+    return g_strdup(result);
 }
 
 static void hobgoblin_machine_set_board_type(Object *obj, const char *value,
@@ -539,7 +539,7 @@ static char *hobgoblin_machine_get_eth_type(Object *obj, Error **errp)
         break;
     }
 
-    return (char*)result;
+    return g_strdup(result);
 }
 
 static void hobgoblin_machine_set_eth_type(Object *obj, const char *value,
