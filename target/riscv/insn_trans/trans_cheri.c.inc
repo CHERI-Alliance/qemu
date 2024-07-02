@@ -185,8 +185,6 @@ TRANSLATE_INT_CAP(cgetaddr)
 TRANSLATE_INT_CAP(cgetoffset)
 TRANSLATE_INT_CAP(cgetsealed)
 
-TRANSLATE_INT_CAP(cloadtags)
-
 // Two operand (int int)
 static inline bool trans_crrl(DisasContext *ctx, arg_crrl *a)
 {
