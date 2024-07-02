@@ -185,7 +185,6 @@ static inline bool gen_cheri_int_cap_cap(DisasContext *ctx, int rd, int cs1,
 // Two operand (int cap)
 TRANSLATE_INT_CAP(cgetaddr)
 TRANSLATE_INT_CAP(cgetoffset)
-TRANSLATE_INT_CAP(cgetsealed)
 
 // Two operand (int int)
 static inline bool trans_crrl(DisasContext *ctx, arg_crrl *a)
