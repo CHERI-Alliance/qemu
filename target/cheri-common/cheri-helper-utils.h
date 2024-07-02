@@ -251,8 +251,8 @@ static inline const char* cheri_cause_str(CheriCapExcCause cause) {
     case CapEx_PermitUnsealViolation: return "Permit_Unseal Violation";
     case CapEx_PermitSetCIDViolation: return "Permit_SetCID Violation";
 #endif
+    default: return "Unknown cause";
     }
-    // default: return "Unknown cause";
     __builtin_unreachable();
     abort();
 }
@@ -262,8 +262,8 @@ static inline const char* cheri_type_str(CheriCapExcType type) {
     case CapExType_Branch: return "Branch Violation";
     case CapExType_InstrAccess: return "Access Violation";
     case CapExType_Data: return "Data Violation";
+    default: return "Unknown cause";
     }
-    // default: return "Unknown cause";
     __builtin_unreachable();
     abort();
 }
