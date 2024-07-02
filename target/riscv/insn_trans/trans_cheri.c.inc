@@ -230,7 +230,6 @@ TRANSLATE_CAP_CAP_INT(csetoffset)
 // Three operand (int cap cap)
 TRANSLATE_INT_CAP_CAP(csub)
 TRANSLATE_INT_CAP_CAP(ctestsubset)
-TRANSLATE_INT_CAP_CAP(ctoptr)
 
 // CIncOffsetImm/CSetBoundsImm:
 typedef void(cheri_cap_cap_imm_helper)(TCGv_env, TCGv_i32, TCGv_i32, TCGv);
