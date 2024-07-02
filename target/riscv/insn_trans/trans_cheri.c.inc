@@ -182,8 +182,6 @@ static inline bool gen_cheri_int_cap_cap(DisasContext *ctx, int rd, int cs1,
     DO_TRANSLATE(name, gen_cheri_int_cap_cap, ctx, a->rd, a->rs1, a->rs2)
 
 // TODO: all of these could be implemented in TCG without calling a helper
-// Two operand (int cap)
-TRANSLATE_INT_CAP(cgetaddr)
 
 // Two operand (int int)
 static inline bool trans_crrl(DisasContext *ctx, arg_crrl *a)
