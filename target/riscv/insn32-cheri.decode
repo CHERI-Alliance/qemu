@@ -69,7 +69,6 @@ scmode 0000110  ..... ..... 111 ..... 0110011 @rcc
 
 ### Two operands (source and dest)
 # TODO: generate from sail?
-cgetsealed  1111111  00101 ..... 000 ..... 1011011 @r2
 cgetoffset  1111111  00110 ..... 000 ..... 1011011 @r2
 crrl        1111111  01000 ..... 000 ..... 1011011 @r2
 cram        0001000  00111 ..... 000 ..... 0110011 @r2
