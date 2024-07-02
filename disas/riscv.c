@@ -557,7 +557,6 @@ typedef enum {
     rv_op_gclen,
 
     // Three operand
-    rv_op_cspecialrw,
     rv_op_scbnds,
     rv_op_scbndsr,
     rv_op_acperm,
@@ -1321,7 +1320,6 @@ const rv_opcode_data opcode_data[] = {
     [rv_op_csd] = { "csd", rv_codec_s, rv_fmt_rs2_offset_cs1, NULL, 0, 0, 0 },
 
     // Three operand
-    [rv_op_cspecialrw] = { "cspecialrw", rv_codec_r, rv_fmt_cd_scr_cs1, NULL, 0, 0, 0 },
     [rv_op_scbnds] = { "scbnds", rv_codec_r, rv_fmt_cd_cs1_rs2, NULL, 0, 0, 0 },
     [rv_op_scbndsr] = { "scbndsr", rv_codec_r, rv_fmt_cd_cs1_rs2, NULL, 0, 0, 0 },
     [rv_op_acperm] = { "acperm", rv_codec_r, rv_fmt_cd_cs1_rs2, NULL, 0, 0, 0 },
@@ -1572,10 +1570,6 @@ static rv_opcode decode_cheri_two_op(unsigned func) {
 static rv_opcode decode_cheri_inst(rv_inst inst) {
     int func = ((inst >> 25) & 0b111111);
     switch (func) {
-    // 0000000, unused
-    CHERI_THREEOP_CASE(cspecialrw,  0000001,  ..... ..... 000 ..... 1011011 @r)
-    // 0000010-0000111 unused
-    // 0001010 unused
     CHERI_THREEOP_CASE(csub,        0010100,  ..... ..... 000 ..... 1011011 @r)
     // 0010101-0011101 unused
     CHERI_THREEOP_CASE(ctestsubset, 0100000,  ..... ..... 000 ..... 1011011 @r)

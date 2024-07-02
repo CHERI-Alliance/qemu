@@ -193,25 +193,6 @@ static inline bool trans_cram(DisasContext *ctx, arg_cram *a)
     return gen_cheri_int_int(ctx, a->rd, a->rs1, &gen_helper_cram);
 }
 
-// Three operand (cap cap cap)
-
-// Not quite (cap cap cap) but the index argument can be handled the same way
-static bool trans_cspecialrw(DisasContext *ctx, arg_cspecialrw *a)
-{
-    if (gen_cheri_cap_cap_cap(a->rd, a->rs1, a->rs2, &gen_helper_cspecialrw)) {
-        if (a->rs1 != 0 && a->rs2 == CheriSCR_DDC) {
-            // When DDC changes we have to exit the current translation block
-            // since we cache DDC properties in the flags to optimize out
-            // bounds/permission checks.
-            gen_update_cpu_pc(ctx->pc_succ_insn);
-            tcg_gen_exit_tb(NULL, 0);
-            ctx->base.is_jmp = DISAS_NORETURN;
-        }
-        return true;
-    }
-    return false;
-}
-
 // Three operand (cap cap int)
 TRANSLATE_CAP_CAP_INT(scbnds)
 TRANSLATE_CAP_CAP_INT(scbndsr)

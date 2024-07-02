@@ -39,9 +39,6 @@
 %cd         7:5
 
 ### Three operand instructions
-# 0000000 unused
-cspecialrw  0000001  ..... ..... 000 ..... 1011011 @r
-# 0000010-0000111 unused
 scbnds      0000111  ..... ..... 000 ..... 0110011 @r
 scbndsr     0000111  ..... ..... 001 ..... 0110011 @r
 # 0001010 unused

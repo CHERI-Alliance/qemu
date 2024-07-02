@@ -325,61 +325,6 @@ void HELPER(csrrci_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
 
 }
 
-
-void HELPER(cspecialrw)(CPUArchState *env, uint32_t cd, uint32_t cs,
-                        uint32_t index)
-{
-    uintptr_t _host_return_address = GETPC();
-    // Ensure that env->pcc.cursor is correct:
-    cpu_restore_state(env_cpu(env), _host_return_address, false);
-
-    assert(index <= 31 && "Bug in translator?");
-    enum SCRAccessMode mode = scr_info[index].access;
-    if (mode == SCR_Invalid || (cs != 0 && !scr_info[index].w)) {
-        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST,
-                              _host_return_address);
-    }
-    bool can_access_sysregs = cheri_have_access_sysregs(env);
-    if (scr_needs_asr(mode) && !can_access_sysregs) {
-        raise_cheri_exception(env, CapEx_AccessSystemRegsViolation,
-                              CapExType_InstrAccess, 32 + index);
-    }
-    if (scr_min_priv(mode) > env->priv) {
-        raise_cheri_exception(env, CapEx_AccessSystemRegsViolation,
-                              CapExType_InstrAccess, 32 + index);
-    }
-    cap_register_t *scr = riscv_get_scr(env, index);
-    // Make a copy of the write value in case cd == cs
-    cap_register_t new_val = *get_readonly_capreg(env, cs);
-    if (cd != 0) {
-        assert(scr_info[index].r && "Bug? Should be readable");
-        // For xEPCC we clear the low address bit(s) when reading to match xEPC.
-        // See helper_sret/helper_mret for more context.
-    }
-    if (cs != 0) {
-        assert(scr_info[index].w && "Bug? Should be writable");
-#ifdef CONFIG_TCG_LOG_INSTR
-        if (qemu_log_instr_enabled(env)) {
-            qemu_log_instr_extra(env, "  %s <- " PRINT_CAP_FMTSTR "\n",
-                scr_info[index].name, PRINT_CAP_ARGS(&new_val));
-        }
-#endif
-        switch (index) {
-        case CheriSCR_DDC:
-            if (!new_val.cr_tag) {
-                qemu_log_instr_or_mask_msg(
-                    env, CPU_LOG_INT,
-                    "Note: Installed untagged DDC at " TARGET_FMT_lx "\n",
-                    cpu_get_recent_pc(env));
-            }
-            /* fallthrough */
-        default:
-            *scr = new_val;
-            cheri_log_instr_changed_capreg(env, scr_info[index].name, scr);
-        }
-    }
-}
-
 #ifdef DO_CHERI_STATISTICS
 static DEFINE_CHERI_STAT(auipcc);
 #endif
