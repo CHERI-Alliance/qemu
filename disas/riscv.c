@@ -555,7 +555,6 @@ typedef enum {
     rv_op_ccleartag,
     rv_op_cjalr,
     rv_op_cgetaddr,
-    rv_op_cloadtags,
 
     rv_op_sentry,
     rv_op_gctag,
@@ -1312,7 +1311,6 @@ const rv_opcode_data opcode_data[] = {
     [rv_op_ccleartag] = { "ccleartag", rv_codec_r, rv_fmt_cd_cs1, NULL, 0, 0, 0 },
     [rv_op_cjalr] = { "cjalr", rv_codec_r, rv_fmt_cd_cs1, NULL, 0, 0, 0 },
     [rv_op_cgetaddr] = { "cgetaddr", rv_codec_r, rv_fmt_rd_cs1, NULL, 0, 0, 0 },
-    [rv_op_cloadtags] = { "cloadtags", rv_codec_r, rv_fmt_rd_cs1, NULL, 0, 0, 0 },
 
     [rv_op_sentry] = { "sentry", rv_codec_r, rv_fmt_cd_cs1, NULL, 0, 0, 0 },
     [rv_op_gctag] = { "gctag", rv_codec_r, rv_fmt_rd_cs1, NULL, 0, 0, 0 },
@@ -1580,7 +1578,6 @@ static rv_opcode decode_cheri_two_op(unsigned func) {
     case 0b01011: return rv_op_ccleartag;
     case 0b01100: return rv_op_cjalr;
     case 0b01111: return rv_op_cgetaddr;
-    case 0b10010: return rv_op_cloadtags;
     default: return rv_op_illegal;
     }
 }
