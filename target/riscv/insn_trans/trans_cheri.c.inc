@@ -193,9 +193,6 @@ static inline bool trans_cram(DisasContext *ctx, arg_cram *a)
     return gen_cheri_int_int(ctx, a->rd, a->rs1, &gen_helper_cram);
 }
 
-// Two operand (cap cap)
-TRANSLATE_CAP_CAP(cmove)
-
 // Three operand (cap cap cap)
 
 // Not quite (cap cap cap) but the index argument can be handled the same way
