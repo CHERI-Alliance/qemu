@@ -860,6 +860,7 @@ typedef struct {
     const char *name;
     riscv_csr_cap_read_fn read;
     riscv_csr_cap_write_fn write;
+    bool require_cre;
 }riscv_csr_cap_ops;
 riscv_csr_cap_ops* get_csr_cap_info(int csrnum);
 #endif

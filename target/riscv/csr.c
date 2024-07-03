@@ -2418,21 +2418,21 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
 // with macros for this
 
 riscv_csr_cap_ops csr_cap_ops[]={
-    {"mscratchc", read_mscratchc, write_mscratchc},
-    {"mtvecc", read_mtvecc, write_mtvecc},
-    {"stvecc", read_stvecc, write_stvecc},
-    {"mepcc", read_mepcc, write_mepcc},
-    {"sepcc", read_sepcc, write_sepcc},
-    {"sscratchc", read_sscratchc, write_sscratchc},
-    {"dscratch0c", read_dscratch0c, write_dscratch0c},
-    {"dscratch1c", read_dscratch1c, write_dscratch1c},
-    {"dpcc", read_dpcc, write_dpcc},
-    {"dddc", read_dddc, write_dddc},
-    {"jvtc", read_jvtc, write_jvtc},
-    {"dinf", read_dinfc, write_dinfc},
-    {"mtdc", read_mtdc, write_mtdc},
-    {"stdc", read_stdc, write_stdc},
-    {"ddc", read_ddc, write_ddc},
+    {"mscratchc", read_mscratchc, write_mscratchc, false},
+    {"mtvecc", read_mtvecc, write_mtvecc, false},
+    {"stvecc", read_stvecc, write_stvecc, false},
+    {"mepcc", read_mepcc, write_mepcc, false},
+    {"sepcc", read_sepcc, write_sepcc, false},
+    {"sscratchc", read_sscratchc, write_sscratchc, false},
+    {"dscratch0c", read_dscratch0c, write_dscratch0c, false},
+    {"dscratch1c", read_dscratch1c, write_dscratch1c, false},
+    {"dpcc", read_dpcc, write_dpcc, false},
+    {"dddc", read_dddc, write_dddc, true},
+    {"jvtc", read_jvtc, write_jvtc, false},
+    {"dinf", read_dinfc, write_dinfc, false},
+    {"mtdc", read_mtdc, write_mtdc, true},
+    {"stdc", read_stdc, write_stdc, true},
+    {"ddc", read_ddc, write_ddc, true},
 };
 
 
