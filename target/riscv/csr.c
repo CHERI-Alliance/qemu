@@ -2426,13 +2426,13 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
  */
 
 riscv_csr_cap_ops csr_cap_ops[] = {
-    { "mscratchc", read_mscratchc, write_mscratchc },
-    { "mtvecc", read_mtvecc, write_mtvecc },
-    { "stvecc", read_stvecc, write_stvecc },
-    { "mepcc", read_mepcc, write_mepcc },
-    { "sepcc", read_sepcc, write_sepcc },
-    { "sscratchc", read_sscratchc, write_sscratchc },
-    { "ddc", read_ddc, write_ddc },
+    { "mscratchc", read_mscratchc, write_mscratchc, false },
+    { "mtvecc", read_mtvecc, write_mtvecc, false },
+    { "stvecc", read_stvecc, write_stvecc, false },
+    { "mepcc", read_mepcc, write_mepcc, false },
+    { "sepcc", read_sepcc, write_sepcc, false },
+    { "sscratchc", read_sscratchc, write_sscratchc, false },
+    { "ddc", read_ddc, write_ddc, true },
 };
 
 riscv_csr_cap_ops *get_csr_cap_info(int csrnum)
