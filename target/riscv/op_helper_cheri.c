@@ -115,9 +115,10 @@ void riscv_log_instr_scr_changed(CPURISCVState *env, int scrno)
 }
 #endif
 
-
-int check_csr_cap_permissions(CPURISCVState *env, int csrno,int write_mask);
-int check_csr_cap_permissions(CPURISCVState *env, int csrno,int write_mask)
+int check_csr_cap_permissions(CPURISCVState *env, int csrno, int write_mask,
+                              riscv_csr_cap_ops *csr_cap_info);
+int check_csr_cap_permissions(CPURISCVState *env, int csrno, int write_mask,
+                              riscv_csr_cap_ops *csr_cap_info)
 {
     RISCVCPU *cpu = env_archcpu(env);
 
@@ -148,7 +149,9 @@ int check_csr_cap_permissions(CPURISCVState *env, int csrno,int write_mask)
         return -RISCV_EXCP_ILLEGAL_INST;
     }
 
-    
+    if (csr_cap_info->require_cre && ! riscv_cpu_mode_cre(env)){
+        return -RISCV_EXCP_ILLEGAL_INST;
+    }
     return 0;
 }
 
@@ -163,7 +166,7 @@ void HELPER(csrrw_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
 
     assert(csr_cap_info);
 
-    ret = check_csr_cap_permissions(env,csr,1);
+    ret = check_csr_cap_permissions(env, csr, 1, csr_cap_info);
     if (ret) {
         riscv_raise_exception(env, -ret, GETPC());
     }
@@ -192,7 +195,7 @@ void HELPER(csrrs_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
     assert(csr_cap_info);
 
     if (rs1) {
-        ret = check_csr_cap_permissions(env,csr,1);
+        ret = check_csr_cap_permissions(env, csr, 1, csr_cap_info);
         if (ret) {
             riscv_raise_exception(env, -ret, GETPC());
         }
@@ -225,7 +228,7 @@ void HELPER(csrrc_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
     assert(csr_cap_info);
 
     if(rs1) {
-        ret = check_csr_cap_permissions(env,csr,1);
+        ret = check_csr_cap_permissions(env, csr, 1, csr_cap_info);
         if (ret) {
             riscv_raise_exception(env, -ret, GETPC());
         }
@@ -256,7 +259,7 @@ void HELPER(csrrwi_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
 
     assert(csr_cap_info);
 
-    ret = check_csr_cap_permissions(env,csr,1);
+    ret = check_csr_cap_permissions(env, csr, 1, csr_cap_info);
 
     if (ret) {
         riscv_raise_exception(env, -ret, GETPC());
@@ -283,9 +286,9 @@ void HELPER(csrrsi_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
     assert(csr_cap_info);
 
     if (rs1_val) {
-        ret = check_csr_cap_permissions(env,csr,1);
+        ret = check_csr_cap_permissions(env, csr, 1, csr_cap_info);
         if (ret) {
-riscv_raise_exception(env, -ret, GETPC());
+            riscv_raise_exception(env, -ret, GETPC());
         }
     }
 
@@ -314,7 +317,7 @@ void HELPER(csrrci_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
     assert(csr_cap_info);
 
     if (rs1_val) {
-        ret = check_csr_cap_permissions(env,csr,1);
+        ret = check_csr_cap_permissions(env, csr, 1, csr_cap_info);
         if(ret){
             riscv_raise_exception(env, -ret, GETPC());
         }
