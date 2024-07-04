@@ -517,3 +517,45 @@ void HELPER(scmode)(CPUArchState *env, uint32_t cd, uint32_t cs1,
     }
     update_capreg(env, cd, &result);
 }
+
+target_ulong HELPER(scss)(CPUArchState *env, uint32_t cs1, uint32_t cs2)
+{
+    /*
+     * V9's ctestsubset used ddc for cs1 == 0. This case was removed for scss,
+     * we need no special handling for cs1 == 0.
+     */
+    const cap_register_t *cs1p = get_readonly_capreg(env, cs1);
+    const cap_register_t *cs2p = get_readonly_capreg(env, cs2);
+    if (!cs1p->cr_bounds_valid || !cs2p->cr_bounds_valid) {
+        return 0;
+    }
+    if (cap_has_reserved_bits_set(cs1p) || cap_has_reserved_bits_set(cs2p)) {
+        return 0;
+    }
+    if (cs1p->cr_tag != cs2p->cr_tag) {
+        return 0;
+    }
+    /*
+     * cs2's bounds must be equal to or a subset of cs1's
+     * base1 <= base2, top2 <= top1
+     */
+    if (cap_get_base(cs1p) > cap_get_base(cs2p)) {
+        return 0;
+    }
+    if (cap_get_top_full(cs2p) > cap_get_top_full(cs1p)) {
+        return 0;
+    }
+
+    /* Explicitly verify that the permissions are valid. */
+    if (cap_has_invalid_perms_encoding(cs1p) ||
+        cap_has_invalid_perms_encoding(cs2p)) {
+        return 0;
+    }
+    /* Return 0 if the permissions or level are not identical. */
+    if ((cap_get_all_perms(cs2p) & cap_get_all_perms(cs1p)) !=
+        cap_get_all_perms(cs2p)) {
+        return 0;
+    }
+
+    return 1;
+}

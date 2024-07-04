@@ -608,6 +608,7 @@ typedef enum {
     rv_op_sceq,
     rv_op_scmode,
     rv_op_cbld,
+    rv_op_scss,
 
     // FP loads/store
     rv_op_cflw,
@@ -1408,6 +1409,7 @@ const rv_opcode_data opcode_data[] = {
     [rv_op_sceq] = { "sceq", rv_codec_r, rv_fmt_rd_cs1_cs2, NULL, 0, 0, 0 },
     [rv_op_scmode] = { "scmode", rv_codec_r, rv_fmt_cd_cs1_rs2, NULL, 0, 0, 0 },
     [rv_op_cbld] = { "cbld", rv_codec_r, rv_fmt_cd_cs1_cs2, NULL, 0, 0, 0 },
+    [rv_op_scss] = { "scss", rv_codec_r, rv_fmt_rd_cs1_cs2, NULL, 0, 0, 0 },
 
     // FP load store
     [rv_op_cflw] = { "cflw", rv_codec_i, rv_fmt_frd_offset_cs1, NULL, 0, 0, 0 },
@@ -2072,6 +2074,7 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa, int flags)
             case 51: op = rv_op_schi; break;
             case 52: op = rv_op_sceq; break;
             case 53: op = rv_op_cbld; break;
+            case 54: op = rv_op_scss; break;
             case 55: op = rv_op_scmode; break;
             case 56: op = rv_op_scbnds; break;
             case 57: op = rv_op_scbndsr; break;
