@@ -53,6 +53,7 @@
 &r2nfvm    vm rd rs1 nf
 &rnfvm     vm rd rs1 rs2 nf
 &icc       imm cs1 cd
+&rcc       rs2 cs1 cd
 
 # Formats 32:
 @r       .......   ..... ..... ... ..... ....... &r                %rs2 %rs1 %rd

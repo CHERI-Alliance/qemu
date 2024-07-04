@@ -53,6 +53,7 @@
 &u         imm rd       !extern
 &shift     shamt rs1 rd !extern
 &icc       imm cs1 cd   !extern
+&rcc       cd cs1 rs2   !extern
 
 # Formats 16:
 @cr        ....  ..... .....  .. &r      rs2=%rs2_5       rs1=%rd     %rd
@@ -78,6 +79,7 @@
 @c_lui     ... . .....  ..... .. &u      imm=%imm_lui %rd
 @c_jalr    ... . .....  ..... .. &i      imm=0 rs1=%rd
 @c_mv      ... . ..... .....  .. &i      imm=0 rs1=%rs2_5 %rd
+@c_cmv     ... . ..... .....  .. &rcc    rs2=0 cs1=%rs2_5 cd=%rd
 
 @c_addi4spn     ... .  ..... ..... .. &i imm=%nzuimm_ciw rs1=2 rd=%rs2_3
 @c_addi16sp     ... .  ..... ..... .. &i imm=%imm_addi16sp rs1=2 rd=2
@@ -181,7 +183,8 @@ addw              100 1 11 ... 01 ... 01 @cs_2
 {
   illegal         100 0  00000  00000 10 # c.jr, RES rs1=0
   jalr            100 0  .....  00000 10 @c_jalr rd=0  # C.JR
-  addi            100 0  .....  ..... 10 @c_mv
+  addi            100 0  .....  ..... 10 @c_mv ?!pred_capmode
+  cadd            100 0  .....  ..... 10 @c_cmv ?pred_capmode
 }
 {
   ebreak          100 1  00000  00000 10

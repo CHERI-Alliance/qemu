@@ -54,7 +54,7 @@ ctestsubset 0100000  ..... ..... 000 ..... 1011011 @r
 # 1111110 Used for two source ops
 # 1111111 Used for Source & Dest ops (see below)
 
-@rcc     .......   ..... ..... ... ..... ....... %rs2 %cs1 %cd
+@rcc     .......   ..... ..... ... ..... ....... &rcc     %rs2 %cs1 %cd
 @ccr     .......   ..... ..... ... ..... ....... %cs2 %cs1 %rd
 @ccc     .......   ..... ..... ... ..... ....... %cs2 %cs1 %cd
 
