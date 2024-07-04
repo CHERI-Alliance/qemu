@@ -225,10 +225,6 @@ static inline bool trans_crrl(DisasContext *ctx, arg_crrl *a)
 
 // Two operand (cap cap)
 TRANSLATE_CAP_CAP(ccleartag)
-static bool trans_cmove(DisasContext *ctx, arg_cmove *a)
-{
-    return gen_cmv(ctx, a);
-}
 TRANSLATE_CAP_CAP(csealentry)
 
 // Three operand (cap cap cap)
@@ -687,11 +683,6 @@ TRANSLATE_INT_CAP_HELPER(gclen, cgetlen)
 
 TRANSLATE_CAP_CAP_HELPER(sentry, csealentry)
 
-static bool trans_cmv(DisasContext *ctx, arg_cmv *a)
-{
-    return gen_cmv(ctx, a);
-}
-
 static bool trans_cadd(DisasContext *ctx, arg_cadd *a)
 {
     assert(a->rs2 != 0 && "This encoding is reserved");
@@ -732,3 +723,7 @@ static bool trans_caddi(DisasContext *ctx, arg_caddi *a)
     return gen_cheri_cap_cap_imm(a->cd, a->cs1, a->imm, &gen_helper_cincoffset);
 }
 
+static bool trans_cmv(DisasContext *ctx, arg_cc *a)
+{
+    return gen_cmv(ctx, a);
+}
