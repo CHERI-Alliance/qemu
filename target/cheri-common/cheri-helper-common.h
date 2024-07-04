@@ -161,6 +161,7 @@ DEF_HELPER_4(scaddr, void, env, i32, i32, tl)
 DEF_HELPER_4(schi, void, env, i32, i32, tl)
 DEF_HELPER_3(sceq, tl, env, i32, i32)
 DEF_HELPER_4(cbld, void, env, i32, i32, i32)
+DEF_HELPER_3(scss, tl, env, i32, i32)
 DEF_HELPER_3(sentry, void, env, i32, i32)
 
 DEF_HELPER_4(scmode, void, env, i32, i32, tl)

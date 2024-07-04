@@ -2094,6 +2094,56 @@ void CHERI_HELPER_IMPL(cbld(CPUArchState *env, uint32_t cd, uint32_t cs1,
     update_capreg(env, cd, &result);
 }
 
+target_ulong CHERI_HELPER_IMPL(scss(CPUArchState *env, uint32_t cs1,
+             uint32_t cs2))
+{
+    /*
+     * V9's ctestsubset used ddc for cs1 == 0. This case was removed for scss,
+     * we need no special handling for cs1 == 0.
+     */
+    const cap_register_t *cs1p = get_readonly_capreg(env, cs1);
+    const cap_register_t *cs2p = get_readonly_capreg(env, cs2);
+
+    /* Malformed bounds decode as base, top == 0, see the cbld helper. */
+    if (cap_get_length_full(cs1p) == 0 || cap_get_length_full(cs2p) == 0) {
+        return 0;
+    }
+
+    if (cap_has_reserved_bits_set(cs1p) || cap_has_reserved_bits_set(cs2p)) {
+        return 0;
+    }
+
+    if (cs1p->cr_tag != cs2p->cr_tag) {
+        return 0;
+    }
+
+    /*
+     * cs2's bounds must be equal to or a subset of cs1's
+     * base1 <= base2, top2 <= top1
+     */
+    if (cap_get_base(cs1p) > cap_get_base(cs2p)) {
+        return 0;
+    }
+    if (cap_get_top_full(cs2p) > cap_get_top_full(cs1p)) {
+        return 0;
+    }
+
+    /*
+     * Our working assumption is that we don't have to check for valid
+     * permissions.
+     * There's no need to decompress, get_readonly_capreg returns fully
+     * decompressed capabilities.
+     */
+    if ((cs2p->cr_arch_perm & cs1p->cr_arch_perm) != cs2p->cr_arch_perm) {
+        return 0;
+    }
+    if ((cap_get_sdp(cs2p) & cap_get_sdp(cs1p)) != cap_get_sdp(cs2p)) {
+        return 0;
+    }
+
+    return 1;
+}
+
 void CHERI_HELPER_IMPL(sentry(CPUArchState *env, uint32_t cd, uint32_t cs1))
 {
     GET_HOST_RETPC_IF_TRAPPING_CHERI_ARCH();
