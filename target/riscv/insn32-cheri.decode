@@ -39,8 +39,8 @@
 %cd         7:5
 
 ### Three operand instructions
-scbnds      0000111  ..... ..... 000 ..... 0110011 @r
-scbndsr     0000111  ..... ..... 001 ..... 0110011 @r
+scbnds      0000111  ..... ..... 000 ..... 0110011 @r ?pred_capmode
+scbndsr     0000111  ..... ..... 001 ..... 0110011 @r ?pred_capmode
 # 0001010 unused
 csub        0010100  ..... ..... 000 ..... 1011011 @r
 # 0010101-0011100 unused
@@ -55,19 +55,19 @@ ctestsubset 0100000  ..... ..... 000 ..... 1011011 @r
 @ccr     .......   ..... ..... ... ..... ....... %cs2 %cs1 %rd
 @ccc     .......   ..... ..... ... ..... ....... %cs2 %cs1 %cd
 
-cadd   0000110  ..... ..... 000 ..... 0110011 @rcc
-scaddr 0000110  ..... ..... 001 ..... 0110011 @rcc
-schi   0000110  ..... ..... 011 ..... 0110011 @rcc
-sceq   0000110  ..... ..... 100 ..... 0110011 @ccr
-acperm 0000110  ..... ..... 010 ..... 0110011 @rcc
-cbld   0000110  ..... ..... 101 ..... 0110011 @ccc
-scmode 0000110  ..... ..... 111 ..... 0110011 @rcc
+cadd   0000110  ..... ..... 000 ..... 0110011 @rcc ?pred_capmode
+scaddr 0000110  ..... ..... 001 ..... 0110011 @rcc ?pred_capmode
+schi   0000110  ..... ..... 011 ..... 0110011 @rcc ?pred_capmode
+sceq   0000110  ..... ..... 100 ..... 0110011 @ccr ?pred_capmode
+acperm 0000110  ..... ..... 010 ..... 0110011 @rcc ?pred_capmode
+cbld   0000110  ..... ..... 101 ..... 0110011 @ccc ?pred_capmode
+scmode 0000110  ..... ..... 111 ..... 0110011 @rcc ?pred_capmode
 
 
 ### Two operands (source and dest)
 # TODO: generate from sail?
 crrl        1111111  01000 ..... 000 ..... 1011011 @r2
-cram        0001000  00111 ..... 000 ..... 0110011 @r2
+cram        0001000  00111 ..... 000 ..... 0110011 @r2 ?pred_capmode
 jalr_cap    1111111  01100 ..... 000 ..... 1011011 @r2
 # clear     1111111  01101 ..... 000 ..... 1011011 @r2
 # cclear    1111111  01110 ..... 000 ..... 1011011 @r2
@@ -76,15 +76,15 @@ jalr_pcc    1111111  10100 ..... 000 ..... 1011011 @r2
 
 @cc         .......  ..... ..... ... ..... ....... %cs1 %cd
 
-sentry      0001000  01000 ..... 000 ..... 0110011 @cc
+sentry      0001000  01000 ..... 000 ..... 0110011 @cc ?pred_capmode
 
 @cr         .......  ..... ..... ... ..... ....... %cs1 %rd
 
-gctag       0001000  00000 ..... 000 ..... 0110011 @cr
-gcperm      0001000  00001 ..... 000 ..... 0110011 @cr
-gchi        0001000  00100 ..... 000 ..... 0110011 @cr
-gcbase      0001000  00101 ..... 000 ..... 0110011 @cr
-gclen       0001000  00110 ..... 000 ..... 0110011 @cr
+gctag       0001000  00000 ..... 000 ..... 0110011 @cr ?pred_capmode
+gcperm      0001000  00001 ..... 000 ..... 0110011 @cr ?pred_capmode
+gchi        0001000  00100 ..... 000 ..... 0110011 @cr ?pred_capmode
+gcbase      0001000  00101 ..... 000 ..... 0110011 @cr ?pred_capmode
+gclen       0001000  00110 ..... 000 ..... 0110011 @cr ?pred_capmode
 
 # There is an existing @sfence_vma format with rs1+rs2 fields, but let's define a new name
 @r_2source ....... ..... .....   ... ..... ....... %rs2 %rs1
@@ -101,10 +101,10 @@ gclen       0001000  00110 ..... 000 ..... 0110011 @cr
 @atom_ld_cap_or_ddc .......   ..... ..... ... ..... ....... &atomic aq=1 rl=1 rs2=0  %rs1 %rd
 @atom_st_cap_or_ddc .......   ..... ..... ... ..... ....... &atomic aq=1 rl=1 rd=0   %rs2 %rs1
 
-scbndsi  000001 . ..... ..... 101 ..... 0010011 @is_unsigned
+scbndsi  000001 . ..... ..... 101 ..... 0010011 @is_unsigned ?pred_capmode
 
 @icc     ............    ..... ... ..... ....... &icc     imm=%imm_i %cs1 %cd
-caddi         ............     ..... 010 ..... 0011011 @icc
+caddi         ............     ..... 010 ..... 0011011 @icc ?pred_capmode
 
 ### Memory Loads (including Load-Reserved) with Explicit Address Type
 ld_b_ddc       1111101  00000 ..... 000 ..... 1011011 @r2
