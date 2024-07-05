@@ -41,6 +41,8 @@ TEST_CASE("bounds encoding exponent 0", "[bounds]") {
     _cc_cap_t cap = CompressedCap128r::make_max_perms_cap(0x0, 0x10, 0x20);
 
     /*
+     * SDP = 0b1111
+     * M = 0b0
      * EF == 1 -> exponent 0
      * { T, TE } == 0b0000_0010_0000
      * { B, BE } == 0
@@ -48,7 +50,7 @@ TEST_CASE("bounds encoding exponent 0", "[bounds]") {
      *
      * top == 0x20, base == 0x0
      */
-    CHECK(cap.cr_pesbt == 0xf800004080000);
+    CHECK(cap.cr_pesbt == 0x1ef800004080000);
 }
 
 TEST_CASE("bounds encoding exponent > 0", "[bounds]") {
@@ -56,6 +58,8 @@ TEST_CASE("bounds encoding exponent > 0", "[bounds]") {
             0x41DF, 0xA6400);
 
     /*
+     * SDP = 0b1111
+     * M = 0b0
      * EF == 0 -> internal exponent
      * E = 52 - 45 = 7
      *
@@ -67,5 +71,5 @@ TEST_CASE("bounds encoding exponent > 0", "[bounds]") {
      * LCout = 0, LMSB = 1
      * c_t = 0, c_b = 0
      */
-    CHECK(cap.cr_pesbt == 0xf800001334105);
+    CHECK(cap.cr_pesbt == 0x1ef800001334105);
 }

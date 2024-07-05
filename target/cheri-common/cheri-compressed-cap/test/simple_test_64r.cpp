@@ -105,7 +105,7 @@ TEST_CASE("bounds encoding, internal exponent, L8 = 1", "[bounds]") {
     _cc_cap_t cap = CompressedCap64r::make_max_perms_cap(0x0, 0x1000, 0x8000);
 
     /*
-     * 00 SDP
+     * 11 SDP
      * 01000 AP quadrant 1, execute + ASR
      * 0000 reserved
      * 0 S
@@ -120,7 +120,7 @@ TEST_CASE("bounds encoding, internal exponent, L8 = 1", "[bounds]") {
      * LCout = 0, LMSB = 1
      * c_t = 0, c_b = 0
      */
-    CHECK(cap.cr_pesbt == 0x10040001);
+    CHECK(cap.cr_pesbt == 0xD0040001);
 }
 
 TEST_CASE("bounds encoding, exponent > 0, T8==0", "[bounds]") {
@@ -128,7 +128,7 @@ TEST_CASE("bounds encoding, exponent > 0, T8==0", "[bounds]") {
             0x90000000, 0xAC000000);
 
     /*
-     * 00 SDP
+     * 11 SDP
      * 01000 AP quadrant 1, execute + ASR
      * 0000 reserved
      * 0 S
@@ -143,7 +143,7 @@ TEST_CASE("bounds encoding, exponent > 0, T8==0", "[bounds]") {
      * LCout = 0, LMSB = 1
      * c_t = 0, c_b = 0
      */
-    CHECK(cap.cr_pesbt == 0x1002c132);
+    CHECK(cap.cr_pesbt == 0xD002c132);
 }
 
 TEST_CASE("bounds encoding, exponent > 0, T8==0, c_b==-1", "[bounds]") {
@@ -151,7 +151,7 @@ TEST_CASE("bounds encoding, exponent > 0, T8==0, c_b==-1", "[bounds]") {
             0xA0000000, 0xAC000000);
 
     /*
-     * 00 SDP
+     * 11 SDP
      * 01000 AP quadrant 1, execute + ASR
      * 0000 reserved
      * 0 S
@@ -167,5 +167,5 @@ TEST_CASE("bounds encoding, exponent > 0, T8==0, c_b==-1", "[bounds]") {
      * A < R is true, B < R is false, T < R is true
      * c_t = 0, c_b = -1
      */
-     CHECK(cap.cr_pesbt == 0x100207e1);
+     CHECK(cap.cr_pesbt == 0xD00207e1);
 }
