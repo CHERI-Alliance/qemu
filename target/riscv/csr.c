@@ -1451,27 +1451,53 @@ static RISCVException write_mtinst(CPURISCVState *env, int csrno,
     return RISCV_EXCP_NONE;
 }
 
+static int read_mseccfg(CPURISCVState *env, int csrno, target_ulong *val)
+{
+    *val = env->mseccfg & MSECCFG_CRE;
+    return 0;
+}
+
+static int write_mseccfg(CPURISCVState *env, int csrno, target_ulong val)
+{
+    env->mseccfg = val & MSECCFG_CRE;
+    return 0;
+}
+
 static int read_menvcfg(CPURISCVState *env, int csrno, target_ulong *val)
 {
-    *val = env->menvcfg;
+    if ((env->mseccfg & MSECCFG_CRE)) {
+        *val = env->menvcfg & MENVCFG_CRE;
+    } else {
+        *val = 0;
+    }
     return 0;
 }
 
 static int write_menvcfg(CPURISCVState *env, int csrno, target_ulong val)
 {
-    env->menvcfg = val;
+    if ((env->mseccfg & MSECCFG_CRE)) {
+        // at present the CRE bit is the only supported field in the register
+        env->menvcfg = (val & MENVCFG_CRE);
+    }
     return 0;
 }
 
 static int read_senvcfg(CPURISCVState *env, int csrno, target_ulong *val)
 {
-    *val = env->senvcfg;
+    if ((env->mseccfg & MSECCFG_CRE) && (env->menvcfg & MENVCFG_CRE)) {
+        *val = env->senvcfg & SENVCFG_CRE;
+    } else {
+        *val = 0;
+    }
     return 0;
 }
 
 static int write_senvcfg(CPURISCVState *env, int csrno, target_ulong val)
 {
-    env->senvcfg = val;
+    if ((env->mseccfg & MSECCFG_CRE) && (env->menvcfg & MENVCFG_CRE)) {
+        // at present the CRE bit is the only supported field in the register
+        env->senvcfg = (val & SENVCFG_CRE);
+    }
     return 0;
 }
 
