@@ -61,7 +61,7 @@ schi   0000110  ..... ..... 011 ..... 0110011 @rcc ?pred_capmode
 sceq   0000110  ..... ..... 100 ..... 0110011 @ccr ?pred_capmode
 acperm 0000110  ..... ..... 010 ..... 0110011 @rcc ?pred_capmode
 cbld   0000110  ..... ..... 101 ..... 0110011 @ccc ?pred_capmode
-scmode 0000110  ..... ..... 111 ..... 0110011 @rcc ?pred_capmode
+scmode 0000110  ..... ..... 111 ..... 0110011 @rcc ?pred_capmode ?pred_hybrid
 
 
 ### Two operands (source and dest)
@@ -174,4 +174,4 @@ sc_w_cap       1111100  ..... ..... 000 11010 1011011 @atom_st_cap_or_ddc
 #                                       11111 is reserved
 
 ### Zero operands
-modesw     0001001 00000 00000 001 00000 0110011
+modesw     0001001 00000 00000 001 00000 0110011 ?pred_hybrid
