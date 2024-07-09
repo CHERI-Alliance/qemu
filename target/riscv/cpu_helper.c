@@ -104,7 +104,7 @@ void riscv_cpu_get_tb_cpu_state(CPURISCVState *env, target_ulong *pc,
     uint32_t flags = 0;
     *pc = PC_ADDR(env); // We want the full virtual address here (no offset)
 #ifdef TARGET_CHERI
-    cheri_cpu_get_tb_cpu_state(&env->pcc, &env->ddc, pcc_base, pcc_top,
+    cheri_cpu_get_tb_cpu_state(env, &env->pcc, &env->ddc, pcc_base, pcc_top,
                                cheri_flags);
 #endif
     *cs_base = 0;

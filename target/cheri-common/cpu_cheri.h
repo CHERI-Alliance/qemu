@@ -124,7 +124,8 @@ static inline bool cheri_cap_perms_valid_for_exec(const cap_register_t *pcc)
 #define tb_in_capmode(tb)                                                      \
     ((tb->cheri_flags & TB_FLAG_CHERI_CAPMODE) == TB_FLAG_CHERI_CAPMODE)
 
-static inline void cheri_cpu_get_tb_cpu_state(const cap_register_t *pcc,
+static inline void cheri_cpu_get_tb_cpu_state(CPUArchState *env,
+                                              const cap_register_t *pcc,
                                               const cap_register_t *ddc,
                                               target_ulong *pcc_base,
                                               target_ulong *pcc_top,
@@ -133,7 +134,7 @@ static inline void cheri_cpu_get_tb_cpu_state(const cap_register_t *pcc,
     *pcc_base = cap_get_base(pcc);
     *pcc_top = cap_get_top(pcc);
     cheri_debug_assert(*cheri_flags == 0);
-    if (cap_get_capmode(pcc))
+    if (cheri_in_capmode(env))
         *cheri_flags |= TB_FLAG_CHERI_CAPMODE;
     if (cheri_cap_perms_valid_for_exec(pcc))
         *cheri_flags |= TB_FLAG_CHERI_PCC_EXECUTABLE;
