@@ -915,6 +915,10 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
 #ifdef TARGET_CHERI
         // Non-standard extensions present
         target_misa |= RV('X');
+        set_feature(env, RISCV_FEATURE_CHERI_PURECAP);
+        if (!cpu->cfg.ext_cheri_purecap) {
+            set_feature(env, RISCV_FEATURE_CHERI_HYBRID);
+        }
 #endif
 
         set_misa(env, target_misa);
@@ -962,6 +966,9 @@ static Property riscv_cpu_properties[] = {
     DEFINE_PROP_BOOL("Counters", RISCVCPU, cfg.ext_counters, true),
     DEFINE_PROP_BOOL("Zifencei", RISCVCPU, cfg.ext_ifencei, true),
     DEFINE_PROP_BOOL("Zicsr", RISCVCPU, cfg.ext_icsr, true),
+#ifdef TARGET_CHERI
+    DEFINE_PROP_BOOL("Xcheri_purecap", RISCVCPU, cfg.ext_cheri_purecap, false),
+#endif
     DEFINE_PROP_STRING("priv_spec", RISCVCPU, cfg.priv_spec),
     DEFINE_PROP_STRING("vext_spec", RISCVCPU, cfg.vext_spec),
     DEFINE_PROP_UINT16("vlen", RISCVCPU, cfg.vlen, 128),
