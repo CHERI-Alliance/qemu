@@ -284,36 +284,69 @@ void riscv_setup_rom_reset_vec(MachineState *machine, RISCVHartArrayState *harts
     if (!riscv_is_32bit(harts)) {
         start_addr_hi32 = start_addr >> 32;
     }
-    /* reset vector */
-    uint32_t reset_vec[10] = {
-        0x00000297,                  /* 1:  auipc  t0, %pcrel_hi(fw_dyn) */
-        0x02828613,                  /*     addi   a2, t0, %pcrel_lo(1b) */
-        0xf1402573,                  /*     csrr   a0, mhartid  */
-        0,
-        0,
-        0x00028067,                  /*     jr     t0 */
-        start_addr,                  /* start: .dword */
-        start_addr_hi32,
-        fdt_load_addr,               /* fdt_laddr: .dword */
-        0x00000000,
-                                     /* fw_dyn: */
-    };
-    if (riscv_is_32bit(harts)) {
-        reset_vec[3] = 0x0202a583;   /*     lw     a1, 32(t0) */
-        reset_vec[4] = 0x0182a283;   /*     lw     t0, 24(t0) */
-    } else {
-        reset_vec[3] = 0x0202b583;   /*     ld     a1, 32(t0) */
-        reset_vec[4] = 0x0182b283;   /*     ld     t0, 24(t0) */
-    }
+#ifdef TARGET_CHERI
+    if (!riscv_feature(&(harts->harts[0].env), RISCV_FEATURE_CHERI_HYBRID)) {
 
-    /* copy in the reset vector in little_endian byte order */
-    for (i = 0; i < ARRAY_SIZE(reset_vec); i++) {
-        reset_vec[i] = cpu_to_le32(reset_vec[i]);
+        /* reset vector */
+        uint32_t reset_vec[12] = {        /*.option norvc */
+            0x00000297,                  /* 1:  auipc  ct0, %pcrel_hi(fw_dyn) */
+            0x0002a61b,                  /*     caddi  ca2, ct0, %pcrel_lo(1b) */
+            0xf1402573,                  /*     csrr   a0, mhartid            */
+            0x0282b583,                  /*     ld     a1, 40(ct0)            */
+            0x0cb295b3,                  /*     scaddr ca1, ct0,a1            */
+            0x0202b383,                  /*     ld     t2, 32(ct0)            */
+            0x0c7292b3,                  /*     scaddr ct0, ct0, t2           */
+            0x00028067,                  /*     jr     ct0                    */
+            start_addr,                  /* start_addr: .dword */
+            start_addr_hi32,
+            fdt_load_addr,               /* fdt_laddr: .dword */
+            0x00000000,
+                                        /* fw_dyn: */
+        };
+
+        if (riscv_is_32bit(harts)) {
+            reset_vec[3] = 0x0202a583;   /*     lw     a1, 40(t0) */
+            reset_vec[5] = 0x0182a283;   /*     lw     t0, 32(t0) */
+        }
+
+        /* copy in the reset vector in little_endian byte order */
+        for (i = 0; i < ARRAY_SIZE(reset_vec); i++) {
+            reset_vec[i] = cpu_to_le32(reset_vec[i]);
+        }
+        rom_add_blob_fixed_as("mrom.reset", reset_vec, sizeof(reset_vec),
+                            rom_base, &address_space_memory);
+        riscv_rom_copy_firmware_info(machine, rom_base, rom_size, sizeof(reset_vec),
+                                    kernel_entry);
+    } else
+#endif  /* TARGET_CHERI */
+    {
+        /* reset vector */
+        uint32_t reset_vec[10] = {
+            0x00000297,                  /* 1:  auipc  t0, %pcrel_hi(fw_dyn) */
+            0x02828613,                  /*     addi   a2, t0, %pcrel_lo(1b) */
+            0xf1402573,                  /*     csrr   a0, mhartid  */
+            0x0202b583,                  /*     ld     a1, 32(t0) */
+            0x0182b283,                  /*     ld     t0, 24(t0) */
+            0x00028067,                  /*     jr     t0 */
+            start_addr,                  /* start: .dword */
+            start_addr_hi32,
+            fdt_load_addr,               /* fdt_laddr: .dword */
+            0x00000000,
+                                        /* fw_dyn: */
+        };
+        if (riscv_is_32bit(harts)) {
+            reset_vec[3] = 0x0202a583;   /*     lw     a1, 32(t0) */
+            reset_vec[4] = 0x0182a283;   /*     lw     t0, 24(t0) */
+        }
+        /* copy in the reset vector in little_endian byte order */
+        for (i = 0; i < ARRAY_SIZE(reset_vec); i++) {
+            reset_vec[i] = cpu_to_le32(reset_vec[i]);
+        }
+        rom_add_blob_fixed_as("mrom.reset", reset_vec, sizeof(reset_vec),
+                            rom_base, &address_space_memory);
+        riscv_rom_copy_firmware_info(machine, rom_base, rom_size, sizeof(reset_vec),
+                                    kernel_entry);
     }
-    rom_add_blob_fixed_as("mrom.reset", reset_vec, sizeof(reset_vec),
-                          rom_base, &address_space_memory);
-    riscv_rom_copy_firmware_info(machine, rom_base, rom_size, sizeof(reset_vec),
-                                 kernel_entry);
 
     return;
 }
