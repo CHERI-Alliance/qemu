@@ -77,7 +77,9 @@ enum {
     RISCV_FEATURE_MMU,
     RISCV_FEATURE_PMP,
     RISCV_FEATURE_EPMP,
-    RISCV_FEATURE_MISA
+    RISCV_FEATURE_MISA,
+    RISCV_FEATURE_CHERI_PURECAP,
+    RISCV_FEATURE_CHERI_HYBRID,
 };
 
 #define PRIV_VERSION_1_10_0 0x00011000
@@ -439,6 +441,9 @@ struct RISCVCPU {
         bool ext_counters;
         bool ext_ifencei;
         bool ext_icsr;
+#ifdef TARGET_CHERI
+        bool ext_cheri_purecap;
+#endif
         char *priv_spec;
         char *user_spec;
         char *bext_spec;
