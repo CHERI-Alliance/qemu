@@ -890,6 +890,9 @@ static void riscv_cpu_reset(DeviceState *dev)
      */
     set_max_perms_capability(env, &env->pcc, env->resetvec);
     set_max_perms_capability(env, &env->ddc, 0);
+    if (!riscv_feature(env, RISCV_FEATURE_CHERI_HYBRID)) {
+        cap_set_exec_mode(&env->pcc, CHERI_EXEC_CAPMODE);
+    }
     // Supervisor mode trap handling
     set_max_perms_capability(env, &env->stvecc, 0);
     env->sscratchc = make_null_capability(env);
