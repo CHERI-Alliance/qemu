@@ -101,6 +101,9 @@ static inline void cheri_update_pcc(cap_register_t *pcc, target_ulong pc_addr,
 static inline bool cheri_in_capmode(CPUArchState *env)
 {
 #ifdef TARGET_RISCV
+    if (!riscv_feature(env, RISCV_FEATURE_CHERI_HYBRID)) {
+        return true;
+    }
     /*
      * For risc-v, we support only cheri bakewell. Capability pointer mode
      * requires that both CRE for the current cpu mode and the M bit be set.
