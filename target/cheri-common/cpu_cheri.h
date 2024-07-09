@@ -133,18 +133,18 @@ static inline bool cheri_cap_perms_valid_for_exec(const cap_register_t *pcc)
 #define tb_in_capmode(tb)                                                      \
     ((tb->cheri_flags & TB_FLAG_CHERI_CAPMODE) == TB_FLAG_CHERI_CAPMODE)
 
-static inline void cheri_cpu_get_tb_cpu_state(const cap_register_t *pcc,
-                                              const cap_register_t *ddc,
-                                              target_ulong *pcc_base,
-                                              target_ulong *pcc_top,
-                                              uint32_t *cheri_flags)
+static inline void
+cheri_cpu_get_tb_cpu_state(CPUArchState *env, const cap_register_t *pcc,
+                           const cap_register_t *ddc, target_ulong *pcc_base,
+                           target_ulong *pcc_top, uint32_t *cheri_flags)
 {
     *pcc_base = cap_get_base(pcc);
     *pcc_top = cap_get_top(pcc);
     cheri_debug_assert(*cheri_flags == 0);
 #ifndef TARGET_AARCH64 /* Morello looks at PSTATE.C64 instead */
-    if (cap_has_capmode_flag(pcc))
+    if (cheri_in_capmode(env)) {
         *cheri_flags |= TB_FLAG_CHERI_CAPMODE;
+    }
 #endif
     if (cheri_cap_perms_valid_for_exec(pcc))
         *cheri_flags |= TB_FLAG_CHERI_PCC_EXECUTABLE;
