@@ -78,6 +78,8 @@ enum {
     RISCV_FEATURE_PMP,
     RISCV_FEATURE_EPMP,
     RISCV_FEATURE_MISA,
+    RISCV_FEATURE_CHERI,
+    RISCV_FEATURE_CHERI_HYBRID,
     RISCV_FEATURE_STID,
 };
 
@@ -457,8 +459,10 @@ struct RISCVCPU {
 #ifdef TARGET_CHERI_RISCV_V9
         bool ext_cheri;
         bool ext_cheri_v9; /* Temporary flag to support new semantics. */
+#elif defined(TARGET_CHERI_RISCV_STD)
+        bool ext_cheri;
+        bool ext_zyhybrid;
 #endif
-
         char *priv_spec;
         char *user_spec;
         char *bext_spec;
