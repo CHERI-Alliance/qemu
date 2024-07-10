@@ -933,12 +933,21 @@ static inline QEMU_ALWAYS_INLINE void caddi_impl(CPUArchState *env,
      */
     target_ulong new_addr = cap_get_cursor(cbp) + offs;
     /*
-     * TODO: Review and rephrase this for cadd/caddi.
-     * CIncOffset and CSetOffset use the approximate fast representability
-     * check rather than a precise one.
+     * For the cheri risc-v formats, the fast representability check was
+     * removed. There are cases where fast and full checks return different
+     * results. The fast check does not have access to a carry-over bit that
+     * may push the capability out of the representable area. It has to assume
+     * that this bit is always set.
+     *
+     * For the v9 formats, we want the fast representability check.
      */
     try_set_cap_cursor(env, cbp, regnum_src, regnum_dst, new_addr,
-                       /*precise_repr_check=*/false, retpc, oob_info);
+#if CHERI_FMT_RISCV
+                       /* precise_repr_check */ true,
+#else
+                       false,
+#endif
+                       retpc, oob_info);
 }
 
 #ifdef TARGET_RISCV
