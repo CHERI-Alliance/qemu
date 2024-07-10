@@ -48,13 +48,18 @@
 #ifdef TARGET_CHERI
 
 /*
- * We take the presence of otype and flags fields as an indication that we're
- * using the v9 capability format. (We tried an alternative approach to make
- * each field conditional and include it in the output only if it's used.
- * This ended in a horrible mess...)
- * TODO: Should we have a bakewell vs v9 macro?
+ * We take the absence of both otype and flags fields as an indication that
+ * we're using one of the capability format from the RISC-V specification
+ * (which might be used on other architectures in future).
+ * TODO: Can we make this check more precise?
  */
-#ifndef TARGET_RISCV
+#ifdef TARGET_CHERI_RISCV_STD
+#define CHERI_FMT_RISCV 1
+#else
+#define CHERI_FMT_RISCV 0
+#endif
+
+#if !CHERI_FMT_RISCV
 /* We're using the cheri v9 capability format. */
 #define PRINT_CAP_FMTSTR_L1                                                    \
     "v:%d s:%d p:" TARGET_FMT_lx " b:" TARGET_FMT_lx " l:" TARGET_FMT_lx
