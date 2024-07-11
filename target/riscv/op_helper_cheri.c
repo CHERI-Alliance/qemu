@@ -481,12 +481,6 @@ void HELPER(lr_c_modedep)(CPUArchState *env, uint32_t dest_reg, uint32_t addr_re
     lr_c_impl(env, dest_reg, addr_reg, addr, GETPC());
 }
 
-void HELPER(lr_c_cap)(CPUArchState *env, uint32_t dest_reg, uint32_t addr_reg)
-{
-    target_ulong addr = get_capreg_cursor(env, addr_reg);
-    lr_c_impl(env, dest_reg, addr_reg, addr, GETPC());
-}
-
 // SC returns zero on success, one on failure
 static target_ulong sc_c_impl(CPUArchState *env, uint32_t addr_reg,
                               uint32_t val_reg, target_ulong addr,
