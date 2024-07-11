@@ -107,10 +107,8 @@ caddi         ............     ..... 010 ..... 0011011 @icc ?pred_capmode
 
 ### Memory Loads (including Load-Reserved) with Explicit Address Type
 #                       00011 is ld_d_ddc for RV64/ld_c_ddc for RV32
-ld_hu_ddc      1111101  00101 ..... 000 ..... 1011011 @r2
 #                      00110 is ld_wu_ddc for RV64/ld_c_ddc for RV32
 #                       01011 is ldcap for RV64/lccap for RV32
-ld_hu_cap      1111101  01101 ..... 000 ..... 1011011 @r2
 #                       01110 is ld_wu_cap for RV64
 #                       01111 would be ld_du_cap for RV128
 lr_b_ddc       1111101  10000 ..... 000 ..... 1011011 @atom_ld_cap_or_ddc
