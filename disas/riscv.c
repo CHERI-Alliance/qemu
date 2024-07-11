@@ -561,7 +561,6 @@ typedef enum {
     rv_op_scbndsr,
     rv_op_acperm,
     rv_op_csub,
-    rv_op_ctestsubset,
 
     rv_op_cadd,
     rv_op_caddi,
@@ -1325,7 +1324,6 @@ const rv_opcode_data opcode_data[] = {
     [rv_op_scbndsr] = { "scbndsr", rv_codec_r, rv_fmt_cd_cs1_rs2, NULL, 0, 0, 0 },
     [rv_op_acperm] = { "acperm", rv_codec_r, rv_fmt_cd_cs1_rs2, NULL, 0, 0, 0 },
     [rv_op_csub] = { "csub", rv_codec_r, rv_fmt_rd_cs1_cs2, NULL, 0, 0, 0 },
-    [rv_op_ctestsubset] = { "ctestsubset", rv_codec_r, rv_fmt_rd_cs1_cs2, NULL, 0, 0, 0 },
 
     [rv_op_cadd] = { "cadd", rv_codec_r, rv_fmt_cd_cs1_rs2, NULL, 0, 0, 0 },
     [rv_op_caddi] = { "caddi", rv_codec_i, rv_fmt_cd_cs1_imm, NULL, 0, 0, 0 },
@@ -1573,9 +1571,7 @@ static rv_opcode decode_cheri_inst(rv_inst inst) {
     int func = ((inst >> 25) & 0b111111);
     switch (func) {
     CHERI_THREEOP_CASE(csub,        0010100,  ..... ..... 000 ..... 1011011 @r)
-    // 0010101-0011101 unused
-    CHERI_THREEOP_CASE(ctestsubset, 0100000,  ..... ..... 000 ..... 1011011 @r)
-    // 1111011 unused
+    // 0010101-1111011 unused
     // TODO: 1111100 Used for Stores (see below)
     // TODO: 1111101 Used for Loads (see below)
     // TODO: 1111110 Used for two source ops
