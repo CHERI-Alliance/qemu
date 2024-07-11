@@ -622,6 +622,8 @@ static bool pred_hybrid(DisasContext *ctx)
 {
 #ifdef TARGET_CHERI
     return ctx->hybrid;
+#else
+    return false;
 #endif
 }
 
