@@ -343,13 +343,6 @@ static inline bool gen_cap_store(DisasContext *ctx, int32_t addr_regnum,
     return true;
 }
 
-static inline bool trans_st_c_cap(DisasContext *ctx, arg_st_c_cap *a)
-{
-    // No immediate available for sc.cap
-    return gen_cheri_cap_loadstore(ctx, a->rs2, a->rs1, /*offset=*/0,
-                                   &gen_helper_store_cap_via_cap);
-}
-
 static inline bool trans_sc(DisasContext *ctx, arg_sc *a)
 {
     // RS2 is the value, RS1 is the capability
