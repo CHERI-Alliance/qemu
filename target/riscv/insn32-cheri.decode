@@ -106,14 +106,12 @@ caddi         ............     ..... 010 ..... 0011011 @icc ?pred_capmode
 #                       01011 is ldcap for RV64/lccap for RV32
 #                       01110 is ld_wu_cap for RV64
 #                       01111 would be ld_du_cap for RV128
-lr_h_ddc       1111101  10001 ..... 000 ..... 1011011 @atom_ld_cap_or_ddc
 lr_w_ddc       1111101  10010 ..... 000 ..... 1011011 @atom_ld_cap_or_ddc
 #                       10011 is lr_d_ddc for RV64/lr_c_ddc for RV32
 #                       10100 is lr_c_ddc for RV64
 #                       10101 is reserved
 #                       10110 is reserved
 #                       10111 is ld_c_ddc for RV64 (would be ld_du_ddc for RV128)
-lr_h_cap       1111101  11001 ..... 000 ..... 1011011 @atom_ld_cap_or_ddc
 lr_w_cap       1111101  11010 ..... 000 ..... 1011011 @atom_ld_cap_or_ddc
 #                       11011 is lr_d_cap for RV64/lr_c_cap for RV32
 #                       11100 is lr_c_cap for RV64
