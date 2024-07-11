@@ -306,13 +306,6 @@ static inline bool gen_cap_load(DisasContext *ctx, int32_t rd, int32_t cs,
     return gen_cap_load_mem_idx(ctx, rd, cs, offset, ctx->mem_idx, op);
 }
 
-static inline bool trans_ld_c_cap(DisasContext *ctx, arg_ld_c_cap *a)
-{
-    // No immediate available for lccap
-    return gen_cheri_cap_loadstore(ctx, a->rd, a->rs1, 0,
-                                   &gen_helper_load_cap_via_cap);
-}
-
 static inline bool trans_lc(DisasContext *ctx, arg_lc *a)
 {
     if (!ctx->capmode) {
