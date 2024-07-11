@@ -36,7 +36,6 @@
 
 lr_d_ddc    1111101  10011 ..... 000 ..... 1011011 @atom_ld_cap_or_ddc  # RV64-only (lr_c_ddc for RV32)
 lr_c_ddc    1111101  10100 ..... 000 ..... 1011011 @atom_ld_cap_or_ddc  # RV64-only (would be lr_q_ddc for RV128)
-ld_c_ddc    1111101  10111 ..... 000 ..... 1011011 @r2  # Would be ld_q_ddc for RV128
 lr_d_cap    1111101  11011 ..... 000 ..... 1011011 @atom_ld_cap_or_ddc  # RV64-only (lr_c_cap for RV32)
 lr_c_cap    1111101  11100 ..... 000 ..... 1011011 @atom_ld_cap_or_ddc  # RV64-only (would be lr_q_cap for RV128)
 ld_c_cap    1111101  11111 ..... 000 ..... 1011011 @r2  # Would be ld_q_cap for RV128
