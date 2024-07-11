@@ -474,34 +474,6 @@ static inline bool trans_modesw_int(DisasContext *ctx, arg_modesw_int *a)
 }
 
 // Explicit CAP/DDC atomic ops (no unsigned versions):
-// Reuses gen_lr_impl, defined in trans_rva.c.inc
-static inline bool gen_lr_impl(DisasContext *ctx, TCGv_cap_checked_ptr addr,
-                               arg_atomic *a, MemOp mop);
-
-#define TRANSLATE_LR_EXPLICIT(name, op)                                        \
-    static bool trans_##name##_ddc(DisasContext *ctx, arg_##name##_ddc *a)     \
-    {                                                                          \
-        REQUIRE_EXT(ctx, RVA);                                                 \
-        TCGv_cap_checked_ptr addr = tcg_temp_new_cap_checked();                \
-        generate_get_ddc_checked_gpr_plus_offset(                              \
-            addr, ctx, a->rs1, 0, op, &generate_ddc_checked_load_ptr);         \
-        bool result = gen_lr_impl(ctx, addr, a, op);                           \
-        tcg_temp_free_cap_checked(addr);                                       \
-        return result;                                                         \
-    }                                                                          \
-    static bool trans_##name##_cap(DisasContext *ctx, arg_##name##_cap *a)     \
-    {                                                                          \
-        REQUIRE_EXT(ctx, RVA);                                                 \
-        TCGv_cap_checked_ptr addr = tcg_temp_new_cap_checked();                \
-        generate_cap_load_check_imm(addr, a->rs1, 0, op);                      \
-        bool result = gen_lr_impl(ctx, addr, a, op);                           \
-        tcg_temp_free_cap_checked(addr);                                       \
-        return result;                                                         \
-    }
-#ifdef TARGET_RISCV64
-TRANSLATE_LR_EXPLICIT(lr_d, MO_ALIGN | MO_Q);
-#endif
-
 static inline bool gen_sc_impl(DisasContext *ctx, TCGv_cap_checked_ptr addr,
                                arg_atomic *a, MemOp mop);
 
