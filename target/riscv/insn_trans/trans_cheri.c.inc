@@ -273,12 +273,6 @@ static void gen_cjalr(DisasContext *ctx, int rd, int rs1, target_ulong imm)
     ctx->base.is_jmp = DISAS_NORETURN;
 }
 
-static bool trans_jalr_pcc(DisasContext *ctx, arg_jalr_pcc *a)
-{
-    gen_jalr(ctx, a->rd, a->rs1, 0);
-    return true;
-}
-
 static inline bool gen_cap_load_mem_idx(DisasContext *ctx, int32_t rd,
                                         int32_t cs, target_long offset,
                                         int mem_idx, MemOp op)
