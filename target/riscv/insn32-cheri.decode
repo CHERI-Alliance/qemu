@@ -43,9 +43,7 @@ scbnds      0000111  ..... ..... 000 ..... 0110011 @r ?pred_capmode
 scbndsr     0000111  ..... ..... 001 ..... 0110011 @r ?pred_capmode
 # 0001010 unused
 csub        0010100  ..... ..... 000 ..... 1011011 @r
-# 0010101-0011100 unused
-ctestsubset 0100000  ..... ..... 000 ..... 1011011 @r
-# 1111011 unused
+# 0010101-1111011 unused
 # 1111100 Used for Stores (see below)
 # 1111101 Used for Loads (see below)
 # 1111110 Used for two source ops
