@@ -285,20 +285,6 @@ static bool trans_jalr_pcc(DisasContext *ctx, arg_jalr_pcc *a)
     return true;
 }
 
-// Loads
-static bool gen_ddc_load(DisasContext *ctx, int rd, int rs1, MemOp memop)
-{
-    TCGv addr = tcg_temp_new();
-    TCGv value = tcg_temp_new();
-    gen_get_gpr(ctx, addr, rs1);
-    gen_ddc_interposed_ld_tl(ctx, value, /* Update addr in-place */ NULL, addr,
-                             ctx->mem_idx, memop);
-    gen_set_gpr(ctx, rd, value);
-    tcg_temp_free(addr);
-    tcg_temp_free(value);
-    return true;
-}
-
 static inline bool gen_cap_load_mem_idx(DisasContext *ctx, int32_t rd,
                                         int32_t cs, target_long offset,
                                         int mem_idx, MemOp op)
@@ -319,20 +305,6 @@ static inline bool gen_cap_load(DisasContext *ctx, int32_t rd, int32_t cs,
 {
     return gen_cap_load_mem_idx(ctx, rd, cs, offset, ctx->mem_idx, op);
 }
-
-#define TRANSLATE_EXPLICIT_LOAD(name, op)                                      \
-    static bool trans_##name##_ddc(DisasContext *ctx, arg_##name##_ddc *a)     \
-    {                                                                          \
-        return gen_ddc_load(ctx, a->rd, a->rs1, op);                           \
-    }                                                                          \
-    static bool trans_##name##_cap(DisasContext *ctx, arg_##name##_cap *a)     \
-    {                                                                          \
-        return gen_cap_load(ctx, a->rd, a->rs1, /*offset=*/0, op);             \
-    }
-
-#ifdef TARGET_RISCV64
-TRANSLATE_EXPLICIT_LOAD(ld_wu, MO_UL)
-#endif
 
 static inline bool trans_ld_c_ddc(DisasContext *ctx, arg_ld_c_ddc *a)
 {
