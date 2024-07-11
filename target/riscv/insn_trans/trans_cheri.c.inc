@@ -367,7 +367,6 @@ static inline bool gen_cap_store(DisasContext *ctx, int32_t addr_regnum,
         return gen_cap_store(ctx, a->rs1, a->rs2, /*offset=*/0, op);           \
     }
 
-TRANSLATE_EXPLICIT_STORE(st_b, MO_UB)
 TRANSLATE_EXPLICIT_STORE(st_h, MO_UW)
 TRANSLATE_EXPLICIT_STORE(st_w, MO_UL)
 #ifdef TARGET_RISCV64
