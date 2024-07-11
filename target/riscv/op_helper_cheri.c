@@ -481,13 +481,6 @@ void HELPER(lr_c_modedep)(CPUArchState *env, uint32_t dest_reg, uint32_t addr_re
     lr_c_impl(env, dest_reg, addr_reg, addr, GETPC());
 }
 
-void HELPER(lr_c_ddc)(CPUArchState *env, uint32_t dest_reg, uint32_t addr_reg)
-{
-    target_ulong addr =
-        cheri_ddc_relative_addr(env, get_capreg_cursor(env, addr_reg));
-    lr_c_impl(env, dest_reg, CHERI_EXC_REGNUM_DDC, addr, GETPC());
-}
-
 void HELPER(lr_c_cap)(CPUArchState *env, uint32_t dest_reg, uint32_t addr_reg)
 {
     target_ulong addr = get_capreg_cursor(env, addr_reg);

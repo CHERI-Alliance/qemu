@@ -368,11 +368,6 @@ static inline bool trans_lr_c(DisasContext *ctx, arg_lr_c *a)
     return trans_lr_c_impl(ctx, a, &gen_helper_lr_c_modedep);
 }
 
-static inline bool trans_lr_c_ddc(DisasContext *ctx, arg_lr_c_ddc *a)
-{
-    return trans_lr_c_impl(ctx, a, &gen_helper_lr_c_ddc);
-}
-
 static inline bool trans_lr_c_cap(DisasContext *ctx, arg_lr_c_cap *a)
 {
     return trans_lr_c_impl(ctx, a, &gen_helper_lr_c_cap);
