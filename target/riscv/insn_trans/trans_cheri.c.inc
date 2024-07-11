@@ -330,7 +330,6 @@ static inline bool gen_cap_load(DisasContext *ctx, int32_t rd, int32_t cs,
         return gen_cap_load(ctx, a->rd, a->rs1, /*offset=*/0, op);             \
     }
 
-TRANSLATE_EXPLICIT_LOAD(ld_h, MO_SW)
 TRANSLATE_EXPLICIT_LOAD(ld_w, MO_SL)
 #ifdef TARGET_RISCV64
 TRANSLATE_EXPLICIT_LOAD(ld_d, MO_Q)

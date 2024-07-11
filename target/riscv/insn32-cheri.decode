@@ -106,13 +106,11 @@ scbndsi  000001 . ..... ..... 101 ..... 0010011 @is_unsigned ?pred_capmode
 caddi         ............     ..... 010 ..... 0011011 @icc ?pred_capmode
 
 ### Memory Loads (including Load-Reserved) with Explicit Address Type
-ld_h_ddc       1111101  00001 ..... 000 ..... 1011011 @r2
 ld_w_ddc       1111101  00010 ..... 000 ..... 1011011 @r2
 #                       00011 is ld_d_ddc for RV64/ld_c_ddc for RV32
 ld_bu_ddc      1111101  00100 ..... 000 ..... 1011011 @r2
 ld_hu_ddc      1111101  00101 ..... 000 ..... 1011011 @r2
 #                      00110 is ld_wu_ddc for RV64/ld_c_ddc for RV32
-ld_h_cap       1111101  01001 ..... 000 ..... 1011011 @r2
 ld_w_cap       1111101  01010 ..... 000 ..... 1011011 @r2
 #                       01011 is ldcap for RV64/lccap for RV32
 ld_bu_cap      1111101  01100 ..... 000 ..... 1011011 @r2
