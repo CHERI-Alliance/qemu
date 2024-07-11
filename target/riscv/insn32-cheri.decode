@@ -85,9 +85,6 @@ gchi        0001000  00100 ..... 000 ..... 0110011 @cr ?pred_capmode
 gcbase      0001000  00101 ..... 000 ..... 0110011 @cr ?pred_capmode
 gclen       0001000  00110 ..... 000 ..... 0110011 @cr ?pred_capmode
 
-# There is an existing @sfence_vma format with rs1+rs2 fields, but let's define a new name
-@r_2source ....... ..... .....   ... ..... ....... %rs2 %rs1
-
 # We have to add a new i format with unsigned immediate for scbndsi
 %imm_i_unsigned    20:5
 %imm_scale         25:1
