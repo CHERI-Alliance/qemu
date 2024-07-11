@@ -92,7 +92,6 @@ gclen       0001000  00110 ..... 000 ..... 0110011 @cr ?pred_capmode
 
 
 # Explicit capability/DDC atomics:
-@atom_ld_cap_or_ddc .......   ..... ..... ... ..... ....... &atomic aq=1 rl=1 rs2=0  %rs1 %rd
 @atom_st_cap_or_ddc .......   ..... ..... ... ..... ....... &atomic aq=1 rl=1 rd=0   %rs2 %rs1
 
 scbndsi  000001 . ..... ..... 101 ..... 0010011 @is_unsigned ?pred_capmode
