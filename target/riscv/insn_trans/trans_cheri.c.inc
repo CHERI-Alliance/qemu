@@ -317,20 +317,6 @@ static inline bool trans_lc(DisasContext *ctx, arg_lc *a)
                                    &gen_helper_load_cap_via_cap);
 }
 
-// Stores
-static bool gen_ddc_store(DisasContext *ctx, int rs1, int rs2, MemOp memop)
-{
-    TCGv addr = tcg_temp_new();
-    TCGv value = tcg_temp_new();
-    gen_get_gpr(ctx, addr, rs1);
-    gen_get_gpr(ctx, value, rs2);
-    gen_ddc_interposed_st_tl(ctx, value, /* Update addr in-place */ NULL, addr,
-                             ctx->mem_idx, memop);
-    tcg_temp_free(value);
-    tcg_temp_free(addr);
-    return true;
-}
-
 /* Load Via Capability Register */
 static inline bool gen_cap_store_mem_idx(DisasContext *ctx, int32_t addr_regnum,
                                          int32_t val_regnum, target_long offset,
@@ -356,20 +342,6 @@ static inline bool gen_cap_store(DisasContext *ctx, int32_t addr_regnum,
                           op);
     return true;
 }
-
-#define TRANSLATE_EXPLICIT_STORE(name, op)                                     \
-    static bool trans_##name##_ddc(DisasContext *ctx, arg_##name##_ddc *a)     \
-    {                                                                          \
-        return gen_ddc_store(ctx, a->rs1, a->rs2, op);                         \
-    }                                                                          \
-    static bool trans_##name##_cap(DisasContext *ctx, arg_##name##_cap *a)     \
-    {                                                                          \
-        return gen_cap_store(ctx, a->rs1, a->rs2, /*offset=*/0, op);           \
-    }
-
-#ifdef TARGET_RISCV64
-TRANSLATE_EXPLICIT_STORE(st_d, MO_Q)
-#endif
 
 // RS2 is the value, RS1 is the capability/ddc offset
 static inline bool trans_st_c_ddc(DisasContext *ctx, arg_st_c_ddc *a)
