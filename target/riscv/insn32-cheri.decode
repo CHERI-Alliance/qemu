@@ -129,16 +129,6 @@ lr_w_cap       1111101  11010 ..... 000 ..... 1011011 @atom_ld_cap_or_ddc
 #                       11111 is ld_c_cap for RV64
 
 ### Memory Stores (including Store-Conditional) with Explicit Address Type
-#                                       00011 is st_d_ddc for RV64/st_c_ddc for RV32
-#                                       00100 is st_c_ddc for RV64
-#                                       00101 is reserved
-#                                       00110 is reserved
-#                                       00111 is reserved
-#                                       01011 is st_d_cap for RV64/st_c_cap for RV32
-#                                       01100 is st_c_cap for RV64
-#                                       01101 is reserved
-#                                       01110 is reserved
-#                                       01111 is reserved
 sc_b_ddc       1111100  ..... ..... 000 10000 1011011 @atom_st_cap_or_ddc
 sc_h_ddc       1111100  ..... ..... 000 10001 1011011 @atom_st_cap_or_ddc
 sc_w_ddc       1111100  ..... ..... 000 10010 1011011 @atom_st_cap_or_ddc
