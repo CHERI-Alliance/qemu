@@ -37,7 +37,6 @@
 lr_c_ddc    1111101  10011 ..... 000 ..... 1011011 @atom_ld_cap_or_ddc  # This is lr_d_ddc for RV64
 lr_c_cap    1111101  11011 ..... 000 ..... 1011011 @atom_ld_cap_or_ddc  # This is lr_d_cap for RV64
 
-st_c_ddc    1111100  ..... ..... 000 00011 1011011 @r_2source  # This is st_d_ddc (8-byte store) for RV64
 st_c_cap    1111100  ..... ..... 000 01011 1011011 @r_2source  # This is st_d_cap (8-byte store) for RV64
 sc_c_ddc    1111100  ..... ..... 000 10011 1011011 @atom_st_cap_or_ddc  # This is sc_d_ddc for RV64
 sc_c_cap    1111100  ..... ..... 000 11011 1011011 @atom_st_cap_or_ddc  # This is sc_d_cap for RV64

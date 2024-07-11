@@ -343,14 +343,6 @@ static inline bool gen_cap_store(DisasContext *ctx, int32_t addr_regnum,
     return true;
 }
 
-// RS2 is the value, RS1 is the capability/ddc offset
-static inline bool trans_st_c_ddc(DisasContext *ctx, arg_st_c_ddc *a)
-{
-    // always uses DDC as the base register
-    return gen_cheri_cap_int_plus_imm(ctx, a->rs2, a->rs1, 0,
-                                      &gen_helper_store_cap_via_ddc);
-}
-
 static inline bool trans_st_c_cap(DisasContext *ctx, arg_st_c_cap *a)
 {
     // No immediate available for sc.cap
