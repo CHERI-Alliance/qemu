@@ -489,7 +489,6 @@ static inline bool gen_sc_impl(DisasContext *ctx, TCGv_cap_checked_ptr addr,
         tcg_temp_free_cap_checked(addr);                                       \
         return result;                                                         \
     }
-TRANSLATE_SC_EXPLICIT(sc_w, MO_ALIGN | MO_SL);
 #ifdef TARGET_RISCV64
 TRANSLATE_SC_EXPLICIT(sc_d, MO_ALIGN | MO_Q);
 #endif
