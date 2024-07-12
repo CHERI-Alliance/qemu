@@ -66,7 +66,6 @@ DEF_HELPER_4(cjal, void, env, i32, tl, tl)
 DEF_HELPER_4(amoswap_cap, void, env, i32, i32, i32)
 DEF_HELPER_3(lr_c_modedep, void, env, i32, i32)
 DEF_HELPER_3(sc_c_modedep, tl, env, i32, i32)
-DEF_HELPER_3(sc_c_ddc, tl, env, i32, i32)
 DEF_HELPER_3(sc_c_cap, tl, env, i32, i32)
 DEF_HELPER_1(modesw, void, env)
 #endif
