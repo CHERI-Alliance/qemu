@@ -391,12 +391,6 @@ static inline bool trans_sc_c(DisasContext *ctx, arg_sc_c *a)
     return trans_sc_c_impl(ctx, a, &gen_helper_sc_c_modedep);
 }
 
-static inline bool trans_sc_c_cap(DisasContext *ctx, arg_sc_c_cap *a)
-{
-    a->rd = a->rs2; /* Not enough encoding space for explicit rd */
-    return trans_sc_c_impl(ctx, a, &gen_helper_sc_c_cap);
-}
-
 static inline bool trans_amoswap_c(DisasContext *ctx, arg_amoswap_c *a)
 {
     REQUIRE_EXT(ctx, RVA);

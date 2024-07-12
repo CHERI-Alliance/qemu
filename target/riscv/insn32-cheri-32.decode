@@ -33,6 +33,3 @@
 
 # This is concatenated with insn32-cheri.decode for risc32 targets.
 # This file defines the RV32-specific encoding
-
-sc_c_cap    1111100  ..... ..... 000 11011 1011011 @atom_st_cap_or_ddc  # This is sc_d_cap for RV64
-
