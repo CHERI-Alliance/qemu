@@ -463,36 +463,6 @@ static inline bool trans_modesw_int(DisasContext *ctx, arg_modesw_int *a)
     return do_trans_modesw(ctx, /*to_capmode=*/false);
 }
 
-// Explicit CAP/DDC atomic ops (no unsigned versions):
-static inline bool gen_sc_impl(DisasContext *ctx, TCGv_cap_checked_ptr addr,
-                               arg_atomic *a, MemOp mop);
-
-#define TRANSLATE_SC_EXPLICIT(name, op)                                        \
-    static bool trans_##name##_ddc(DisasContext *ctx, arg_##name##_ddc *a)     \
-    {                                                                          \
-        REQUIRE_EXT(ctx, RVA);                                                 \
-        TCGv_cap_checked_ptr addr = tcg_temp_new_cap_checked();                \
-        generate_get_ddc_checked_gpr_plus_offset(                              \
-            addr, ctx, a->rs1, 0, op, &generate_ddc_checked_load_ptr);         \
-        a->rd = a->rs2; /* Not enough encoding space for explicit rd */        \
-        bool result = gen_sc_impl(ctx, addr, a, op);                           \
-        tcg_temp_free_cap_checked(addr);                                       \
-        return result;                                                         \
-    }                                                                          \
-    static bool trans_##name##_cap(DisasContext *ctx, arg_##name##_cap *a)     \
-    {                                                                          \
-        REQUIRE_EXT(ctx, RVA);                                                 \
-        TCGv_cap_checked_ptr addr = tcg_temp_new_cap_checked();                \
-        generate_cap_load_check_imm(addr, a->rs1, 0, op);                      \
-        a->rd = a->rs2; /* Not enough encoding space for explicit rd */        \
-        bool result = gen_sc_impl(ctx, addr, a, op);                           \
-        tcg_temp_free_cap_checked(addr);                                       \
-        return result;                                                         \
-    }
-#ifdef TARGET_RISCV64
-TRANSLATE_SC_EXPLICIT(sc_d, MO_ALIGN | MO_Q);
-#endif
-
 /*
  * The Bakewell specification uses rd and cs1 for the parameter names,
  * it's helpful to have the same names in the code instead of reusing
