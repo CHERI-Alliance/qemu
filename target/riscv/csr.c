@@ -1903,16 +1903,11 @@ static cap_register_t read_capcsr_reg(CPURISCVState *env,
     return retval;
 }
 
-static void write_mscratchc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
-                            cap_register_t *src)
-{
-    env->mscratchc = *src;
-}
 
-static void write_sscratchc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
+static void write_cap_csr_reg(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
                             cap_register_t *src)
 {
-    env->sscratchc = *src;
+    *get_cap_csr(env, csr_cap_info->reg_num) = *src;
 }
 
 static void write_mtvecc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
@@ -1995,37 +1990,6 @@ static void write_sepcc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
     env->SEPCC = *src;
 }
 
-static void write_dscratch0c(CPURISCVState *env,
-                             riscv_csr_cap_ops *csr_cap_info,
-                             cap_register_t *src)
-{
-    env->dscratch0c = *src;
-}
-
-static void write_dscratch1c(CPURISCVState *env,
-                             riscv_csr_cap_ops *csr_cap_info,
-                             cap_register_t *src)
-{
-    env->dscratch1c = *src;
-}
-
-static void write_dpcc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
-                       cap_register_t *src)
-{
-    env->dpcc = *src;
-}
-
-static void write_dddc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
-                       cap_register_t *src)
-{
-    env->dddc = *src;
-}
-
-static void write_jvtc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
-                       cap_register_t *src)
-{
-    env->jvtc = *src;
-}
 
 static void write_dinfc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
                         cap_register_t *src)
@@ -2044,23 +2008,6 @@ static cap_register_t read_dinfc(CPURISCVState *env,
     return inf;
 }
 
-static void write_mtdc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
-                       cap_register_t *src)
-{
-    env->mtdc = *src;
-}
-
-static void write_stdc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
-                       cap_register_t *src)
-{
-    env->stdc = *src;
-}
-
-static void write_ddc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
-                      cap_register_t *src)
-{
-    env->DDC = *src;
-}
 
 static inline bool csr_needs_asr(CPURISCVState *env, int csrno) {
     switch (csrno) {
@@ -2433,21 +2380,21 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
 // with macros for this
 
 riscv_csr_cap_ops csr_cap_ops[] = {
-    { "mscratchc", CSR_MSCRATCHC, read_capcsr_reg, write_mscratchc, false },
+    { "mscratchc", CSR_MSCRATCHC, read_capcsr_reg, write_cap_csr_reg, false },
     { "mtvecc", CSR_MTVECC, read_capcsr_reg, write_mtvecc, false },
     { "stvecc", CSR_STVECC, read_capcsr_reg, write_stvecc, false },
     { "mepcc", CSR_MEPCC, read_xepcc, write_mepcc, false },
     { "sepcc", CSR_SEPCC, read_xepcc, write_sepcc, false },
-    { "sscratchc", CSR_SSCRATCHC, read_capcsr_reg, write_sscratchc, false },
-    { "dscratch0c", CSR_DSCRATCH0C, read_capcsr_reg, write_dscratch0c, false },
-    { "dscratch1c", CSR_DSCRATCH1C, read_capcsr_reg, write_dscratch1c, false },
-    { "dpcc", CSR_DPCC, read_capcsr_reg, write_dpcc, false },
-    { "dddc", CSR_DDDC, read_capcsr_reg, write_dddc, true },
-    { "jvtc", CSR_JVTC, read_capcsr_reg, write_jvtc, false },
+    { "sscratchc", CSR_SSCRATCHC, read_capcsr_reg, write_cap_csr_reg, false },
+    { "dscratch0c", CSR_DSCRATCH0C, read_capcsr_reg, write_cap_csr_reg, false },
+    { "dscratch1c", CSR_DSCRATCH1C, read_capcsr_reg, write_cap_csr_reg, false },
+    { "dpcc", CSR_DPCC, read_capcsr_reg, write_cap_csr_reg, false },
+    { "dddc", CSR_DDDC, read_capcsr_reg, write_cap_csr_reg, true },
+    { "jvtc", CSR_JVTC, read_capcsr_reg, write_cap_csr_reg, false },
     { "dinf", CSR_DINFC, read_dinfc, write_dinfc, false },
-    { "mtdc", CSR_MTDC, read_capcsr_reg, write_mtdc, true },
-    { "stdc", CSR_STDC, read_capcsr_reg, write_stdc, true },
-    { "ddc", CSR_DDC, read_capcsr_reg, write_ddc, true },
+    { "mtdc", CSR_MTDC, read_capcsr_reg, write_cap_csr_reg, true },
+    { "stdc", CSR_STDC, read_capcsr_reg, write_cap_csr_reg, true },
+    { "ddc", CSR_DDC, read_capcsr_reg, write_cap_csr_reg, true },
 };
 
 riscv_csr_cap_ops* get_csr_cap_info(int csrnum){
