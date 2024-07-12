@@ -99,19 +99,5 @@ scbndsi  000001 . ..... ..... 101 ..... 0010011 @is_unsigned ?pred_cre
 @icc     ............    ..... ... ..... ....... &icc     imm=%imm_i %cs1 %cd
 caddi         ............     ..... 010 ..... 0011011 @icc ?pred_cre
 
-### Memory Stores (including Store-Conditional) with Explicit Address Type
-sc_w_ddc       1111100  ..... ..... 000 10010 1011011 @atom_st_cap_or_ddc
-#                                       10011 is sc_d_ddc for RV64/sc_c_ddc for RV32
-#                                       10100 is sc_c_ddc for RV64
-#                                       10101 is reserved
-#                                       10110 is reserved
-#                                       10111 is reserved
-sc_w_cap       1111100  ..... ..... 000 11010 1011011 @atom_st_cap_or_ddc
-#                                       11011 is sc_d_cap for RV64/sc_c_cap for RV32
-#                                       11100 is sc_c_cap for RV64
-#                                       11101 is reserved
-#                                       11110 is reserved
-#                                       11111 is reserved
-
 ### Zero operands
 modesw     0001001 00000 00000 001 00000 0110011 ?pred_hybrid ?pred_cre
