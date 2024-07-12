@@ -571,14 +571,6 @@ target_ulong HELPER(sc_c_modedep)(CPUArchState *env, uint32_t addr_reg,
     return sc_c_impl(env, addr_reg, val_reg, addr, GETPC());
 }
 
-target_ulong HELPER(sc_c_ddc)(CPUArchState *env, uint32_t addr_reg,
-                              uint32_t val_reg)
-{
-    target_ulong addr =
-        cheri_ddc_relative_addr(env, get_capreg_cursor(env, addr_reg));
-    return sc_c_impl(env, CHERI_EXC_REGNUM_DDC, val_reg, addr, GETPC());
-}
-
 target_ulong HELPER(sc_c_cap)(CPUArchState *env, uint32_t addr_reg,
                               uint32_t val_reg)
 {
