@@ -88,12 +88,6 @@ gclen       0001000  00110 ..... 000 ..... 0110011 @cr ?pred_cre
 %imm_scale         25:1
 @is_unsigned  ...... . ..... ..... ... ..... ....... scal=%imm_scale imm=%imm_i_unsigned     %cs1 %cd
 
-
-
-
-# Explicit capability/DDC atomics:
-@atom_st_cap_or_ddc .......   ..... ..... ... ..... ....... &atomic aq=1 rl=1 rd=0   %rs2 %rs1
-
 scbndsi  000001 . ..... ..... 101 ..... 0010011 @is_unsigned ?pred_cre
 
 @icc     ............    ..... ... ..... ....... &icc     imm=%imm_i %cs1 %cd
