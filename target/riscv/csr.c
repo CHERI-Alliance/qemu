@@ -1880,16 +1880,11 @@ static cap_register_t read_capcsr_reg(CPURISCVState *env,
     return retval;
 }
 
-static void write_mscratchc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
-                            cap_register_t *src)
-{
-    env->mscratchc = *src;
-}
 
-static void write_sscratchc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
+static void write_cap_csr_reg(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
                             cap_register_t *src)
 {
-    env->sscratchc = *src;
+    *get_cap_csr(env, csr_cap_info->reg_num) = *src;
 }
 
 static void write_mtvecc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
@@ -1965,12 +1960,6 @@ static void write_sepcc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
     target_ulong new_sepcc = cap_get_cursor(src) & (~0x1); // Zero bit zero
     cap_set_cursor(src, new_sepcc);
     env->sepcc = *src;
-}
-
-static void write_ddc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
-                      cap_register_t *src)
-{
-    env->ddc = *src;
 }
 
 static RISCVException read_ccsr(CPURISCVState *env, int csrno, target_ulong *val)
@@ -2420,13 +2409,13 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
  */
 
 riscv_csr_cap_ops csr_cap_ops[] = {
-    { "mscratchc", CSR_MSCRATCHC, read_capcsr_reg, write_mscratchc, false },
+    { "mscratchc", CSR_MSCRATCHC, read_capcsr_reg, write_cap_csr_reg, false },
     { "mtvecc", CSR_MTVECC, read_capcsr_reg, write_mtvecc, false },
     { "stvecc", CSR_STVECC, read_capcsr_reg, write_stvecc, false },
     { "mepcc", CSR_MEPCC, read_xepcc, write_mepcc, false },
     { "sepcc", CSR_SEPCC, read_xepcc, write_sepcc, false },
-    { "sscratchc", CSR_SSCRATCHC, read_capcsr_reg, write_sscratchc, false },
-    { "ddc", CSR_DDC, read_capcsr_reg, write_ddc, true },
+    { "sscratchc", CSR_SSCRATCHC, read_capcsr_reg, write_cap_csr_reg, false },
+    { "ddc", CSR_DDC, read_capcsr_reg, write_cap_csr_reg, true },
 };
 
 riscv_csr_cap_ops *get_csr_cap_info(int csrnum)
