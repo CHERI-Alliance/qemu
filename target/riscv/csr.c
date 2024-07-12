@@ -1856,28 +1856,67 @@ static void update_vec_reg(CPURISCVState *env, cap_register_t *scr,
     cheri_log_instr_changed_capreg(env, name, scr);
 }
 
-static void write_mscratchc(CPURISCVState *env, cap_register_t* src)
+static inline cap_register_t *get_cap_csr(CPUArchState *env, uint32_t index)
+{
+    switch (index) {
+    case CSR_MSCRATCHC:
+        return &env->MScratchC;
+    case CSR_MTVECC:
+        return &env->MTVECC;
+    case CSR_STVECC:
+        return &env->STVECC;
+    case CSR_MEPCC:
+        return &env->MEPCC;
+    case CSR_SEPCC:
+        return &env->SEPCC;
+    case CSR_SSCRATCHC:
+        return &env->SScratchC;
+    case CSR_DSCRATCH0C:
+        return &env->dscratch0c;
+    case CSR_DSCRATCH1C:
+        return &env->dscratch1c;
+    case CSR_DPCC:
+        return &env->dpcc;
+    case CSR_DDDC:
+        return &env->dddc;
+    case CSR_JVTC:
+        return &env->jvtc;
+    case CSR_DINFC:
+        assert(false && "Should never be called to get &dinfc");
+    case CSR_MTDC:
+        return &env->MTDC;
+    case CSR_STDC:
+        return &env->STDC;
+    case CSR_DDC:
+        return &env->DDC;
+    default:
+        assert(false && "Should have raised an invalid inst trap!");
+    }
+}
+
+/* Reads a capability length csr register taking into account the current
+cheri execution mode*/
+static cap_register_t read_capcsr_reg(CPURISCVState *env,
+                                      riscv_csr_cap_ops *csr_cap_info)
+{
+    cap_register_t retval = *get_cap_csr(env, csr_cap_info->reg_num);
+    return retval;
+}
+
+static void write_mscratchc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
+                            cap_register_t *src)
 {
     env->mscratchc = *src;
 }
 
-static cap_register_t read_mscratchc(CPURISCVState *env)
-{
-    return env->mscratchc;
-}
-
-
-static void write_sscratchc(CPURISCVState *env, cap_register_t* src)
+static void write_sscratchc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
+                            cap_register_t *src)
 {
     env->sscratchc = *src;
 }
 
-static cap_register_t read_sscratchc(CPURISCVState *env)
-{
-    return env->sscratchc;
-}
-
-static void write_mtvecc(CPURISCVState *env, cap_register_t* src)
+static void write_mtvecc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
+                         cap_register_t *src)
 {
 
     target_ulong new_tvec = cap_get_cursor(src);
@@ -1893,12 +1932,8 @@ static void write_mtvecc(CPURISCVState *env, cap_register_t* src)
     env->MTVECC = *src;
 }
 
-static cap_register_t read_mtvecc(CPURISCVState *env)
-{
-    return env->MTVECC;
-}
-
-static void write_stvecc(CPURISCVState *env, cap_register_t* src)
+static void write_stvecc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
+                         cap_register_t *src)
 {
 
     target_ulong new_tvec = cap_get_cursor(src);
@@ -1914,13 +1949,8 @@ static void write_stvecc(CPURISCVState *env, cap_register_t* src)
     env->STVECC = *src;
 }
 
-static cap_register_t read_stvecc(CPURISCVState *env)
-{
-    return env->STVECC;
-}
-
-
-static void write_mepcc(CPURISCVState *env, cap_register_t* src)
+static void write_mepcc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
+                        cap_register_t *src)
 {
 
     target_ulong new_mepcc = cap_get_cursor(src) & (~0x1); // Zero bit zero
@@ -1928,31 +1958,36 @@ static void write_mepcc(CPURISCVState *env, cap_register_t* src)
     env->mepcc = *src;
 }
 
-static cap_register_t read_mepcc(CPURISCVState *env)
+// Common read function for the mepcc and sepcc registers
+static cap_register_t read_xepcc(CPURISCVState *env,
+                                 riscv_csr_cap_ops *csr_cap_info)
 {
-    cap_register_t retval = env->MEPCC;
+    cap_register_t retval = *get_cap_csr(env, csr_cap_info->reg_num);
     target_ulong val = cap_get_cursor(&retval);
-    // RISC-V privileged spec 4.1.7 Supervisor Exception Program Counter (sepc)
-    // "The low bit of sepc (sepc[0]) is always zero. [...] Whenever IALIGN=32,
-    // sepc[1] is masked on reads so that it appears to be 0."
+
+    // RISC-V privileged spec 4.1.7 Supervisor Exception Program Counter
+    // (sepc) "The low bit of sepc (sepc[0]) is always zero. [...] Whenever
+    // IALIGN=32, sepc[1] is masked on reads so that it appears to be 0."
     val &= ~(target_ulong)(riscv_has_ext(env, RVC) ? 1 : 3);
     if (val != cap_get_cursor(&retval)) {
-        warn_report("Clearing low bit(s) of MEPCC (contained an unaligned "
-                    "capability): " PRINT_CAP_FMTSTR,PRINT_CAP_ARGS(&retval));
+        warn_report("Clearing low bit(s) of MXPCC (contained an unaligned "
+                    "capability): " PRINT_CAP_FMTSTR,
+                    PRINT_CAP_ARGS(&retval));
         cap_set_cursor(&retval, val);
     }
     if (!cap_is_unsealed(&retval)) {
-        warn_report("Invalidating sealed MEPCC (contained an unaligned "
-                    "capability): " PRINT_CAP_FMTSTR, PRINT_CAP_ARGS(&retval));
+        warn_report("Invalidating sealed XEPCC (contained an unaligned "
+                    "capability): " PRINT_CAP_FMTSTR,
+                    PRINT_CAP_ARGS(&retval));
         retval.cr_tag = false;
     }
 
-    cap_set_cursor(&retval,val);
+    cap_set_cursor(&retval, val);
     return retval;
 }
 
-
-static void write_sepcc(CPURISCVState *env, cap_register_t* src)
+static void write_sepcc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
+                        cap_register_t *src)
 {
 
     target_ulong new_sepcc = cap_get_cursor(src) & (~0x1); // Zero bit zero
@@ -1960,121 +1995,71 @@ static void write_sepcc(CPURISCVState *env, cap_register_t* src)
     env->SEPCC = *src;
 }
 
-static cap_register_t read_sepcc(CPURISCVState *env)
-{
-    cap_register_t retval = env->SEPCC;
-    target_ulong val = cap_get_cursor(&retval);
-    // RISC-V privileged spec 4.1.7 Supervisor Exception Program Counter (sepc)
-    // "The low bit of sepc (sepc[0]) is always zero. [...] Whenever IALIGN=32,
-    // sepc[1] is masked on reads so that it appears to be 0."
-    val &= ~(target_ulong)(riscv_has_ext(env, RVC) ? 1 : 3);
-    if (val != cap_get_cursor(&retval)) {
-        warn_report("Clearing low bit(s) of MEPCC (contained an unaligned "
-                    "capability): " PRINT_CAP_FMTSTR,PRINT_CAP_ARGS(&retval));
-        cap_set_cursor(&retval, val);
-    }
-    if (!cap_is_unsealed(&retval)) {
-        warn_report("Invalidating sealed MEPCC (contained an unaligned "
-                    "capability): " PRINT_CAP_FMTSTR, PRINT_CAP_ARGS(&retval));
-        retval.cr_tag = false;
-    }
-
-    cap_set_cursor(&retval,val);
-    return retval;
-}
-
-static void write_dscratch0c(CPURISCVState *env, cap_register_t* src)
+static void write_dscratch0c(CPURISCVState *env,
+                             riscv_csr_cap_ops *csr_cap_info,
+                             cap_register_t *src)
 {
     env->dscratch0c = *src;
 }
 
-static cap_register_t read_dscratch0c(CPURISCVState *env)
-{
-    return env->dscratch0c;
-}
-
-static void write_dscratch1c(CPURISCVState *env, cap_register_t* src)
+static void write_dscratch1c(CPURISCVState *env,
+                             riscv_csr_cap_ops *csr_cap_info,
+                             cap_register_t *src)
 {
     env->dscratch1c = *src;
 }
 
-static cap_register_t read_dscratch1c(CPURISCVState *env)
-{
-    return env->dscratch1c;
-}
-
-static void write_dpcc(CPURISCVState *env, cap_register_t* src)
+static void write_dpcc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
+                       cap_register_t *src)
 {
     env->dpcc = *src;
 }
 
-static cap_register_t read_dpcc(CPURISCVState *env)
-{
-    return env->dpcc;
-}
-
-static void write_dddc(CPURISCVState *env, cap_register_t* src)
+static void write_dddc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
+                       cap_register_t *src)
 {
     env->dddc = *src;
 }
 
-static cap_register_t read_dddc(CPURISCVState *env)
-{
-    return env->dddc;
-}
-
-static void write_jvtc(CPURISCVState *env, cap_register_t* src)
+static void write_jvtc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
+                       cap_register_t *src)
 {
     env->jvtc = *src;
 }
 
-static cap_register_t read_jvtc(CPURISCVState *env)
-{
-    return env->jvtc;
-}
-
-static void write_dinfc(CPURISCVState *env, cap_register_t* src)
+static void write_dinfc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
+                        cap_register_t *src)
 {
     /* Writing to dinf is allowed but ignored*/
     qemu_log_mask(CPU_LOG_INT, "Attempting to write dinfc is ignored\n");
 }
 
-static cap_register_t read_dinfc(CPURISCVState *env)
+static cap_register_t read_dinfc(CPURISCVState *env,
+                                 riscv_csr_cap_ops *csr_cap_info)
 {
     cap_register_t inf;
+    assert(cheri_in_capmode(env) &&
+           "Expect reads of dinfc only in debug/cap mode");
     set_max_perms_capability(&inf,0);
     return inf;
 }
 
-
-static void write_mtdc(CPURISCVState *env, cap_register_t* src)
+static void write_mtdc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
+                       cap_register_t *src)
 {
     env->mtdc = *src;
 }
 
-static cap_register_t read_mtdc(CPURISCVState *env)
+static void write_stdc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
+                       cap_register_t *src)
 {
-    return env->mtdc;
+    env->stdc = *src;
 }
 
-static void write_stdc(CPURISCVState *env, cap_register_t* src)
-{
-    env->STDC = *src;
-}
-
-static cap_register_t read_stdc(CPURISCVState *env)
-{
-    return env->STDC;
-}
-
-static void write_ddc(CPURISCVState *env, cap_register_t* src)
+static void write_ddc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
+                      cap_register_t *src)
 {
     env->DDC = *src;
-}
-
-static cap_register_t read_ddc(CPURISCVState *env)
-{
-    return env->DDC;
 }
 
 static inline bool csr_needs_asr(CPURISCVState *env, int csrno) {
@@ -2447,24 +2432,23 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
 // We don't have as many CSR CAP Ops, and haven't fully defined what we need in the table, so don't bother 
 // with macros for this
 
-riscv_csr_cap_ops csr_cap_ops[]={
-    {"mscratchc", read_mscratchc, write_mscratchc, false},
-    {"mtvecc", read_mtvecc, write_mtvecc, false},
-    {"stvecc", read_stvecc, write_stvecc, false},
-    {"mepcc", read_mepcc, write_mepcc, false},
-    {"sepcc", read_sepcc, write_sepcc, false},
-    {"sscratchc", read_sscratchc, write_sscratchc, false},
-    {"dscratch0c", read_dscratch0c, write_dscratch0c, false},
-    {"dscratch1c", read_dscratch1c, write_dscratch1c, false},
-    {"dpcc", read_dpcc, write_dpcc, false},
-    {"dddc", read_dddc, write_dddc, true},
-    {"jvtc", read_jvtc, write_jvtc, false},
-    {"dinf", read_dinfc, write_dinfc, false},
-    {"mtdc", read_mtdc, write_mtdc, true},
-    {"stdc", read_stdc, write_stdc, true},
-    {"ddc", read_ddc, write_ddc, true},
+riscv_csr_cap_ops csr_cap_ops[] = {
+    { "mscratchc", CSR_MSCRATCHC, read_capcsr_reg, write_mscratchc, false },
+    { "mtvecc", CSR_MTVECC, read_capcsr_reg, write_mtvecc, false },
+    { "stvecc", CSR_STVECC, read_capcsr_reg, write_stvecc, false },
+    { "mepcc", CSR_MEPCC, read_xepcc, write_mepcc, false },
+    { "sepcc", CSR_SEPCC, read_xepcc, write_sepcc, false },
+    { "sscratchc", CSR_SSCRATCHC, read_capcsr_reg, write_sscratchc, false },
+    { "dscratch0c", CSR_DSCRATCH0C, read_capcsr_reg, write_dscratch0c, false },
+    { "dscratch1c", CSR_DSCRATCH1C, read_capcsr_reg, write_dscratch1c, false },
+    { "dpcc", CSR_DPCC, read_capcsr_reg, write_dpcc, false },
+    { "dddc", CSR_DDDC, read_capcsr_reg, write_dddc, true },
+    { "jvtc", CSR_JVTC, read_capcsr_reg, write_jvtc, false },
+    { "dinf", CSR_DINFC, read_dinfc, write_dinfc, false },
+    { "mtdc", CSR_MTDC, read_capcsr_reg, write_mtdc, true },
+    { "stdc", CSR_STDC, read_capcsr_reg, write_stdc, true },
+    { "ddc", CSR_DDC, read_capcsr_reg, write_ddc, true },
 };
-
 
 riscv_csr_cap_ops* get_csr_cap_info(int csrnum){
     switch (csrnum){

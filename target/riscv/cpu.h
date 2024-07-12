@@ -858,15 +858,20 @@ static inline cap_register_t *riscv_get_scr(CPUArchState *env, uint32_t index)
 void riscv_cpu_register_gdb_regs_for_features(CPUState *cs);
 
 #ifdef TARGET_CHERI
-typedef cap_register_t (*riscv_csr_cap_read_fn)(CPURISCVState *env);
-typedef void (*riscv_csr_cap_write_fn)(CPURISCVState *env, cap_register_t* src);
+typedef struct _csr_cap_ops_ riscv_csr_cap_ops;
+typedef cap_register_t (*riscv_csr_cap_read_fn)(CPURISCVState *env,
+                                                riscv_csr_cap_ops *cap);
+typedef void (*riscv_csr_cap_write_fn)(CPURISCVState *env,
+                                       riscv_csr_cap_ops *cap,
+                                       cap_register_t *src);
 
-typedef struct {
+struct _csr_cap_ops_ {
     const char *name;
+    unsigned int reg_num;
     riscv_csr_cap_read_fn read;
     riscv_csr_cap_write_fn write;
     bool require_cre;
-}riscv_csr_cap_ops;
+};
 riscv_csr_cap_ops* get_csr_cap_info(int csrnum);
 #endif
 
