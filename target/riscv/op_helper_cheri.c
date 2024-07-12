@@ -144,6 +144,15 @@ int check_csr_cap_permissions(CPURISCVState *env, int csrno, int write_mask,
 }
 
 
+static inline cap_register_t clip_if_xlen(CPUArchState *env, cap_register_t cap)
+{
+    if (!cheri_in_capmode(env)) {
+        // clears all the top bits... do we have a setter to do this
+        return CAP_cc(make_null_derived_cap(cap_get_cursor(&cap)));
+    }
+    return cap;
+}
+
 void HELPER(csrrw_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
                         uint32_t rs1)
 {
@@ -163,7 +172,7 @@ void HELPER(csrrw_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
     if (rd) {
         csr_cap = csr_cap_info->read(env);
         cap_register_t *rd_cap = get_cap_in_gpregs(&env->gpcapregs,rd);
-        *rd_cap = csr_cap;
+        *rd_cap = clip_if_xlen(env,csr_cap);
         cheri_log_instr_changed_gp_capreg(env, rd, rd_cap);
     }
 
@@ -193,7 +202,7 @@ void HELPER(csrrs_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
     csr_cap = csr_cap_info->read(env);
     cap_register_t *dest = get_cap_in_gpregs(&env->gpcapregs,rd);
     if(rd) {
-        *dest = csr_cap;
+        *dest = clip_if_xlen(env,csr_cap);
         cheri_log_instr_changed_gp_capreg(env, rd, &csr_cap);
     }
     if (rs1){
@@ -226,7 +235,7 @@ void HELPER(csrrc_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
     csr_cap = csr_cap_info->read(env);
     cap_register_t *dest = get_cap_in_gpregs(&env->gpcapregs,rd);
     if(rd) {
-        *dest = csr_cap;
+        *dest = clip_if_xlen(env, csr_cap);
         cheri_log_instr_changed_gp_capreg(env, rd, &csr_cap);
     }
     if (rs1) {
@@ -256,7 +265,7 @@ void HELPER(csrrwi_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
     csr_cap = csr_cap_info->read(env);
     if (rd) {
         cap_register_t *dest = get_cap_in_gpregs(&env->gpcapregs,rd);
-        *dest = csr_cap;
+        *dest = clip_if_xlen(env, csr_cap);
         cheri_log_instr_changed_gp_capreg(env, rd, &csr_cap);
     }
     tmp_cap = csr_cap;
@@ -283,7 +292,7 @@ void HELPER(csrrsi_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
     csr_cap = csr_cap_info->read(env);
     if (rd) {
         cap_register_t *rd_cap = get_cap_in_gpregs(&env->gpcapregs,rd);
-        *rd_cap = csr_cap;
+        *rd_cap = clip_if_xlen(env, csr_cap);
         cheri_log_instr_changed_gp_capreg(env, rd, &csr_cap);
     }
 
@@ -314,7 +323,7 @@ void HELPER(csrrci_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
     csr_cap = csr_cap_info->read(env);
     if (rd) {
         cap_register_t *rd_cap = get_cap_in_gpregs(&env->gpcapregs,rd);
-        *rd_cap=csr_cap;
+        *rd_cap = clip_if_xlen(env, csr_cap);
         cheri_log_instr_changed_gp_capreg(env, rd, &csr_cap);
     }
 
