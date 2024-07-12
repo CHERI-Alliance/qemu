@@ -34,8 +34,6 @@
 # This is concatenated with insn32-cheri.decode for risc64 targets.
 # This file defines the RV64-specific encoding
 
-sc_d_ddc    1111100  ..... ..... 000 10011 1011011 @atom_st_cap_or_ddc  # RV64-only (sc_c_ddc for RV32)
-sc_d_cap    1111100  ..... ..... 000 11011 1011011 @atom_st_cap_or_ddc  # RV64-only (sc_c_cap for RV32)
 sc_c_ddc    1111100  ..... ..... 000 10100 1011011 @atom_st_cap_or_ddc  # RV64-only (would be sc_q_ddc for RV128)
 sc_c_cap    1111100  ..... ..... 000 11100 1011011 @atom_st_cap_or_ddc  # RV64-only (would be sc_q_cap for RV128)
 
