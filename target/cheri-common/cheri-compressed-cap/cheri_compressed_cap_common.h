@@ -1055,13 +1055,19 @@ static inline bool _cc_N(is_representable_with_addr)(const _cc_cap_t* cap, _cc_a
     }
 }
 
-/// Updates the address of a capability using semantics that match the hardware (i.e. using a fast approximate
+/// Updates the address of a capability using semantics that match the hardware/format (i.e. using a fast approximate
 /// representability check rather than a precise one).
 static inline void _cc_N(set_addr)(_cc_cap_t* cap, _cc_addr_t new_addr) {
+#if _CC_N(FIELD_EF_USED) == 1
+    // The fast representability check is not usable for the risc-v formats.
+    bool precise_repr_check = true;
+#else
+    bool precise_repr_check = false;
+#endif
     if (cap->cr_tag && _cc_N(is_cap_sealed)(cap)) {
         cap->cr_tag = false;
     }
-    if (!_cc_N(is_representable_with_addr)(cap, new_addr, /*precise_representable_check=*/false)) {
+    if (!_cc_N(is_representable_with_addr)(cap, new_addr, precise_repr_check)) {
         // Detag and recompute the new bounds if the capability became unrepresentable.
         cap->cr_tag = false;
         _cc_N(decompress_raw)(cap->cr_pesbt, new_addr, false, cap);
