@@ -544,14 +544,12 @@ static bool pred_rv64_capmode(DisasContext *ctx)
     return pred_capmode(ctx);
 }
 
+#ifdef TARGET_CHERI
 static bool pred_hybrid(DisasContext *ctx)
 {
-#ifdef TARGET_CHERI
     return ctx->hybrid;
-#else
-    return false;
-#endif
 }
+#endif
 
 
 /* Include the auto-generated decoder for 32 bit insn */
