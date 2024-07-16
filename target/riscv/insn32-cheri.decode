@@ -39,8 +39,8 @@
 %cd         7:5
 
 ### Three operand instructions
-scbnds      0000111  ..... ..... 000 ..... 0110011 @r ?pred_capmode
-scbndsr     0000111  ..... ..... 001 ..... 0110011 @r ?pred_capmode
+scbnds      0000111  ..... ..... 000 ..... 0110011 @r ?pred_cre
+scbndsr     0000111  ..... ..... 001 ..... 0110011 @r ?pred_cre
 # 0001010 unused
 csub        0010100  ..... ..... 000 ..... 1011011 @r
 # 0010101-1111011 unused
@@ -53,35 +53,35 @@ csub        0010100  ..... ..... 000 ..... 1011011 @r
 @ccr     .......   ..... ..... ... ..... ....... %cs2 %cs1 %rd
 @ccc     .......   ..... ..... ... ..... ....... %cs2 %cs1 %cd
 
-cadd   0000110  ..... ..... 000 ..... 0110011 @rcc ?pred_capmode
-scaddr 0000110  ..... ..... 001 ..... 0110011 @rcc ?pred_capmode
-schi   0000110  ..... ..... 011 ..... 0110011 @rcc ?pred_capmode
-sceq   0000110  ..... ..... 100 ..... 0110011 @ccr ?pred_capmode
-acperm 0000110  ..... ..... 010 ..... 0110011 @rcc ?pred_capmode
-cbld   0000110  ..... ..... 101 ..... 0110011 @ccc ?pred_capmode
-scss   0000110  ..... ..... 110 ..... 0110011 @ccr ?pred_capmode
-scmode 0000110  ..... ..... 111 ..... 0110011 @rcc ?pred_capmode ?pred_hybrid
+cadd   0000110  ..... ..... 000 ..... 0110011 @rcc ?pred_cre
+scaddr 0000110  ..... ..... 001 ..... 0110011 @rcc ?pred_cre
+schi   0000110  ..... ..... 011 ..... 0110011 @rcc ?pred_cre
+sceq   0000110  ..... ..... 100 ..... 0110011 @ccr ?pred_cre
+acperm 0000110  ..... ..... 010 ..... 0110011 @rcc ?pred_cre
+cbld   0000110  ..... ..... 101 ..... 0110011 @ccc ?pred_cre
+scss   0000110  ..... ..... 110 ..... 0110011 @ccr ?pred_cre
+scmode 0000110  ..... ..... 111 ..... 0110011 @rcc ?pred_cre ?pred_hybrid
 
 
 ### Two operands (source and dest)
 # TODO: generate from sail?
 crrl        1111111  01000 ..... 000 ..... 1011011 @r2
-cram        0001000  00111 ..... 000 ..... 0110011 @r2 ?pred_capmode
+cram        0001000  00111 ..... 000 ..... 0110011 @r2 ?pred_cre
 # clear     1111111  01101 ..... 000 ..... 1011011 @r2
 # cclear    1111111  01110 ..... 000 ..... 1011011 @r2
 # fpclear   1111111  10000 ..... 000 ..... 1011011 @r2
 
 @cc         .......  ..... ..... ... ..... ....... %cs1 %cd
 
-sentry      0001000  01000 ..... 000 ..... 0110011 @cc ?pred_capmode
+sentry      0001000  01000 ..... 000 ..... 0110011 @cc ?pred_cre
 
 @cr         .......  ..... ..... ... ..... ....... %cs1 %rd
 
-gctag       0001000  00000 ..... 000 ..... 0110011 @cr ?pred_capmode
-gcperm      0001000  00001 ..... 000 ..... 0110011 @cr ?pred_capmode
-gchi        0001000  00100 ..... 000 ..... 0110011 @cr ?pred_capmode
-gcbase      0001000  00101 ..... 000 ..... 0110011 @cr ?pred_capmode
-gclen       0001000  00110 ..... 000 ..... 0110011 @cr ?pred_capmode
+gctag       0001000  00000 ..... 000 ..... 0110011 @cr ?pred_cre
+gcperm      0001000  00001 ..... 000 ..... 0110011 @cr ?pred_cre
+gchi        0001000  00100 ..... 000 ..... 0110011 @cr ?pred_cre
+gcbase      0001000  00101 ..... 000 ..... 0110011 @cr ?pred_cre
+gclen       0001000  00110 ..... 000 ..... 0110011 @cr ?pred_cre
 
 # We have to add a new i format with unsigned immediate for scbndsi
 %imm_i_unsigned    20:5
@@ -94,10 +94,10 @@ gclen       0001000  00110 ..... 000 ..... 0110011 @cr ?pred_capmode
 # Explicit capability/DDC atomics:
 @atom_st_cap_or_ddc .......   ..... ..... ... ..... ....... &atomic aq=1 rl=1 rd=0   %rs2 %rs1
 
-scbndsi  000001 . ..... ..... 101 ..... 0010011 @is_unsigned ?pred_capmode
+scbndsi  000001 . ..... ..... 101 ..... 0010011 @is_unsigned ?pred_cre
 
 @icc     ............    ..... ... ..... ....... &icc     imm=%imm_i %cs1 %cd
-caddi         ............     ..... 010 ..... 0011011 @icc ?pred_capmode
+caddi         ............     ..... 010 ..... 0011011 @icc ?pred_cre
 
 ### Memory Stores (including Store-Conditional) with Explicit Address Type
 sc_b_ddc       1111100  ..... ..... 000 10000 1011011 @atom_st_cap_or_ddc
@@ -118,4 +118,4 @@ sc_w_cap       1111100  ..... ..... 000 11010 1011011 @atom_st_cap_or_ddc
 #                                       11111 is reserved
 
 ### Zero operands
-modesw     0001001 00000 00000 001 00000 0110011 ?pred_hybrid
+modesw     0001001 00000 00000 001 00000 0110011 ?pred_hybrid ?pred_cre
