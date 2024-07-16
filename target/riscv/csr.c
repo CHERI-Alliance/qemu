@@ -1904,6 +1904,102 @@ static cap_register_t read_capcsr_reg(CPURISCVState *env,
 }
 
 
+#define get_bit(reg, x) (reg & (1 << x) ? true : false)
+
+// Borrow the signextend function from capstone
+static inline int64_t SignExtend64(uint64_t X, unsigned B)
+{
+    return (int64_t)(X << (64 - B)) >> (64 - B);
+}
+
+
+static inline uint8_t topbit_for_address_mode(CPUArchState *env){
+    uint64_t vm = get_field(env->vsatp, SATP_MODE);
+    uint8_t checkbit = 0;
+    switch (vm) {
+    case VM_1_10_SV32:
+        checkbit = 31;
+        break;
+    case VM_1_10_SV39:
+        checkbit = 38;
+        break;
+    case VM_1_10_SV48:
+        checkbit = 47;
+        break;
+    case VM_1_10_SV57:
+        checkbit = 56;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    return checkbit;
+}
+
+/*
+Check if the address is valid for the target capability.
+This depends on the addrress mode
+• For Sv39, bits [63:39] must equal bit 38
+• For Sv48, bits [63:48] must equal bit 47
+• For Sv57, bits [63:57] must equal bit 56
+If address translation is not active or we are using sv32 then treat the address 
+as valid.
+This only applies for rv64
+*/
+static inline bool is_address_valid_for_cap(CPUArchState *env,
+                                            cap_register_t cap,
+                                            target_ulong addr)
+{
+#ifdef TARGET_RISCV32
+    return true;
+#endif
+    uint64_t vm = get_field(env->vsatp, SATP_MODE);
+    if (vm == VM_1_10_MBARE || vm == VM_1_10_SV32) {
+        return true;
+    }
+    uint8_t checkbit = topbit_for_address_mode(env);
+    target_ulong address = cap_get_cursor(&cap);
+    target_ulong extend_address = SignExtend64(address, checkbit);
+    if (address == extend_address) {
+        // this is a valid address
+        return true;
+    }
+    // need to check for infinite bounds.
+    if (cap_get_base(&cap) == 0 && cap_get_top_full(&cap) == CAP_MAX_TOP) {
+        return true;
+    }
+    return false;
+}
+
+/*
+Return a valid capability address field.
+This is implementation dependant and depends on the address translation mode
+*/
+static inline target_ulong get_valid_cap_address(CPUArchState *env,
+                                                 target_ulong addr)
+{
+    uint64_t vm = get_field(env->vsatp, SATP_MODE);
+    if (vm == VM_1_10_MBARE || vm == VM_1_10_SV32) {
+        return addr;
+    }
+    uint8_t checkbit = topbit_for_address_mode(env);
+    target_ulong extend_address = SignExtend64(addr, checkbit);
+    return extend_address;
+}
+
+/*
+Given a capability and address turn the address into a valid address for that
+capability and return true if the address was changed 
+*/ 
+static inline bool validate_cap_address(CPUArchState *env, cap_register_t *cap,
+                                        target_ulong *address)
+{
+    if (is_address_valid_for_cap(env, *cap, *address)) {
+        return false;
+    }
+    *address = get_valid_cap_address(env, *address);
+    return true;
+}
+
 static void write_cap_csr_reg(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
                             cap_register_t *src)
 {
