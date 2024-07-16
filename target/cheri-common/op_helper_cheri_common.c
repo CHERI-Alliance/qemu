@@ -2201,3 +2201,13 @@ void CHERI_HELPER_IMPL(scmode(CPUArchState *env, uint32_t cd, uint32_t cs1,
 
     update_capreg(env, cd, &result);
 }
+
+cap_register_t cap_scaddr(target_ulong addr, cap_register_t dest)
+{
+    if (is_cap_sealed(&dest)) {
+        dest.cr_tag = false;
+    }
+    // cap_set_cursor checks the representable range
+    cap_set_cursor(&dest, addr);
+    return dest;
+}
