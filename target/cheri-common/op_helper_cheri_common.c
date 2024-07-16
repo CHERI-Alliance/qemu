@@ -1709,3 +1709,13 @@ void helper_capreg_state_debug(CPUArchState *env, uint32_t regnum,
     // Should include the actual state
     assert((flags & (1 << (uint64_t)regstate)) && pc);
 }
+
+cap_register_t cap_scaddr(target_ulong addr, cap_register_t dest)
+{
+    if (is_cap_sealed(&dest)) {
+        dest.cr_tag = false;
+    }
+    // cap_set_cursor checks the representable range
+    cap_set_cursor(&dest, addr);
+    return dest;
+}

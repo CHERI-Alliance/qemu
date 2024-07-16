@@ -406,3 +406,5 @@ void cheri_jump_and_link_checked(CPUArchState *env, uint32_t link_reg,
 
 void squash_mutable_permissions(CPUArchState *env, target_ulong *pesbt,
                                 const cap_register_t *source);
+
+cap_register_t cap_scaddr(target_ulong addr, cap_register_t dest);
