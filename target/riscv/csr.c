@@ -2000,53 +2000,76 @@ static inline bool validate_cap_address(CPUArchState *env, cap_register_t *cap,
     return true;
 }
 
-static void write_cap_csr_reg(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
-                            cap_register_t *src)
+/*
+The function takes both the source capability as well as the cursor value.
+For CLEN writes the source capabilities bounds would be taken into account
+when computing the invalid address conversion..
+
+*/
+static void write_cap_csr_reg(CPURISCVState *env,
+                              riscv_csr_cap_ops *csr_cap_info,
+                              cap_register_t src, target_ulong newval,
+                              bool clen)
 {
-    *get_cap_csr(env, csr_cap_info->reg_num) = *src;
+    cap_register_t csr = *get_cap_csr(env, csr_cap_info->reg_num);
+    if (clen) // this will apply only to csrrw calls, all other writes are
+              // xlen
+    {
+        if (csr_cap_info->invalid_address_conversion) {
+            bool changed = validate_cap_address(env, &src, &newval);
+
+            if (csr_cap_info->update_scadrr) {
+                // xxvec, dpcc
+                // write PC using scaddr
+                src = cap_scaddr(newval, csr); // always update with scaddr
+            } else { // only apply scadd if validate changes the address
+                     // mepcc, sepcc., jvtc
+                if (changed) {
+                    src = cap_scaddr(newval, csr);
+                } else {
+                    // update the csr with direct write
+                }
+            }
+            // else drop through and direct write src
+            // dpcc, mepcc,
+        } else {
+            // xscratchx, xxidc
+            // just drop through to do the write
+            // direct write
+        }
+    } else { // xlen
+
+        if (csr_cap_info->invalid_address_conversion) {
+            // ignore changed as we always use scaddr
+            validate_cap_address(env, &csr, &newval);
+        }
+        src = cap_scaddr(newval, csr);
+    }
+    // log the value and write it
+    *get_cap_csr(env, csr_cap_info->reg_num) = src;
 }
 
-static void write_mtvecc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
-                         cap_register_t *src)
+static void write_xtvecc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
+                         cap_register_t src, target_ulong new_tvec, bool clen)
 {
 
-    target_ulong new_tvec = cap_get_cursor(src);
     /* The low two bits encode the mode, but only 0 and 1 are valid. */
     if ((new_tvec & 3) > 1) {
         /* Invalid mode, keep the old one. */
         new_tvec &= ~(target_ulong)3;
-        new_tvec |= cap_get_cursor(&env->MTVECC) & 3;
+        new_tvec |= cap_get_cursor(get_cap_csr(env, csr_cap_info->reg_num)) & 3;
     }
+    cap_set_cursor(&src, new_tvec);
+    update_vec_reg(env, &src, csr_cap_info->name, new_tvec);
 
-    cap_set_cursor(src,new_tvec);
-    update_vec_reg(env, src, "MTVECC", new_tvec);
-    env->MTVECC = *src;
+    write_cap_csr_reg(env, csr_cap_info, src, new_tvec, clen);
 }
 
-static void write_stvecc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
-                         cap_register_t *src)
+static void write_xepcc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
+                        cap_register_t src, target_ulong new_xepcc, bool clen)
 {
-
-    target_ulong new_tvec = cap_get_cursor(src);
-    /* The low two bits encode the mode, but only 0 and 1 are valid. */
-    if ((new_tvec & 3) > 1) {
-        /* Invalid mode, keep the old one. */
-        new_tvec &= ~(target_ulong)3;
-        new_tvec |= cap_get_cursor(&env->STVECC) & 3;
-    }
-
-    cap_set_cursor(src,new_tvec);
-    update_vec_reg(env, src, "STVECC", new_tvec);
-    env->STVECC = *src;
-}
-
-static void write_mepcc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
-                        cap_register_t *src)
-{
-
-    target_ulong new_mepcc = cap_get_cursor(src) & (~0x1); // Zero bit zero
-    cap_set_cursor(src, new_mepcc);
-    env->mepcc = *src;
+    new_xepcc &= (~0x1); // Zero bit zero
+    write_cap_csr_reg(env, csr_cap_info, src, new_xepcc, clen);
 }
 
 // Common read function for the mepcc and sepcc registers
@@ -2077,18 +2100,8 @@ static cap_register_t read_xepcc(CPURISCVState *env,
     return retval;
 }
 
-static void write_sepcc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
-                        cap_register_t *src)
-{
-
-    target_ulong new_sepcc = cap_get_cursor(src) & (~0x1); // Zero bit zero
-    cap_set_cursor(src, new_sepcc);
-    env->SEPCC = *src;
-}
-
-
 static void write_dinfc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
-                        cap_register_t *src)
+                        cap_register_t src, target_ulong newval, bool clen)
 {
     /* Writing to dinf is allowed but ignored*/
     qemu_log_mask(CPU_LOG_INT, "Attempting to write dinfc is ignored\n");
@@ -2476,21 +2489,25 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
 // with macros for this
 
 riscv_csr_cap_ops csr_cap_ops[] = {
-    { "mscratchc", CSR_MSCRATCHC, read_capcsr_reg, write_cap_csr_reg, false },
-    { "mtvecc", CSR_MTVECC, read_capcsr_reg, write_mtvecc, false },
-    { "stvecc", CSR_STVECC, read_capcsr_reg, write_stvecc, false },
-    { "mepcc", CSR_MEPCC, read_xepcc, write_mepcc, false },
-    { "sepcc", CSR_SEPCC, read_xepcc, write_sepcc, false },
-    { "sscratchc", CSR_SSCRATCHC, read_capcsr_reg, write_cap_csr_reg, false },
-    { "dscratch0c", CSR_DSCRATCH0C, read_capcsr_reg, write_cap_csr_reg, false },
-    { "dscratch1c", CSR_DSCRATCH1C, read_capcsr_reg, write_cap_csr_reg, false },
-    { "dpcc", CSR_DPCC, read_capcsr_reg, write_cap_csr_reg, false },
-    { "dddc", CSR_DDDC, read_capcsr_reg, write_cap_csr_reg, true },
-    { "jvtc", CSR_JVTC, read_capcsr_reg, write_cap_csr_reg, false },
-    { "dinf", CSR_DINFC, read_dinfc, write_dinfc, false },
-    { "mtdc", CSR_MTDC, read_capcsr_reg, write_cap_csr_reg, true },
-    { "stdc", CSR_STDC, read_capcsr_reg, write_cap_csr_reg, true },
-    { "ddc", CSR_DDC, read_capcsr_reg, write_cap_csr_reg, true },
+    { "mscratchc", CSR_MSCRATCHC, read_capcsr_reg, write_cap_csr_reg, false,
+      false },
+    { "mtvecc", CSR_MTVECC, read_capcsr_reg, write_xtvecc, false, true },
+    { "stvecc", CSR_STVECC, read_capcsr_reg, write_xtvecc, false, true },
+    { "mepcc", CSR_MEPCC, read_xepcc, write_xepcc, false, true },
+    { "sepcc", CSR_SEPCC, read_xepcc, write_xepcc, false, true },
+    { "sscratchc", CSR_SSCRATCHC, read_capcsr_reg, write_cap_csr_reg, false,
+      false },
+    { "dscratch0c", CSR_DSCRATCH0C, read_capcsr_reg, write_cap_csr_reg, false,
+      false },
+    { "dscratch1c", CSR_DSCRATCH1C, read_capcsr_reg, write_cap_csr_reg, false,
+      false },
+    { "dpcc", CSR_DPCC, read_capcsr_reg, write_cap_csr_reg, false, true },
+    { "dddc", CSR_DDDC, read_capcsr_reg, write_cap_csr_reg, true, true },
+    { "jvtc", CSR_JVTC, read_capcsr_reg, write_cap_csr_reg, false, true },
+    { "dinf", CSR_DINFC, read_dinfc, write_dinfc, false, false },
+    { "mtdc", CSR_MTDC, read_capcsr_reg, write_cap_csr_reg, true, false },
+    { "stdc", CSR_STDC, read_capcsr_reg, write_cap_csr_reg, true, false },
+    { "ddc", CSR_DDC, read_capcsr_reg, write_cap_csr_reg, true, true },
 };
 
 riscv_csr_cap_ops* get_csr_cap_info(int csrnum){
