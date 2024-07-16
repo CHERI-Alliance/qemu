@@ -137,6 +137,8 @@ const char * const riscv_cpu_mode_names[QEMU_LOG_INSTR_CPU_MODE_MAX] = {
 };
 #endif
 
+static Property riscv_cpu_properties[];
+
 const char *riscv_cpu_get_trap_name(target_ulong cause, bool async)
 {
     if (async) {
@@ -210,6 +212,31 @@ static void rv64_sifive_e_cpu_init(Object *obj)
     set_misa(env, MXL_RV64, RVI | RVM | RVA | RVC | RVU);
     set_priv_version(env, PRIV_VERSION_1_10_0);
     qdev_prop_set_bit(DEVICE(obj), "mmu", false);
+}
+
+static void rv64_codasip_a730_cpu_init(Object *obj)
+{
+    CPURISCVState *env = &RISCV_CPU(obj)->env;
+
+    set_misa(env, MXL_RV64, RVI | RVM | RVA | RVF | RVD | RVC | RVS | RVU);
+
+    /* This CPU supports priv v1.12. QEMU 6.x supports only up to 1.11. */
+    set_priv_version(env, PRIV_VERSION_1_11_0);
+
+    qdev_prop_set_bit(DEVICE(obj), "mmu", true);
+    qdev_prop_set_bit(DEVICE(obj), "pmp", false);
+
+    /*
+     * QEMU 6.x has no support for limiting the virtual addressing modes
+     * (later versions add support for filtering certain SvXX modes)
+     *
+     * Vendor id and architecture id are not supported in qemu 6.x
+     *
+     * The A730 supports a number of named general extensions (Zxxx), all of
+     * which are not supported by qemu 6.x
+     *
+     * For QEMU 6.x, Zicsr and Zifencei are still part of the base ISA
+     */
 }
 #else
 static void rv32_base_cpu_init(Object *obj)
@@ -1273,6 +1300,7 @@ static const TypeInfo riscv_cpu_type_infos[] = {
     DEFINE_CPU(TYPE_RISCV_CPU_SIFIVE_E51,       rv64_sifive_e_cpu_init),
     DEFINE_CPU(TYPE_RISCV_CPU_SIFIVE_U54,       rv64_sifive_u_cpu_init),
     DEFINE_CPU(TYPE_RISCV_CPU_SHAKTI_C,         rv64_sifive_u_cpu_init),
+    DEFINE_CPU(TYPE_RISCV_CPU_CODASIP_A730,     rv64_codasip_a730_cpu_init),
 #endif
 };
 
