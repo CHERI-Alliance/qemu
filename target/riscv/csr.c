@@ -2053,15 +2053,43 @@ static void write_cap_csr_reg(CPURISCVState *env,
 static void write_xtvecc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
                          cap_register_t src, target_ulong new_tvec, bool clen)
 {
-
+    bool valid = true;
+    cap_register_t *csr = get_cap_csr(env, csr_cap_info->reg_num);
     /* The low two bits encode the mode, but only 0 and 1 are valid. */
     if ((new_tvec & 3) > 1) {
         /* Invalid mode, keep the old one. */
         new_tvec &= ~(target_ulong)3;
-        new_tvec |= cap_get_cursor(get_cap_csr(env, csr_cap_info->reg_num)) & 3;
+        new_tvec |= cap_get_cursor(csr) & 3;
     }
-    cap_set_cursor(&src, new_tvec);
-    update_vec_reg(env, &src, csr_cap_info->name, new_tvec);
+
+    // the function needs to know if if it using the src capability or the csr's
+    // existing capability in order to do the representable check.
+    cap_register_t *auth;
+    if (clen) { // use the source capability for checking the vector range
+        auth = &src;
+    } else { // use the csr register
+        auth = csr;
+    }
+
+    if (!is_representable_cap_with_addr(auth, new_tvec + RISCV_HICAUSE * 4)) {
+        error_report("Attempting to set vector register with unrepresentable "
+                     "range (0x" TARGET_FMT_lx ") on %s: " PRINT_CAP_FMTSTR
+                     "\r\n",
+                     new_tvec, csr_cap_info->name, PRINT_CAP_ARGS(auth));
+        qemu_log_instr_extra(
+            env,
+            "Attempting to set unrepresentable vector register with "
+            "unrepresentable range (0x" TARGET_FMT_lx
+            ") on %s: " PRINT_CAP_FMTSTR "\r\n",
+            new_tvec, csr_cap_info->name, PRINT_CAP_ARGS(auth));
+        valid = false;
+    }
+    if (!valid) {
+        // caution this directly modifies the tareget csr register in integer
+        // mode this should be ok, as it is invalidating the tag which is the
+        // intended action
+        cap_mark_unrepresentable(new_tvec, auth);
+    }
 
     write_cap_csr_reg(env, csr_cap_info, src, new_tvec, clen);
 }
