@@ -1800,53 +1800,6 @@ static RISCVException write_upmbase(CPURISCVState *env, int csrno,
 #ifdef TARGET_CHERI
 /* handlers for capability csr registers */
 
-// Version of update special reg, that also implements vectored handling with
-// the mode in the low order bits fo the new value. vector handling requires
-// that the capability be able to represent addr + HICAUSE*4 == addr + 63*4
-static void update_vec_reg(CPURISCVState *env, cap_register_t *scr,
-                           const char *name, target_ulong new_value)
-{
-    /* The new behaviour is that SCR updates affect the address. */
-    target_ulong new_cursor = new_value;
-
-    if (!cap_is_unsealed(scr)) {
-        error_report("Attempting to modify sealed %s: " PRINT_CAP_FMTSTR "\r\n",
-                     name, PRINT_CAP_ARGS(scr));
-        qemu_log_instr_extra(
-            env, "Attempting to modify sealed %s: " PRINT_CAP_FMTSTR "\n", name,
-            PRINT_CAP_ARGS(scr));
-        // Clear the tag bit and update the cursor:
-        cap_mark_unrepresentable(new_cursor, scr);
-    } else if (!is_representable_cap_with_addr(scr, new_cursor)) {
-        error_report(
-            "Attempting to set unrepresentable cursor (0x" TARGET_FMT_lx
-            ") on %s: " PRINT_CAP_FMTSTR "\r\n",
-            new_cursor, name, PRINT_CAP_ARGS(scr));
-        qemu_log_instr_extra(
-            env,
-            "Attempting to set unrepresentable cursor (0x" TARGET_FMT_lx
-            ") on %s: " PRINT_CAP_FMTSTR "\r\n",
-            new_cursor, name, PRINT_CAP_ARGS(scr));
-        cap_mark_unrepresentable(new_cursor, scr);
-    } else if (!is_representable_cap_with_addr(scr,
-                                               new_value + RISCV_HICAUSE * 4)) {
-        error_report("Attempting to set vector register with unrepresentable "
-                     "range (0x" TARGET_FMT_lx ") on %s: " PRINT_CAP_FMTSTR
-                     "\r\n",
-                     new_cursor, name, PRINT_CAP_ARGS(scr));
-        qemu_log_instr_extra(
-            env,
-            "Attempting to set unrepresentable vector register with "
-            "unrepresentable range (0x" TARGET_FMT_lx
-            ") on %s: " PRINT_CAP_FMTSTR "\r\n",
-            new_cursor, name, PRINT_CAP_ARGS(scr));
-        cap_mark_unrepresentable(new_cursor, scr);
-    } else {
-        cap_set_cursor(scr, new_cursor);
-    }
-    cheri_log_instr_changed_capreg(env, name, scr);
-}
-
 static inline cap_register_t *get_cap_csr(CPUArchState *env, uint32_t index)
 {
     switch (index) {
@@ -2020,15 +1973,43 @@ static void write_cap_csr_reg(CPURISCVState *env,
 static void write_xtvecc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
                          cap_register_t src, target_ulong new_tvec, bool clen)
 {
-
+    bool valid = true;
+    cap_register_t *csr = get_cap_csr(env, csr_cap_info->reg_num);
     /* The low two bits encode the mode, but only 0 and 1 are valid. */
     if ((new_tvec & 3) > 1) {
         /* Invalid mode, keep the old one. */
         new_tvec &= ~(target_ulong)3;
-        new_tvec |= cap_get_cursor(get_cap_csr(env, csr_cap_info->reg_num)) & 3;
+        new_tvec |= cap_get_cursor(csr) & 3;
     }
-    cap_set_cursor(&src, new_tvec);
-    update_vec_reg(env, &src, csr_cap_info->name, new_tvec);
+
+    // the function needs to know if if it using the src capability or the csr's
+    // existing capability in order to do the representable check.
+    cap_register_t *auth;
+    if (clen) { // use the source capability for checking the vector range
+        auth = &src;
+    } else { // use the csr register
+        auth = csr;
+    }
+
+    if (!is_representable_cap_with_addr(auth, new_tvec + RISCV_HICAUSE * 4)) {
+        error_report("Attempting to set vector register with unrepresentable "
+                     "range (0x" TARGET_FMT_lx ") on %s: " PRINT_CAP_FMTSTR
+                     "\r\n",
+                     new_tvec, csr_cap_info->name, PRINT_CAP_ARGS(auth));
+        qemu_log_instr_extra(
+            env,
+            "Attempting to set unrepresentable vector register with "
+            "unrepresentable range (0x" TARGET_FMT_lx
+            ") on %s: " PRINT_CAP_FMTSTR "\r\n",
+            new_tvec, csr_cap_info->name, PRINT_CAP_ARGS(auth));
+        valid = false;
+    }
+    if (!valid) {
+        // caution this directly modifies the tareget csr register in integer
+        // mode this should be ok, as it is invalidating the tag which is the
+        // intended action
+        cap_mark_unrepresentable(new_tvec, auth);
+    }
 
     write_cap_csr_reg(env, csr_cap_info, src, new_tvec, clen);
 }
