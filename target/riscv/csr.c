@@ -1816,46 +1816,6 @@ static RISCVException write_upmbase(CPURISCVState *env, int csrno,
 
 #ifdef TARGET_CHERI
 
-// Version of update special reg, that also implements vectored handling with the mode in the low order bits fo the new value.
-// vector handling requires that the capability be able to represent addr + HICAUSE*4 == addr + 63*4
-static void update_vec_reg(CPURISCVState *env, cap_register_t *scr,
-                             const char *name, target_ulong new_value)
-{
-    /* The new behaviour is that SCR updates affect the address. */
-    target_ulong new_cursor = new_value;
-
-    if (!cap_is_unsealed(scr)) {
-        error_report("Attempting to modify sealed %s: " PRINT_CAP_FMTSTR "\r\n",
-                     name, PRINT_CAP_ARGS(scr));
-        qemu_log_instr_extra(env, "Attempting to modify sealed %s: "
-            PRINT_CAP_FMTSTR "\n", name, PRINT_CAP_ARGS(scr));
-        // Clear the tag bit and update the cursor:
-        cap_mark_unrepresentable(new_cursor, scr);
-    } else if (!is_representable_cap_with_addr(scr, new_cursor)) {
-        error_report(
-            "Attempting to set unrepresentable cursor (0x" TARGET_FMT_lx
-            ") on %s: " PRINT_CAP_FMTSTR "\r\n",
-            new_cursor, name, PRINT_CAP_ARGS(scr));
-        qemu_log_instr_extra(env, "Attempting to set unrepresentable cursor (0x"
-            TARGET_FMT_lx ") on %s: " PRINT_CAP_FMTSTR "\r\n", new_cursor,
-            name, PRINT_CAP_ARGS(scr));
-        cap_mark_unrepresentable(new_cursor, scr);
-    } else if (!is_representable_cap_with_addr(scr,new_value + RISCV_HICAUSE*4)){
-        error_report(
-            "Attempting to set vector register with unrepresentable range (0x" TARGET_FMT_lx
-            ") on %s: " PRINT_CAP_FMTSTR "\r\n",
-            new_cursor, name, PRINT_CAP_ARGS(scr));
-        qemu_log_instr_extra(env, "Attempting to set unrepresentable vector register with unrepresentable range (0x"
-            TARGET_FMT_lx ") on %s: " PRINT_CAP_FMTSTR "\r\n", new_cursor,
-            name, PRINT_CAP_ARGS(scr));
-        cap_mark_unrepresentable(new_cursor, scr);
-    }
-    else{
-        cap_set_cursor(scr,new_cursor);
-    }
-    cheri_log_instr_changed_capreg(env, name, scr);
-}
-
 static inline cap_register_t *get_cap_csr(CPUArchState *env, uint32_t index)
 {
     switch (index) {
