@@ -2047,6 +2047,7 @@ static void write_cap_csr_reg(CPURISCVState *env,
     }
     // log the value and write it
     *get_cap_csr(env, csr_cap_info->reg_num) = src;
+    cheri_log_instr_changed_capreg(env, csr_cap_info->name, &src);
 }
 
 static void write_xtvecc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
