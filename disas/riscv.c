@@ -580,6 +580,7 @@ typedef enum {
 
     // CHERI compressed capmode load/stores
     rv_op_c_lc,
+    rv_op_c_sc,
 } rv_op;
 
 /* structures */
@@ -1325,6 +1326,8 @@ const rv_opcode_data opcode_data[] = {
     // compressed capmode loads
     [rv_op_c_lc] = { "lc", rv_codec_cl_lq, rv_fmt_cd_offset_cs1, NULL, 0, 0,
                      0 },
+    [rv_op_c_sc] = { "sc", rv_codec_cs_sq, rv_fmt_cs2_offset_cs1, NULL, 0, 0,
+                     0 },
 
     // Three operand
     [rv_op_scbnds] = { "scbnds", rv_codec_r, rv_fmt_cd_cs1_rs2, NULL, 0, 0, 0 },
@@ -1618,7 +1621,7 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa, int flags)
             if (isa == rv128) {
                 op = rv_op_c_sq;
             } else {
-                op = rv_op_c_fsd;
+                op =  (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_c_sc : rv_op_c_fsd;
             }
             break;
         case 6: op = rv_op_c_sw; break;
