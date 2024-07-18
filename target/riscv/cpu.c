@@ -919,17 +919,18 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
             }
             set_vext_version(env, vext_version);
         }
+    }
+
 #ifdef TARGET_CHERI
-        // Non-standard extensions present
-        target_misa |= RV('X');
-        set_feature(env, RISCV_FEATURE_CHERI_PURECAP);
-        if (!cpu->cfg.ext_cheri_purecap) {
-            set_feature(env, RISCV_FEATURE_CHERI_HYBRID);
-        }
+    // Non-standard extensions present
+    target_misa |= RV('X');
+    set_feature(env, RISCV_FEATURE_CHERI_PURECAP);
+    if (!cpu->cfg.ext_cheri_purecap) {
+        set_feature(env, RISCV_FEATURE_CHERI_HYBRID);
+    }
 #endif
 
-        set_misa(env, target_misa);
-    }
+    set_misa(env, target_misa);
 
     riscv_cpu_register_gdb_regs_for_features(cs);
 
