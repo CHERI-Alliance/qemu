@@ -582,6 +582,7 @@ typedef enum {
     rv_op_c_lc,
     rv_op_c_sc,
     rv_op_c_lcsp,
+    rv_op_c_scsp,
 } rv_op;
 
 /* structures */
@@ -1331,6 +1332,8 @@ const rv_opcode_data opcode_data[] = {
                      0 },
     [rv_op_c_lcsp] = { "lc", rv_codec_ci_lqsp, rv_fmt_cd_offset_cs1, NULL, 0, 0,
                      0 },
+    [rv_op_c_scsp] = { "sc", rv_codec_css_sqsp, rv_fmt_cs2_offset_cs1, NULL, 0, 0,
+                     0 },
 
     // Three operand
     [rv_op_scbnds] = { "scbnds", rv_codec_r, rv_fmt_cd_cs1_rs2, NULL, 0, 0, 0 },
@@ -1730,7 +1733,7 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa, int flags)
             if (isa == rv128) {
                 op = rv_op_c_sqsp;
             } else {
-                op = rv_op_c_fsdsp;
+                op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_c_scsp :rv_op_c_fsdsp;
             }
             break;
         case 6: op = rv_op_c_swsp; break;
