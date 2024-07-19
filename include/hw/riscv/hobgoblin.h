@@ -23,7 +23,9 @@
 #include "hw/riscv/riscv_hart.h"
 #include "hw/sysbus.h"
 
-#define MACHINE_TYPE_HOBGOBLIN  MACHINE_TYPE_NAME("hobgoblin")
+#define TYPE_HOBGOBLIN_MACHINE          MACHINE_TYPE_NAME("hobgoblin")
+#define TYPE_HOBGOBLIN_GENESYS2_MACHINE MACHINE_TYPE_NAME("hobgoblin-genesys2")
+#define TYPE_HOBGOBLIN_PROFPGA_MACHINE  MACHINE_TYPE_NAME("hobgoblin-profpga")
 
 enum board_type {
     BOARD_TYPE_GENESYS2,
@@ -35,12 +37,16 @@ enum eth_type {
     ETH_TYPE_ETHERNETLITE,
 };
 
-typedef struct {
+struct HobgoblinClass {
+    MachineClass parent;
+    enum board_type board_type;
+};
+
+struct HobgoblinState {
     /*< private >*/
     MachineState machine; /* QOM: derived from MachineState/TYPE_MACHINE */
     /*< properties >*/
     bool boot_from_rom;
-    enum board_type board_type;
     enum eth_type eth_type;
     /*< devices >*/
     RISCVHartArrayState soc;
@@ -49,10 +55,9 @@ typedef struct {
     DeviceState *gpio[2];
     DeviceState *eth;
     DeviceState *timer;
-} HobgoblinState_t;
+};
 
-#define HOBGOBLIN_MACHINE_STATE(obj) \
-    OBJECT_CHECK(HobgoblinState_t, (obj), MACHINE_TYPE_HOBGOBLIN);
+OBJECT_DECLARE_TYPE(HobgoblinState, HobgoblinClass, HOBGOBLIN_MACHINE)
 
 enum {
     HOBGOBLIN_MROM,

@@ -114,7 +114,7 @@ static const memmapEntry_t pro_fpga_memmap[] = {
 /* Newer qemu versions define this in boot.h. */
 #define RISCV64_BIOS_BIN "opensbi-riscv64-generic-fw_dynamic.bin"
 
-static int hobgoblin_load_images(MachineState *machine, HobgoblinState_t *s)
+static int hobgoblin_load_images(MachineState *machine, HobgoblinState *s)
 {
     hwaddr start_addr;
     uint64_t kernel_entry = 0;
@@ -177,7 +177,7 @@ static int hobgoblin_load_images(MachineState *machine, HobgoblinState_t *s)
     return 0;
 }
 
-static void hobgoblin_add_soc(HobgoblinState_t *s, MachineState *machine,
+static void hobgoblin_add_soc(HobgoblinState *s, MachineState *machine,
                               const int smp_cpus)
 {
     object_initialize_child(OBJECT(machine), "soc", &s->soc,
@@ -200,18 +200,20 @@ static void hobgoblin_add_memory_area(MemoryRegion *system_memory,
     memory_region_add_subregion(system_memory, e->base, reg);
 }
 
-static void hobgoblin_add_interrupt_controller(HobgoblinState_t *s,
+static void hobgoblin_add_interrupt_controller(HobgoblinState *s,
                                                const int num_harts)
 {
     const memmapEntry_t *mem_plic = &memmap[HOBGOBLIN_PLIC];
     const memmapEntry_t *mem_clint = &memmap[HOBGOBLIN_CLINT];
     const int hartid_base = 0; /* Hart IDs start at 0 */
+    char *plic_hart_config;
 
     /* PLIC */
     assert(HOBGOBLIN_PLIC_NUM_SOURCES >= HOBGOBLIN_MAX_IRQ);
+    plic_hart_config = riscv_plic_hart_config_string(num_harts);
     DeviceState *plic = sifive_plic_create(
         mem_plic->base,
-        "MS", /* instances for both M-Mode and S-Mode */
+        plic_hart_config,
         hartid_base,
         HOBGOBLIN_PLIC_NUM_SOURCES,
         HOBGOBLIN_PLIC_NUM_PRIORITIES,
@@ -222,6 +224,7 @@ static void hobgoblin_add_interrupt_controller(HobgoblinState_t *s,
         HOBGOBLIN_PLIC_CONTEXT_BASE,
         HOBGOBLIN_PLIC_CONTEXT_STRIDE,
         mem_plic->size);
+    g_free(plic_hart_config);
 
     sifive_clint_create(mem_clint->base, mem_clint->size,
                         hartid_base, num_harts,
@@ -232,21 +235,21 @@ static void hobgoblin_add_interrupt_controller(HobgoblinState_t *s,
     s->plic = plic;
 }
 
-static qemu_irq hobgoblin_make_plic_irq(HobgoblinState_t *s, int number)
+static qemu_irq hobgoblin_make_plic_irq(HobgoblinState *s, int number)
 {
     DeviceState *plic = s->plic;
     assert(plic); /* PLIC instance must exist. */
     return qdev_get_gpio_in(DEVICE(plic), number);
 }
 
-static void hobgoblin_connect_plic_irq(HobgoblinState_t *s,
+static void hobgoblin_connect_plic_irq(HobgoblinState *s,
         SysBusDevice *busDev, int dev_irq, int number)
 {
     qemu_irq irq = hobgoblin_make_plic_irq(s, number);
     sysbus_connect_irq(busDev, dev_irq, irq);
 }
 
-static void hobgoblin_add_uart(HobgoblinState_t *s,
+static void hobgoblin_add_uart(HobgoblinState *s,
                                MemoryRegion *system_memory)
 {
     const memmapEntry_t *mem_uart = &memmap[HOBGOBLIN_UART0];
@@ -269,7 +272,7 @@ static void hobgoblin_gpio_1_3_event(void *opaque, int n, int level)
     }
 }
 
-static void hobgoblin_add_gpio(HobgoblinState_t *s)
+static void hobgoblin_add_gpio(HobgoblinState *s)
 {
     for (int i = 0; i < 2; i++) {
         /* create GPIO */
@@ -289,7 +292,7 @@ static void hobgoblin_add_gpio(HobgoblinState_t *s)
 
 }
 
-static void hobgoblin_add_spi(HobgoblinState_t *s)
+static void hobgoblin_add_spi(HobgoblinState *s)
 {
     const memmapEntry_t *mem_spi = &memmap[HOBGOBLIN_SPI];
 
@@ -319,7 +322,7 @@ static void hobgoblin_add_spi(HobgoblinState_t *s)
     s->spi = spi;
 }
 
-static void hobgoblin_add_ethernetlite(HobgoblinState_t *s)
+static void hobgoblin_add_ethernetlite(HobgoblinState *s)
 {
     const memmapEntry_t *mem_eth = &memmap[HOBGOBLIN_ETHLITE];
 
@@ -341,7 +344,7 @@ static void hobgoblin_add_ethernetlite(HobgoblinState_t *s)
     s->eth = eth;
 }
 
-static void hobgoblin_add_axi_ethernet(HobgoblinState_t *s)
+static void hobgoblin_add_axi_ethernet(HobgoblinState *s)
 {
     const memmapEntry_t *mem_eth = &memmap[HOBGOBLIN_AXI_ETH];
     const memmapEntry_t *mem_dma = &memmap[HOBGOBLIN_AXI_DMA];
@@ -399,7 +402,7 @@ static void hobgoblin_add_axi_ethernet(HobgoblinState_t *s)
 }
 
 /* Codasip Timer at 100 MHz */
-static void hobgoblin_add_timer(HobgoblinState_t *s)
+static void hobgoblin_add_timer(HobgoblinState *s)
 {
     SysBusDevice *ss;
 
@@ -412,7 +415,7 @@ static void hobgoblin_add_timer(HobgoblinState_t *s)
                        qdev_get_gpio_in(DEVICE(s->plic), HOBGOBLIN_TIMER_IRQ));
 }
 
-static void hobgoblin_add_virtio(HobgoblinState_t *s)
+static void hobgoblin_add_virtio(HobgoblinState *s)
 {
     const memmapEntry_t *mem_virtio = &memmap[HOBGOBLIN_VIRTIO];
 
@@ -427,12 +430,10 @@ static void hobgoblin_add_virtio(HobgoblinState_t *s)
 
 static void hobgoblin_machine_init(MachineState *machine)
 {
-    HobgoblinState_t *s = HOBGOBLIN_MACHINE_STATE(machine);
-
+    HobgoblinState *s = HOBGOBLIN_MACHINE(machine);
+    HobgoblinClass *hc = HOBGOBLIN_MACHINE_GET_CLASS(s);
     MemoryRegion *system_memory = get_system_memory();
-
-    /* Currently there is just one core. */
-    const int smp_cpus = 1;
+    const int smp_cpus = machine->smp.cpus;
 
     hobgoblin_add_soc(s, machine, smp_cpus);
 
@@ -444,7 +445,7 @@ static void hobgoblin_machine_init(MachineState *machine)
     /* SRAM exists on FPGA only */
     hobgoblin_add_memory_area(system_memory, &memmap[HOBGOBLIN_SRAM]);
 
-    if (s->board_type == BOARD_TYPE_PROFPGA) {
+    if (hc->board_type == BOARD_TYPE_PROFPGA) {
         hobgoblin_add_memory_area(system_memory, &pro_fpga_memmap[0]);
     }
 
@@ -476,7 +477,7 @@ static void hobgoblin_machine_init(MachineState *machine)
 
 static bool hobgoblin_machine_get_boot_from_rom(Object *obj, Error **errp)
 {
-    HobgoblinState_t *s = HOBGOBLIN_MACHINE_STATE(obj);
+    HobgoblinState *s = HOBGOBLIN_MACHINE(obj);
 
     return s->boot_from_rom;
 }
@@ -484,47 +485,14 @@ static bool hobgoblin_machine_get_boot_from_rom(Object *obj, Error **errp)
 static void hobgoblin_machine_set_boot_from_rom(Object *obj, bool value,
                                                 Error **errp)
 {
-    HobgoblinState_t *s = HOBGOBLIN_MACHINE_STATE(obj);
+    HobgoblinState *s = HOBGOBLIN_MACHINE(obj);
 
     s->boot_from_rom = value;
 }
 
-static char *hobgoblin_machine_get_board_type(Object *obj, Error **errp)
-{
-    HobgoblinState_t *s = HOBGOBLIN_MACHINE_STATE(obj);
-    const char *result;
-
-    switch (s->board_type) {
-    case BOARD_TYPE_GENESYS2:
-        result = "genesys2";
-        break;
-    case BOARD_TYPE_PROFPGA:
-        result = "profpga";
-        break;
-    default:
-        result = "Unknown";
-        break;
-    }
-
-    return g_strdup(result);
-}
-
-static void hobgoblin_machine_set_board_type(Object *obj, const char *value,
-                                             Error **errp)
-{
-    HobgoblinState_t *s = HOBGOBLIN_MACHINE_STATE(obj);
-
-    if (!strcmp(value, "genesys2"))
-        s->board_type = BOARD_TYPE_GENESYS2;
-    else if (!strcmp(value, "profpga"))
-        s->board_type = BOARD_TYPE_PROFPGA;
-    else
-        error_setg(errp, "Unrecognised board-type");
-}
-
 static char *hobgoblin_machine_get_eth_type(Object *obj, Error **errp)
 {
-    HobgoblinState_t *s = HOBGOBLIN_MACHINE_STATE(obj);
+    HobgoblinState *s = HOBGOBLIN_MACHINE(obj);
     const char *result;
 
     switch (s->eth_type) {
@@ -545,7 +513,7 @@ static char *hobgoblin_machine_get_eth_type(Object *obj, Error **errp)
 static void hobgoblin_machine_set_eth_type(Object *obj, const char *value,
                                            Error **errp)
 {
-    HobgoblinState_t *s = HOBGOBLIN_MACHINE_STATE(obj);
+    HobgoblinState *s = HOBGOBLIN_MACHINE(obj);
 
     if (!strcmp(value, "axi-ethernet"))
         s->eth_type = ETH_TYPE_AXI_ETHERNET;
@@ -557,10 +525,9 @@ static void hobgoblin_machine_set_eth_type(Object *obj, const char *value,
 
 static void hobgoblin_machine_instance_init(Object *obj)
 {
-    HobgoblinState_t *s = HOBGOBLIN_MACHINE_STATE(obj);
+    HobgoblinState *s = HOBGOBLIN_MACHINE(obj);
 
     s->boot_from_rom = false;
-    s->board_type = BOARD_TYPE_GENESYS2;
     s->eth_type = ETH_TYPE_AXI_ETHERNET;
 }
 
@@ -569,21 +536,16 @@ static void hobgoblin_machine_class_init(ObjectClass *oc, void *data)
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->init = hobgoblin_machine_init;
+    mc->default_cpu_type = TYPE_RISCV_CPU_CODASIP_A730;
+
     /* mc->reset:   void reset(MachineState *state, ShutdownCause reason); */
     /* mc->wakeup:  void wakeup(MachineState *state); */
-    mc->max_cpus = 1;
 
     object_class_property_add_bool(oc, "boot-from-rom",
                                    hobgoblin_machine_get_boot_from_rom,
                                    hobgoblin_machine_set_boot_from_rom);
     object_class_property_set_description(oc, "boot-from-rom",
         "Load BIOS (default fsbl_rom.xexe) into ROM and boot into it");
-
-    object_class_property_add_str(oc, "board-type",
-                                  hobgoblin_machine_get_board_type,
-                                  hobgoblin_machine_set_board_type);
-    object_class_property_set_description(oc, "board-type",
-        "Set the board type (genesys2 (default) or profpga)");
 
     object_class_property_add_str(oc, "eth-type",
                                   hobgoblin_machine_get_eth_type,
@@ -592,18 +554,57 @@ static void hobgoblin_machine_class_init(ObjectClass *oc, void *data)
         "Set the Ethernet type (axi-ethernet (default) or ethernetlite)");
 }
 
+static void hobgoblin_genesys2_machine_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    HobgoblinClass *hc = HOBGOBLIN_MACHINE_CLASS(oc);
+
+    mc->desc = "RISC-V Hobgoblin (Genesys2) board";
+    mc->max_cpus = 1;
+    mc->min_cpus = 1;
+    mc->default_cpus = 1;
+    hc->board_type = BOARD_TYPE_GENESYS2;
+}
+
+static void hobgoblin_profpga_machine_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    HobgoblinClass *hc = HOBGOBLIN_MACHINE_CLASS(oc);
+
+    mc->desc = "RISC-V Hobgoblin (ProFPGA) board";
+    mc->max_cpus = 4;
+    mc->min_cpus = 1;
+    mc->default_cpus = 4;
+    hc->board_type = BOARD_TYPE_PROFPGA;
+}
+
+/* QOM support for HobgoblinState */
 static const TypeInfo hobgoblin_typeinfo = {
-    .name       = MACHINE_TYPE_NAME("hobgoblin"),
-    .parent     = TYPE_MACHINE,
-    .class_init = hobgoblin_machine_class_init,
-    .instance_size = sizeof(HobgoblinState_t),
+    .name          = TYPE_HOBGOBLIN_MACHINE,
+    .parent        = TYPE_MACHINE,
+    .abstract      = true,
+    .instance_size = sizeof(HobgoblinState),
     .instance_init = hobgoblin_machine_instance_init,
     .class_init    = hobgoblin_machine_class_init,
+};
+
+static const TypeInfo hobgoblin_genesys2_typeinfo = {
+    .name          = TYPE_HOBGOBLIN_GENESYS2_MACHINE,
+    .parent        = TYPE_HOBGOBLIN_MACHINE,
+    .class_init    = hobgoblin_genesys2_machine_class_init,
+};
+
+static const TypeInfo hobgoblin_profpga_typeinfo = {
+    .name          = TYPE_HOBGOBLIN_PROFPGA_MACHINE,
+    .parent        = TYPE_HOBGOBLIN_MACHINE,
+    .class_init    = hobgoblin_profpga_machine_class_init,
 };
 
 static void hobgoblin_register_types(void)
 {
     type_register_static(&hobgoblin_typeinfo);
+    type_register_static(&hobgoblin_genesys2_typeinfo);
+    type_register_static(&hobgoblin_profpga_typeinfo);
 }
 
 type_init(hobgoblin_register_types)
