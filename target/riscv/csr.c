@@ -1817,6 +1817,14 @@ static inline cap_register_t *get_cap_csr(CPUArchState *env, uint32_t index)
         return &env->sscratchc;
     case CSR_DDC:
         return &env->ddc;
+    case CSR_MTIDC:
+        return &env->mtidc;
+    case CSR_STIDC:
+        return &env->stidc;
+    case CSR_UTIDC:
+        return &env->utidc;
+    case CSR_VSTIDC:
+        return &env->vstidc;
     default:
         assert(false && "Should have raised an invalid inst trap!");
     }
@@ -1872,7 +1880,7 @@ This depends on the addrress mode
 • For Sv39, bits [63:39] must equal bit 38
 • For Sv48, bits [63:48] must equal bit 47
 • For Sv57, bits [63:57] must equal bit 56
-If address translation is not active or we are using sv32 then treat the address 
+If address translation is not active or we are using sv32 then treat the address
 as valid.
 This only applies for rv64
 */
@@ -1921,8 +1929,8 @@ static inline target_ulong get_valid_cap_address(CPUArchState *env,
 
 /*
 Given a capability and address turn the address into a valid address for that
-capability and return true if the address was changed 
-*/ 
+capability and return true if the address was changed
+*/
 static inline bool validate_cap_address(CPUArchState *env, cap_register_t *cap,
                                         target_ulong *address)
 {
@@ -2112,6 +2120,7 @@ bool csr_needs_asr(int csrno, bool is_write)
     case CSR_STIDC:
     case CSR_MTIDC:
     case CSR_UTIDC:
+    case CSR_VSTIDC:
         return is_write; /* the TID registers only require asr for writes */
     default:
         return get_field(csrno, 0x300) != 0;
@@ -2510,6 +2519,14 @@ static riscv_csr_cap_ops csr_cap_ops[] = {
       CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
     { "ddc", CSR_DDC, read_capcsr_reg, write_cap_csr_reg,
       CSR_OP_REQUIRE_CRE | CSR_OP_IA_CONVERSION },
+    { "mtidc", CSR_MTIDC, read_capcsr_reg, write_cap_csr_reg,
+      CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
+    { "stidc", CSR_STIDC, read_capcsr_reg, write_cap_csr_reg,
+      CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
+    { "utidc", CSR_UTIDC, read_capcsr_reg, write_cap_csr_reg,
+      CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
+    { "vstidc", CSR_VSTIDC, read_capcsr_reg, write_cap_csr_reg,
+      CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
 };
 
 riscv_csr_cap_ops *get_csr_cap_info(uint32_t csrnum)

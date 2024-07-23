@@ -246,6 +246,7 @@ struct CPURISCVState {
     cap_register_t vstdc;
     cap_register_t vsscratchc;
     cap_register_t vsepcc;
+    cap_register_t vstidc;
 #else
     target_ulong vstvec;
     target_ulong vsepc;
