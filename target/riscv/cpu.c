@@ -767,6 +767,10 @@ static void riscv_cpu_reset(DeviceState *dev)
     null_capability(&env->dscratch1c);
     null_capability(&env->dpcc);
     null_capability(&env->dddc);
+
+    null_capability(&env->mtidc);
+    null_capability(&env->stidc);
+    null_capability(&env->utidc);
 #endif /* TARGET_CHERI */
 #ifdef CONFIG_DEBUG_TCG
     env->_pc_is_current = true;

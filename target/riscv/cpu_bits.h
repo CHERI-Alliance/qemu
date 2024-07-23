@@ -283,7 +283,10 @@
 /* CHERI Jump Vector Table Capability*/
 #define CSR_JVTC            0x017
 
-
+/* CHERI Zstid  thread ID registers*/
+#define CSR_MTIDC           0x780
+#define CSR_STIDC           0x580
+#define CSR_UTIDC           0x480
 #endif
 
 /* Performance Counters */

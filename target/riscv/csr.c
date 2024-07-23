@@ -1849,6 +1849,12 @@ static inline cap_register_t *get_cap_csr(CPUArchState *env, uint32_t index)
         return &env->STDC;
     case CSR_DDC:
         return &env->DDC;
+    case CSR_MTIDC:
+        return &env->mtidc;
+    case CSR_STIDC:
+        return &env->stidc;
+    case CSR_UTIDC:
+        return &env->utidc;
     default:
         assert(false && "Should have raised an invalid inst trap!");
     }
@@ -2497,6 +2503,9 @@ riscv_csr_cap_ops csr_cap_ops[] = {
     { "mtdc", CSR_MTDC, read_capcsr_reg, write_cap_csr_reg, true, false },
     { "stdc", CSR_STDC, read_capcsr_reg, write_cap_csr_reg, true, false },
     { "ddc", CSR_DDC, read_capcsr_reg, write_cap_csr_reg, true, true },
+    { "mtidc", CSR_MTIDC, read_capcsr_reg, write_cap_csr_reg, false, false },
+    { "stidc", CSR_STIDC, read_capcsr_reg, write_cap_csr_reg, false, false },
+    { "utidc", CSR_UTIDC, read_capcsr_reg, write_cap_csr_reg, false, false },
 };
 
 riscv_csr_cap_ops* get_csr_cap_info(int csrnum){
@@ -2516,6 +2525,9 @@ riscv_csr_cap_ops* get_csr_cap_info(int csrnum){
         case CSR_MTDC: return &csr_cap_ops[12];
         case CSR_STDC: return &csr_cap_ops[13];
         case CSR_DDC: return &csr_cap_ops[14];
+        case CSR_MTIDC: return &csr_cap_ops[15];
+        case CSR_STIDC: return &csr_cap_ops[16];
+        case CSR_UTIDC: return &csr_cap_ops[17];
         default: return NULL;
     }
 }

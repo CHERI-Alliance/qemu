@@ -544,6 +544,9 @@ static bool is_cap_csr(int csrno)
         case CSR_STDC:
         case CSR_DDC:
         case CSR_DINFC:
+        case CSR_MTIDC:
+        case CSR_STIDC:
+        case CSR_UTIDC:
             return true;
         default:
             return false;
