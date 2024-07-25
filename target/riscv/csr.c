@@ -2112,33 +2112,27 @@ static cap_register_t read_dinfc(CPURISCVState *env,
     return inf;
 }
 
-
-static inline bool csr_needs_asr(CPURISCVState *env, int csrno) {
+/*
+Based on csr number and write mask determine if this register access requires
+ASR architectural permissions.
+Privilege mode indicated by bits 9:8 of csrno == 0 from 
+RiscV Instuction Set Volume II, Section 2.1 CSR Address Mapping Conventions
+*/
+bool csr_needs_asr(int csrno, bool write)
+{
+    // based on CSR mapping conventions we can determine if the CSR is
+    // privileged based on either bits 8-9 being set
+    // however utidc is an exception to this instead and is treated as privilged
+    // for asr checks.
+    // in addition we also care about the write mask for the thread id regs
     switch (csrno) {
-    case CSR_CYCLE:
-    case CSR_CYCLEH:
-    case CSR_TIME:
-    case CSR_TIMEH:
-    case CSR_INSTRET:
-    case CSR_INSTRETH:
-    case CSR_FFLAGS:
-    case CSR_FRM:
-    case CSR_FCSR:
-        return false;
+    case CSR_STIDC:
+    case CSR_MTIDC:
+    case CSR_UTIDC:
+        return write; // the TID registers only require asr for writes
     default:
-        break;
+        return get_field(csrno, 0x300);
     }
-    if (csrno >= CSR_HPMCOUNTER3 && csrno <= CSR_HPMCOUNTER31)
-        return false;
-    if (csrno >= CSR_HPMCOUNTER3H && csrno <= CSR_HPMCOUNTER31H)
-        return false;
-    // FIXME: what about MHMPCOUNTER?
-    if (csrno >= CSR_MHPMCOUNTER3 && csrno <= CSR_MHPMCOUNTER31)
-        return false;
-    if (csrno >= CSR_MHPMCOUNTER3H && csrno <= CSR_MHPMCOUNTER31H)
-        return false;
-    // Assume that all others require ASR.
-    return true;
 }
 #endif
 
@@ -2199,10 +2193,9 @@ RISCVException riscv_csrrw(CPURISCVState *env, int csrno, target_ulong *ret_valu
 
     // When CHERI is enabled, only certain CSRs can be accessed without the
     // Access_System_Registers permission in PCC.
-    // TODO: could merge this with predicate callback?
 #ifdef TARGET_CHERI
-    // See Table 5.2 (CSR Whitelist) in ISAv7
-    if (!cheri_have_access_sysregs(env) && csr_needs_asr(env, csrno)) {
+    if (!cheri_have_access_sysregs(env) &&
+        csr_needs_asr(csrno, (bool)write_mask)) {
 #if !defined(CONFIG_USER_ONLY)
         if (env->debugger) {
             return RISCV_EXCP_INST_ACCESS_FAULT;

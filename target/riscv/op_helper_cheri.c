@@ -47,6 +47,7 @@
 #error TARGET_CHERI must be set
 #endif
 
+
 enum SCRAccessMode {
     SCR_Invalid = 0,
     ASR_Flag = 1,
