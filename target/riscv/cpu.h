@@ -667,6 +667,7 @@ void QEMU_NORETURN riscv_raise_exception(CPURISCVState *env,
 
 target_ulong riscv_cpu_get_fflags(CPURISCVState *env);
 void riscv_cpu_set_fflags(CPURISCVState *env, target_ulong);
+bool csr_needs_asr(int csrno, bool write);
 
 #define TB_FLAGS_PRIV_MMU_MASK                3
 #define TB_FLAGS_PRIV_HYP_ACCESS_MASK   (1 << 2)

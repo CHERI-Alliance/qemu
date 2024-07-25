@@ -1820,32 +1820,24 @@ static RISCVException write_ccsr(CPURISCVState *env, int csrno, target_ulong val
     return RISCV_EXCP_NONE;
 }
 
-static inline bool csr_needs_asr(CPURISCVState *env, int csrno) {
+
+bool csr_needs_asr(int csrno, bool is_write)
+{
+    /*
+     * Based on CSR number and write mask determineif the CSR is privileged
+     * based on bits 8-9 being set.
+     * See Privileged Spec, Section 2.1 CSR Address Mapping Conventions.
+     * However, the *TID registers behave differently and are readable without
+     * ASR in all privileged levels and require ASR for all writes.
+     */
     switch (csrno) {
-    case CSR_CYCLE:
-    case CSR_CYCLEH:
-    case CSR_TIME:
-    case CSR_TIMEH:
-    case CSR_INSTRET:
-    case CSR_INSTRETH:
-    case CSR_FFLAGS:
-    case CSR_FRM:
-    case CSR_FCSR:
-        return false;
+    case CSR_STIDC:
+    case CSR_MTIDC:
+    case CSR_UTIDC:
+        return is_write; /* the TID registers only require asr for writes */
     default:
-        break;
+        return get_field(csrno, 0x300) != 0;
     }
-    if (csrno >= CSR_HPMCOUNTER3 && csrno <= CSR_HPMCOUNTER31)
-        return false;
-    if (csrno >= CSR_HPMCOUNTER3H && csrno <= CSR_HPMCOUNTER31H)
-        return false;
-    // FIXME: what about MHMPCOUNTER?
-    if (csrno >= CSR_MHPMCOUNTER3 && csrno <= CSR_MHPMCOUNTER31)
-        return false;
-    if (csrno >= CSR_MHPMCOUNTER3H && csrno <= CSR_MHPMCOUNTER31H)
-        return false;
-    // Assume that all others require ASR.
-    return true;
 }
 #endif
 
@@ -1911,11 +1903,10 @@ RISCVException riscv_csr_accessible(CPURISCVState *env, int csrno,
     /*
      * When CHERI is enabled, only certain CSRs can be accessed without the
      * Access_System_Registers permission in PCC.
-     * See Table 5.2 (CSR Whitelist) in ISAv7
      * TODO: could merge this with predicate callback?
      */
 #ifdef TARGET_CHERI
-    if (!cheri_have_access_sysregs(env) && csr_needs_asr(env, csrno)) {
+    if (!cheri_have_access_sysregs(env) && csr_needs_asr(csrno, is_write)) {
 #if !defined(CONFIG_USER_ONLY)
         if (env->debugger) {
             return RISCV_EXCP_INST_ACCESS_FAULT;
