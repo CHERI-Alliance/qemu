@@ -169,6 +169,13 @@ void HELPER(csrrw_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
         riscv_raise_exception(env, -ret, GETPC());
     }
 
+    if (!cheri_have_access_sysregs(env) && csr_needs_asr(csr, 1)) {
+        raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
+                                   CapExType_Branch, CHERI_EXC_REGNUM_PCC, 0,
+                                   true, GETPC());
+        return;
+    }
+
     rs_cap = *get_readonly_capreg(env,rs1);
     if (rd) {
         csr_cap = csr_cap_info->read(env, csr_cap_info);
@@ -194,6 +201,13 @@ void HELPER(csrrs_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
     ret = check_csr_cap_permissions(env, csr, rs1 != 0, csr_cap_info);
     if (ret) {
         riscv_raise_exception(env, -ret, GETPC());
+    }
+
+    if (!cheri_have_access_sysregs(env) && csr_needs_asr(csr, rs1 != 0)) {
+        raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
+                                   CapExType_Branch, CHERI_EXC_REGNUM_PCC, 0,
+                                   true, GETPC());
+        return;
     }
 
     if (rs1) {
@@ -225,6 +239,12 @@ void HELPER(csrrc_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
     ret = check_csr_cap_permissions(env, csr, rs1 != 0, csr_cap_info);
     if (ret) {
         riscv_raise_exception(env, -ret, GETPC());
+    }
+    if (!cheri_have_access_sysregs(env) && csr_needs_asr(csr, rs1 != 0)) {
+        raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
+                                   CapExType_Branch, CHERI_EXC_REGNUM_PCC, 0,
+                                   true, GETPC());
+        return;
     }
 
     if (rs1) {
@@ -258,6 +278,12 @@ void HELPER(csrrwi_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
     if (ret) {
         riscv_raise_exception(env, -ret, GETPC());
     }
+    if (!cheri_have_access_sysregs(env) && csr_needs_asr(csr, 1)) {
+        raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
+                                   CapExType_Branch, CHERI_EXC_REGNUM_PCC, 0,
+                                   true, GETPC());
+        return;
+    }
 
     csr_cap = csr_cap_info->read(env, csr_cap_info);
     if (rd) {
@@ -281,6 +307,12 @@ void HELPER(csrrsi_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
     ret = check_csr_cap_permissions(env, csr, rs1_val != 0, csr_cap_info);
     if (ret) {
         riscv_raise_exception(env, -ret, GETPC());
+    }
+    if (!cheri_have_access_sysregs(env) && csr_needs_asr(csr, rs1_val != 0)) {
+        raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
+                                   CapExType_Branch, CHERI_EXC_REGNUM_PCC, 0,
+                                   true, GETPC());
+        return;
     }
 
     csr_cap = csr_cap_info->read(env, csr_cap_info);
@@ -309,6 +341,12 @@ void HELPER(csrrci_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
     ret = check_csr_cap_permissions(env, csr, rs1_val != 0, csr_cap_info);
     if (ret) {
         riscv_raise_exception(env, -ret, GETPC());
+    }
+    if (!cheri_have_access_sysregs(env) && csr_needs_asr(csr, rs1_val != 0)) {
+        raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
+                                   CapExType_Branch, CHERI_EXC_REGNUM_PCC, 0,
+                                   true, GETPC());
+        return;
     }
 
     csr_cap = csr_cap_info->read(env, csr_cap_info);
