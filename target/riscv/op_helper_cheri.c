@@ -191,11 +191,12 @@ void HELPER(csrrs_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
 
     assert(csr_cap_info);
 
+    ret = check_csr_cap_permissions(env, csr, rs1 != 0, csr_cap_info);
+    if (ret) {
+        riscv_raise_exception(env, -ret, GETPC());
+    }
+
     if (rs1) {
-        ret = check_csr_cap_permissions(env, csr, 1, csr_cap_info);
-        if (ret) {
-            riscv_raise_exception(env, -ret, GETPC());
-        }
         rs_cap = *get_readonly_capreg(env, rs1);
     }
 
@@ -221,12 +222,12 @@ void HELPER(csrrc_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
     cap_register_t csr_cap;
 
     assert(csr_cap_info);
+    ret = check_csr_cap_permissions(env, csr, rs1 != 0, csr_cap_info);
+    if (ret) {
+        riscv_raise_exception(env, -ret, GETPC());
+    }
 
-    if(rs1) {
-        ret = check_csr_cap_permissions(env, csr, 1, csr_cap_info);
-        if (ret) {
-            riscv_raise_exception(env, -ret, GETPC());
-        }
+    if (rs1) {
         rs_cap = *get_readonly_capreg(env, rs1);
     }
 
@@ -277,11 +278,9 @@ void HELPER(csrrsi_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
 
     assert(csr_cap_info);
 
-    if (rs1_val) {
-        ret = check_csr_cap_permissions(env, csr, 1, csr_cap_info);
-        if (ret) {
-            riscv_raise_exception(env, -ret, GETPC());
-        }
+    ret = check_csr_cap_permissions(env, csr, rs1_val != 0, csr_cap_info);
+    if (ret) {
+        riscv_raise_exception(env, -ret, GETPC());
     }
 
     csr_cap = csr_cap_info->read(env, csr_cap_info);
@@ -307,11 +306,9 @@ void HELPER(csrrci_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
 
     assert(csr_cap_info);
 
-    if (rs1_val) {
-        ret = check_csr_cap_permissions(env, csr, 1, csr_cap_info);
-        if(ret){
-            riscv_raise_exception(env, -ret, GETPC());
-        }
+    ret = check_csr_cap_permissions(env, csr, rs1_val != 0, csr_cap_info);
+    if (ret) {
+        riscv_raise_exception(env, -ret, GETPC());
     }
 
     csr_cap = csr_cap_info->read(env, csr_cap_info);
