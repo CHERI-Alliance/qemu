@@ -132,8 +132,9 @@ static const memmapEntry_t pro_fpga_memmap[] = {
 /* Newer qemu versions define this in boot.h. */
 #define RISCV64_BIOS_BIN "opensbi-riscv64-generic-fw_dynamic.bin"
 
-static int hobgoblin_load_images(MachineState *machine, HobgoblinState *s)
+static int hobgoblin_load_images(HobgoblinState *s)
 {
+    MachineState *machine = &s->machine;
     hwaddr start_addr;
     uint64_t kernel_entry = 0;
     uint64_t fdt_load_addr = 0;
@@ -195,9 +196,10 @@ static int hobgoblin_load_images(MachineState *machine, HobgoblinState *s)
     return 0;
 }
 
-static void hobgoblin_add_soc(HobgoblinState *s, MachineState *machine,
-                              const int smp_cpus)
+static void hobgoblin_add_soc(HobgoblinState *s, const int smp_cpus)
 {
+    MachineState *machine = &s->machine;
+
     object_initialize_child(OBJECT(machine), "soc", &s->soc,
                             TYPE_RISCV_HART_ARRAY);
 
@@ -508,7 +510,7 @@ static void hobgoblin_machine_init(MachineState *machine)
     MemoryRegion *system_memory = get_system_memory();
     const int smp_cpus = machine->smp.cpus;
 
-    hobgoblin_add_soc(s, machine, smp_cpus);
+    hobgoblin_add_soc(s, smp_cpus);
 
     /* add memory regions */
     hobgoblin_add_memory_area(system_memory, &memmap[HOBGOBLIN_DRAM]);
@@ -542,7 +544,7 @@ static void hobgoblin_machine_init(MachineState *machine)
     hobgoblin_add_virtio(s);
 
     /* load images into memory to boot the platform */
-    int ret = hobgoblin_load_images(machine, s);
+    int ret = hobgoblin_load_images(s);
     if (ret != 0) {
         error_report("loading images failed (%d)", ret);
         exit(1);
