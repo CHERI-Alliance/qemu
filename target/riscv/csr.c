@@ -664,25 +664,6 @@ static int write_mie(CPURISCVState *env, int csrno, target_ulong val)
     return 0;
 }
 
-#ifndef TARGET_CHERI
-static int read_mtvec(CPURISCVState *env, int csrno, target_ulong *val)
-{
-    *val = env->mtvec;
-    return 0;
-}
-
-static int write_mtvec(CPURISCVState *env, int csrno, target_ulong val)
-{
-    /* bits [1:0] encode mode; 0 = direct, 1 = vectored, 2 >= reserved */
-    if ((val & 3) < 2) {
-        env->mtvec = val;
-    } else {
-        qemu_log_mask(LOG_UNIMP, "CSR_MTVEC: reserved mode not supported\n");
-    }
-    return 0;
-}
-#endif
-
 static int read_mcounteren(CPURISCVState *env, int csrno, target_ulong *val)
 {
     *val = env->mcounteren;
@@ -714,37 +695,6 @@ static int write_mscounteren(CPURISCVState *env, int csrno, target_ulong val)
     env->mcounteren = val;
     return 0;
 }
-
-#ifndef TARGET_CHERI
-/* Machine Trap Handling */
-static int read_mscratch(CPURISCVState *env, int csrno, target_ulong *val)
-{
-    *val = env->mscratch;
-    return 0;
-}
-
-static int write_mscratch(CPURISCVState *env, int csrno, target_ulong val)
-{
-    env->mscratch = val;
-    return 0;
-}
-
-static int read_mepc(CPURISCVState *env, int csrno, target_ulong *val)
-{
-    *val = env->mepc;
-    // RISC-V privileged spec 3.1.15 Machine Exception Program Counter (mepc):
-    // "The low bit of mepc (mepc[0]) is always zero. [...] Whenever IALIGN=32,
-    // mepc[1] is masked on reads so that it appears to be 0."
-    *val &= ~(target_ulong)(riscv_has_ext(env, RVC) ? 1 : 3);
-    return 0;
-}
-
-static int write_mepc(CPURISCVState *env, int csrno, target_ulong val)
-{
-    env->mepc = val;
-    return 0;
-}
-#endif    
 
 static int read_mcause(CPURISCVState *env, int csrno, target_ulong *val)
 {
@@ -844,25 +794,6 @@ static int write_sie(CPURISCVState *env, int csrno, target_ulong val)
     return 0;
 }
 
-#ifndef TARGET_CHERI
-static int read_stvec(CPURISCVState *env, int csrno, target_ulong *val)
-{
-    *val = env->stvec;
-    return 0;
-}
-
-static int write_stvec(CPURISCVState *env, int csrno, target_ulong val)
-{
-    /* bits [1:0] encode mode; 0 = direct, 1 = vectored, 2 >= reserved */
-    if ((val & 3) < 2) {
-        env->stvec = val;
-    } else {
-        qemu_log_mask(LOG_UNIMP, "CSR_STVEC: reserved mode not supported\n");
-    }
-    return 0;
-}
-#endif
-
 static int read_scounteren(CPURISCVState *env, int csrno, target_ulong *val)
 {
     *val = env->scounteren;
@@ -874,37 +805,6 @@ static int write_scounteren(CPURISCVState *env, int csrno, target_ulong val)
     env->scounteren = val;
     return 0;
 }
-
-#ifndef TARGET_CHERI
-/* Supervisor Trap Handling */
-static int read_sscratch(CPURISCVState *env, int csrno, target_ulong *val)
-{
-    *val = env->sscratch;
-    return 0;
-}
-
-static int write_sscratch(CPURISCVState *env, int csrno, target_ulong val)
-{
-    env->sscratch = val;
-    return 0;
-}
-
-static int read_sepc(CPURISCVState *env, int csrno, target_ulong *val)
-{
-    *val = env-> sepc;
-    // RISC-V privileged spec 4.1.7 Supervisor Exception Program Counter (sepc)
-    // "The low bit of sepc (sepc[0]) is always zero. [...] Whenever IALIGN=32,
-    // sepc[1] is masked on reads so that it appears to be 0."
-    *val &= ~(target_ulong)(riscv_has_ext(env, RVC) ? 1 : 3);
-    return 0;
-}
-
-static int write_sepc(CPURISCVState *env, int csrno, target_ulong val)
-{
-    env->sepc = val;
-    return 0;
-}
-#endif
 
 static int read_scause(CPURISCVState *env, int csrno, target_ulong *val)
 {
@@ -1207,19 +1107,6 @@ static int write_vsstatus(CPURISCVState *env, int csrno, target_ulong val)
     return 0;
 }
 
-#ifndef TARGET_CHERI
-static int read_vstvec(CPURISCVState *env, int csrno, target_ulong *val)
-{
-    *val = env->vstvec;
-    return 0;
-}
-
-static int write_vstvec(CPURISCVState *env, int csrno, target_ulong val)
-{
-    env->vstvec = val;
-    return 0;
-}
-#endif
 static int read_vsscratch(CPURISCVState *env, int csrno, target_ulong *val)
 {
     *val = env->vsscratch;
@@ -1231,20 +1118,6 @@ static int write_vsscratch(CPURISCVState *env, int csrno, target_ulong val)
     env->vsscratch = val;
     return 0;
 }
-
-#ifndef TARGET_CHERI
-static int read_vsepc(CPURISCVState *env, int csrno, target_ulong *val)
-{
-    *val = env->vsepc;
-    return 0;
-}
-
-static int write_vsepc(CPURISCVState *env, int csrno, target_ulong val)
-{
-    env->vsepc = val;
-    return 0;
-}
-#endif
 
 static int read_vscause(CPURISCVState *env, int csrno, target_ulong *val)
 {
@@ -1402,9 +1275,123 @@ static int write_pmpaddr(CPURISCVState *env, int csrno, target_ulong val)
 
 #endif
 
+#ifndef TARGET_CHERI
+/* Integer CSR Read/write functions for CSRs which have CLEN counterparts*/
+/* Machine Trap Handling */
+static int read_mtvec(CPURISCVState *env, int csrno, target_ulong *val)
+{
+    *val = env->mtvec;
+    return 0;
+}
 
-#ifdef TARGET_CHERI
+static int write_mtvec(CPURISCVState *env, int csrno, target_ulong val)
+{
+    /* bits [1:0] encode mode; 0 = direct, 1 = vectored, 2 >= reserved */
+    if ((val & 3) < 2) {
+        env->mtvec = val;
+    } else {
+        qemu_log_mask(LOG_UNIMP, "CSR_MTVEC: reserved mode not supported\n");
+    }
+    return 0;
+}
 
+static int read_mscratch(CPURISCVState *env, int csrno, target_ulong *val)
+{
+    *val = env->mscratch;
+    return 0;
+}
+
+static int write_mscratch(CPURISCVState *env, int csrno, target_ulong val)
+{
+    env->mscratch = val;
+    return 0;
+}
+
+static int read_mepc(CPURISCVState *env, int csrno, target_ulong *val)
+{
+    *val = env->mepc;
+    // RISC-V privileged spec 3.1.15 Machine Exception Program Counter (mepc):
+    // "The low bit of mepc (mepc[0]) is always zero. [...] Whenever IALIGN=32,
+    // mepc[1] is masked on reads so that it appears to be 0."
+    *val &= ~(target_ulong)(riscv_has_ext(env, RVC) ? 1 : 3);
+    return 0;
+}
+
+static int write_mepc(CPURISCVState *env, int csrno, target_ulong val)
+{
+    env->mepc = val;
+    return 0;
+}
+
+static int read_stvec(CPURISCVState *env, int csrno, target_ulong *val)
+{
+    *val = env->stvec;
+    return 0;
+}
+
+/* Supervisor Trap Handling */
+static int write_stvec(CPURISCVState *env, int csrno, target_ulong val)
+{
+    /* bits [1:0] encode mode; 0 = direct, 1 = vectored, 2 >= reserved */
+    if ((val & 3) < 2) {
+        env->stvec = val;
+    } else {
+        qemu_log_mask(LOG_UNIMP, "CSR_STVEC: reserved mode not supported\n");
+    }
+    return 0;
+}
+static int read_sscratch(CPURISCVState *env, int csrno, target_ulong *val)
+{
+    *val = env->sscratch;
+    return 0;
+}
+
+static int write_sscratch(CPURISCVState *env, int csrno, target_ulong val)
+{
+    env->sscratch = val;
+    return 0;
+}
+
+static int read_sepc(CPURISCVState *env, int csrno, target_ulong *val)
+{
+    *val = env->sepc;
+    // RISC-V privileged spec 4.1.7 Supervisor Exception Program Counter (sepc)
+    // "The low bit of sepc (sepc[0]) is always zero. [...] Whenever IALIGN=32,
+    // sepc[1] is masked on reads so that it appears to be 0."
+    *val &= ~(target_ulong)(riscv_has_ext(env, RVC) ? 1 : 3);
+    return 0;
+}
+
+static int write_sepc(CPURISCVState *env, int csrno, target_ulong val)
+{
+    env->sepc = val;
+    return 0;
+}
+static int read_vstvec(CPURISCVState *env, int csrno, target_ulong *val)
+{
+    *val = env->vstvec;
+    return 0;
+}
+
+/* Hypervisor trap handling*/
+static int write_vstvec(CPURISCVState *env, int csrno, target_ulong val)
+{
+    env->vstvec = val;
+    return 0;
+}
+static int read_vsepc(CPURISCVState *env, int csrno, target_ulong *val)
+{
+    *val = env->vsepc;
+    return 0;
+}
+
+static int write_vsepc(CPURISCVState *env, int csrno, target_ulong val)
+{
+    env->vsepc = val;
+    return 0;
+}
+#else
+// defined(TARGET_CHERI)
 static inline cap_register_t *get_cap_csr(CPUArchState *env, uint32_t index)
 {
     switch (index) {
@@ -1457,7 +1444,6 @@ static cap_register_t read_capcsr_reg(CPURISCVState *env,
     cap_register_t retval = *get_cap_csr(env, csr_cap_info->reg_num);
     return retval;
 }
-
 
 #define get_bit(reg, x) (reg & (1 << x) ? true : false)
 
