@@ -58,13 +58,14 @@ typedef struct {
     hwaddr base;
     hwaddr size;
     const char *name;
+    bool rom;
 } memmapEntry_t;
 
 static const memmapEntry_t memmap[] = {
     [HOBGOBLIN_MROM] =     {     0x1000,      0x100,
-        "riscv.hobgoblin.mrom"},
+        "riscv.hobgoblin.mrom", true},
     [HOBGOBLIN_BOOT_ROM] = { 0x10000000, 0x00020000,
-        "riscv.hobgoblin.boot.rom"},
+        "riscv.hobgoblin.boot.rom", true},
     [HOBGOBLIN_BOOT_RAM] = { 0x10400000, 0x00008000,
         "riscv.hobgoblin.boot.ram"},
     [HOBGOBLIN_SRAM] =     { 0x20000000, 0x08000000,
@@ -197,6 +198,9 @@ static void hobgoblin_add_memory_area(MemoryRegion *system_memory,
 {
     MemoryRegion *reg = g_new(MemoryRegion, 1);
     memory_region_init_ram(reg, NULL, e->name, e->size, &error_fatal);
+    if (e->rom) {
+        memory_region_set_readonly(reg, true);
+    }
     memory_region_add_subregion(system_memory, e->base, reg);
 }
 
