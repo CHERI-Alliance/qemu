@@ -71,6 +71,8 @@ static const memmapEntry_t memmap[] = {
     [HOBGOBLIN_SRAM] =     { 0x20000000, 0x08000000,
         "riscv.hobgoblin.sram"},
     [HOBGOBLIN_PLIC] =     { 0x40000000,  0x4000000, ""},
+    [HOBGOBLIN_ID_REG] =   { 0x60000000,       0x20,
+        "id_register", true},
     [HOBGOBLIN_CLINT] =    { 0x60014000,     0xc000, ""},
     [HOBGOBLIN_ETHLITE] =  { 0x60020000,     0x2000, ""},
     [HOBGOBLIN_AXI_DMA] =  { 0x600a0000,    0x10000, ""},
@@ -251,6 +253,39 @@ static void hobgoblin_connect_plic_irq(HobgoblinState *s,
 {
     qemu_irq irq = hobgoblin_make_plic_irq(s, number);
     sysbus_connect_irq(busDev, dev_irq, irq);
+}
+
+static void hobgoblin_add_id_register(HobgoblinState *s,
+        MemoryRegion *system_memory)
+{
+    int i;
+    const memmapEntry_t *mem_id = &memmap[HOBGOBLIN_ID_REG];
+    const uint32_t ethernet_types[] = {
+        [ETH_TYPE_ETHERNETLITE] = 0x0,
+        [ETH_TYPE_AXI_ETHERNET] = 0x1,
+    };
+    uint32_t id_register[] = {
+        /* (0x0000) Platform ID register version */
+        1 << 8 | 0,
+        /* (0x0004) Platform version */
+        1 << 8 | 0,
+        /* (0x0008) Core type */
+        0x1, /* A730 */
+        /* (0x000C) Core frequency in MHz */
+        50,
+        /* (0x0010) Ethernet type */
+        ethernet_types[s->eth_type],
+        /* (0x0014) Platform features */
+        0,
+    };
+
+    for (i = 0; i < ARRAY_SIZE(id_register); i++) {
+        id_register[i] = cpu_to_le32(id_register[i]);
+    }
+
+    hobgoblin_add_memory_area(system_memory, mem_id);
+    rom_add_blob_fixed(mem_id->name, id_register, sizeof(id_register),
+                       mem_id->base);
 }
 
 static void hobgoblin_add_uart(HobgoblinState *s,
@@ -457,6 +492,7 @@ static void hobgoblin_machine_init(MachineState *machine)
     hobgoblin_add_interrupt_controller(s, smp_cpus);
 
     /* add peripherals (requires having an interrupt controller) */
+    hobgoblin_add_id_register(s, system_memory);
     hobgoblin_add_uart(s, system_memory);
     hobgoblin_add_gpio(s);
     hobgoblin_add_spi(s);
