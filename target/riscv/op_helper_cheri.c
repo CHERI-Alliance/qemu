@@ -104,39 +104,41 @@ void riscv_log_instr_scr_changed(CPURISCVState *env, int scrno)
 }
 #endif
 
-int check_csr_cap_permissions(CPURISCVState *env, int csrno, int write_mask,
-                              riscv_csr_cap_ops *csr_cap_info);
-int check_csr_cap_permissions(CPURISCVState *env, int csrno, int write_mask,
-                              riscv_csr_cap_ops *csr_cap_info)
+/*
+ * Return 0 if we are allowed to access the given csr. If not, return the
+ * negative value of the corresponding exception.
+ */
+static int check_csr_cap_permissions(CPURISCVState *env, int csrno,
+        bool write_access, riscv_csr_cap_ops *csr_cap_info)
 {
     RISCVCPU *cpu = env_archcpu(env);
 
-    /* check privileges and return -1 if check fails */
+    /* ensure the CSR extension is enabled. */
+    if (!cpu->cfg.ext_icsr) {
+        return -RISCV_EXCP_ILLEGAL_INST;
+    }
+
 #if !defined(CONFIG_USER_ONLY)
     int effective_priv = env->priv;
-    int read_only = get_field(csrno, 0xC00) == 3;
+    /* csr[11:10] if the csr can be read/written, 0b11 means read-only */
+    bool read_only = (get_field(csrno, 0xC00) == 3);
 
     if (riscv_has_ext(env, RVH) &&
         env->priv == PRV_S &&
         !riscv_cpu_virt_enabled(env)) {
         /*
          * We are in S mode without virtualisation, therefore we are in HS Mode.
-         * Add 1 to the effective privledge level to allow us to access the
+         * Add 1 to the effective privlege level to allow us to access the
          * Hypervisor CSRs.
          */
         effective_priv++;
     }
 
-    if ((write_mask && read_only) ||
+    if ((write_access && read_only) ||
         (!env->debugger && (effective_priv < get_field(csrno, 0x300)))) {
         return -RISCV_EXCP_ILLEGAL_INST;
     }
 #endif
-
-    /* ensure the CSR extension is enabled. */
-    if (!cpu->cfg.ext_icsr) {
-        return -RISCV_EXCP_ILLEGAL_INST;
-    }
 
     if (csr_cap_info->require_cre && ! riscv_cpu_mode_cre(env)){
         return -RISCV_EXCP_ILLEGAL_INST;
@@ -164,7 +166,7 @@ void HELPER(csrrw_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
 
     assert(csr_cap_info);
 
-    ret = check_csr_cap_permissions(env, csr, 1, csr_cap_info);
+    ret = check_csr_cap_permissions(env, csr, true, csr_cap_info);
     if (ret) {
         riscv_raise_exception(env, -ret, GETPC());
     }
@@ -273,7 +275,7 @@ void HELPER(csrrwi_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
 
     assert(csr_cap_info);
 
-    ret = check_csr_cap_permissions(env, csr, 1, csr_cap_info);
+    ret = check_csr_cap_permissions(env, csr, true, csr_cap_info);
 
     if (ret) {
         riscv_raise_exception(env, -ret, GETPC());
