@@ -23,6 +23,7 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "qemu-version.h"
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qemu/error-report.h"
@@ -71,7 +72,7 @@ static const memmapEntry_t memmap[] = {
     [HOBGOBLIN_SRAM] =     { 0x20000000, 0x08000000,
         "riscv.hobgoblin.sram"},
     [HOBGOBLIN_PLIC] =     { 0x40000000,  0x4000000, ""},
-    [HOBGOBLIN_ID_REG] =   { 0x60000000,       0x20,
+    [HOBGOBLIN_ID_REG] =   { 0x60000000,      0x200,
         "id_register", true},
     [HOBGOBLIN_CLINT] =    { 0x60014000,     0xc000, ""},
     [HOBGOBLIN_ETHLITE] =  { 0x60020000,     0x2000, ""},
@@ -256,7 +257,7 @@ static void hobgoblin_connect_plic_irq(HobgoblinState *s,
 }
 
 static void hobgoblin_add_id_register(HobgoblinState *s,
-        MemoryRegion *system_memory)
+        HobgoblinClass *hc, MemoryRegion *system_memory)
 {
     int i;
     const memmapEntry_t *mem_id = &memmap[HOBGOBLIN_ID_REG];
@@ -264,11 +265,15 @@ static void hobgoblin_add_id_register(HobgoblinState *s,
         [ETH_TYPE_ETHERNETLITE] = 0x0,
         [ETH_TYPE_AXI_ETHERNET] = 0x1,
     };
+    const uint8_t platform_types[] = {
+        [BOARD_TYPE_GENESYS2] = 0x1,
+        [BOARD_TYPE_PROFPGA] = 0x2,
+    };
     uint32_t id_register[] = {
         /* (0x0000) Platform ID register version */
-        1 << 8 | 0,
+        1 << 8 | 1,
         /* (0x0004) Platform version */
-        1 << 8 | 0,
+        platform_types[hc->board_type] << 16 | 1 << 8 | 0,
         /* (0x0008) Core type */
         0x1, /* A730 */
         /* (0x000C) Core frequency in MHz */
@@ -277,7 +282,16 @@ static void hobgoblin_add_id_register(HobgoblinState *s,
         ethernet_types[s->eth_type],
         /* (0x0014) Platform features */
         0,
+        /* (0x0100-0x0110) Platform SHA<0:4> */
+        [0x0100/4] = 0, 0, 0, 0, 0,
+        /* (0x0120-0x012c) Core artifact<0:3> */
+        [0x0120/4] = 0, 0, 0, 0,
     };
+    const uint8_t platform_hash[20] = QEMU_GIT_HASH;
+
+    for (i=0; i<5; i++) {
+        id_register[0x100/4 + i] = *(uint32_t*)&platform_hash[i*4];
+    }
 
     for (i = 0; i < ARRAY_SIZE(id_register); i++) {
         id_register[i] = cpu_to_le32(id_register[i]);
@@ -492,7 +506,7 @@ static void hobgoblin_machine_init(MachineState *machine)
     hobgoblin_add_interrupt_controller(s, smp_cpus);
 
     /* add peripherals (requires having an interrupt controller) */
-    hobgoblin_add_id_register(s, system_memory);
+    hobgoblin_add_id_register(s, hc, system_memory);
     hobgoblin_add_uart(s, system_memory);
     hobgoblin_add_gpio(s);
     hobgoblin_add_spi(s);
