@@ -580,7 +580,7 @@ static inline void _cc_N(m_ap_compress)(_cc_cap_t *cap)
 
     if (cap->cr_arch_perm & CAP_AP_X) {
       res |= CAP_AP_Q1;
-      if (cap->cr_arch_perm & CAP_AP_M) {
+      if (cap->cr_m) {
           res |= 1;
       }
       switch (cap->cr_arch_perm &
@@ -654,6 +654,7 @@ static inline void _cc_N(m_ap_compress)(_cc_cap_t *cap)
 static inline void _cc_N(m_ap_decompress)(_cc_cap_t *cap)
 {
     uint8_t perm_comp = _cc_N(get_ap)(cap);
+    bool m_bit = false;
     uint8_t res = 0;
 
     switch (perm_comp & CAP_AP_Q_MASK) {
@@ -681,7 +682,7 @@ static inline void _cc_N(m_ap_decompress)(_cc_cap_t *cap)
         case CAP_AP_Q1:
             res |= CAP_AP_X;
             if (perm_comp & 1) {
-                res |= CAP_AP_M;
+                m_bit = true;
             }
             switch ((perm_comp & ~CAP_AP_Q_MASK) >> 1) {
                 case 0:
@@ -728,6 +729,7 @@ static inline void _cc_N(m_ap_decompress)(_cc_cap_t *cap)
     }
 
     cap->cr_arch_perm = res;
+    cap->cr_m = m_bit ? 1 : 0;
 }
 #endif
 
