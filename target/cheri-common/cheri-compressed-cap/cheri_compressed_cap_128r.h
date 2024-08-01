@@ -46,7 +46,8 @@ typedef int64_t cc128r_saddr_t;
 enum {
     _CC_FIELD(RESERVED2, 127, 121),
     _CC_FIELD(SDP, 120, 117),
-    _CC_FIELD(AP, 116, 111),
+    _CC_FIELD(M, 116, 116),
+    _CC_FIELD(AP, 115, 111),
     _CC_FIELD(RESERVED, 110, 92),
     _CC_FIELD(SEALED, 91, 91),
     _CC_FIELD(EBT, 90, 64),
@@ -75,6 +76,7 @@ enum {
 };
 #pragma GCC diagnostic pop
 
+#define CC128R_FIELD_M_USED 1
 #define CC128R_FIELD_FLAGS_USED 0
 #define CC128R_FIELD_OTYPE_USED 0
 #define CC128R_FIELD_HWPERMS_USED 0
