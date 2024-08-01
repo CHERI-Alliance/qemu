@@ -166,6 +166,7 @@ struct _cc_N(cap) {
     uint8_t cr_exp;          /* Exponent */
     uint8_t cr_extra;        /* Additional data stored by the caller */
     uint8_t cr_arch_perm;    /* decoded architectural permissions (AP) */
+    uint8_t cr_m;            /* decoded M bit (or a copy of the bit in pesbt) */
 #ifdef __cplusplus
     inline _cc_addr_t base() const { return cr_base; }
     inline _cc_addr_t address() const { return _cr_cursor; }
