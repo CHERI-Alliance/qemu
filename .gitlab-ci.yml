@@ -102,10 +102,12 @@ nightly_build:
         - scripts/riscv_cheri/package $INSTALL_DIR
         - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file $INSTALL_DIR/bin/$PACKAGE_NAME32 "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/qemu-cheri/0.0.1/$PACKAGE_NAME32"'
         - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file $INSTALL_DIR/bin/$PACKAGE_NAME64 "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/qemu-cheri/0.0.1/$PACKAGE_NAME64"'
+        - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file $INSTALL_DIR/bin/qemu-img "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/qemu-cheri/0.0.1/qemu-img"'
     artifacts:
         paths:
         - $INSTALL_DIR/bin/$PACKAGE_NAME32
         - $INSTALL_DIR/bin/$PACKAGE_NAME64
+        - $INSTALL_DIR/bin/qemu-img
         expire_in: 1 week
 
 include:
