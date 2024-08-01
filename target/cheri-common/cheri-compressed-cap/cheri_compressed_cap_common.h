@@ -557,11 +557,13 @@ static inline void _cc_N(m_ap_decompress)(__attribute__((unused)) _cc_cap_t *cap
 static inline void _cc_N(m_ap_compress)(_cc_cap_t *cap)
 {
     _cc_N(update_ap)(cap, cap->cr_arch_perm);
+    _cc_N(update_m)(cap, cap->cr_m);
 }
 
 static inline void _cc_N(m_ap_decompress)(_cc_cap_t *cap)
 {
     cap->cr_arch_perm = _cc_N(get_ap)(cap);
+    cap->cr_m = _cc_N(get_m)(cap);
 }
 #elif _CC_N(M_AP_FCTS) == M_AP_FCTS_QUADR
 
