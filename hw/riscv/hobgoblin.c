@@ -379,6 +379,12 @@ static void hobgoblin_add_spi(HobgoblinState *s)
     /* connect PLIC interrupt */
     hobgoblin_connect_plic_irq(s, bus_spi, 0, HOBGOBLIN_SPI_IRQ);
 
+    /* publish SPI device */
+    s->spi = spi;
+}
+
+static void hobgoblin_add_sd(HobgoblinState *s)
+{
     /* create SD Card in SPI mode */
     DeviceState *sd_card_spi = qdev_new(TYPE_SD_CARD);
     DriveInfo *dinfo = drive_get_next(IF_SD);
@@ -387,14 +393,11 @@ static void hobgoblin_add_spi(HobgoblinState *s)
     qdev_prop_set_bit(sd_card_spi, "spi", true);
 
     /* Connect SD card to SPI */
-    SSIBus *bus_ssi = (SSIBus *)qdev_get_child_bus(spi, "spi");
+    SSIBus *bus_ssi = (SSIBus *)qdev_get_child_bus(s->spi, "spi");
     DeviceState *sd_dev = ssi_create_peripheral(bus_ssi, "ssi-sd");
     qdev_realize_and_unref(sd_card_spi,
                            qdev_get_child_bus(sd_dev, "sd-bus"),
                            &error_fatal);
-
-    /* publish SPI device */
-    s->spi = spi;
 }
 
 static void hobgoblin_add_ethernetlite(HobgoblinState *s)
@@ -532,6 +535,7 @@ static void hobgoblin_machine_init(MachineState *machine)
     hobgoblin_add_uart(s, system_memory);
     hobgoblin_add_gpio(s);
     hobgoblin_add_spi(s);
+    hobgoblin_add_sd(s);
     switch (s->eth_type) {
     case ETH_TYPE_ETHERNETLITE:
         hobgoblin_add_ethernetlite(s);
