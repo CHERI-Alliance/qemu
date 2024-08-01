@@ -11,12 +11,12 @@
 #define TEST_CASE_AP_COMP(_cr_arch_perm, _ap) \
    TEST_CASE(#_cr_arch_perm " compress", "[compress]") { \
       _cc_cap_t cap; \
-       memset(&cap, 0x00, sizeof(cap)); \
+      memset(&cap, 0x00, sizeof(cap)); \
 \
-       cap.cr_arch_perm |= (_cr_arch_perm); \
-       _cc_N(ap_compress)(&cap); \
+      cap.cr_arch_perm |= (_cr_arch_perm); \
+      _cc_N(ap_compress)(&cap); \
 \
-       CHECK(_cc_N(get_ap)(&cap) == (_ap)); \
+      CHECK(_cc_N(get_ap)(&cap) == (_ap)); \
 }
 
 
