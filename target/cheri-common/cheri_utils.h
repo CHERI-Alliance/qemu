@@ -186,7 +186,7 @@ static inline bool cap_get_capmode(const cap_register_t *c)
     return CAP_cc(get_flags)(c);
 #else
     CAP_cc(ap_decompress)((cap_register_t *)c);
-    return c->cr_arch_perm & CAP_AP_M;
+    return c->cr_m;
 #endif
 }
 
@@ -196,8 +196,7 @@ static inline void cap_set_capmode(cap_register_t *c, bool enable)
     CAP_cc(update_flags)(c, enable ? 1 : 0);
 #else
     CAP_cc(ap_decompress)((cap_register_t *)c);
-    c->cr_arch_perm &= ~CAP_AP_M;
-    c->cr_arch_perm |= enable ? CAP_AP_M : 0;
+    c->cr_m = 1;
     CAP_cc(ap_compress)((cap_register_t *)c);
 #endif
 }
