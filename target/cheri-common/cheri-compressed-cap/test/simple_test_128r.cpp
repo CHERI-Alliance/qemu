@@ -3,7 +3,7 @@
 #define TEST_CC_FORMAT_UPPER 128R
 
 #include "test_common.cpp"
-#include "cap_ap.h"
+#include "cap_m_ap.h"
 
 TEST_CASE("update sealed", "[sealed]") {
     _cc_cap_t cap;
@@ -13,28 +13,28 @@ TEST_CASE("update sealed", "[sealed]") {
 }
 
 /*
- * For 64-bit bakewell, the conversion between AP bitfield and its encoding
- * is a trivial 1:1 mapping. Some spot checks will do, there's no point in
- * checking all combinations.
+ * For 64-bit bakewell, the conversion between M + AP bitfield and its
+ * encoding is a trivial 1:1 mapping. Some spot checks will do, there's
+ * no point in checking all combinations.
  */
 
-/* AP compression */
+/* M, AP compression */
 
-TEST_CASE_AP_COMP(CAP_AP_R, CAP_AP_R)
+TEST_CASE_M_AP_COMP(0, CAP_AP_R, CAP_AP_R)
 
-TEST_CASE_AP_COMP(
-        (CAP_AP_M | CAP_AP_X | CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_ASR),
-        (CAP_AP_M | CAP_AP_X | CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_ASR))
+TEST_CASE_M_AP_COMP(
+        1, (CAP_AP_X | CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_ASR),
+        1 << 5 | (CAP_AP_X | CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_ASR))
 
-/* AP decompression */
+/* M, AP decompression */
 
-TEST_CASE_AP_DECOMP(
-        (CAP_AP_M | CAP_AP_X | CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_ASR),
-        (CAP_AP_M | CAP_AP_X | CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_ASR))
+TEST_CASE_M_AP_DECOMP(
+        1 << 5 | (CAP_AP_X | CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_ASR),
+        1, (CAP_AP_X | CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_ASR))
 
-TEST_CASE_AP_DECOMP(
+TEST_CASE_M_AP_DECOMP(
         (CAP_AP_X | CAP_AP_R | CAP_AP_W),
-        (CAP_AP_X | CAP_AP_R | CAP_AP_W))
+        0, (CAP_AP_X | CAP_AP_R | CAP_AP_W));
 
 TEST_CASE("bounds encoding exponent 0", "[bounds]") {
     /* params are base, cursor, top */
