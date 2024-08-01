@@ -398,6 +398,20 @@ static void hobgoblin_add_sd(HobgoblinState *s)
     qdev_realize_and_unref(sd_card_spi,
                            qdev_get_child_bus(sd_dev, "sd-bus"),
                            &error_fatal);
+
+    /*
+     * gpio1 (0x60310000), pin 1 is used as card detect signal. This pin is
+     * active low, it comes directly from the sd card and goes into the
+     * hobgoblin machine.
+     * We don't initialise this pin here. For axi gpio, all pins default to
+     * output. Reading an ouput pin always returns 0.
+     *
+     * TODO: Should we set the card detect pin explicitly? And if so, how
+     * would this work? I tried
+     * qemu_irq_lower(qdev_get_gpio_in(DEVICE(s->gpio[1]), 1));
+     * This should simulate an external signal that pulls the pin to low.
+     * However, the setting is ignored since the pin is set as an output...
+     */
 }
 
 static void hobgoblin_add_ethernetlite(HobgoblinState *s)
