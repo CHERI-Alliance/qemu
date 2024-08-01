@@ -955,9 +955,7 @@ void CHERI_HELPER_IMPL(acperm(CPUArchState *env, uint32_t cd, uint32_t cs1,
                               target_ulong rs1))
 {
     const cap_register_t *cbp = get_readonly_capreg(env, cs1);
-    /* We do not touch the M bit here, don't copy it into perms. */
-    uint32_t perms =
-        ((cap_get_sdp(cbp) << 16) | (cbp->cr_arch_perm & ~CAP_AP_M)) & rs1;
+    uint32_t perms = ((cap_get_sdp(cbp) << 16) | cbp->cr_arch_perm) & rs1;
     cap_register_t result = *cbp;
 
     /* see the comment about capmode in the gcperm helper */
@@ -1905,8 +1903,7 @@ target_ulong CHERI_HELPER_IMPL(gcperm(CPUArchState *env, uint32_t cb))
     if (!valid_ap(cbp->cr_arch_perm))
         goto out;
 
-    /* The M bit is not part of gcperm's bitfield. */
-    ap_bits = (cbp->cr_arch_perm & ~CAP_AP_M);
+    ap_bits = cbp->cr_arch_perm;
 
 out:
     return (cap_get_sdp(cbp) << 16) | ap_bits;
@@ -2193,9 +2190,7 @@ void CHERI_HELPER_IMPL(scmode(CPUArchState *env, uint32_t cd, uint32_t cs1,
         result.cr_tag = 0;
 
     if (valid_ap(csp->cr_arch_perm) && (csp->cr_arch_perm & CAP_AP_X)) {
-        result.cr_arch_perm = (rs2 & 0b1) ?
-            (result.cr_arch_perm | CAP_AP_M) : (result.cr_arch_perm & ~CAP_AP_M);
-
+        result.cr_m = rs2 & 0x01;
         CAP_cc(ap_compress)(&result);
     }
 
