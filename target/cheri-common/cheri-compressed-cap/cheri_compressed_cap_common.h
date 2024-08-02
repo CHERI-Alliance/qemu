@@ -733,16 +733,6 @@ static inline void _cc_N(m_ap_decompress)(_cc_cap_t *cap)
 }
 #endif
 
-static inline void _cc_N(ap_compress)(_cc_cap_t *cap)
-{
-    _cc_N(m_ap_compress)(cap);
-}
-
-static inline void _cc_N(ap_decompress)(_cc_cap_t *cap)
-{
-    _cc_N(m_ap_decompress)(cap);
-}
-
 /// Expand a PESBT+address+tag input to a _cc_cap_t, but don't check that the tagged value is derivable.
 /// This is an internal helper and should not not be used outside of this header.
 static inline void _cc_N(unsafe_decompress_raw)(_cc_addr_t pesbt, _cc_addr_t cursor, bool tag, _cc_cap_t* cdp) {
