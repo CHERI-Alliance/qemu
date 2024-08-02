@@ -185,7 +185,7 @@ static inline bool cap_get_capmode(const cap_register_t *c)
 #if CAP_CC(FIELD_FLAGS_USED) == 1
     return CAP_cc(get_flags)(c);
 #else
-    CAP_cc(ap_decompress)((cap_register_t *)c);
+    CAP_cc(m_ap_decompress)((cap_register_t *)c);
     return c->cr_m;
 #endif
 }
@@ -195,9 +195,9 @@ static inline void cap_set_capmode(cap_register_t *c, bool enable)
 #if CAP_CC(FIELD_FLAGS_USED) == 1
     CAP_cc(update_flags)(c, enable ? 1 : 0);
 #else
-    CAP_cc(ap_decompress)((cap_register_t *)c);
+    CAP_cc(m_ap_decompress)((cap_register_t *)c);
     c->cr_m = 1;
-    CAP_cc(ap_compress)((cap_register_t *)c);
+    CAP_cc(m_ap_compress)((cap_register_t *)c);
 #endif
 }
 

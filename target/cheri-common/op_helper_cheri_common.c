@@ -1030,9 +1030,9 @@ void CHERI_HELPER_IMPL(acperm(CPUArchState *env, uint32_t cd, uint32_t cs1,
 
     /*
      * Sync the AP field with th cr_arch_perm update.
-     * TODO: should compress_raw call ap_compress internally?
+     * TODO: should compress_raw call m_ap_compress internally?
      */
-    CAP_cc(ap_compress)(&result);
+    CAP_cc(m_ap_compress)(&result);
 
     update_capreg(env, cd, &result);
 }
@@ -2067,7 +2067,7 @@ void CHERI_HELPER_IMPL(cbld(CPUArchState *env, uint32_t cd, uint32_t cs1,
         /* We checked above that
            cs2p->cr_arch_perm & cs1p->cr_arch_perm) == cs2p->cr_arch_perm */
         derived.cr_arch_perm = cs2p->cr_arch_perm;
-        CAP_cc(ap_compress)(&derived);
+        CAP_cc(m_ap_compress)(&derived);
 
         /* We checked above that
            (cap_get_sdp(cs2p) & cap_get_sdp(cs1p) == cap_get_sdp(cs2p) */
@@ -2191,7 +2191,7 @@ void CHERI_HELPER_IMPL(scmode(CPUArchState *env, uint32_t cd, uint32_t cs1,
 
     if (valid_ap(csp->cr_arch_perm) && (csp->cr_arch_perm & CAP_AP_X)) {
         result.cr_m = rs2 & 0x01;
-        CAP_cc(ap_compress)(&result);
+        CAP_cc(m_ap_compress)(&result);
     }
 
     update_capreg(env, cd, &result);
