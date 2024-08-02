@@ -141,7 +141,7 @@ enum _CC_N(OTypes) {
 
 _CC_STATIC_ASSERT_SAME(CC128R_MANTISSA_WIDTH, CC128R_FIELD_EXP_ZERO_BOTTOM_SIZE);
 
-#define CC128R_AP_FCTS AP_FCTS_IDENT
+#define CC128R_M_AP_FCTS M_AP_FCTS_IDENT
 
 #include "cheri_compressed_cap_common.h"
 

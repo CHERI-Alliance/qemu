@@ -109,11 +109,11 @@ template <size_t a, size_t b> static constexpr bool check_same() {
 #endif
 
 /*
- * Select a set of functions for AP compression and decompression.
+ * Select a set of functions for M, AP compression and decompression.
  * (The numeric values have no meaning.)
  */
-#define AP_FCTS_NONE  37
-#define AP_FCTS_IDENT 38
-#define AP_FCTS_QUADR 39
+#define M_AP_FCTS_NONE  37
+#define M_AP_FCTS_IDENT 38
+#define M_AP_FCTS_QUADR 39
 
 #endif // _CC_CONCAT
