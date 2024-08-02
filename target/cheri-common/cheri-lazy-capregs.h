@@ -497,7 +497,7 @@ static inline void set_max_perms_capregs(CPUArchState *env)
         if (i == NULL_CAPREG_INDEX)
             continue;
 
-        set_max_perms_capability(get_cap_in_gpregs(gpcrs, i), 0);
+        set_max_perms_capability(env, get_cap_in_gpregs(gpcrs, i), 0);
         /* Ensure register was marked as fully decompressed */
         cheri_debug_assert(get_capreg_state(gpcrs, i) ==
                            CREG_FULLY_DECOMPRESSED);

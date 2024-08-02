@@ -2092,7 +2092,7 @@ static cap_register_t read_dinfc(CPURISCVState *env,
     cap_register_t inf;
     assert(cheri_in_capmode(env) &&
            "Expect reads of dinfc only in debug/cap mode");
-    set_max_perms_capability(&inf,0);
+    set_max_perms_capability(env, &inf,0);
     return inf;
 }
 
