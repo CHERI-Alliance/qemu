@@ -751,7 +751,7 @@ static inline void _cc_N(unsafe_decompress_raw)(_cc_addr_t pesbt, _cc_addr_t cur
     bool valid = _cc_N(compute_base_top)(bounds, cursor, &cdp->cr_base, &cdp->_cr_top);
     cdp->cr_bounds_valid = valid;
     cdp->cr_exp = bounds.E;
-    _cc_N(ap_decompress)(cdp);
+    _cc_N(m_ap_decompress)(cdp);
 }
 
 static inline void _cc_N(decompress_raw)(_cc_addr_t pesbt, _cc_addr_t cursor, bool tag, _cc_cap_t* cdp) {
@@ -1280,7 +1280,7 @@ static inline _cc_cap_t _cc_N(make_max_perms_cap)(_cc_addr_t base, _cc_addr_t cu
      * that the infinite capability does not have the M bit set.
      */
     creg.cr_arch_perm = CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X | CAP_AP_ASR;
-    _cc_N(ap_compress)(&creg);
+    _cc_N(m_ap_compress)(&creg);
     return creg;
 }
 
