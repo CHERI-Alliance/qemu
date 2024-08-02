@@ -593,8 +593,8 @@ static inline cap_register_t *cap_mark_unrepresentable(target_ulong addr,
     return cr;
 }
 
-static inline void set_max_perms_capability(cap_register_t *crp,
-                                            target_ulong cursor)
+static inline void set_max_perms_capability(__attribute__((unused)) CPUArchState *env,
+        cap_register_t *crp, target_ulong cursor)
 {
     *crp = CAP_cc(make_max_perms_cap)(0, cursor, CAP_MAX_TOP);
     crp->cr_extra = CREG_FULLY_DECOMPRESSED;

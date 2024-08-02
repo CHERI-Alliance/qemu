@@ -571,11 +571,11 @@ void CHERI_HELPER_IMPL(ccheckperm(CPUArchState *env, uint32_t cs,
 
 /// Two operands (int int)
 
-static target_ulong crap_impl(target_ulong len) {
+static target_ulong crap_impl(CPUArchState *env, target_ulong len) {
     // In QEMU we do this by performing a csetbounds on a maximum permissions
     // capability and returning the resulting length
     cap_register_t tmpcap;
-    set_max_perms_capability(&tmpcap, 0);
+    set_max_perms_capability(env, &tmpcap, 0);
     CAP_cc(setbounds)(&tmpcap, len);
     // Previously QEMU return (1<<64)-1 for a representable length of 1<<64
     // (similar to CGetLen), but all other implementations just strip the
@@ -596,7 +596,7 @@ target_ulong CHERI_HELPER_IMPL(crap(CPUArchState *env, target_ulong len))
     // rt is set to the smallest value greater or equal to rs that can be used
     // by CSetBoundsExact without trapping (assuming a suitably aligned base).
     // Now renamed to CRoundReprensentableLength (CRRL)
-    return crap_impl(len);
+    return crap_impl(env, len);
 }
 
 target_ulong CHERI_HELPER_IMPL(cram(CPUArchState *env, target_ulong len))
@@ -608,7 +608,7 @@ target_ulong CHERI_HELPER_IMPL(cram(CPUArchState *env, target_ulong len))
     // The mask used to align down is all ones followed by (required exponent
     // for compressed representation) zeroes
     target_ulong result = CAP_cc(get_alignment_mask)(len);
-    target_ulong rounded_with_crap = crap_impl(len);
+    target_ulong rounded_with_crap = crap_impl(env, len);
     target_ulong rounded_with_cram = (len + ~result) & result;
     qemu_maybe_log_instr_extra(env, "cram(" TARGET_FMT_lx ") rounded="
         TARGET_FMT_lx " rounded with mask=" TARGET_FMT_lx " mask result="
