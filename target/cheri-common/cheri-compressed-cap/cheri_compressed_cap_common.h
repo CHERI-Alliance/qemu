@@ -545,25 +545,25 @@ static inline bool _cc_N(compute_base_top)(_cc_bounds_bits bounds, _cc_addr_t cu
 #define CAP_AP_ASR (1 << 4)
 #define CAP_AP_M   (1 << 5)
 
-#if _CC_N(AP_FCTS) == AP_FCTS_NONE
-static inline void _cc_N(ap_compress)(__attribute__((unused)) _cc_cap_t *cap)
+#if _CC_N(M_AP_FCTS) == M_AP_FCTS_NONE
+static inline void _cc_N(m_ap_compress)(__attribute__((unused)) _cc_cap_t *cap)
 {
 }
 
-static inline void _cc_N(ap_decompress)(__attribute__((unused)) _cc_cap_t *cap)
+static inline void _cc_N(m_ap_decompress)(__attribute__((unused)) _cc_cap_t *cap)
 {
 }
-#elif _CC_N(AP_FCTS) == AP_FCTS_IDENT
-static inline void _cc_N(ap_compress)(_cc_cap_t *cap)
+#elif _CC_N(M_AP_FCTS) == M_AP_FCTS_IDENT
+static inline void _cc_N(m_ap_compress)(_cc_cap_t *cap)
 {
     _cc_N(update_ap)(cap, cap->cr_arch_perm);
 }
 
-static inline void _cc_N(ap_decompress)(_cc_cap_t *cap)
+static inline void _cc_N(m_ap_decompress)(_cc_cap_t *cap)
 {
     cap->cr_arch_perm = _cc_N(get_ap)(cap);
 }
-#elif _CC_N(AP_FCTS) == AP_FCTS_QUADR
+#elif _CC_N(M_AP_FCTS) == M_AP_FCTS_QUADR
 
 #define CAP_AP_Q0 ((uint8_t)(0b00 <<3))
 #define CAP_AP_Q1 ((uint8_t)(0b01 <<3))
@@ -572,7 +572,7 @@ static inline void _cc_N(ap_decompress)(_cc_cap_t *cap)
 
 #define CAP_AP_Q_MASK ((uint8_t)(0b11 <<3))
 
-static inline void _cc_N(ap_compress)(_cc_cap_t *cap)
+static inline void _cc_N(m_ap_compress)(_cc_cap_t *cap)
 {
     uint8_t res = 0;
 
@@ -649,7 +649,7 @@ static inline void _cc_N(ap_compress)(_cc_cap_t *cap)
     _cc_N(update_ap)(cap, res);
 }
 
-static inline void _cc_N(ap_decompress)(_cc_cap_t *cap)
+static inline void _cc_N(m_ap_decompress)(_cc_cap_t *cap)
 {
     uint8_t perm_comp = _cc_N(get_ap)(cap);
     uint8_t res = 0;
@@ -728,6 +728,16 @@ static inline void _cc_N(ap_decompress)(_cc_cap_t *cap)
     cap->cr_arch_perm = res;
 }
 #endif
+
+static inline void _cc_N(ap_compress)(_cc_cap_t *cap)
+{
+    _cc_N(m_ap_compress)(cap);
+}
+
+static inline void _cc_N(ap_decompress)(_cc_cap_t *cap)
+{
+    _cc_N(m_ap_decompress)(cap);
+}
 
 /// Expand a PESBT+address+tag input to a _cc_cap_t, but don't check that the tagged value is derivable.
 /// This is an internal helper and should not not be used outside of this header.
