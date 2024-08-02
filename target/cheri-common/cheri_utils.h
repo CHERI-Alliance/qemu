@@ -186,7 +186,7 @@ static inline bool cap_get_capmode(const cap_register_t *c)
     return CAP_cc(get_flags)(c);
 #else
     CAP_cc(m_ap_decompress)((cap_register_t *)c);
-    return c->cr_m;
+    return !c->cr_m;
 #endif
 }
 
@@ -196,7 +196,7 @@ static inline void cap_set_capmode(cap_register_t *c, bool enable)
     CAP_cc(update_flags)(c, enable ? 1 : 0);
 #else
     CAP_cc(m_ap_decompress)((cap_register_t *)c);
-    c->cr_m = 1;
+    c->cr_m = 0;
     CAP_cc(m_ap_compress)((cap_register_t *)c);
 #endif
 }
@@ -593,10 +593,23 @@ static inline cap_register_t *cap_mark_unrepresentable(target_ulong addr,
     return cr;
 }
 
+/*
+ * attribute unused marks a potentially unused paramter. We keep it to squelch
+ * compiler warnings for architectures other than risc-v.
+ */
 static inline void set_max_perms_capability(__attribute__((unused)) CPUArchState *env,
         cap_register_t *crp, target_ulong cursor)
 {
-    *crp = CAP_cc(make_max_perms_cap)(0, cursor, CAP_MAX_TOP);
+    bool m = false;
+
+#if defined(TARGET_RISCV)
+    /*
+     * If hybrid mode is supported, the infinite capability has to set integer
+     * pointer mode (M = 1).
+     */
+    m = riscv_feature(env, RISCV_FEATURE_CHERI_HYBRID);
+#endif
+    *crp = CAP_cc(make_max_perms_cap_m)(0, cursor, CAP_MAX_TOP, m);
     crp->cr_extra = CREG_FULLY_DECOMPRESSED;
 }
 
