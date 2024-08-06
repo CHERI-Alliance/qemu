@@ -85,13 +85,13 @@ static const memmapEntry_t memmap[] = {
         "riscv.hobgoblin.boot.ram"},
     [HOBGOBLIN_SRAM] =     { 0x20000000, 0x08000000,
         "riscv.hobgoblin.sram", MEM_RAM_CHERI },
-    [HOBGOBLIN_PLIC] =     { 0x40000000,  0x4000000, ""},
+    [HOBGOBLIN_PLIC] =     { 0x40000000,  0x4000000 },
     [HOBGOBLIN_ID_REG] =   { 0x60000000,      0x200,
         "id_register", MEM_ROM },
-    [HOBGOBLIN_CLINT] =    { 0x60014000,     0xc000, ""},
-    [HOBGOBLIN_ETHLITE] =  { 0x60020000,     0x2000, ""},
-    [HOBGOBLIN_AXI_DMA] =  { 0x600a0000,    0x10000, ""},
-    [HOBGOBLIN_AXI_ETH] =  { 0x600c0000,    0x40000, ""},
+    [HOBGOBLIN_CLINT] =    { 0x60014000,     0xc000 },
+    [HOBGOBLIN_ETHLITE] =  { 0x60020000,     0x2000 },
+    [HOBGOBLIN_AXI_DMA] =  { 0x600a0000,    0x10000 },
+    [HOBGOBLIN_AXI_ETH] =  { 0x600c0000,    0x40000 },
     /*
      * The Hobgoblin FPGA uses a Xilinx AXI UART 16550 v2.0, which is at
      * 0x60100000 and uses 8 KiB in the address space. However, the lower 4 KiB
@@ -100,13 +100,13 @@ static const memmapEntry_t memmap[] = {
      * here. The acessible register are fully compatible with QEMU's existing
      * NS16550A UART emulation.
      */
-    [HOBGOBLIN_UART0] =    { 0x60101000,     0x1000, ""},
-    [HOBGOBLIN_SPI] =      { 0x60210000,     0x1000, ""},
-    [HOBGOBLIN_GPIO0] =    { 0x60300000,    0x10000, ""},
-    [HOBGOBLIN_GPIO1] =    { 0x60310000,    0x10000, ""},
-    [HOBGOBLIN_TIMER] =    { 0x60600000,     0x8000, ""},
+    [HOBGOBLIN_UART0] =    { 0x60101000,     0x1000 },
+    [HOBGOBLIN_SPI] =      { 0x60210000,     0x1000 },
+    [HOBGOBLIN_GPIO0] =    { 0x60300000,    0x10000 },
+    [HOBGOBLIN_GPIO1] =    { 0x60310000,    0x10000 },
+    [HOBGOBLIN_TIMER] =    { 0x60600000,     0x8000 },
     /* Each virtio transport channel uses 512 byte */
-    [HOBGOBLIN_VIRTIO] =   { 0x70000000,    0x10000, ""},
+    [HOBGOBLIN_VIRTIO] =   { 0x70000000,    0x10000 },
     [HOBGOBLIN_DRAM] =     { 0x80000000, 0x40000000,
         "riscv.hobgoblin.ram", MEM_RAM_CHERI },
 };
