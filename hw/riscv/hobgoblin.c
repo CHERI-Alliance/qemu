@@ -55,25 +55,30 @@
 #define TYPE_XILINX_AXI_ETHERNET "xlnx.axi-ethernet"
 #define TYPE_XILINX_AXI_DMA "xlnx.axi-dma"
 
+typedef enum {
+    MEM_DEFAULT = 0,
+    MEM_ROM
+} mem_type_t;
+
 typedef struct {
     hwaddr base;
     hwaddr size;
     const char *name;
-    bool rom;
+    mem_type_t type;
 } memmapEntry_t;
 
 static const memmapEntry_t memmap[] = {
     [HOBGOBLIN_MROM] =     {     0x1000,      0x100,
-        "riscv.hobgoblin.mrom", true},
+        "riscv.hobgoblin.mrom", MEM_ROM },
     [HOBGOBLIN_BOOT_ROM] = { 0x10000000, 0x00020000,
-        "riscv.hobgoblin.boot.rom", true},
+        "riscv.hobgoblin.boot.rom", MEM_ROM },
     [HOBGOBLIN_BOOT_RAM] = { 0x10400000, 0x00008000,
         "riscv.hobgoblin.boot.ram"},
     [HOBGOBLIN_SRAM] =     { 0x20000000, 0x08000000,
         "riscv.hobgoblin.sram"},
     [HOBGOBLIN_PLIC] =     { 0x40000000,  0x4000000, ""},
     [HOBGOBLIN_ID_REG] =   { 0x60000000,      0x200,
-        "id_register", true},
+        "id_register", MEM_ROM },
     [HOBGOBLIN_CLINT] =    { 0x60014000,     0xc000, ""},
     [HOBGOBLIN_ETHLITE] =  { 0x60020000,     0x2000, ""},
     [HOBGOBLIN_AXI_DMA] =  { 0x600a0000,    0x10000, ""},
@@ -201,7 +206,7 @@ static void hobgoblin_add_memory_area(MemoryRegion *system_memory,
 {
     MemoryRegion *reg = g_new(MemoryRegion, 1);
     memory_region_init_ram(reg, NULL, e->name, e->size, &error_fatal);
-    if (e->rom) {
+    if (e->type == MEM_ROM) {
         memory_region_set_readonly(reg, true);
     }
     memory_region_add_subregion(system_memory, e->base, reg);
