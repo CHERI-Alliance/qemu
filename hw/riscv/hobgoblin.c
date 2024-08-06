@@ -48,6 +48,9 @@
 #include "exec/address-spaces.h"
 #include "net/net.h"
 #include <libfdt.h>
+#ifdef TARGET_CHERI
+#include "cheri_tagmem.h"
+#endif
 
 #define TYPE_XILINX_SPI "xlnx.xps-spi"
 #define TYPE_XLNX_AXI_GPIO "xlnx.axi-gpio"
@@ -57,7 +60,8 @@
 
 typedef enum {
     MEM_DEFAULT = 0,
-    MEM_ROM
+    MEM_ROM,
+    MEM_RAM_CHERI
 } mem_type_t;
 
 typedef struct {
@@ -99,12 +103,12 @@ static const memmapEntry_t memmap[] = {
     /* Each virtio transport channel uses 512 byte */
     [HOBGOBLIN_VIRTIO] =   { 0x70000000,    0x10000, ""},
     [HOBGOBLIN_DRAM] =     { 0x80000000, 0x40000000,
-        "riscv.hobgoblin.ram"},
+        "riscv.hobgoblin.ram", MEM_RAM_CHERI },
 };
 
 static const memmapEntry_t pro_fpga_memmap[] = {
     [0] =                  { 0x2000000000, 0x400000000,
-        "riscv.hobgoblin.ram2"},
+        "riscv.hobgoblin.ram2", MEM_RAM_CHERI },
 };
 
 /* sifive_plic_create() parameters */
@@ -209,6 +213,12 @@ static void hobgoblin_add_memory_area(MemoryRegion *system_memory,
     if (e->type == MEM_ROM) {
         memory_region_set_readonly(reg, true);
     }
+#ifdef TARGET_CHERI
+    else if (e->type == MEM_RAM_CHERI) {
+        cheri_tag_init(reg, e->size);
+    }
+#endif
+
     memory_region_add_subregion(system_memory, e->base, reg);
 }
 
