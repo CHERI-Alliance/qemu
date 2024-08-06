@@ -164,7 +164,7 @@ static int riscv_gdb_set_virtual(CPURISCVState *cs, uint8_t *mem_buf, int n)
 
 #if defined(TARGET_CHERI)
 #define CHERI_GDB_NUM_GP_CAPREGS 32
-#define CHERI_GDB_NUM_SPECIAL_CAPREGS 2
+#define CHERI_GDB_NUM_SPECIAL_CAPREGS 15
 #define CHERI_GDB_NUM_CAPREGS (CHERI_GDB_NUM_GP_CAPREGS + CHERI_GDB_NUM_SPECIAL_CAPREGS)
 #define CHERI_GDB_NUM_REGS (CHERI_GDB_NUM_CAPREGS)
 
@@ -181,6 +181,32 @@ static int riscv_gdb_get_cheri_reg(CPURISCVState *env, GByteArray *buf, int n)
         return gdb_get_capreg(buf, cheri_get_current_pcc(env));
     case CHERI_GDB_NUM_GP_CAPREGS + 1:
         return gdb_get_capreg(buf, cheri_get_ddc(env));
+    case CHERI_GDB_NUM_GP_CAPREGS + 2:
+        return gdb_get_capreg(buf, &env->dpcc);
+    case CHERI_GDB_NUM_GP_CAPREGS + 3:
+        return gdb_get_capreg(buf, &env->dddc);
+    case CHERI_GDB_NUM_GP_CAPREGS + 4:
+        return gdb_get_capreg(buf, &env->dscratch0c);
+    case CHERI_GDB_NUM_GP_CAPREGS + 5:
+        return gdb_get_capreg(buf, &env->dscratch1c);
+    case CHERI_GDB_NUM_GP_CAPREGS + 6:
+        return gdb_get_capreg(buf, &env->MTVECC);
+    case CHERI_GDB_NUM_GP_CAPREGS + 7:
+        return gdb_get_capreg(buf, &env->MScratchC);
+    case CHERI_GDB_NUM_GP_CAPREGS + 8:
+        return gdb_get_capreg(buf, &env->MEPCC);
+    case CHERI_GDB_NUM_GP_CAPREGS + 9:
+        return gdb_get_capreg(buf, &env->STVECC);
+    case CHERI_GDB_NUM_GP_CAPREGS + 10:
+        return gdb_get_capreg(buf, &env->SScratchC);
+    case CHERI_GDB_NUM_GP_CAPREGS + 11:
+        return gdb_get_capreg(buf, &env->SEPCC);
+    case CHERI_GDB_NUM_GP_CAPREGS + 12:
+        return gdb_get_capreg(buf, &env->stidc);
+    case CHERI_GDB_NUM_GP_CAPREGS + 13:
+        return gdb_get_capreg(buf, &env->utidc);
+    case CHERI_GDB_NUM_GP_CAPREGS + 14:
+        return gdb_get_capreg(buf, &env->jvtc);
     }
     return 0;
 }

@@ -42,4 +42,18 @@
 
   <reg name="pcc" bitsize="128" type="code_capability" group="general"/>
   <reg name="ddc" bitsize="128" type="data_capability" group="general"/>
+
+  <reg name="dpcc" bitsize="128" type="data_capability" group="general"/>
+  <reg name="ddcc" bitsize="128" type="data_capability" group="general"/>
+  <reg name="dscratch0c" bitsize="128" type="data_capability" group="general"/>
+  <reg name="dscratch1c" bitsize="128" type="data_capability" group="general"/>
+  <reg name="mtvecc" bitsize="128" type="data_capability" group="general"/>
+  <reg name="mscratchc" bitsize="128" type="data_capability" group="general"/>
+  <reg name="mepcc" bitsize="128" type="data_capability" group="general"/>
+  <reg name="stvecc" bitsize="128" type="data_capability" group="general"/>
+  <reg name="sscratchc" bitsize="128" type="data_capability" group="general"/>
+  <reg name="sepcc" bitsize="128" type="data_capability" group="general"/>
+  <reg name="stidc" bitsize="128" type="data_capability" group="general"/>
+  <reg name="utidc" bitsize="128" type="data_capability" group="general"/>
+  <reg name="jvtc" bitsize="128" type="data_capability" group="general"/>
 </feature>
