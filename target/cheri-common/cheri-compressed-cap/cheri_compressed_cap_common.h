@@ -543,7 +543,6 @@ static inline bool _cc_N(compute_base_top)(_cc_bounds_bits bounds, _cc_addr_t cu
 #define CAP_AP_R   (1 << 2)
 #define CAP_AP_X   (1 << 3)
 #define CAP_AP_ASR (1 << 4)
-#define CAP_AP_M   (1 << 5)
 
 #if _CC_N(M_AP_FCTS) == M_AP_FCTS_NONE
 static inline void _cc_N(m_ap_compress)(__attribute__((unused)) _cc_cap_t *cap)
