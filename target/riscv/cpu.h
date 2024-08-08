@@ -444,6 +444,7 @@ struct RISCVCPU {
         bool ext_icsr;
 #ifdef TARGET_CHERI
         bool ext_cheri_purecap; 
+        bool scmode_flip;
 #endif
         char *priv_spec;
         char *user_spec;

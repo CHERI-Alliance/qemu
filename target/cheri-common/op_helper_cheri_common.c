@@ -2199,7 +2199,12 @@ void CHERI_HELPER_IMPL(scmode(CPUArchState *env, uint32_t cd, uint32_t cs1,
 
     if (valid_m_ap(csp->cr_m, csp->cr_arch_perm) &&
             (csp->cr_arch_perm & CAP_AP_X)) {
+#ifdef TARGET_RISCV
+        RISCVCPU *cpu = env_archcpu(env);
+        result.cr_m = cpu->cfg.scmode_flip ? !(rs2 & 0x01) : rs2 & 0x01;
+#else
         result.cr_m = rs2 & 0x01;
+#endif
         CAP_cc(m_ap_compress)(&result);
     }
 
