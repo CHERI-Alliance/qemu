@@ -217,7 +217,6 @@ static void rv64_sifive_e_cpu_init(Object *obj)
 static void rv64_codasip_a730_cpu_init(Object *obj)
 {
     CPURISCVState *env = &RISCV_CPU(obj)->env;
-    RISCVCPU *cpu = RISCV_CPU(obj);
 
     /*
      * qemu 6.x has no RVG definition
@@ -228,22 +227,8 @@ static void rv64_codasip_a730_cpu_init(Object *obj)
     /* This CPU supports priv v1.12. Qemu 6.x supports only up to 1.11. */
     set_priv_version(env, PRIV_VERSION_1_11_0);
 
-    cpu->cfg.mmu = true;
-
-    cpu->cfg.pmp = false;
-
-    /*
-     * It looks like properties' defaults are set via riscv_cpu_class_init.
-     * rv64_codasip_a730_cpu_init is called before riscv_cpu_class_init, our
-     * settings would be overwritten by the defaults.
-     * TODO: There must be a better option than modifying the defaults.
-     */
-    for (Property *prop = riscv_cpu_properties; prop && prop->name; prop++) {
-        /* The original code modified "pmu-mask"'s default, this property
-           does not exist for qemu 6.x. */
-        if (!strcmp(prop->name, "pmp"))
-            prop->defval.i = false;
-    }
+    qdev_prop_set_bit(DEVICE(obj), "mmu", true);
+    qdev_prop_set_bit(DEVICE(obj), "pmp", false);
 
     /*
      * qemu 6.x has no support for limiting the virtual addressing modes
