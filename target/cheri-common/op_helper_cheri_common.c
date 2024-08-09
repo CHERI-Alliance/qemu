@@ -968,48 +968,58 @@ void CHERI_HELPER_IMPL(acperm(CPUArchState *env, uint32_t cd, uint32_t cs1,
         result.cr_tag = 0;
     }
 
-    /* Enforce the restrictions as per the bakewell specification. */
-
-    /* "Clear ASR-permission unless X-permission is set" */
-    if (!(perms & CAP_AP_X)) {
-        perms &= ~CAP_AP_ASR;
-    }
-
-    /* "Clear C-permission unless R-permission or W-permission are set" */
-    if (!(perms & (CAP_AP_R|CAP_AP_W))) {
-        perms &= ~CAP_AP_C;
-    }
-
-    /*
-     * "M-bit cannot be set without X-permission being set"
-     *
-     * If a capability grants no execution permission, M is effectively
-     * undefined and must be set to 0. This is unrelated to the values for
-     * capability/integer pointer mode.
-     */
-    if (!(perms & CAP_AP_X)) {
+    if (!valid_ap(cbp->cr_arch_perm)) {
+        /*
+         * "If AP and M-bit field in cs1 could not have been produced by
+         * acperm then clear all AP permissions and the M-bit."
+         */
+        perms = 0;
         result.cr_m = 0;
     }
+    else {
+        /* Enforce the restrictions as per the bakewell specification. */
+
+        /* "Clear ASR-permission unless X-permission is set" */
+        if (!(perms & CAP_AP_X)) {
+            perms &= ~CAP_AP_ASR;
+        }
+
+        /* "Clear C-permission unless R-permission or W-permission are set" */
+        if (!(perms & (CAP_AP_R|CAP_AP_W))) {
+            perms &= ~CAP_AP_C;
+        }
+
+        /*
+         * "M-bit cannot be set without X-permission being set"
+         *
+         * If a capability grants no execution permission, M is effectively
+         * undefined and must be set to 0. This is unrelated to the values
+         * for capability/integer pointer mode.
+         */
+        if (!(perms & CAP_AP_X)) {
+            result.cr_m = 0;
+        }
 
 #if CAP_CC(ADDR_WIDTH) == 32
-    /* "Clear ASR-permission unless all other permissions are set." */
-    if ((perms & (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X)) !=
-            (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X)) {
-        perms &= ~CAP_AP_ASR;
-    }
-    /* "Clear C-permission and X-permission if R-permission is not set" */
-    if (!(perms & CAP_AP_R)) {
-        perms &= ~(CAP_AP_X | CAP_AP_C);
-    }
-    /*
-     * "Clear X-permission if X-permission and R-permission are set, but
-     * C-permission and W-permission are not set"
-     */
-    if ((perms & (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X)) ==
-            (CAP_AP_X | CAP_AP_R)) {
-        perms &= ~CAP_AP_X;
-    }
+        /* "Clear ASR-permission unless all other permissions are set." */
+        if ((perms & (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X)) !=
+                (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X)) {
+            perms &= ~CAP_AP_ASR;
+        }
+        /* "Clear C-permission and X-permission if R-permission is not set" */
+        if (!(perms & CAP_AP_R)) {
+            perms &= ~(CAP_AP_X | CAP_AP_C);
+        }
+        /*
+         * "Clear X-permission if X-permission and R-permission are set, but
+         * C-permission and W-permission are not set"
+         */
+        if ((perms & (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X)) ==
+                (CAP_AP_X | CAP_AP_R)) {
+            perms &= ~CAP_AP_X;
+        }
 #endif
+    }
 
     /*
      * All unused bits in perms are 0, we don't have to mask out higher
