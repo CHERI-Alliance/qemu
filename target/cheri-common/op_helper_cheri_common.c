@@ -968,7 +968,7 @@ void CHERI_HELPER_IMPL(acperm(CPUArchState *env, uint32_t cd, uint32_t cs1,
         result.cr_tag = 0;
     }
 
-    if (!valid_ap(cbp->cr_arch_perm)) {
+    if (!valid_m_ap(cbp->cr_m, cbp->cr_arch_perm)) {
         /*
          * "If AP and M-bit field in cs1 could not have been produced by
          * acperm then clear all AP permissions and the M-bit."
@@ -1908,7 +1908,7 @@ target_ulong CHERI_HELPER_IMPL(gcperm(CPUArchState *env, uint32_t cb))
      * If acperm can't produce the permissions of our input capability, we
      * have to clear all the AP bits in our result.
      */
-    if (!valid_ap(cbp->cr_arch_perm))
+    if (!valid_m_ap(cbp->cr_m, cbp->cr_arch_perm))
         goto out;
 
     ap_bits = cbp->cr_arch_perm;
@@ -2028,7 +2028,7 @@ void CHERI_HELPER_IMPL(cbld(CPUArchState *env, uint32_t cd, uint32_t cs1,
          */
         raise_cheri_exception_or_invalidate(env, CapEx_PermissionViolation,
                 CapExType_Data, cs1);
-    } else if (!valid_ap(cs2p->cr_arch_perm)) {
+    } else if (!valid_m_ap(cs2p->cr_m, cs2p->cr_arch_perm)) {
         raise_cheri_exception_or_invalidate(env, CapEx_PermissionViolation,
                 CapExType_Data, cs2);
     } else if ((cap_get_sdp(cs2p) & cap_get_sdp(cs1p)) != cap_get_sdp(cs2p)) {
@@ -2197,7 +2197,8 @@ void CHERI_HELPER_IMPL(scmode(CPUArchState *env, uint32_t cd, uint32_t cs1,
     if (!cap_is_unsealed(csp))
         result.cr_tag = 0;
 
-    if (valid_ap(csp->cr_arch_perm) && (csp->cr_arch_perm & CAP_AP_X)) {
+    if (valid_m_ap(csp->cr_m, csp->cr_arch_perm) &&
+            (csp->cr_arch_perm & CAP_AP_X)) {
         result.cr_m = rs2 & 0x01;
         CAP_cc(m_ap_compress)(&result);
     }

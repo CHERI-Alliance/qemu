@@ -413,10 +413,11 @@ static inline void cap_make_sealed_entry(cap_register_t *c)
 #endif
 
 /*
- * Check if cr_arch_perm contains a valid set of bakewell architectural
- * permissions (AP). A set is valid if it could have been produced by acperm.
+ * Check if cr_m, cr_arch_perm contain a valid set of risc-v cheri
+ * mode and architectural permissions that could have been produced
+ * by acperm.
  */
-static inline bool valid_ap(uint8_t cr_arch_perm)
+static inline bool valid_m_ap(uint8_t cr_m, uint8_t cr_arch_perm)
 {
     /* "ASR permission cannot be set without X permission" */
     if ((cr_arch_perm & (CAP_AP_ASR | CAP_AP_X)) == CAP_AP_ASR) {
@@ -431,11 +432,12 @@ static inline bool valid_ap(uint8_t cr_arch_perm)
     }
 
     /*
-     * We do not check that "M-bit cannot be set without X-permission being
-     * set". The handling of the M-bit depends on the specific instruction
-     * (M might be filtered out from cr_arch_perm, caller might have checked M,
-     * M might be updated based on X, ...)
+     * Please see the comment in CHERI_HELPER_IMPL(acperm).
+     * In a non-executable capability, M is undefined and must be set to 0.
      */
+    if (cr_m && !(cr_arch_perm & CAP_AP_X)) {
+        return false;
+    }
 
 #if CAP_CC(ADDR_WIDTH) == 32
     /* ASR requires that all one other permissions be set. */
