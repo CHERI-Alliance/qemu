@@ -62,11 +62,11 @@
 #if CHERI_FMT_RISCV
 /* We're using one of the cheri risc-v capability formats. */
 #define PRINT_CAP_FMTSTR_L1 \
-    "v:%d sdp:%1x ap:%2x s:%d b:" TARGET_FMT_lx " a:" TARGET_FMT_lx \
+    "v:%d sdp:%1x m:%d ap:%2x s:%d b:" TARGET_FMT_lx " a:" TARGET_FMT_lx \
     " t:" TARGET_FMT_lx
 #define PRINT_CAP_ARGS_L1(cr) \
-    (cr)->cr_tag, cap_get_sdp(cr), (cr)->cr_arch_perm, !cap_is_unsealed(cr), \
-    cap_get_base(cr), cap_get_cursor(cr), cap_get_top(cr)
+    (cr)->cr_tag, cap_get_sdp(cr), (cr)->cr_m, (cr)->cr_arch_perm, \
+    !cap_is_unsealed(cr), cap_get_base(cr), cap_get_cursor(cr), cap_get_top(cr)
 
 #define COMBINED_PERMS_VALUE(unused) 0
 #define PRINT_CAP_FMTSTR_L2 "%s"
