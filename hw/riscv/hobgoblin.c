@@ -279,7 +279,7 @@ static void hobgoblin_connect_plic_irq(HobgoblinState *s,
 }
 
 static void hobgoblin_add_id_register(HobgoblinState *s,
-        HobgoblinClass *hc, MemoryRegion *system_memory)
+                                      MemoryRegion *system_memory)
 {
     int i;
     const memmapEntry_t *mem_id = &memmap[HOBGOBLIN_ID_REG];
@@ -291,6 +291,7 @@ static void hobgoblin_add_id_register(HobgoblinState *s,
         [BOARD_TYPE_GENESYS2] = 0x1,
         [BOARD_TYPE_PROFPGA] = 0x2,
     };
+    HobgoblinClass *hc = HOBGOBLIN_MACHINE_GET_CLASS(s);
     uint32_t id_register[] = {
         /* (0x0000) Platform ID register version */
         1 << 8 | 1,
@@ -545,7 +546,7 @@ static void hobgoblin_machine_init(MachineState *machine)
     hobgoblin_add_interrupt_controller(s, smp_cpus);
 
     /* add peripherals (requires having an interrupt controller) */
-    hobgoblin_add_id_register(s, hc, system_memory);
+    hobgoblin_add_id_register(s, system_memory);
     hobgoblin_add_uart(s, system_memory);
     hobgoblin_add_gpio(s);
     hobgoblin_add_spi(s);
