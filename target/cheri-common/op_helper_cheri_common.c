@@ -992,12 +992,7 @@ void CHERI_HELPER_IMPL(acperm(CPUArchState *env, uint32_t cd, uint32_t cs1,
     }
 
 #if CAP_CC(ADDR_WIDTH) == 32
-    /*
-     * As of Jun 2024, the bakewell spec says
-     * "Clear ASR-permission if all other permissions are not set"
-     * This is in contradiction to the table that shows the AP encodings for
-     * RV32. ASR can be set only if all other permissions are set.
-     */
+    /* "Clear ASR-permission unless all other permissions are set." */
     if ((perms & (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X)) !=
             (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X)) {
         perms &= ~CAP_AP_ASR;
