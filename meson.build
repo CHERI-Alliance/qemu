@@ -184,6 +184,15 @@ qemu_cflags = config_host['QEMU_CFLAGS'].split()
 qemu_objcflags = config_host['QEMU_OBJCFLAGS'].split()
 qemu_ldflags = config_host['QEMU_LDFLAGS'].split()
 
+if '-fsanitize=undefined' in qemu_cflags
+  # Suppress undefined behaviour from function call to mismatched type.
+  # In addition, tcg prologue does not emit function type prefix
+  # required by function call sanitizer.
+  if cc.has_argument('-fno-sanitize=function')
+    qemu_cflags += ['-fno-sanitize=function']
+  endif
+endif
+
 if enable_static
   qemu_ldflags += get_option('b_pie') ? '-static-pie' : '-static'
 endif
