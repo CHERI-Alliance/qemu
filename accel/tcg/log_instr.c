@@ -683,9 +683,9 @@ static void do_cpu_loglevel_switch(CPUState *cpu, run_on_cpu_data data)
     if (next_level == prev_level && prev_level_active == next_level_active)
         return;
 
-    /* Flushing all translations makes things incredibly slow. Instead,
-     * we put whether tracing is currently enabled into cflags */
-
+    /* A TCG Flush is required here else already translated code block
+    will not see the change in logging mode */
+    tb_flush(cpu);
     /* Emit start/stop events */
     if (prev_level_active) {
         if (cpulog->starting) {
