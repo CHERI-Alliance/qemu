@@ -683,12 +683,6 @@ static void do_cpu_loglevel_switch(CPUState *cpu, run_on_cpu_data data)
     if (next_level == prev_level && prev_level_active == next_level_active)
         return;
 
-    if (cpu->thread) {
-        /* A TCG Flush is required here else already translated code block
-           will not see the change in logging mode */
-        tb_flush(cpu);
-    }
-
     /* Emit start/stop events */
     if (prev_level_active) {
         if (cpulog->starting) {
@@ -701,9 +695,25 @@ static void do_cpu_loglevel_switch(CPUState *cpu, run_on_cpu_data data)
         iinfo = get_cpu_log_instr_info(env);
         reset_log_buffer(cpulog, iinfo);
     }
+    /*
+     * This function is called when tcg generates code for a dummy slti
+     * instruction that changes the log level (or when qemu is started).
+     * The generated code terminates the current TB.
+     * We have to propagate the updated logging status to the next TB.
+     */
     if (next_level_active) {
         cpulog->starting = true;
+        cpu->cflags_next_tb = curr_cflags(cpu) | CF_LOG_INSTR;
     }
+    else{
+        cpu->cflags_next_tb = curr_cflags(cpu) & ~CF_LOG_INSTR;
+    }
+    /*
+     * It seems that cpu->cflags_next_tb affect only the next block, not the
+     * ones after this. Update cpu->tcg_cflags to set the updated flags for
+     * all following blocks.
+     */
+    cpu->tcg_cflags = cpu->cflags_next_tb;
 }
 
 static void cpu_loglevel_switch(CPUArchState *env,
