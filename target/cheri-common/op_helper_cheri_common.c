@@ -1959,13 +1959,6 @@ void CHERI_HELPER_IMPL(cbld(CPUArchState *env, uint32_t cd, uint32_t cs1,
     cap_register_t result = *cs2p;
     DEFINE_RESULT_VALID;
 
-    if (!cheri_in_capmode(env)) {
-#ifdef TARGET_RISCV
-        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
-#endif
-        return;
-    }
-
     if (cs1 == 0) {
         /*
          * If cs1 is the c0 register, we have to copy cs2 to cd and clear
