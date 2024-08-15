@@ -1876,29 +1876,6 @@ target_ulong CHERI_HELPER_IMPL(gcperm(CPUArchState *env, uint32_t cb))
     uint8_t ap_bits = 0;
 
     /*
-     * This instruction is allowed only in capability pointer mode, i.e.
-     * purecap or hybrid + M bit + CRE=1 for current CPU mode.
-     * cheri_in_capmode will check those combinations.
-     */
-    if (!cheri_in_capmode(env)) {
-#ifdef TARGET_RISCV
-        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
-#endif
-
-        /*
-         * TODO: What should we return after throwing an exception?
-         * Will the returned value be used at all?
-         *
-         * We looked at
-         * target/mips/op_helper_cheri.c
-         *     CHERI_HELPER_IMPL(ccall_notrap...
-         *     ccall_common
-         * -> they return 0 after throwing an exception
-         */
-        return 0;
-    }
-
-    /*
      * If acperm can't produce the permissions of our input capability, we
      * have to clear all the AP bits in our result.
      */
