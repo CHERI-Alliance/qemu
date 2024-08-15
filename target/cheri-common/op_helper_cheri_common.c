@@ -2142,13 +2142,6 @@ void CHERI_HELPER_IMPL(scmode(CPUArchState *env, uint32_t cd, uint32_t cs1,
     const cap_register_t *csp = get_readonly_capreg(env, cs1);
     cap_register_t result = *csp;
 
-    if (!cheri_in_capmode(env)) {
-#ifdef TARGET_RISCV
-        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
-#endif
-        return;
-    }
-
     if (cd == 0) {
         /*
          * If cd == c0, the result is discarded. The permission check / update
