@@ -840,7 +840,8 @@ typedef enum RISCVException {
 #define SINTSTATUS_UIL                     0x000000ff /* uil[7:0] */
 
 /* mcause */
-#define MCAUSE_INT                         (1 << (TARGET_LONG_BITS - 1))
+#define MCAUSE_INT                          ((target_ulong)1 << \
+                                             (TARGET_LONG_BITS - 1))
 #define MCAUSE_MINHV                       0x40000000 /* minhv */
 #define MCAUSE_MPP                         0x30000000 /* mpp[1:0] */
 #define MCAUSE_MPIE                        0x08000000 /* mpie */
@@ -848,7 +849,8 @@ typedef enum RISCVException {
 #define MCAUSE_EXCCODE                     0x00000fff /* exccode[11:0] */
 
 /* scause */
-#define SCAUSE_INT                         (1 << (TARGET_LONG_BITS - 1))
+#define SCAUSE_INT                         ((target_ulong)1 << \
+                                            (TARGET_LONG_BITS - 1))
 #define SCAUSE_SINHV                       0x40000000 /* sinhv */
 #define SCAUSE_SPP                         0x10000000 /* spp */
 #define SCAUSE_SPIE                        0x08000000 /* spie */
