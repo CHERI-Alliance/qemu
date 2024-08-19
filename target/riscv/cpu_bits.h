@@ -169,6 +169,7 @@
 #define CSR_MCAUSE          0x342
 #define CSR_MTVAL           0x343
 #define CSR_MIP             0x344
+#define CSR_MNXTI           0x345 /* clic-spec-draft */
 #define CSR_MINTSTATUS      0xfb1 /* clic-spec-draft */
 #define CSR_MINTTHRESH      0x347 /* clic-spec-draft */
 
@@ -216,6 +217,7 @@
 #define CSR_SCAUSE          0x142
 #define CSR_STVAL           0x143
 #define CSR_SIP             0x144
+#define CSR_SNXTI           0x145 /* clic-spec-draft */
 #define CSR_SINTSTATUS      0xdb1 /* clic-spec-draft */
 #define CSR_SINTTHRESH      0x147 /* clic-spec-draft */
 
@@ -596,6 +598,8 @@
 #define MSTATUS_GVA         0x4000000000ULL
 #define MSTATUS_MPV         0x8000000000ULL
 
+#define MSTATUS_WRITE_MASK  0x0000001f
+
 #define MSTATUS64_UXL       0x0000000300000000ULL
 #define MSTATUS64_SXL       0x0000000C00000000ULL
 
@@ -834,6 +838,27 @@ typedef enum RISCVException {
 /* sintstatus */
 #define SINTSTATUS_SIL                     0x0000ff00 /* sil[15:8] */
 #define SINTSTATUS_UIL                     0x000000ff /* uil[7:0] */
+
+/* mcause */
+#define MCAUSE_INT                         (1 << (TARGET_LONG_BITS - 1))
+#define MCAUSE_MINHV                       0x40000000 /* minhv */
+#define MCAUSE_MPP                         0x30000000 /* mpp[1:0] */
+#define MCAUSE_MPIE                        0x08000000 /* mpie */
+#define MCAUSE_MPIL                        0x00ff0000 /* mpil[7:0] */
+#define MCAUSE_EXCCODE                     0x00000fff /* exccode[11:0] */
+
+/* scause */
+#define SCAUSE_INT                         (1 << (TARGET_LONG_BITS - 1))
+#define SCAUSE_SINHV                       0x40000000 /* sinhv */
+#define SCAUSE_SPP                         0x10000000 /* spp */
+#define SCAUSE_SPIE                        0x08000000 /* spie */
+#define SCAUSE_SPIL                        0x00ff0000 /* spil[7:0] */
+#define SCAUSE_EXCCODE                     0x00000fff /* exccode[11:0] */
+
+/* mcause & scause */
+#define XCAUSE_XPP_SHIFT                   28
+#define XCAUSE_XPIE_SHIFT                  27
+#define XCAUSE_XPIL_SHIFT                  16
 
 /* mtvec & stvec */
 #define XTVEC_MODE                         0x03
