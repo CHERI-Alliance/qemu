@@ -2048,6 +2048,18 @@ static int read_mintstatus(CPURISCVState *env, int csrno, target_ulong *val)
     return RISCV_EXCP_NONE;
 }
 
+static int read_mintthresh(CPURISCVState *env, int csrno, target_ulong *val)
+{
+    *val = env->mintthresh;
+    return RISCV_EXCP_NONE;
+}
+
+static int write_mintthresh(CPURISCVState *env, int csrno, target_ulong val)
+{
+    env->mintthresh = val;
+    return RISCV_EXCP_NONE;
+}
+
 /* Supervisor Trap Setup */
 static RISCVException read_sstatus_i128(CPURISCVState *env, int csrno,
                                         Int128 *val)
@@ -2429,6 +2441,18 @@ static int read_sintstatus(CPURISCVState *env, int csrno, target_ulong *val)
     /* sintstatus is a filtered view of mintstatus with the PRV_M removed */
     target_ulong mask = SINTSTATUS_SIL | SINTSTATUS_UIL;
     *val = env->mintstatus & mask;
+    return RISCV_EXCP_NONE;
+}
+
+static int read_sintthresh(CPURISCVState *env, int csrno, target_ulong *val)
+{
+    *val = env->sintthresh;
+    return RISCV_EXCP_NONE;
+}
+
+static int write_sintthresh(CPURISCVState *env, int csrno, target_ulong val)
+{
+    env->sintthresh = val;
     return RISCV_EXCP_NONE;
 }
 
@@ -4922,13 +4946,16 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
                              write_mhpmcounterh                         },
     [CSR_MHPMCOUNTER31H] = { "mhpmcounter31h", mctr32,  read_hpmcounterh,
                              write_mhpmcounterh                         },
-                                                       write_mhpmcounterh },
 
     /* Machine Mode Core Level Interrupt Controller */
     [CSR_MINTSTATUS]     = { "mintstatus", clic,  read_mintstatus       },
+    [CSR_MINTTHRESH]     = { "mintthresh", clic,  read_mintthresh,
+                             write_mintthresh },
 
     /* Supervisor Mode Core Level Interrupt Controller */
     [CSR_SINTSTATUS]     = { "sintstatus", clic,  read_sintstatus       },
+    [CSR_SINTTHRESH]     = { "sintthresh", clic,  read_sintthresh,
+                             write_sintthresh },
 
     [CSR_SCOUNTOVF]      = { "scountovf", sscofpmf,  read_scountovf,
                              .min_priv_ver = PRIV_VERSION_1_12_0 },

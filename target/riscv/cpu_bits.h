@@ -169,6 +169,7 @@
 #define CSR_MTVAL           0x343
 #define CSR_MIP             0x344
 #define CSR_MINTSTATUS      0xfb1 /* clic-spec-draft */
+#define CSR_MINTTHRESH      0x347 /* clic-spec-draft */
 
 #ifdef TARGET_CHERI
 /* Machine trap setup,scratch and handling capabilities*/
@@ -212,6 +213,7 @@
 #define CSR_STVAL           0x143
 #define CSR_SIP             0x144
 #define CSR_SINTSTATUS      0xdb1 /* clic-spec-draft */
+#define CSR_SINTTHRESH      0x147 /* clic-spec-draft */
 
 #ifdef TARGET_CHERI
 /* Supervisor trap setup, scratch and handling */
