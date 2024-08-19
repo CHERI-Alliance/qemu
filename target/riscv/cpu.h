@@ -250,6 +250,7 @@ struct CPUArchState {
 
     uint64_t miclaim;
     uint64_t mintstatus; /* clic-spec */
+    target_ulong mintthresh; /* clic-spec */
 
     uint64_t mie;
     uint64_t mideleg;
@@ -272,6 +273,7 @@ struct CPUArchState {
     target_ulong sscratch;
 #endif
     target_ulong scause;
+    target_ulong sintthresh; /* clic-spec */
 
 #ifdef TARGET_CHERI
     cap_register_t mtvecc;    // SCR 28 Machine trap code cap. (MTCC)
