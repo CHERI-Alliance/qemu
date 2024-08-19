@@ -795,6 +795,12 @@ typedef enum RISCVException {
 #define RISCV_HICAUSE                            0x3f
 
 #define RISCV_EXCP_INT_FLAG                0x80000000
+#define RISCV_EXCP_CLIC                    0x40000000
+#define RISCV_EXCP_CLIC_LEVEL_SHIFT        14
+#define RISCV_EXCP_CLIC_LEVEL              (0xff << RISCV_EXCP_CLIC_LEVEL_SHIFT)
+#define RISCV_EXCP_CLIC_MODE_SHIFT         12
+#define RISCV_EXCP_CLIC_MODE               (3 << RISCV_EXCP_CLIC_MODE_SHIFT)
+#define RISCV_EXCP_CLIC_IRQ                0x00000fff
 #define RISCV_EXCP_INT_MASK                0x7fffffff
 
 /* Interrupt causes */
@@ -845,6 +851,17 @@ typedef enum RISCVException {
 /* sintstatus */
 #define SINTSTATUS_SIL                     0x0000ff00 /* sil[15:8] */
 #define SINTSTATUS_UIL                     0x000000ff /* uil[7:0] */
+
+/* mtvec & stvec */
+#define XTVEC_MODE                         0x03
+#define XTVEC_SUBMODE                      0x3c
+#define XTVEC_FULL_MODE                    (XTVEC_MODE | XTVEC_SUBMODE)
+#define XTVEC_OBASE                        (~XTVEC_MODE)
+#define XTVEC_NBASE                        (~XTVEC_FULL_MODE)
+
+#define XTVEC_CLINT_DIRECT                 0x0
+#define XTVEC_CLINT_VECTORED               0x1
+#define XTVEC_CLIC                         0x3
 
 /* MIE masks */
 #define MIE_SEIE                           (1 << IRQ_S_EXT)

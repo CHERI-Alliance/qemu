@@ -46,6 +46,7 @@ config RISCV_VIRT
     select PFLASH_CFI01
     select SERIAL
     select RISCV_ACLINT
+    select RISCV_CLIC
     select RISCV_APLIC
     select RISCV_IMSIC
     select SIFIVE_PLIC
