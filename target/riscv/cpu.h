@@ -249,6 +249,7 @@ struct CPUArchState {
     bool software_seip;
 
     uint64_t miclaim;
+    uint64_t mintstatus; /* clic-spec */
 
     uint64_t mie;
     uint64_t mideleg;
@@ -512,6 +513,8 @@ struct CPUArchState {
 
     /* Fields from here on are preserved across CPU reset. */
     QEMUTimer *stimer; /* Internal timer for S-mode interrupt */
+
+    void *clic;       /* clic interrupt controller */
 
     hwaddr kernel_addr;
     hwaddr fdt_addr;
