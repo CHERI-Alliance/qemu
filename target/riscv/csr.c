@@ -1667,8 +1667,24 @@ static RISCVException read_mtvec(CPURISCVState *env, int csrno,
 static RISCVException write_mtvec(CPURISCVState *env, int csrno,
                                   target_ulong val)
 {
+    /*
+     * bits [1:0] encode mode; 0 = direct, 1 = vectored, 3 = CLIC,
+     * others reserved
+     */
+    target_ulong mode = get_field(val, XTVEC_MODE);
+    target_ulong fullmode = val & XTVEC_FULL_MODE;
     /* bits [1:0] encode mode; 0 = direct, 1 = vectored, 2 >= reserved */
-    if ((val & 3) < 2) {
+    if (mode <= XTVEC_CLINT_VECTORED) {
+        SET_SPECIAL_REG(env, mtvec, mtvecc, val);
+    } else if (XTVEC_CLIC == fullmode && env->clic) {
+        /*
+         * CLIC mode hardwires xtvec bits 2-5 to zero.
+         * Layout:
+         *   XLEN-1:6   base (WARL)
+         *   5:2        submode (WARL)  - 0000 for CLIC
+         *   1:0        mode (WARL)     - 11 for CLIC
+         */
+       val = (val & XTVEC_NBASE) | XTVEC_CLIC;
         SET_SPECIAL_REG(env, mtvec, mtvecc, val);
     } else {
         qemu_log_mask(LOG_UNIMP, "CSR_MTVEC: reserved mode not supported\n");
@@ -1721,6 +1737,18 @@ static RISCVException write_mcounteren(CPURISCVState *env, int csrno,
                                        target_ulong val)
 {
     env->mcounteren = val;
+    return RISCV_EXCP_NONE;
+}
+
+static int read_mtvt(CPURISCVState *env, int csrno, target_ulong *val)
+{
+    *val = env->mtvt;
+    return RISCV_EXCP_NONE;
+}
+
+static int write_mtvt(CPURISCVState *env, int csrno, target_ulong val)
+{
+    env->mtvt = val & XTVEC_NBASE;
     return RISCV_EXCP_NONE;
 }
 
@@ -2148,8 +2176,24 @@ static RISCVException read_stvec(CPURISCVState *env, int csrno,
 static RISCVException write_stvec(CPURISCVState *env, int csrno,
                                   target_ulong val)
 {
-    /* bits [1:0] encode mode; 0 = direct, 1 = vectored, 2 >= reserved */
-    if ((val & 3) < 2) {
+    /*
+     * bits [1:0] encode mode; 0 = direct, 1 = vectored, 3 = CLIC,
+     * others reserved
+     */
+    target_ulong mode = val & XTVEC_MODE;
+    target_ulong fullmode = val & XTVEC_FULL_MODE;
+    if (mode <= XTVEC_CLINT_VECTORED) {
+        SET_SPECIAL_REG(env, stvec, stvecc, val);
+    } else if (XTVEC_CLIC == fullmode && env->clic) {
+        /*
+         * If only CLIC mode is supported, writes to bit 1 are also ignored and
+         * it is always set to one. CLIC mode hardwires xtvec bits 2-5 to zero.
+         * Layout:
+         *   XLEN-1:6   base (WARL)
+         *   5:2        submode (WARL)  - 0000 for CLIC
+         *   1:0        mode (WARL)     - 11 for CLIC
+         */
+        val = (val & XTVEC_NBASE) | XTVEC_CLIC;
         SET_SPECIAL_REG(env, stvec, stvecc, val);
     } else {
         qemu_log_mask(LOG_UNIMP, "CSR_STVEC: reserved mode not supported\n");
@@ -2168,6 +2212,18 @@ static RISCVException write_scounteren(CPURISCVState *env, int csrno,
                                        target_ulong val)
 {
     env->scounteren = val;
+    return RISCV_EXCP_NONE;
+}
+
+static int read_stvt(CPURISCVState *env, int csrno, target_ulong *val)
+{
+    *val = env->stvt;
+    return RISCV_EXCP_NONE;
+}
+
+static int write_stvt(CPURISCVState *env, int csrno, target_ulong val)
+{
+    env->stvt = val & XTVEC_NBASE;
     return RISCV_EXCP_NONE;
 }
 
@@ -4848,11 +4904,13 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
 #endif /* !TARGET_CHERI */
 
     /* Machine Mode Core Level Interrupt Controller */
+    [CSR_MTVT]           = { "mtvt",       clic,  read_mtvt, write_mtvt },
     [CSR_MINTSTATUS]     = { "mintstatus", clic,  read_mintstatus       },
     [CSR_MINTTHRESH]     = { "mintthresh", clic,  read_mintthresh,
                              write_mintthresh },
 
     /* Supervisor Mode Core Level Interrupt Controller */
+    [CSR_STVT]           = { "stvt",       clic,  read_stvt, write_stvt },
     [CSR_SINTSTATUS]     = { "sintstatus", clic,  read_sintstatus       },
     [CSR_SINTTHRESH]     = { "sintthresh", clic,  read_sintthresh,
                              write_sintthresh },
