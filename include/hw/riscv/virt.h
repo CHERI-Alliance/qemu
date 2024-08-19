@@ -54,6 +54,11 @@ struct RISCVVirtState {
 
     int fdt_size;
     bool have_aclint;
+    bool have_clic;
+    bool clic_prv_s;
+    bool clic_prv_u;
+    uint8_t clic_intctlbits;
+    char *clic_version;
     RISCVVirtAIAType aia_type;
     int aia_guests;
 };
@@ -65,6 +70,7 @@ enum {
     VIRT_RTC,
     VIRT_CLINT,
     VIRT_ACLINT_SSWI,
+    VIRT_CLIC,
     VIRT_PLIC,
     VIRT_APLIC_M,
     VIRT_APLIC_S,
@@ -108,6 +114,35 @@ enum {
 #define VIRT_PLIC_CONTEXT_STRIDE 0x1000
 #define VIRT_PLIC_SIZE(__num_context) \
     (VIRT_PLIC_CONTEXT_BASE + (__num_context) * VIRT_PLIC_CONTEXT_STRIDE)
+
+#define VIRT_CLIC_INTCLTBITS    3
+#define VIRT_CLIC_VERSION       "v0.9"
+#define VIRT_CLIC_MAX_IRQS      0x1000
+#define VIRT_CLIC_CONTEXT_BASE  0x1000
+#define VIRT_CLIC_CONTEXT_COUNT(_prv_s, _prv_u) \
+    (1 + ((_prv_s) ? 1 : 0) + ((_prv_u) ? 1 : 0))
+#define VIRT_CLIC_FULL_CONTEXT_COUNT VIRT_CLIC_CONTEXT_COUNT(1, 1)
+#define VIRT_CLIC_ALIGN_BITS    12
+#define VIRT_CLIC_ALIGN_MASK    ((1U << VIRT_CLIC_ALIGN_BITS) - 1)
+/* Round up to next 4KiB alignment boundary */
+#define VIRT_CLIC_ALIGN(_base_addr) \
+    (((_base_addr) + VIRT_CLIC_ALIGN_MASK) & VIRT_CLIC_ALIGN_MASK)
+#define VIRT_CLIC_INT_SIZE(_irq_count) ((_irq_count) * 4)
+/*
+ * The spec doesn't define a memory layout, other than to say that each
+ * CLIC should be on a 4KiB boundary if memory-mapped.
+ * This implementation makes all the CLICs contiguous, in the order M, S, U,
+ * and assumes the worst-case size.
+ */
+#define VIRT_CLIC_BLOCK_SIZE \
+    (VIRT_CLIC_CONTEXT_BASE + VIRT_CLIC_INT_SIZE(VIRT_CLIC_MAX_IRQS))
+#define VIRT_CLIC_HART_SIZE(_prv_s, _prv_u) \
+    (VIRT_CLIC_CONTEXT_COUNT(_prv_s, _prv_u) * VIRT_CLIC_BLOCK_SIZE)
+#define VIRT_CLIC_SIZE(_hart_count, _prv_s, _prv_u) \
+    ((_hart_count) * VIRT_CLIC_HART_SIZE(_prv_s, _prv_u))
+#define VIRT_CLIC_MAX_HART_SIZE VIRT_CLIC_HART_SIZE(1, 1)
+#define VIRT_CLIC_MAX_SIZE(_hart_count) \
+    ((_hart_count) * VIRT_CLIC_MAX_HART_SIZE)
 
 #define FDT_PCI_ADDR_CELLS    3
 #define FDT_PCI_INT_CELLS     1
