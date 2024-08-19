@@ -1,4 +1,4 @@
-/*
+ /*
  * QEMU RISC-V VirtIO Board
  *
  * Copyright (c) 2017 SiFive, Inc.
@@ -22,6 +22,7 @@
 #include "qemu/units.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
+#include "qapi/visitor.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
 #include "hw/sysbus.h"
@@ -36,6 +37,7 @@
 #include "hw/intc/riscv_aclint.h"
 #include "hw/intc/riscv_aplic.h"
 #include "hw/intc/riscv_imsic.h"
+#include "hw/intc/riscv_clic.h"
 #include "hw/intc/sifive_plic.h"
 #include "hw/misc/sifive_test.h"
 #include "hw/platform-bus.h"
@@ -75,6 +77,7 @@ static const MemMapEntry virt_memmap[] = {
     [VIRT_MROM] =         {     0x1000,        0xf000 },
     [VIRT_TEST] =         {   0x100000,        0x1000 },
     [VIRT_RTC] =          {   0x101000,        0x1000 },
+    [VIRT_CLIC] =         {  0x2000000, VIRT_CLIC_MAX_SIZE(VIRT_CPUS_MAX)},
     [VIRT_CLINT] =        {  0x2000000,       0x10000 },
     [VIRT_ACLINT_SSWI] =  {  0x2F00000,        0x4000 },
     [VIRT_PCIE_PIO] =     {  0x3000000,       0x10000 },
@@ -427,6 +430,37 @@ static void create_fdt_socket_aclint(RISCVVirtState *s,
     g_free(aclint_sswi_cells);
 }
 
+static void create_fdt_socket_clic(RISCVVirtState *s,
+                                   const MemMapEntry *memmap, int socket)
+{
+    g_autofree char *clic_name = NULL;
+    g_autofree uint32_t *clic_cells = NULL;
+    unsigned long mclicbase;
+    MachineState *ms = MACHINE(s);
+    static const char * const clic_compat[1] = {
+        "riscv,clic-0.9"
+    };
+
+    /*
+     * The spec doesn't define a memory layout, other than to say that each
+     * CLIC should be on a 4KiB boundary if memory-mapped.
+     * This implementation makes all the CLICs contiguous, in the order M, S, U,
+     * and assumes the worst-case size.
+     * TODO: create entries for each CLIC on the system.
+     */
+    mclicbase = memmap[VIRT_CLIC].base;
+    clic_name = g_strdup_printf("/soc/clic@%lx", mclicbase);
+    qemu_fdt_add_subnode(ms->fdt, clic_name);
+    qemu_fdt_setprop_string_array(ms->fdt, clic_name, "compatible",
+                                  (char **)&clic_compat,
+                                  ARRAY_SIZE(clic_compat));
+    qemu_fdt_setprop_cells(ms->fdt, clic_name, "regs",
+        0x0, mclicbase, 0x0, memmap[VIRT_CLIC].size);
+    qemu_fdt_setprop_cell(ms->fdt, clic_name, "riscv,num-sources",
+                          VIRT_IRQCHIP_NUM_SOURCES);
+    riscv_socket_fdt_write_id(ms, ms->fdt, clic_name, socket);
+}
+
 static void create_fdt_socket_plic(RISCVVirtState *s,
                                    const MemMapEntry *memmap, int socket,
                                    uint32_t *phandle, uint32_t *intc_phandles,
@@ -751,7 +785,9 @@ static void create_fdt_sockets(RISCVVirtState *s, const MemMapEntry *memmap,
         g_free(clust_name);
 
         if (!kvm_enabled()) {
-            if (s->have_aclint) {
+            if (s->have_clic) {
+                create_fdt_socket_clic(s, memmap, socket);
+            } else if (s->have_aclint) {
                 create_fdt_socket_aclint(s, memmap, socket,
                     &intc_phandles[phandle_pos]);
             } else {
@@ -1137,6 +1173,37 @@ static DeviceState *virt_create_plic(const MemMapEntry *memmap, int socket,
     return ret;
 }
 
+static DeviceState *virt_create_clic(RISCVVirtState *s, uint64_t clic_base,
+                                     int hartid)
+{
+    DeviceState *ret;
+    uint32_t block_size = VIRT_CLIC_HART_SIZE(s->clic_prv_s, s->clic_prv_u);
+    uint64_t mclicbase = clic_base + hartid * block_size;
+    uint64_t sclicbase = 0;
+    uint64_t uclicbase = 0;
+
+    /*
+     * The spec doesn't define a memory layout, other than to say that each
+     * CLIC should be on a 4KiB boundary if memory-mapped.
+     * This implementation makes all the CLICs contiguous, in the order M, S, U.
+     */
+    if (s->clic_prv_s) {
+        sclicbase = mclicbase + VIRT_CLIC_BLOCK_SIZE;
+    }
+    if (s->clic_prv_u) {
+        uclicbase = mclicbase + VIRT_CLIC_BLOCK_SIZE;
+        if (s->clic_prv_s) {
+            uclicbase += VIRT_CLIC_BLOCK_SIZE;
+        }
+    }
+    ret = riscv_clic_create(mclicbase, sclicbase, uclicbase,
+                            hartid, VIRT_IRQCHIP_NUM_SOURCES,
+                            s->clic_intctlbits,
+                            s->clic_version);
+
+    return ret;
+}
+
 static DeviceState *virt_create_aia(RISCVVirtAIAType aia_type, int aia_guests,
                                     const MemMapEntry *memmap, int socket,
                                     int base_hartid, int hart_count)
@@ -1388,7 +1455,7 @@ static void virt_machine_init(MachineState *machine)
                             i * memmap[VIRT_ACLINT_SSWI].size,
                         base_hartid, hart_count, true);
                 }
-            } else {
+            } else if (!s->have_clic) {
                 /* Per-socket SiFive CLINT */
                 riscv_aclint_swi_create(
                     memmap[VIRT_CLINT].base + i * memmap[VIRT_CLINT].size,
@@ -1409,6 +1476,12 @@ static void virt_machine_init(MachineState *machine)
             s->irqchip[i] = virt_create_aia(s->aia_type, s->aia_guests,
                                             memmap, i, base_hartid,
                                             hart_count);
+        }
+
+        /* CLIC if present - needs to come after PLIC */
+        if (s->have_clic) {
+            s->irqchip[i] = virt_create_clic(s, memmap[VIRT_CLIC].base,
+                                             base_hartid);
         }
 
         /* Try to use different IRQCHIP instance based device type */
@@ -1603,11 +1676,145 @@ static void virt_machine_device_plug_cb(HotplugHandler *hotplug_dev,
     }
 }
 
+static bool virt_get_clic(Object *obj, Error **errp)
+{
+    RISCVVirtState *s = RISCV_VIRT_MACHINE(obj);
+
+    return s->have_clic;
+}
+
+static void virt_set_clic(Object *obj, bool value, Error **errp)
+{
+    RISCVVirtState *s = RISCV_VIRT_MACHINE(obj);
+
+    s->have_clic = value;
+}
+
+static char *virt_get_clic_mode(Object *obj, Error **errp)
+{
+    RISCVVirtState *s = RISCV_VIRT_MACHINE(obj);
+    const char *val;
+
+    if (s->have_clic) {
+        if (s->clic_prv_s && s->clic_prv_u) {
+            val = "msu";
+        } else if (s->clic_prv_s) {
+            val = "ms";
+        } else if (s->clic_prv_u) {
+            val = "mu";
+        } else {
+            val = "m";
+        }
+    } else {
+        val = "none";
+    }
+
+    return g_strdup(val);
+}
+
+static void virt_set_clic_mode(Object *obj, const char *val, Error **errp)
+{
+    RISCVVirtState *s = RISCV_VIRT_MACHINE(obj);
+    const char *c = val;
+
+    s->have_clic = true;
+
+    s->clic_prv_s = false;
+    s->clic_prv_u = false;
+
+    /* The mode is encoded with m = machine, s = PRV_S, u = PRV_U */
+    while (*c && !*errp) {
+        switch (*c) {
+        case 'm':
+        case 'M':
+            /* Machine mode is implicit and always enabled */
+            break;
+        case 's':
+        case 'S':
+            s->clic_prv_s = true;
+            break;
+        case 'u':
+        case 'U':
+            s->clic_prv_u = true;
+            break;
+        default:
+            error_setg(errp, "Invalid CLIC interrupt mode %c in %s", *c, val);
+            error_append_hint(errp, "Valid values are m, s and u.\n");
+            break;
+        }
+        ++c;
+    }
+}
+
+static char *virt_get_clic_version(Object *obj, Error **errp)
+{
+    RISCVVirtState *s = RISCV_VIRT_MACHINE(obj);
+    return g_strdup(s->clic_version);
+}
+
+static void virt_set_clic_version(Object *obj, const char *val, Error **errp)
+{
+    RISCVVirtState *s = RISCV_VIRT_MACHINE(obj);
+    g_autofree char **tokens = g_strsplit(val, "-", 2);
+
+    if (0 != strcmp(tokens[0], "v0.9")) {
+        error_setg(errp, "Invalid CLIC version %s", tokens[0]);
+        error_append_hint(errp,
+                          "Only v0.9 is supported. The 'v' is required.\n");
+        return;
+    }
+
+    if (tokens[1]) {
+        if (0 != strcmp(tokens[1], "jmp")) {
+            error_setg(errp, "Invalid CLIC version suffix -%s", tokens[1]);
+            error_append_hint(errp, "Only -jmp is supported.\n");
+            return;
+        }
+    }
+
+    s->clic_version = g_strdup(val);
+    /*
+     * Disable this until we have tested/cherified the clic
+     * s->have_clic = true;
+     */
+}
+
+static void virt_get_clicintctlbits(Object *obj, Visitor *v,
+                                    const char *name, void *opaque,
+                                    Error **errp)
+{
+    RISCVVirtState *s = RISCV_VIRT_MACHINE(obj);
+    uint8_t value = s->clic_intctlbits;
+
+    visit_type_uint8(v, name, &value, errp);
+}
+
+static void virt_set_clicintctlbits(Object *obj, Visitor *v,
+                                    const char *name, void *opaque,
+                                    Error **errp)
+{
+    RISCVVirtState *s = RISCV_VIRT_MACHINE(obj);
+    uint8_t value;
+
+    if (!visit_type_uint8(v, name, &value, errp)) {
+        return;
+    }
+    if (value > MAX_CLIC_INTCTLBITS) {
+        error_setg(errp, "CLIC intctlbits must be <= %d; was %d",
+                   MAX_CLIC_INTCTLBITS, value);
+    }
+
+    s->clic_intctlbits = value;
+}
+
+
+
 static void virt_machine_class_init(ObjectClass *oc, void *data)
 {
     char str[128];
     MachineClass *mc = MACHINE_CLASS(oc);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
+    ObjectProperty *op = NULL;
 
     mc->desc = "RISC-V VirtIO board";
     mc->init = virt_machine_init;
@@ -1634,6 +1841,33 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
     object_class_property_set_description(oc, "aclint",
                                           "Set on/off to enable/disable "
                                           "emulating ACLINT devices");
+
+    object_class_property_add_bool(oc, "clic", virt_get_clic,
+                                   virt_set_clic);
+    object_class_property_set_description(oc, "clic",
+                                          "Set on/off to enable/disable "
+                                          "emulating CLIC devices");
+    object_class_property_add_str(oc, "clic-mode", virt_get_clic_mode,
+                                   virt_set_clic_mode);
+    object_class_property_set_description(oc, "clic-mode",
+                                          "Specify supported CLIC modes: "
+                                          "m = machine (always enabled), "
+                                          "s = PRV_S, u = PRV_U");
+    op = object_class_property_add_str(oc, "clic-version",
+                                       virt_get_clic_version,
+                                       virt_set_clic_version);
+    object_property_set_default_str(op, VIRT_CLIC_VERSION);
+    object_class_property_set_description(oc, "clic-version",
+                                          "Set the CLIC version to use. "
+                                          "Valid values are v0.9 and v0.9-jmp");
+    op = object_class_property_add(oc, "clic-intctlbits", "uint8",
+                                   virt_get_clicintctlbits,
+                                   virt_set_clicintctlbits,
+                                   NULL, NULL);
+    object_property_set_default_uint(op, 8);
+    object_class_property_set_description(oc, "clic-intctlbits",
+                                          "The number of intctl bits used in "
+                                          "this CLIC implementation");
 
     object_class_property_add_str(oc, "aia", virt_get_aia,
                                   virt_set_aia);
