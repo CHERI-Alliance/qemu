@@ -2127,6 +2127,17 @@ libhwcore = static_library('hwcore', sources: hwcore_files + genh,
 hwcore = declare_dependency(link_whole: libhwcore)
 common_ss.add(hwcore)
 
+if 'CONFIG_BRICK' in config_host
+    message('Adding brick as depenedncy')
+    brickdir = config_host['BRICK_DIR']
+    brick_header_dir = brickdir+'/include'
+
+    brickdep = dependency('brick', method : 'cmake', 
+        modules : ['brick::core', 'brick::capture', 'brick::fb','brick::isa', 'brick::tools', 'brick::utils', 'brick::sb'],
+        cmake_args:'-DCMAKE_PREFIX_PATH='+brickdir)
+   common_ss.add(brickdep)
+endif
+
 ###########
 # Targets #
 ###########
@@ -2176,6 +2187,11 @@ foreach target : target_dirs
   if targetos == 'linux'
     target_inc += include_directories('linux-headers', is_system: true)
   endif
+
+  if 'CONFIG_BRICK' in config_host
+        target_inc += brick_header_dir
+        c_args+=['-DCONFIG_BRICK']
+  endif 
   if target.endswith('-softmmu')
     qemu_target_name = 'qemu-system-' + target_name
     target_type='system'
@@ -2761,6 +2777,12 @@ summary_info += {'libpmem support':   config_host.has_key('CONFIG_LIBPMEM')}
 summary_info += {'libdaxctl support': config_host.has_key('CONFIG_LIBDAXCTL')}
 summary_info += {'libudev':           libudev.found()}
 summary_info += {'FUSE lseek':        fuse_lseek.found()}
+
+summary_info +={'Brick Track support':     config_host.has_key('CONFIG_BRICK')}
+if config_host.has_key('CONFIG_BRICK')
+  summary_info +={'Brick Track library':      config_host['BRICK_DIR']}
+endif
+
 summary(summary_info, bool_yn: true, section: 'Dependencies')
 
 if not supported_cpus.contains(cpu)

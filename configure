@@ -469,6 +469,9 @@ multiprocess="auto"
 malloc_trim="auto"
 gio="$default_feature"
 
+brick_dir="/opt/brick"
+enable_brick=no
+
 # parse CC options second
 for opt do
   optarg=$(expr "x$opt" : 'x[^=]*=\(.*\)')
@@ -1577,6 +1580,15 @@ for opt do
   ;;
   --disable-gio) gio=no
   ;;
+  --brick-dir=*)
+      brick_dir="$optarg"
+  ;;
+  --enable-brick) 
+      enable_brick=yes
+  ;;
+  --disable-brick) 
+      enable_brick=no
+  ;;
   *)
       echo "ERROR: unknown option $opt"
       echo "Try '$0 --help' for more information"
@@ -1804,6 +1816,7 @@ Advanced options (experts only):
                            enable plugins via shared library loading
   --disable-containers     don't use containers for cross-building
   --gdb=GDB-path           gdb to use for gdbstub tests [$gdb_bin]
+  --brick-dir=PATH         path to Brick tracing library [$brick_dir]
 
 Optional features, enabled with --enable-FEATURE and
 disabled with --disable-FEATURE, default is enabled if available
@@ -1931,6 +1944,7 @@ disabled with --disable-FEATURE, default is enabled if available
   fuse-lseek      SEEK_HOLE/SEEK_DATA support for FUSE exports
   multiprocess    Out of process device emulation support
   gio             libgio support
+  brick           Brick support. Defaults to disabled
 
 NOTE: The object files are built at the place where configure is launched
 EOF
@@ -6171,6 +6185,14 @@ fi
 
 if test "$secret_keyring" = "yes" ; then
   echo "CONFIG_SECRET_KEYRING=y" >> $config_host_mak
+fi
+
+if test "$enable_brick" = "yes" ; then
+  if ! test -e "$brick_dir"; then
+      error_exit "Brick library folder $brick_dir does not exist"
+  fi
+  echo "CONFIG_BRICK=y" >> $config_host_mak
+  echo "BRICK_DIR=$brick_dir" >> $config_host_mak
 fi
 
 echo "ROMS=$roms" >> $config_host_mak
