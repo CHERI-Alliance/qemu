@@ -25,3 +25,4 @@ tcg_module_ss.add(when: ['CONFIG_SOFTMMU', 'CONFIG_TCG'], if_true: files(
   'tcg-accel-ops-rr.c',
 ))
 specific_ss.add(when: ['CONFIG_TCG_LOG_INSTR', 'CONFIG_TCG'], if_true: files('log_instr.c'))
+specific_ss.add(when: 'CONFIG_BRICK', if_true: files('brick_wrapper.cxx'))

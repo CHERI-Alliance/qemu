@@ -387,6 +387,9 @@ cfi="false"
 # 4. Detection partly done in configure
 xen=${default_feature:+disabled}
 
+brick_dir="/opt/brick"
+enable_brick=no
+
 # parse CC options second
 for opt do
   optarg=$(expr "x$opt" : 'x[^=]*=\(.*\)')
@@ -1193,6 +1196,15 @@ for opt do
   ;;
   --disable-gio) gio=no
   ;;
+  --brick-dir=*)
+      brick_dir="$optarg"
+  ;;
+  --enable-brick)
+      enable_brick=yes
+  ;;
+  --disable-brick)
+      enable_brick=no
+  ;;
   --enable-slirp-smbd) slirp_smbd=yes
   ;;
   --disable-slirp-smbd) slirp_smbd=no
@@ -1431,6 +1443,7 @@ Advanced options (experts only):
                            enable plugins via shared library loading
   --disable-containers     don't use containers for cross-building
   --gdb=GDB-path           gdb to use for gdbstub tests [$gdb_bin]
+  --brick-dir=PATH         path to Brick tracing library [$brick_dir]
 EOF
   meson_options_help
 cat << EOF
@@ -1481,6 +1494,7 @@ cat << EOF
   debug-mutex     mutex debugging support
   rng-none        dummy RNG, avoid using /dev/(u)random and getrandom()
   gio             libgio support
+  brick           Brick support. Defaults to disabled
   slirp-smbd      use smbd (at path --smbd=*) in slirp networking
 
 NOTE: The object files are built at the place where configure is launched
@@ -3756,6 +3770,14 @@ fi
 
 if test "$secret_keyring" = "yes" ; then
   echo "CONFIG_SECRET_KEYRING=y" >> $config_host_mak
+fi
+
+if test "$enable_brick" = "yes" ; then
+  if ! test -e "$brick_dir"; then
+      error_exit "Brick library folder $brick_dir does not exist"
+  fi
+  echo "CONFIG_BRICK=y" >> $config_host_mak
+  echo "BRICK_DIR=$brick_dir" >> $config_host_mak
 fi
 
 echo "ROMS=$roms" >> $config_host_mak
