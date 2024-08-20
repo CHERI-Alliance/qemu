@@ -47,6 +47,9 @@
 #include "tcg/tcg.h"
 #include "tcg/tcg-op.h"
 
+#ifdef CONFIG_BRICK
+#include "qemu/brick_wrapper.h"
+#endif
 /*
  * CHERI common instruction logging.
  *
@@ -544,18 +547,130 @@ static void emit_cvtrace_stop(CPUArchState *env, target_ulong pc)
     // TODO(am2419) Emit an event for instruction logging stop
 }
 
+#ifdef CONFIG_BRICK
+const char *brick_file;
+static void emit_brick_start(CPUArchState *env, target_ulong pc);
+static void emit_brick_stop(CPUArchState *env, target_ulong pc);
+static void emit_brick_entry(CPUArchState *env, cpu_log_instr_info_t *iinfo);
+
+int brick_fd = 0;
+static void emit_brick_start(CPUArchState *env, target_ulong pc)
+{
+    if (brick_fd <= 0) {
+        if (brick_file) {
+            brick_fd = open(brick_file, O_CREAT | O_RDWR, 0666);
+        }
+        if (brick_fd > 0) {
+            init_eventstream(brick_fd);
+        }
+    }
+}
+
+static void emit_brick_stop(CPUArchState *env, target_ulong pc)
+{
+    if (brick_fd) {
+        close_eventstream();
+        brick_fd = 0; // Brick logging owns the file
+    }
+}
+
+static void emit_brick_entry(CPUArchState *env, cpu_log_instr_info_t *iinfo)
+{
+
+    /* Dump mode switching info */
+    brick_track_cpu_state cpu_state;
+#ifdef TARGET_RISCV
+    cpu_state.privilege = env->priv;
+#endif
+#ifdef TARGET_CHERI
+    cpu_state.isamode = CAPABILITY;
+    cpu_state.cheri_mode = cheri_in_capmode(env);
+#else
+    cpu_state.cheri_mode = false;
+    cpu_state.isamode = INTEGER;
+#endif
+    track_cpu_state(&cpu_state);
+
+    /* Dump memory access */
+    for (int i = 0; i < iinfo->mem->len; i++) {
+        log_meminfo_t *minfo = &g_array_index(iinfo->mem, log_meminfo_t, i);
+        brick_track_mem_trnsn mem;
+        mem.flags = minfo->flags;
+        mem.addr = minfo->addr;
+        mem.size = memop_size(minfo->op);
+        mem.val = minfo->value;
+#ifdef TARGET_CHERI
+        mem.pesbt = minfo->cap.cr_pesbt;
+#endif
+        track_mem_transaction(&mem);
+    }
+
+    /* Dump register changes and side-effects */
+    for (int i = 0; i < iinfo->regs->len; i++) {
+        brick_track_reg reg;
+        log_reginfo_t *rinfo = &g_array_index(iinfo->regs, log_reginfo_t, i);
+        reg.regname = rinfo->name;
+        reg.is_cap = rinfo->flags & LRI_HOLDS_CAP;
+#ifdef TARGET_CHERI
+        reg.pesbt = rinfo->cap.cr_pesbt;
+        reg.offset = rinfo->cap._cr_cursor;
+        reg.tag_valid = rinfo->cap.cr_tag;
+#else
+        reg.offset = rinfo->gpr;
+        reg.tag_valid = false;
+        reg.pesbt = 0;
+#endif
+        track_reg_write(&reg);
+    }
+    // finally dump the instruction
+    brick_track_event event;
+    static uint64_t instruction_count = 0;
+    event.count = instruction_count++;
+    event.pc = iinfo->pc;
+    uint32_t instruction = ((uint64_t)iinfo->insn_bytes[0] & 0xff) |
+                           ((uint64_t)(iinfo->insn_bytes[1]) & 0xff) << 8 |
+                           ((uint64_t)(iinfo->insn_bytes[2]) & 0xff) << 16 |
+                           ((uint64_t)(iinfo->insn_bytes[3]) & 0xff) << 24;
+
+    uint64_t mask = ((uint64_t) 1 << (iinfo->insn_size * 8)) - 1;
+    event.insn = instruction & mask;
+
+    output_track_event(&event);
+}
+#define brick_emit_start(ENV, PC)                                              \
+    if (brick_file) {                                                          \
+        emit_brick_start(ENV, PC);                                             \
+    }
+#define brick_emit_stop(ENV, PC)                                               \
+    if (brick_file) {                                                          \
+        emit_brick_stop(ENV, PC);                                              \
+    }
+#define brick_emit_entry(ENV, IINFO)                                           \
+    if (brick_file) {                                                          \
+        emit_brick_entry(ENV, IINFO);                                          \
+    }
+#else
+#define brick_emit_start(ENV, PC)
+#define brick_emit_stop(ENV, PC)
+#define brick_emit_entry(ENV, IINFO)
+#endif
+
 /* Core instruction logging implementation */
 
 static inline void emit_start_event(CPUArchState *env, target_ulong pc)
 {
-    if ((get_cpu_log_state(env)->flags & QEMU_LOG_INSTR_FLAG_BUFFERED) == 0)
+    if ((get_cpu_log_state(env)->flags & QEMU_LOG_INSTR_FLAG_BUFFERED) == 0) {
         trace_format->emit_start(env, pc);
+        brick_emit_start(env, pc);
+    }
 }
 
 static inline void emit_stop_event(CPUArchState *env, target_ulong pc)
 {
-    if ((get_cpu_log_state(env)->flags & QEMU_LOG_INSTR_FLAG_BUFFERED) == 0)
+    if ((get_cpu_log_state(env)->flags & QEMU_LOG_INSTR_FLAG_BUFFERED) == 0) {
         trace_format->emit_stop(env, pc);
+        brick_emit_stop(env, pc);
+    }
 }
 
 static inline void emit_entry_event(CPUArchState *env, cpu_log_instr_info_t *iinfo)
@@ -569,6 +684,7 @@ static inline void emit_entry_event(CPUArchState *env, cpu_log_instr_info_t *iin
     }
     else {
         trace_format->emit_entry(env, iinfo);
+        brick_emit_entry(env, iinfo);
     }
 }
 
