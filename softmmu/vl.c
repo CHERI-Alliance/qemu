@@ -180,6 +180,9 @@ static bool list_data_dirs;
 static const char *watchdog;
 static const char *qtest_chrdev;
 static const char *qtest_log;
+#ifdef CONFIG_BRICK
+extern const char *brick_file;
+#endif
 
 #ifdef TARGET_CHERI
 #include "target/cheri-common/cheri_defs.h"
@@ -2641,17 +2644,23 @@ static void qemu_process_early_options(void)
     if (log_file) {
         qemu_set_log_filename(log_file, &error_fatal);
     }
+    int mask = 0;
     if (log_mask) {
-        int mask;
         mask = qemu_str_to_log_mask(log_mask);
         if (!mask) {
             qemu_print_log_usage(stdout);
             exit(1);
         }
-        qemu_set_log(mask);
-    } else {
-        qemu_set_log(0);
     }
+#ifdef CONFIG_BRICK
+    if (brick_file) {
+        if (!(mask & CPU_LOG_INSTR)) {
+            qemu_log_instr_set_format(QLI_FMT_NOP);
+            mask |= CPU_LOG_INSTR;
+        }
+    }
+#endif
+    qemu_set_log(mask);
 
     qemu_add_default_firmwarepath();
 }
@@ -3835,6 +3844,11 @@ void qemu_init(int argc, char **argv, char **envp)
             case QEMU_OPTION_nouserconfig:
                 /* Nothing to be parsed here. Especially, do not error out below. */
                 break;
+#ifdef CONFIG_BRICK
+            case QEMU_OPTION_brick_file:
+                brick_file = optarg;
+                break;
+#endif
             default:
                 if (os_parse_cmd_args(popt->index, optarg)) {
                     error_report("Option not supported in this build");

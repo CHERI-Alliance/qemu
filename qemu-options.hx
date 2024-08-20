@@ -4368,6 +4368,15 @@ SRST
     Set CHERI instruction trace buffer size to the given number of entries
 ERST
 
+#ifdef CONFIG_BRICK
+DEF("brick-file", HAS_ARG, QEMU_OPTION_brick_file, \
+"-brick-file <file>      Select brick file trace output file.\n", QEMU_ARCH_ALL)
+SRST
+``-brick-file file``
+    Select brick trace output file.
+ERST
+#endif
+
 DEF("cheri-trace-format", HAS_ARG, QEMU_OPTION_cheri_trace_format, \
 "-cheri-trace-format [text|cvtrace]     Select CHERI trace mode.\n", QEMU_ARCH_ALL)
 SRST
