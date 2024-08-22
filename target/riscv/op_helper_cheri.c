@@ -118,17 +118,17 @@ void riscv_log_instr_scr_changed(CPURISCVState *env, int scrno)
 #endif
 
 /*
- * Return 0 if we are allowed to access the given csr. If not, return the
- * negative value of the corresponding exception.
+ * Return RISCV_EXCP_NONE if we are allowed to access the given csr. If not,
+ * return the corresponding exception.
  */
-static int check_csr_cap_permissions(CPURISCVState *env, int csrno,
+static RISCVException check_csr_cap_permissions(CPURISCVState *env, int csrno,
         bool write_access, riscv_csr_cap_ops *csr_cap_info)
 {
     RISCVCPU *cpu = env_archcpu(env);
 
     /* ensure the CSR extension is enabled. */
     if (!cpu->cfg.ext_icsr) {
-        return -RISCV_EXCP_ILLEGAL_INST;
+        return RISCV_EXCP_ILLEGAL_INST;
     }
 
 #if !defined(CONFIG_USER_ONLY)
@@ -149,14 +149,14 @@ static int check_csr_cap_permissions(CPURISCVState *env, int csrno,
 
     if ((write_access && read_only) ||
         (!env->debugger && (effective_priv < get_field(csrno, 0x300)))) {
-        return -RISCV_EXCP_ILLEGAL_INST;
+        return RISCV_EXCP_ILLEGAL_INST;
     }
 #endif
 
     if (csr_cap_info->require_cre && ! riscv_cpu_mode_cre(env)){
-        return -RISCV_EXCP_ILLEGAL_INST;
+        return RISCV_EXCP_ILLEGAL_INST;
     }
-    return 0;
+    return RISCV_EXCP_NONE;
 }
 
 
@@ -173,15 +173,15 @@ void HELPER(csrrw_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
                         uint32_t rs1)
 {
     cap_register_t rs_cap;
-    int ret;
+    RISCVException ret;
     riscv_csr_cap_ops *csr_cap_info = get_csr_cap_info(csr);
     cap_register_t csr_cap;
 
     assert(csr_cap_info);
 
     ret = check_csr_cap_permissions(env, csr, true, csr_cap_info);
-    if (ret) {
-        riscv_raise_exception(env, -ret, GETPC());
+    if (ret != RISCV_EXCP_NONE) {
+        riscv_raise_exception(env, ret, GETPC());
     }
 
     if (!cheri_have_access_sysregs(env) && csr_needs_asr(csr, 1)) {
@@ -207,15 +207,15 @@ void HELPER(csrrs_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
                         uint32_t rs1)
 {
     cap_register_t rs_cap;
-    int ret;
+    RISCVException ret;
     riscv_csr_cap_ops *csr_cap_info = get_csr_cap_info(csr);
     cap_register_t csr_cap;
 
     assert(csr_cap_info);
 
     ret = check_csr_cap_permissions(env, csr, rs1 != 0, csr_cap_info);
-    if (ret) {
-        riscv_raise_exception(env, -ret, GETPC());
+    if (ret != RISCV_EXCP_NONE) {
+        riscv_raise_exception(env, ret, GETPC());
     }
 
     if (!cheri_have_access_sysregs(env) && csr_needs_asr(csr, rs1 != 0)) {
@@ -246,14 +246,14 @@ void HELPER(csrrc_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
                         uint32_t rs1)
 {
     cap_register_t rs_cap;
-    int ret;
+    RISCVException ret;
     riscv_csr_cap_ops *csr_cap_info = get_csr_cap_info(csr);
     cap_register_t csr_cap;
 
     assert(csr_cap_info);
     ret = check_csr_cap_permissions(env, csr, rs1 != 0, csr_cap_info);
-    if (ret) {
-        riscv_raise_exception(env, -ret, GETPC());
+    if (ret != RISCV_EXCP_NONE) {
+        riscv_raise_exception(env, ret, GETPC());
     }
     if (!cheri_have_access_sysregs(env) && csr_needs_asr(csr, rs1 != 0)) {
         raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
@@ -282,7 +282,7 @@ void HELPER(csrrc_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
 void HELPER(csrrwi_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
                         uint32_t rs1)
 {
-    int ret;
+    RISCVException ret;
     riscv_csr_cap_ops *csr_cap_info = get_csr_cap_info(csr);
     cap_register_t csr_cap;
 
@@ -290,8 +290,8 @@ void HELPER(csrrwi_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
 
     ret = check_csr_cap_permissions(env, csr, true, csr_cap_info);
 
-    if (ret) {
-        riscv_raise_exception(env, -ret, GETPC());
+    if (ret != RISCV_EXCP_NONE) {
+        riscv_raise_exception(env, ret, GETPC());
     }
     if (!cheri_have_access_sysregs(env) && csr_needs_asr(csr, 1)) {
         raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
@@ -313,15 +313,15 @@ void HELPER(csrrwi_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
 void HELPER(csrrsi_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
                         uint32_t rs1_val)
 {
-    int ret;
+    RISCVException ret;
     riscv_csr_cap_ops *csr_cap_info = get_csr_cap_info(csr);
     cap_register_t csr_cap;
 
     assert(csr_cap_info);
 
     ret = check_csr_cap_permissions(env, csr, rs1_val != 0, csr_cap_info);
-    if (ret) {
-        riscv_raise_exception(env, -ret, GETPC());
+    if (ret != RISCV_EXCP_NONE) {
+        riscv_raise_exception(env, ret, GETPC());
     }
     if (!cheri_have_access_sysregs(env) && csr_needs_asr(csr, rs1_val != 0)) {
         raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
@@ -347,15 +347,15 @@ void HELPER(csrrsi_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
 void HELPER(csrrci_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
                         uint32_t rs1_val)
 {
-    int ret;
+    RISCVException ret;
     riscv_csr_cap_ops *csr_cap_info = get_csr_cap_info(csr);
     cap_register_t csr_cap;
 
     assert(csr_cap_info);
 
     ret = check_csr_cap_permissions(env, csr, rs1_val != 0, csr_cap_info);
-    if (ret) {
-        riscv_raise_exception(env, -ret, GETPC());
+    if (ret != RISCV_EXCP_NONE) {
+        riscv_raise_exception(env, ret, GETPC());
     }
     if (!cheri_have_access_sysregs(env) && csr_needs_asr(csr, rs1_val != 0)) {
         raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
