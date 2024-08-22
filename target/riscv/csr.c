@@ -1338,41 +1338,29 @@ static int write_mseccfg(CPURISCVState *env, int csrno, target_ulong val)
 
 static int read_menvcfg(CPURISCVState *env, int csrno, target_ulong *val)
 {
-    if ((env->mseccfg & MSECCFG_CRE)) {
-        // at present the CRE bit is the only supported field in the register
-        *val = env->menvcfg & MENVCFG_CRE;
-    } else {
-        *val = 0;
-    }
+    // at present the CRE bit is the only supported field in the register
+    *val = env->menvcfg & MENVCFG_CRE;
     return 0;
 }
 
 static int write_menvcfg(CPURISCVState *env, int csrno, target_ulong val)
 {
-    if ((env->mseccfg & MSECCFG_CRE)) {
-        // at present the CRE bit is the only supported field in the register
-        env->menvcfg = (val & MENVCFG_CRE);
-    }
+    // at present the CRE bit is the only supported field in the register
+    env->menvcfg = (val & MENVCFG_CRE);
     return 0;
 }
 
 static int read_senvcfg(CPURISCVState *env, int csrno, target_ulong *val)
 {
-    if ((env->mseccfg & MSECCFG_CRE) && (env->menvcfg & MENVCFG_CRE)) {
-        // at present the CRE bit is the only supported field in the register
-        *val = env->senvcfg & SENVCFG_CRE;
-    } else {
-        *val = 0;
-    }
+    // at present the CRE bit is the only supported field in the register
+    *val = env->senvcfg & SENVCFG_CRE;
     return 0;
 }
 
 static int write_senvcfg(CPURISCVState *env, int csrno, target_ulong val)
 {
-    if ((env->mseccfg & MSECCFG_CRE) && (env->menvcfg & MENVCFG_CRE)) {
-        // at present the CRE bit is the only supported field in the register
-        env->senvcfg = (val & SENVCFG_CRE);
-    }
+    // at present the CRE bit is the only supported field in the register
+    env->senvcfg = (val & SENVCFG_CRE);
     return 0;
 }
 
