@@ -129,9 +129,6 @@ static const memmapEntry_t pro_fpga_memmap[] = {
 /* CLINT timebase frequency */
 #define CLINT_TIMEBASE_FREQ             100000000 /* 100 MHz */
 
-/* Newer qemu versions define this in boot.h. */
-#define RISCV64_BIOS_BIN "opensbi-riscv64-generic-fw_dynamic.bin"
-
 static int hobgoblin_load_images(HobgoblinState *s)
 {
     MachineState *machine = &s->machine;
