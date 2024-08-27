@@ -377,6 +377,7 @@ static bool trans_LQ(DisasContext *ctx, arg_itype *a)
 
 static bool trans_SQ(DisasContext *ctx, arg_itype *a)
 {
+#if !defined(TARGET_CHERI)
     TCGv_i64 t0 = tcg_temp_new_i64();
     TCGv addr = tcg_temp_new();
 
@@ -400,6 +401,9 @@ static bool trans_SQ(DisasContext *ctx, arg_itype *a)
     tcg_temp_free(t0);
 
     return true;
+#else
+    return false;
+#endif
 }
 
 /*
