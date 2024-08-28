@@ -832,43 +832,21 @@ static bool trans_c_hint(DisasContext *ctx, arg_c_hint *a)
 }
 
 #ifndef TARGET_CHERI
+
+#define TRANS_STUB(instr)                                                      \
+    static bool trans_##instr(DisasContext *ctx, arg_##instr *a)               \
+    {                                                                          \
+        g_assert_not_reached();                                                \
+        return false;                                                          \
+    }
+
 /* Stubs needed for mode-dependent compressed instructions */
-
-static inline bool trans_lc(DisasContext *ctx, arg_lc *a)
-{
-    g_assert_not_reached();
-    return false;
-}
-
-static inline bool trans_sc(DisasContext *ctx, arg_sc *a)
-{
-    g_assert_not_reached();
-    return false;
-}
-
-static inline bool trans_caddi(DisasContext *ctx, arg_caddi *a)
-{
-    g_assert_not_reached();
-    return false;
-}
-
-static bool trans_lr_c(DisasContext *ctx, arg_lr_c *a)
-{
-    g_assert_not_reached();
-    return false;
-}
-
-static bool trans_sc_c(DisasContext *ctx, arg_sc_c *a)
-{
-    g_assert_not_reached();
-    return false;
-}
-
-static bool trans_amoswap_c(DisasContext *ctx, arg_amoswap_c *a)
-{
-    g_assert_not_reached();
-    return false;
-}
+TRANS_STUB(lc)
+TRANS_STUB(sc)
+TRANS_STUB(caddi)
+TRANS_STUB(lr_c)
+TRANS_STUB(sc_c)
+TRANS_STUB(amoswap_c)
 #endif
 
 static void decode_opc(CPURISCVState *env, DisasContext *ctx, uint16_t opcode)
