@@ -743,58 +743,8 @@ static uint32_t opcode_at(DisasContextBase *dcbase, target_ulong pc)
 #ifdef TARGET_CHERI
 /* Must be included first since the helpers are used by trans_rvi.c.inc */
 #include "insn_trans/trans_cheri.c.inc"
-#else
-/* Stubs needed for mode-dependent compressed instructions */
-
-typedef arg_i arg_lc;
-static inline bool trans_lc(DisasContext *ctx, arg_lc *a)
-{
-    g_assert_not_reached();
-    return false;
-}
-
-typedef arg_s arg_sc;
-static inline bool trans_sc(DisasContext *ctx, arg_sc *a)
-{
-    g_assert_not_reached();
-    return false;
-}
-
-typedef arg_atomic arg_lr_c;
-static bool trans_lr_c(DisasContext *ctx, arg_lr_c *a)
-{
-    g_assert_not_reached();
-    return false;
-}
-
-typedef arg_atomic arg_sc_c;
-static bool trans_sc_c(DisasContext *ctx, arg_sc_c *a)
-{
-    g_assert_not_reached();
-    return false;
-}
-
-typedef arg_atomic arg_amoswap_c;
-static bool trans_amoswap_c(DisasContext *ctx, arg_amoswap_c *a)
-{
-    g_assert_not_reached();
-    return false;
-}
-
-typedef arg_icc arg_caddi;
-static inline bool trans_caddi(DisasContext *ctx, arg_caddi *a)
-{
-    g_assert_not_reached();
-    return false;
-}
-
-typedef arg_rcc arg_cadd;
-static bool trans_cadd(DisasContext *ctx, arg_cadd *a)
-{
-    g_assert_not_reached();
-    return false;
-}
 #endif
+
 // Helpers to generate a virtual address that has been checked by the CHERI
 // capability helpers: If ctx->capmode is set, the register number will be
 // a capability and we check that capability, otherwise we treat the register
@@ -881,6 +831,34 @@ static bool trans_c_hint(DisasContext *ctx, arg_c_hint *a)
 {
     return true;
 }
+
+#ifndef TARGET_CHERI
+/* Stubs needed for mode-dependent compressed instructions */
+
+static inline bool trans_lc(DisasContext *ctx, arg_lc *a)
+{
+    g_assert_not_reached();
+    return false;
+}
+
+static inline bool trans_sc(DisasContext *ctx, arg_sc *a)
+{
+    g_assert_not_reached();
+    return false;
+}
+
+static inline bool trans_caddi(DisasContext *ctx, arg_caddi *a)
+{
+    g_assert_not_reached();
+    return false;
+}
+
+static bool trans_cadd(DisasContext *ctx, arg_cadd *a)
+{
+    g_assert_not_reached();
+    return false;
+}
+#endif
 
 static void decode_opc(CPURISCVState *env, DisasContext *ctx, uint16_t opcode)
 {
