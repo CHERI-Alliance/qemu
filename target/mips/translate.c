@@ -15262,7 +15262,7 @@ static void gen_pool16c_r6_insn(DisasContext *ctx)
     }
 }
 
-static void gen_ldxs(DisasContext *ctx, int base, int index, int rd, int opc)
+static void gen_ldxs(DisasContext *ctx, int base, int index, int rd)
 {
     TCGv t0 = tcg_temp_new();
     TCGv t1 = tcg_temp_new();
@@ -16154,7 +16154,7 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
                     gen_r6_muldiv(ctx, R6_OPC_DIV, rd, rs, rt);
                 } else {
                     /* LWXS */
-                    gen_ldxs(ctx, rs, rt, rd, op);
+                    gen_ldxs(ctx, rs, rt, rd);
                 }
                 break;
             case MOD:
@@ -22054,7 +22054,7 @@ static int decode_nanomips_opc(CPUMIPSState *env, DisasContext *ctx)
             gen_pool16c_nanomips_insn(ctx);
             break;
         case NM_LWXS16:
-            gen_ldxs(ctx, rt, rs, rd, op);
+            gen_ldxs(ctx, rt, rs, rd);
             break;
         }
         break;
