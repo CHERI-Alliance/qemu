@@ -42,7 +42,6 @@
 scbnds      0000111  ..... ..... 000 ..... 0110011 @r ?pred_cre
 scbndsr     0000111  ..... ..... 001 ..... 0110011 @r ?pred_cre
 # 0001010 unused
-csub        0010100  ..... ..... 000 ..... 1011011 @r
 # 0010101-1111011 unused
 # 1111100 Used for Stores (see below)
 # 1111101 Used for Loads (see below)

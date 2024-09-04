@@ -558,7 +558,6 @@ typedef enum {
     rv_op_scbnds,
     rv_op_scbndsr,
     rv_op_acperm,
-    rv_op_csub,
 
     rv_op_cadd,
     rv_op_caddi,
@@ -1347,7 +1346,6 @@ const rv_opcode_data opcode_data[] = {
     [rv_op_scbnds] = { "scbnds", rv_codec_r, rv_fmt_cd_cs1_rs2, NULL, 0, 0, 0 },
     [rv_op_scbndsr] = { "scbndsr", rv_codec_r, rv_fmt_cd_cs1_rs2, NULL, 0, 0, 0 },
     [rv_op_acperm] = { "acperm", rv_codec_r, rv_fmt_cd_cs1_rs2, NULL, 0, 0, 0 },
-    [rv_op_csub] = { "csub", rv_codec_r, rv_fmt_rd_cs1_cs2, NULL, 0, 0, 0 },
 
     [rv_op_cadd] = { "cadd", rv_codec_r, rv_fmt_cd_cs1_rs2, NULL, 0, 0, 0 },
     [rv_op_caddi] = { "caddi", rv_codec_i, rv_fmt_cd_cs1_imm, NULL, 0, 0, 0 },
@@ -1576,25 +1574,6 @@ static const char *csr_name(int csrno)
 }
 
 /* decode opcode */
-
-// From insn32-cheri.decode
-#define CHERI_THREEOP_CASE(name, high_bits, ...)                               \
-    case 0b##high_bits:                                                        \
-        return rv_op_##name;
-
-static rv_opcode decode_cheri_inst(rv_inst inst) {
-    int func = ((inst >> 25) & 0b111111);
-    switch (func) {
-    CHERI_THREEOP_CASE(csub,        0010100,  ..... ..... 000 ..... 1011011 @r)
-    // 0010101-1111011 unused
-    // TODO: 1111100 Used for Stores (see below)
-    // TODO: 1111101 Used for Loads (see below)
-    // TODO: 1111110 Used for two source ops
-    // 1111111 Used for Source & Dest ops (see above)
-    default:
-        return rv_op_illegal;
-    }
-}
 
 static void decode_inst_opcode(rv_decode *dec, rv_isa isa, int flags)
 {
@@ -2270,13 +2249,6 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa, int flags)
                         op = rv_op_sraid;
                         break;
                     }
-                    break;
-                }
-            } else if (flags & RISCV_DIS_FLAG_CHERI) {
-                // CHERI instructions:
-                switch (((inst >> 12) & 0b111)) {
-                case 0:
-                    op = decode_cheri_inst(inst);
                     break;
                 }
             }

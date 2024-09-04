@@ -193,9 +193,6 @@ static inline bool trans_cram(DisasContext *ctx, arg_cram *a)
 TRANSLATE_CAP_CAP_INT(scbnds)
 TRANSLATE_CAP_CAP_INT(scbndsr)
 
-// Three operand (int cap cap)
-TRANSLATE_INT_CAP_CAP(csub)
-
 // CIncOffsetImm/CSetBoundsImm:
 typedef void(cheri_cap_cap_imm_helper)(TCGv_env, TCGv_i32, TCGv_i32, TCGv);
 static inline bool gen_cheri_cap_cap_imm(int cd, int cs1, target_long imm,
