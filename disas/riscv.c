@@ -499,7 +499,6 @@ typedef enum {
 
     rv_op_modesw,
     // Two operand
-    rv_op_crrl,
     rv_op_cram,
 
     rv_op_sentry,
@@ -1212,7 +1211,6 @@ const rv_opcode_data opcode_data[] = {
     [rv_op_csc] = { "csc", rv_codec_s, rv_fmt_cs2_offset_cs1, NULL, 0, 0, 0 },
     [rv_op_modesw] = { "modesw", rv_codec_none, rv_fmt_none, NULL, 0, 0, 0 },
     // Two operand
-    [rv_op_crrl] = { "crrl", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0, 0 },
     [rv_op_cram] = { "cram", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0, 0 },
 
     [rv_op_sentry] = { "sentry", rv_codec_r, rv_fmt_cd_cs1, NULL, 0, 0, 0 },
@@ -1488,13 +1486,6 @@ static const char *csr_name(int csrno)
 
 /* decode opcode */
 
-static rv_opcode decode_cheri_two_op(unsigned func) {
-    switch (func) {
-    case 0b01000: return rv_op_crrl;
-    default: return rv_op_illegal;
-    }
-}
-
 // From insn32-cheri.decode
 #define CHERI_THREEOP_CASE(name, high_bits, ...)                               \
     case 0b##high_bits:                                                        \
@@ -1509,8 +1500,6 @@ static rv_opcode decode_cheri_inst(rv_inst inst) {
     // TODO: 1111101 Used for Loads (see below)
     // TODO: 1111110 Used for two source ops
     // 1111111 Used for Source & Dest ops (see above)
-    case 0b111111:
-        return decode_cheri_two_op((inst >> 20) & 0b11111);
     default:
         return rv_op_illegal;
     }
