@@ -547,7 +547,6 @@ typedef enum {
     // Two operand
     rv_op_crrl,
     rv_op_cram,
-    rv_op_cjalr,
 
     rv_op_sentry,
     rv_op_gctag,
@@ -1306,7 +1305,6 @@ const rv_opcode_data opcode_data[] = {
     // Two operand
     [rv_op_crrl] = { "crrl", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0, 0 },
     [rv_op_cram] = { "cram", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0, 0 },
-    [rv_op_cjalr] = { "cjalr", rv_codec_r, rv_fmt_cd_cs1, NULL, 0, 0, 0 },
 
     [rv_op_sentry] = { "sentry", rv_codec_r, rv_fmt_cd_cs1, NULL, 0, 0, 0 },
     [rv_op_gctag] = { "gctag", rv_codec_r, rv_fmt_rd_cs1, NULL, 0, 0, 0 },
@@ -1584,7 +1582,6 @@ static const char *csr_name(int csrno)
 static rv_opcode decode_cheri_two_op(unsigned func) {
     switch (func) {
     case 0b01000: return rv_op_crrl;
-    case 0b01100: return rv_op_cjalr;
     default: return rv_op_illegal;
     }
 }
