@@ -893,6 +893,14 @@ riscv_csr_cap_ops* get_csr_cap_info(int csrnum);
 /* Do the CRE bits allow cheri access in the current CPU mode? */
 static inline bool riscv_cpu_mode_cre(CPURISCVState *env)
 {
+    /*
+     * CRE bits are defined only if Zcherihybrid is supported.
+     * For Zcheripurecap, cheri register access is always allowed.
+     */
+    if (!riscv_feature(env, RISCV_FEATURE_CHERI_HYBRID)) {
+        return true;
+    }
+
     if (env->mseccfg & MSECCFG_CRE) {
         /* CRE bits allow cheri in M mode */
         if (env->priv == PRV_M)
