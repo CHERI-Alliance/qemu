@@ -65,7 +65,6 @@ scmode 0000110  ..... ..... 111 ..... 0110011 @rcc ?pred_cre ?pred_hybrid
 
 ### Two operands (source and dest)
 # TODO: generate from sail?
-crrl        1111111  01000 ..... 000 ..... 1011011 @r2
 cram        0001000  00111 ..... 000 ..... 0110011 @r2 ?pred_cre
 # clear     1111111  01101 ..... 000 ..... 1011011 @r2
 # cclear    1111111  01110 ..... 000 ..... 1011011 @r2

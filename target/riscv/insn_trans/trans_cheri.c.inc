@@ -184,10 +184,6 @@ static inline bool gen_cheri_int_cap_cap(DisasContext *ctx, int rd, int cs1,
 // TODO: all of these could be implemented in TCG without calling a helper
 
 // Two operand (int int)
-static inline bool trans_crrl(DisasContext *ctx, arg_crrl *a)
-{
-    return gen_cheri_int_int(ctx, a->rd, a->rs1, &gen_helper_crap);
-}
 static inline bool trans_cram(DisasContext *ctx, arg_cram *a)
 {
     return gen_cheri_int_int(ctx, a->rd, a->rs1, &gen_helper_cram);
