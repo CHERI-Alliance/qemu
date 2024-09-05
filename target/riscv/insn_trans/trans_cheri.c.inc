@@ -63,8 +63,6 @@ static inline bool gen_cheri_cap_cap(int cd, int cs,
     tcg_temp_free_i32(dest_regnum);
     return true;
 }
-#define TRANSLATE_CAP_CAP(name)                                                \
-    DO_TRANSLATE(name, gen_cheri_cap_cap, a->rd, a->rs1)
 
 typedef void(cheri_cap_int_helper)(TCGv_env, TCGv_i32, TCGv);
 static inline QEMU_ALWAYS_INLINE bool
