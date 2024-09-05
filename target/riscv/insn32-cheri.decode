@@ -41,12 +41,6 @@
 ### Three operand instructions
 scbnds      0000111  ..... ..... 000 ..... 0110011 @r ?pred_cre
 scbndsr     0000111  ..... ..... 001 ..... 0110011 @r ?pred_cre
-# 0001010 unused
-# 0010101-1111011 unused
-# 1111100 Used for Stores (see below)
-# 1111101 Used for Loads (see below)
-# 1111110 Used for two source ops
-# 1111111 Used for Source & Dest ops (see below)
 
 @rcc     .......   ..... ..... ... ..... ....... &rcc     %rs2 %cs1 %cd
 @ccr     .......   ..... ..... ... ..... ....... %cs2 %cs1 %rd
@@ -63,11 +57,7 @@ scmode 0000110  ..... ..... 111 ..... 0110011 @rcc ?pred_cre ?pred_hybrid
 
 
 ### Two operands (source and dest)
-# TODO: generate from sail?
 cram        0001000  00111 ..... 000 ..... 0110011 @r2 ?pred_cre
-# clear     1111111  01101 ..... 000 ..... 1011011 @r2
-# cclear    1111111  01110 ..... 000 ..... 1011011 @r2
-# fpclear   1111111  10000 ..... 000 ..... 1011011 @r2
 
 @cc         .......  ..... ..... ... ..... ....... %cs1 %cd
 
