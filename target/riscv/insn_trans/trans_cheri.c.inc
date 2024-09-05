@@ -52,9 +52,6 @@ static inline bool gen_cheri_int_cap(DisasContext *ctx, int rd, int cs,
     return true;
 }
 
-#define TRANSLATE_INT_CAP(name)                                                \
-    DO_TRANSLATE(name, gen_cheri_int_cap, ctx, a->rd, a->rs1)
-
 typedef void(cheri_cap_cap_helper)(TCGv_env, TCGv_i32, TCGv_i32);
 static inline bool gen_cheri_cap_cap(int cd, int cs,
                                      cheri_cap_cap_helper *gen_func)
