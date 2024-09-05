@@ -106,9 +106,6 @@ static inline bool gen_cheri_cap_cap_cap(int cd, int cs1, int cs2,
     tcg_temp_free_i32(dest_regnum);
     return true;
 }
-// We assume that all these instructions can trap (e.g. seal violation)
-#define TRANSLATE_CAP_CAP_CAP(name)                                            \
-    DO_TRANSLATE(name, gen_cheri_cap_cap_cap, a->rd, a->rs1, a->rs2)
 
 typedef void(cheri_cap_cap_int_helper)(TCGv_env, TCGv_i32, TCGv_i32, TCGv);
 static inline bool
