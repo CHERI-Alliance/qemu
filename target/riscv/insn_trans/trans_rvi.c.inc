@@ -575,7 +575,7 @@ static bool trans_csrrw(DisasContext *ctx, arg_csrrw *a)
     if( is_cap_csr(a->csr) ){
         // currently this is not appropriate as the behaviour is expectedthe helper function to return the register valu and then the post code moves this into the rd register. This is not the way that
         // we can do directly. Need to look at how this is handled elsewhere.
-        gen_cheri_cap_cap_cap(a->csr, a->rd, a->rs1, &gen_helper_csrrw_cap);
+        gen_cheri_cap_cap_cap(ctx, a->csr, a->rd, a->rs1, &gen_helper_csrrw_cap);
         return true;
     }
 #endif
@@ -644,7 +644,7 @@ static bool trans_csrrs(DisasContext *ctx, arg_csrrs *a)
     TCGv source1, csr_store, dest, rs1_pass;
 #ifdef TARGET_CHERI
     if( is_cap_csr(a->csr) ){
-        gen_cheri_cap_cap_cap(a->csr, a->rd, a->rs1, &gen_helper_csrrs_cap);
+        gen_cheri_cap_cap_cap(ctx, a->csr, a->rd, a->rs1, &gen_helper_csrrs_cap);
         return true;
     }
 #endif    
@@ -659,7 +659,7 @@ static bool trans_csrrc(DisasContext *ctx, arg_csrrc *a)
     TCGv source1, csr_store, dest, rs1_pass;
 #ifdef TARGET_CHERI
     if( is_cap_csr(a->csr) ){
-        gen_cheri_cap_cap_cap(a->csr, a->rd, a->rs1, &gen_helper_csrrc_cap);
+        gen_cheri_cap_cap_cap(ctx, a->csr, a->rd, a->rs1, &gen_helper_csrrc_cap);
         return true;
     }
 #endif
@@ -674,7 +674,7 @@ static bool trans_csrrwi(DisasContext *ctx, arg_csrrwi *a)
     TCGv source1, csr_store, dest, rs1_pass;
 #ifdef TARGET_CHERI    
     if( is_cap_csr(a->csr) ){
-        gen_cheri_cap_cap_cap(a->csr, a->rd, a->rs1, &gen_helper_csrrwi_cap);
+        gen_cheri_cap_cap_cap(ctx, a->csr, a->rd, a->rs1, &gen_helper_csrrwi_cap);
         return true;
     }
 #endif
@@ -689,7 +689,7 @@ static bool trans_csrrsi(DisasContext *ctx, arg_csrrsi *a)
     TCGv source1, csr_store, dest, rs1_pass;
 #ifdef TARGET_CHERI
     if( is_cap_csr(a->csr) ){
-        gen_cheri_cap_cap_cap(a->csr, a->rd, a->rs1, &gen_helper_csrrsi_cap);
+        gen_cheri_cap_cap_cap(ctx, a->csr, a->rd, a->rs1, &gen_helper_csrrsi_cap);
         return true;
     }
 #endif    
@@ -704,7 +704,7 @@ static bool trans_csrrci(DisasContext *ctx, arg_csrrci *a)
     TCGv source1, csr_store, dest, rs1_pass;
 #ifdef TARGET_CHERI
     if( is_cap_csr(a->csr) ){
-        gen_cheri_cap_cap_cap(a->csr, a->rd, a->rs1, &gen_helper_csrrci_cap);
+        gen_cheri_cap_cap_cap(ctx, a->csr, a->rd, a->rs1, &gen_helper_csrrci_cap);
         return true;
     }
 #endif
