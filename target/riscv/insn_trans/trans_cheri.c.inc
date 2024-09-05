@@ -164,8 +164,6 @@ static inline bool gen_cheri_int_cap_cap(DisasContext *ctx, int rd, int cs1,
     tcg_temp_free_i32(source_regnum1);
     return true;
 }
-#define TRANSLATE_INT_CAP_CAP(name)                                            \
-    DO_TRANSLATE(name, gen_cheri_int_cap_cap, ctx, a->rd, a->rs1, a->rs2)
 
 // TODO: all of these could be implemented in TCG without calling a helper
 
