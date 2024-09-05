@@ -84,12 +84,6 @@ gen_cheri_cap_int_plus_imm(DisasContext *ctx, int cd, int rs, target_long imm,
     return true;
 }
 
-static inline bool gen_cheri_cap_int(DisasContext *ctx, int cd, int rs,
-                                     cheri_cap_int_helper *gen_func)
-{
-    return gen_cheri_cap_int_plus_imm(ctx, cd, rs, 0, gen_func);
-}
-
 typedef void(cheri_int_int_helper)(TCGv, TCGv_env, TCGv);
 static inline bool gen_cheri_int_int(DisasContext *ctx, int rd, int rs,
                                      cheri_int_int_helper *gen_func)
