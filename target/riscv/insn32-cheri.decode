@@ -39,21 +39,20 @@
 %cd         7:5
 
 ### Three operand instructions
-scbnds      0000111  ..... ..... 000 ..... 0110011 @r ?pred_cre
-scbndsr     0000111  ..... ..... 001 ..... 0110011 @r ?pred_cre
-
 @rcc     .......   ..... ..... ... ..... ....... &rcc     %rs2 %cs1 %cd
 @ccr     .......   ..... ..... ... ..... ....... %cs2 %cs1 %rd
 @ccc     .......   ..... ..... ... ..... ....... %cs2 %cs1 %cd
 
-cadd   0000110  ..... ..... 000 ..... 0110011 @rcc ?pred_cre
-scaddr 0000110  ..... ..... 001 ..... 0110011 @rcc ?pred_cre
-schi   0000110  ..... ..... 011 ..... 0110011 @rcc ?pred_cre
-sceq   0000110  ..... ..... 100 ..... 0110011 @ccr ?pred_cre
-acperm 0000110  ..... ..... 010 ..... 0110011 @rcc ?pred_cre
-cbld   0000110  ..... ..... 101 ..... 0110011 @ccc ?pred_cre
-scss   0000110  ..... ..... 110 ..... 0110011 @ccr ?pred_cre
-scmode 0000110  ..... ..... 111 ..... 0110011 @rcc ?pred_cre ?pred_hybrid
+scbnds  0000111  ..... ..... 000 ..... 0110011 @rcc ?pred_cre
+scbndsr 0000111  ..... ..... 001 ..... 0110011 @rcc ?pred_cre
+cadd    0000110  ..... ..... 000 ..... 0110011 @rcc ?pred_cre
+scaddr  0000110  ..... ..... 001 ..... 0110011 @rcc ?pred_cre
+schi    0000110  ..... ..... 011 ..... 0110011 @rcc ?pred_cre
+sceq    0000110  ..... ..... 100 ..... 0110011 @ccr ?pred_cre
+acperm  0000110  ..... ..... 010 ..... 0110011 @rcc ?pred_cre
+cbld    0000110  ..... ..... 101 ..... 0110011 @ccc ?pred_cre
+scss    0000110  ..... ..... 110 ..... 0110011 @ccr ?pred_cre
+scmode  0000110  ..... ..... 111 ..... 0110011 @rcc ?pred_cre ?pred_hybrid
 
 
 ### Two operands (source and dest)

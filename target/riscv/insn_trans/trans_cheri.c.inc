@@ -128,9 +128,6 @@ gen_cheri_cap_cap_int_plus_imm(DisasContext *ctx, int cd, int cs1, int rs2,
     tcg_temp_free_i32(dest_regnum);
     return true;
 }
-#define TRANSLATE_CAP_CAP_INT(name)                                            \
-    DO_TRANSLATE(name, gen_cheri_cap_cap_int_plus_imm, ctx, a->rd, a->rs1,     \
-                 a->rs2, 0)
 
 typedef void(cheri_cap_loadstore_helper)(TCGv_env, TCGv_i32, TCGv, TCGv_i32);
 static inline bool gen_cheri_cap_loadstore(DisasContext *ctx, int srcdst,
@@ -174,10 +171,6 @@ static inline bool trans_cram(DisasContext *ctx, arg_cram *a)
 {
     return gen_cheri_int_int(ctx, a->rd, a->rs1, &gen_helper_cram);
 }
-
-// Three operand (cap cap int)
-TRANSLATE_CAP_CAP_INT(scbnds)
-TRANSLATE_CAP_CAP_INT(scbndsr)
 
 // CIncOffsetImm/CSetBoundsImm:
 typedef void(cheri_cap_cap_imm_helper)(TCGv_env, TCGv_i32, TCGv_i32, TCGv);
@@ -519,6 +512,9 @@ static bool trans_cadd(DisasContext *ctx, arg_cadd *a)
     tcg_temp_free_i32(dest_regnum);
     return true;
 }
+
+TRANSLATE_CAP_CAP_INT_BW(scbnds)
+TRANSLATE_CAP_CAP_INT_BW(scbndsr)
 
 TRANSLATE_CAP_CAP_IMM_BW(caddi)
 
