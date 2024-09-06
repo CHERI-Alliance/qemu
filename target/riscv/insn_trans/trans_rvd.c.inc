@@ -253,7 +253,7 @@ static bool trans_feq_d(DisasContext *ctx, arg_feq_d *a)
 
     TCGv t0 = tcg_temp_new();
     gen_helper_feq_d(t0, cpu_env, cpu_fpr[a->rs1], cpu_fpr[a->rs2]);
-    gen_set_gpr(a->rd, t0);
+    gen_set_gpr(ctx, a->rd, t0);
     tcg_temp_free(t0);
 
     return true;
@@ -266,7 +266,7 @@ static bool trans_flt_d(DisasContext *ctx, arg_flt_d *a)
 
     TCGv t0 = tcg_temp_new();
     gen_helper_flt_d(t0, cpu_env, cpu_fpr[a->rs1], cpu_fpr[a->rs2]);
-    gen_set_gpr(a->rd, t0);
+    gen_set_gpr(ctx, a->rd, t0);
     tcg_temp_free(t0);
 
     return true;
@@ -279,7 +279,7 @@ static bool trans_fle_d(DisasContext *ctx, arg_fle_d *a)
 
     TCGv t0 = tcg_temp_new();
     gen_helper_fle_d(t0, cpu_env, cpu_fpr[a->rs1], cpu_fpr[a->rs2]);
-    gen_set_gpr(a->rd, t0);
+    gen_set_gpr(ctx, a->rd, t0);
     tcg_temp_free(t0);
 
     return true;
@@ -292,7 +292,7 @@ static bool trans_fclass_d(DisasContext *ctx, arg_fclass_d *a)
 
     TCGv t0 = tcg_temp_new();
     gen_helper_fclass_d(t0, cpu_fpr[a->rs1]);
-    gen_set_gpr(a->rd, t0);
+    gen_set_gpr(ctx, a->rd, t0);
     tcg_temp_free(t0);
     return true;
 }
@@ -305,7 +305,7 @@ static bool trans_fcvt_w_d(DisasContext *ctx, arg_fcvt_w_d *a)
     TCGv t0 = tcg_temp_new();
     gen_set_rm(ctx, a->rm);
     gen_helper_fcvt_w_d(t0, cpu_env, cpu_fpr[a->rs1]);
-    gen_set_gpr(a->rd, t0);
+    gen_set_gpr(ctx, a->rd, t0);
     tcg_temp_free(t0);
 
     return true;
@@ -319,7 +319,7 @@ static bool trans_fcvt_wu_d(DisasContext *ctx, arg_fcvt_wu_d *a)
     TCGv t0 = tcg_temp_new();
     gen_set_rm(ctx, a->rm);
     gen_helper_fcvt_wu_d(t0, cpu_env, cpu_fpr[a->rs1]);
-    gen_set_gpr(a->rd, t0);
+    gen_set_gpr(ctx, a->rd, t0);
     tcg_temp_free(t0);
 
     return true;
@@ -367,7 +367,7 @@ static bool trans_fcvt_l_d(DisasContext *ctx, arg_fcvt_l_d *a)
     TCGv t0 = tcg_temp_new();
     gen_set_rm(ctx, a->rm);
     gen_helper_fcvt_l_d(t0, cpu_env, cpu_fpr[a->rs1]);
-    gen_set_gpr(a->rd, t0);
+    gen_set_gpr(ctx, a->rd, t0);
     tcg_temp_free(t0);
     return true;
 }
@@ -380,7 +380,7 @@ static bool trans_fcvt_lu_d(DisasContext *ctx, arg_fcvt_lu_d *a)
     TCGv t0 = tcg_temp_new();
     gen_set_rm(ctx, a->rm);
     gen_helper_fcvt_lu_d(t0, cpu_env, cpu_fpr[a->rs1]);
-    gen_set_gpr(a->rd, t0);
+    gen_set_gpr(ctx, a->rd, t0);
     tcg_temp_free(t0);
     return true;
 }
@@ -390,7 +390,7 @@ static bool trans_fmv_x_d(DisasContext *ctx, arg_fmv_x_d *a)
     REQUIRE_FPU;
     REQUIRE_EXT(ctx, RVD);
 
-    gen_set_gpr(a->rd, cpu_fpr[a->rs1]);
+    gen_set_gpr(ctx, a->rd, cpu_fpr[a->rs1]);
     return true;
 }
 

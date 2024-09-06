@@ -35,7 +35,7 @@ static bool trans_mulh(DisasContext *ctx, arg_mulh *a)
 
     tcg_gen_muls2_tl(source2, source1, source1, source2);
 
-    gen_set_gpr(a->rd, source1);
+    gen_set_gpr(ctx, a->rd, source1);
     tcg_temp_free(source1);
     tcg_temp_free(source2);
     return true;
@@ -57,7 +57,7 @@ static bool trans_mulhu(DisasContext *ctx, arg_mulhu *a)
 
     tcg_gen_mulu2_tl(source2, source1, source1, source2);
 
-    gen_set_gpr(a->rd, source1);
+    gen_set_gpr(ctx, a->rd, source1);
     tcg_temp_free(source1);
     tcg_temp_free(source2);
     return true;

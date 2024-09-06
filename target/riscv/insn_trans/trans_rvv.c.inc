@@ -40,7 +40,7 @@ static bool trans_vsetvl(DisasContext *ctx, arg_vsetvl *a)
     }
     gen_get_gpr(s2, a->rs2);
     gen_helper_vsetvl(dst, cpu_env, s1, s2);
-    gen_set_gpr(a->rd, dst);
+    gen_set_gpr(ctx, a->rd, dst);
     tcg_gen_movi_tl(cpu_pc, ctx->pc_succ_insn);
     lookup_and_goto_ptr(ctx);
     ctx->base.is_jmp = DISAS_NORETURN;
@@ -71,7 +71,7 @@ static bool trans_vsetvli(DisasContext *ctx, arg_vsetvli *a)
         gen_get_gpr(s1, a->rs1);
     }
     gen_helper_vsetvl(dst, cpu_env, s1, s2);
-    gen_set_gpr(a->rd, dst);
+    gen_set_gpr(ctx, a->rd, dst);
     /* CHERI PCC bounds check done on next ifetch. */
     gen_goto_tb(ctx, 0, ctx->pc_succ_insn, /*bounds_check=*/false);
     ctx->base.is_jmp = DISAS_NORETURN;

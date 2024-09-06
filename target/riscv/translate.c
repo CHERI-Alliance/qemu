@@ -294,7 +294,7 @@ static inline void _gen_set_gpr_const(DisasContext *ctx, int reg_num_dst,
     }
 }
 
-#define gen_set_gpr(reg_num_dst, t) _gen_set_gpr(ctx, reg_num_dst, t, true)
+#define gen_set_gpr(ctx, reg_num_dst, t) _gen_set_gpr(ctx, reg_num_dst, t, true)
 #define gen_set_gpr_const(reg_num_dst, t) _gen_set_gpr_const(ctx, reg_num_dst, t)
 
 #ifdef CONFIG_TCG_LOG_INSTR
@@ -646,7 +646,7 @@ static bool gen_arith_imm_fn(DisasContext *ctx, arg_i *a,
 
     (*func)(source1, source1, a->imm);
 
-    gen_set_gpr(a->rd, source1);
+    gen_set_gpr(ctx, a->rd, source1);
     tcg_temp_free(source1);
     return true;
 }
@@ -663,7 +663,7 @@ static bool gen_arith_imm_tl(DisasContext *ctx, arg_i *a,
 
     (*func)(source1, source1, source2);
 
-    gen_set_gpr(a->rd, source1);
+    gen_set_gpr(ctx, a->rd, source1);
     tcg_temp_free(source1);
     tcg_temp_free(source2);
     return true;
@@ -703,7 +703,7 @@ static bool gen_arith_div_w(DisasContext *ctx, arg_r *a,
     (*func)(source1, source1, source2);
 
     tcg_gen_ext32s_tl(source1, source1);
-    gen_set_gpr(a->rd, source1);
+    gen_set_gpr(ctx, a->rd, source1);
     tcg_temp_free(source1);
     tcg_temp_free(source2);
     return true;
@@ -724,7 +724,7 @@ static bool gen_arith_div_uw(DisasContext *ctx, arg_r *a,
     (*func)(source1, source1, source2);
 
     tcg_gen_ext32s_tl(source1, source1);
-    gen_set_gpr(a->rd, source1);
+    gen_set_gpr(ctx, a->rd, source1);
     tcg_temp_free(source1);
     tcg_temp_free(source2);
     return true;
@@ -744,7 +744,7 @@ static bool gen_arith(DisasContext *ctx, arg_r *a,
 
     (*func)(source1, source1, source2);
 
-    gen_set_gpr(a->rd, source1);
+    gen_set_gpr(ctx, a->rd, source1);
     tcg_temp_free(source1);
     tcg_temp_free(source2);
     return true;
@@ -762,7 +762,7 @@ static bool gen_shift(DisasContext *ctx, arg_r *a,
     tcg_gen_andi_tl(source2, source2, TARGET_LONG_BITS - 1);
     (*func)(source1, source1, source2);
 
-    gen_set_gpr(a->rd, source1);
+    gen_set_gpr(ctx, a->rd, source1);
     tcg_temp_free(source1);
     tcg_temp_free(source2);
     return true;

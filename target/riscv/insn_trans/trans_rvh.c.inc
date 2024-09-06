@@ -46,7 +46,7 @@ static bool gen_hlv(DisasContext *ctx, int rs1, int rd, MemOp memop)
 
     gen_ddc_interposed_ld_tl(ctx, t1, /* Update addr in-place */ NULL, t0,
         ctx->mem_idx | TB_FLAGS_PRIV_HYP_ACCESS_MASK, memop);
-    gen_set_gpr(rd, t1);
+    gen_set_gpr(ctx, rd, t1);
 
     tcg_temp_free(t0);
     tcg_temp_free(t1);
@@ -154,7 +154,7 @@ static bool trans_hlvx_hu(DisasContext *ctx, arg_hlvx_hu *a)
     gen_get_gpr(t0, a->rs1);
 
     gen_helper_hyp_hlvx_hu(t1, cpu_env, t0);
-    gen_set_gpr(a->rd, t1);
+    gen_set_gpr(ctx, a->rd, t1);
 
     tcg_temp_free(t0);
     tcg_temp_free(t1);
@@ -176,7 +176,7 @@ static bool trans_hlvx_wu(DisasContext *ctx, arg_hlvx_wu *a)
     gen_get_gpr(t0, a->rs1);
 
     gen_helper_hyp_hlvx_wu(t1, cpu_env, t0);
-    gen_set_gpr(a->rd, t1);
+    gen_set_gpr(ctx, a->rd, t1);
 
     tcg_temp_free(t0);
     tcg_temp_free(t1);

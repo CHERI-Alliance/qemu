@@ -273,7 +273,7 @@ static bool trans_fcvt_w_s(DisasContext *ctx, arg_fcvt_w_s *a)
     TCGv t0 = tcg_temp_new();
     gen_set_rm(ctx, a->rm);
     gen_helper_fcvt_w_s(t0, cpu_env, cpu_fpr[a->rs1]);
-    gen_set_gpr(a->rd, t0);
+    gen_set_gpr(ctx, a->rd, t0);
     tcg_temp_free(t0);
 
     return true;
@@ -287,7 +287,7 @@ static bool trans_fcvt_wu_s(DisasContext *ctx, arg_fcvt_wu_s *a)
     TCGv t0 = tcg_temp_new();
     gen_set_rm(ctx, a->rm);
     gen_helper_fcvt_wu_s(t0, cpu_env, cpu_fpr[a->rs1]);
-    gen_set_gpr(a->rd, t0);
+    gen_set_gpr(ctx, a->rd, t0);
     tcg_temp_free(t0);
 
     return true;
@@ -307,7 +307,7 @@ static bool trans_fmv_x_w(DisasContext *ctx, arg_fmv_x_w *a)
     tcg_gen_extrl_i64_i32(t0, cpu_fpr[a->rs1]);
 #endif
 
-    gen_set_gpr(a->rd, t0);
+    gen_set_gpr(ctx, a->rd, t0);
     tcg_temp_free(t0);
 
     return true;
@@ -319,7 +319,7 @@ static bool trans_feq_s(DisasContext *ctx, arg_feq_s *a)
     REQUIRE_EXT(ctx, RVF);
     TCGv t0 = tcg_temp_new();
     gen_helper_feq_s(t0, cpu_env, cpu_fpr[a->rs1], cpu_fpr[a->rs2]);
-    gen_set_gpr(a->rd, t0);
+    gen_set_gpr(ctx, a->rd, t0);
     tcg_temp_free(t0);
     return true;
 }
@@ -330,7 +330,7 @@ static bool trans_flt_s(DisasContext *ctx, arg_flt_s *a)
     REQUIRE_EXT(ctx, RVF);
     TCGv t0 = tcg_temp_new();
     gen_helper_flt_s(t0, cpu_env, cpu_fpr[a->rs1], cpu_fpr[a->rs2]);
-    gen_set_gpr(a->rd, t0);
+    gen_set_gpr(ctx, a->rd, t0);
     tcg_temp_free(t0);
     return true;
 }
@@ -341,7 +341,7 @@ static bool trans_fle_s(DisasContext *ctx, arg_fle_s *a)
     REQUIRE_EXT(ctx, RVF);
     TCGv t0 = tcg_temp_new();
     gen_helper_fle_s(t0, cpu_env, cpu_fpr[a->rs1], cpu_fpr[a->rs2]);
-    gen_set_gpr(a->rd, t0);
+    gen_set_gpr(ctx, a->rd, t0);
     tcg_temp_free(t0);
     return true;
 }
@@ -355,7 +355,7 @@ static bool trans_fclass_s(DisasContext *ctx, arg_fclass_s *a)
 
     gen_helper_fclass_s(t0, cpu_fpr[a->rs1]);
 
-    gen_set_gpr(a->rd, t0);
+    gen_set_gpr(ctx, a->rd, t0);
     tcg_temp_free(t0);
 
     return true;
@@ -422,7 +422,7 @@ static bool trans_fcvt_l_s(DisasContext *ctx, arg_fcvt_l_s *a)
     TCGv t0 = tcg_temp_new();
     gen_set_rm(ctx, a->rm);
     gen_helper_fcvt_l_s(t0, cpu_env, cpu_fpr[a->rs1]);
-    gen_set_gpr(a->rd, t0);
+    gen_set_gpr(ctx, a->rd, t0);
     tcg_temp_free(t0);
     return true;
 }
@@ -435,7 +435,7 @@ static bool trans_fcvt_lu_s(DisasContext *ctx, arg_fcvt_lu_s *a)
     TCGv t0 = tcg_temp_new();
     gen_set_rm(ctx, a->rm);
     gen_helper_fcvt_lu_s(t0, cpu_env, cpu_fpr[a->rs1]);
-    gen_set_gpr(a->rd, t0);
+    gen_set_gpr(ctx, a->rd, t0);
     tcg_temp_free(t0);
     return true;
 }

@@ -46,7 +46,7 @@ static inline bool gen_cheri_int_cap(DisasContext *ctx, int rd, int cs,
     TCGv_i32 source_regnum = tcg_const_i32(cs);
     TCGv result = tcg_temp_new();
     gen_func(result, cpu_env, source_regnum);
-    gen_set_gpr(rd, result);
+    gen_set_gpr(ctx, rd, result);
     tcg_temp_free(result);
     tcg_temp_free_i32(source_regnum);
     return true;
@@ -89,7 +89,7 @@ static inline bool gen_cheri_int_int(DisasContext *ctx, int rd, int rs,
     TCGv gpr_src_value = tcg_temp_new();
     gen_get_gpr(gpr_src_value, rs);
     gen_func(result, cpu_env, gpr_src_value);
-    gen_set_gpr(rd, result);
+    gen_set_gpr(ctx, rd, result);
     tcg_temp_free(gpr_src_value);
     tcg_temp_free(result);
     return true;
@@ -158,7 +158,7 @@ static inline bool gen_cheri_int_cap_cap(DisasContext *ctx, int rd, int cs1,
     TCGv_i32 source_regnum2 = tcg_const_i32(cs2);
     TCGv result = tcg_temp_new();
     gen_func(result, cpu_env, source_regnum1, source_regnum2);
-    gen_set_gpr(rd, result);
+    gen_set_gpr(ctx, rd, result);
     tcg_temp_free(result);
     tcg_temp_free_i32(source_regnum2);
     tcg_temp_free_i32(source_regnum1);
@@ -256,7 +256,7 @@ static inline bool gen_cap_load_mem_idx(DisasContext *ctx, int32_t rd,
     TCGv_cap_checked_ptr vaddr = tcg_temp_new_cap_checked();
     generate_cap_load_check_imm(vaddr, cs, offset, op);
     tcg_gen_qemu_ld_tl_with_checked_addr(value, vaddr, mem_idx, op);
-    gen_set_gpr(rd, value);
+    gen_set_gpr(ctx, rd, value);
     tcg_temp_free_cap_checked(vaddr);
     tcg_temp_free(value);
     return true;
