@@ -462,45 +462,44 @@ static bool trans_cadd(DisasContext *ctx, arg_cadd *a)
     TCGv gpr_value;
 
     /*
-     * Handle the special cases here in tcg only if we're in capability
-     * pointer mode, i.e. if the cadd instruction is valid.
-     * If we're in integer pointer mode, we go into the helper and throw an
-     * exception.
-     * TODO: Update the check for capability pointer mode to take the CPU
-     * execution mode and the CRE bits into account (here and elsewhere).
+     * We used to have an if (ctx->capmode) or if (ctx->cre) check here. This
+     * is not needed.
+     *
+     * We're called only if cadd is allowed to access capability registers.
+     * (If not, cadd is considered as an illegal instruction and not
+     * processed.)
      */
-    if (ctx->capmode) {
-        if (a->cd == 0) {
-            /*
-             * cadd cd, cs1, rs1 increments cs1's address by rs1 and stores
-             * the result in cd. If cd == c0, the result is discarded, the
-             * calculation has no side effects. There's nothing to do.
-             */
-            return true;
-        }
 
-        if (a->rs2 == 0) {
-            /*
-             * cadd cd, cs1, x0 copies cs1 to cd. cd's tag is not cleared if
-             * cs1 is sealed.
-             * The copy can be done on the tcg layer without a helper.
-             */
+    if (a->cd == 0) {
+        /*
+         * cadd cd, cs1, rs1 increments cs1's address by rs1 and stores
+         * the result in cd. If cd == c0, the result is discarded, the
+         * calculation has no side effects. There's nothing to do.
+         */
+        return true;
+    }
 
-            gen_ensure_cap_decompressed(ctx, a->cs1);
-            /*
-             * This copies the complete cap_register_t, including the
-             * compressed representation and the decompressed fields such as
-             * cr_arch_perm.
-             */
-            gen_move_cap(gp_register_offset(a->cd), gp_register_offset(a->cs1));
+    if (a->rs2 == 0) {
+        /*
+         * cadd cd, cs1, x0 copies cs1 to cd. cd's tag is not cleared if
+         * cs1 is sealed.
+         * The copy can be done on the tcg layer without a helper.
+         */
+
+        gen_ensure_cap_decompressed(ctx, a->cs1);
+        /*
+         * This copies the complete cap_register_t, including the
+         * compressed representation and the decompressed fields such as
+         * cr_arch_perm.
+         */
+        gen_move_cap(gp_register_offset(a->cd), gp_register_offset(a->cs1));
 
 #ifdef ENABLE_STATIC_CAP_OPTS
 #error "Review the cap register copy operation. " \
        "Do we have to call disas_capreg_state_set?"
 #endif
 
-            return true;
-        }
+        return true;
     }
 
     dest_regnum = tcg_const_i32(a->cd);
