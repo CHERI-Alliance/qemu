@@ -52,6 +52,16 @@ build_qemu_riscvcheri_64:
         - if: $CI_PIPELINE_SOURCE == "push"
     script:
         - scripts/riscv_cheri/build_riscv_cheri riscv64cheri 
+        - scripts/riscv_cheri/run_tests.sh riscv64cheri
+    artifacts:
+        when: always
+        paths:
+        - build_riscv64cheri/riscv64cheri_tests.xml
+        - build_riscv64cheri/meson-logs/testlog.junit.xml
+        reports:
+            junit: 
+            - build_riscv64cheri/riscv64cheri_tests.xml
+            - build_riscv64cheri/meson-logs/testlog.junit.xml
 
 build_qemu_riscvcheri_32:
     stage: build
@@ -60,6 +70,16 @@ build_qemu_riscvcheri_32:
         - if: $CI_PIPELINE_SOURCE == "push"
     script:
         - scripts/riscv_cheri/build_riscv_cheri riscv32cheri 
+        - scripts/riscv_cheri/run_tests.sh riscv32cheri 
+    artifacts:
+        when: always
+        paths:
+        - build_riscv32cheri/riscv32cheri_tests.xml
+        - build_riscv32cheri/meson-logs/testlog.junit.xml
+        reports:
+            junit: 
+            - build_riscv32cheri/riscv32cheri_tests.xml
+            - build_riscv32cheri/meson-logs/testlog.junit.xml
 
 build_qemu_riscv_64:
     stage: build
@@ -68,6 +88,17 @@ build_qemu_riscv_64:
         - if: $CI_PIPELINE_SOURCE == "push"
     script:
         - scripts/riscv_cheri/build_riscv_cheri riscv64 
+        - scripts/riscv_cheri/run_tests.sh riscv64 
+    artifacts:
+        when: always
+        paths:
+        - build_riscv64/riscv64_tests.xml
+        - build_riscv64/meson-logs/testlog.junit.xml
+        reports:
+            junit: 
+            - build_riscv64/riscv64_tests.xml
+            - build_riscv64/meson-logs/testlog.junit.xml
+
 
 build_qemu_riscv_32:
     stage: build
@@ -76,6 +107,16 @@ build_qemu_riscv_32:
         - if: $CI_PIPELINE_SOURCE == "push"
     script:
         - scripts/riscv_cheri/build_riscv_cheri riscv32 
+        - scripts/riscv_cheri/run_tests.sh riscv32 
+    artifacts:
+        when: always
+        paths:
+        - build_riscv32/riscv32_tests.xml
+        - build_riscv32/meson-logs/testlog.junit.xml
+        reports:
+            junit: 
+            - build_riscv32/riscv32_tests.xml
+            - build_riscv32/meson-logs/testlog.junit.xml
 
 build_qemu_morellocheri:
     stage: build
@@ -84,6 +125,16 @@ build_qemu_morellocheri:
         - if: $CI_PIPELINE_SOURCE == "push"
     script:
         - scripts/riscv_cheri/build_riscv_cheri morello
+        - scripts/riscv_cheri/run_tests.sh morello
+    artifacts:
+        when: always
+        paths:
+        - build_morello/morello_tests.xml
+        - build_morello/meson-logs/testlog.junit.xml
+        reports:
+            junit: 
+            - build_morello/morello_tests.xml
+            - build_morello/meson-logs/testlog.junit.xml
 
 build_qemu_mipscheri:
     stage: build
@@ -92,6 +143,17 @@ build_qemu_mipscheri:
         - if: $CI_PIPELINE_SOURCE == "push"
     script:
         - scripts/riscv_cheri/build_riscv_cheri mips64cheri128
+        - scripts/riscv_cheri/run_tests.sh mips64cheri128
+    artifacts:
+        when: always
+        paths:
+        - build_mips64cheri128/mips64cheri128_tests.xml
+        - build_mips64cheri128/meson-logs/testlog.junit.xml
+        reports:
+            junit: 
+            - build_mips64cheri128/mips64cheri128_tests.xml
+            - build_mips64cheri128/meson-logs/testlog.junit.xml
+
 
 nightly_build:
     stage:
