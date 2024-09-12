@@ -583,8 +583,8 @@ static void emit_brick_entry(CPUArchState *env, cpu_log_instr_info_t *iinfo)
     cpu_state.privilege = env->priv;
 #endif
 #ifdef TARGET_CHERI
-    cpu_state.isamode = CAPABILITY;
-    cpu_state.cheri_mode = cheri_in_capmode(env);
+    cpu_state.isamode = cheri_in_capmode(env) ? CAPABILITY : INTEGER;
+    cpu_state.cheri_mode = true;
 #else
     cpu_state.cheri_mode = false;
     cpu_state.isamode = INTEGER;
