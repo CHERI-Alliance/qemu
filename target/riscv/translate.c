@@ -268,7 +268,7 @@ static inline void _gen_set_gpr(DisasContext *ctx, int reg_num_dst, TCGv t,
     }
 }
 
-static inline void _gen_set_gpr_const(DisasContext *ctx, int reg_num_dst,
+static inline void gen_set_gpr_const(DisasContext *ctx, int reg_num_dst,
                                       target_ulong value)
 {
     if (reg_num_dst != 0) {
@@ -295,7 +295,6 @@ static inline void _gen_set_gpr_const(DisasContext *ctx, int reg_num_dst,
 }
 
 #define gen_set_gpr(ctx, reg_num_dst, t) _gen_set_gpr(ctx, reg_num_dst, t, true)
-#define gen_set_gpr_const(reg_num_dst, t) _gen_set_gpr_const(ctx, reg_num_dst, t)
 
 #ifdef CONFIG_TCG_LOG_INSTR
 static inline void gen_riscv_log_instr(DisasContext *ctx, uint32_t opcode,
@@ -490,7 +489,7 @@ static void gen_jal(DisasContext *ctx, int rd, target_ulong imm)
         }
     }
     /* For CHERI ISAv8 the result is an offset relative to PCC.base */
-    gen_set_gpr_const(rd, ctx->pc_succ_insn - pcc_reloc(ctx));
+    gen_set_gpr_const(ctx, rd, ctx->pc_succ_insn - pcc_reloc(ctx));
 
     gen_goto_tb(ctx, 0, ctx->base.pc_next + imm, /*bounds_check=*/true); /* must use this for safety */
     ctx->base.is_jmp = DISAS_NORETURN;
@@ -521,7 +520,7 @@ static void gen_jalr(DisasContext *ctx, int rd, int rs1, target_ulong imm)
     }
 
     /* For CHERI ISAv8 the result is an offset relative to PCC.base */
-    gen_set_gpr_const(rd, ctx->pc_succ_insn - pcc_reloc(ctx));
+    gen_set_gpr_const(ctx, rd, ctx->pc_succ_insn - pcc_reloc(ctx));
     lookup_and_goto_ptr(ctx);
 
     if (misaligned) {
