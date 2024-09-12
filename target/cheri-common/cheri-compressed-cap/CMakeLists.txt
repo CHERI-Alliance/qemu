@@ -83,6 +83,7 @@ endfunction()
 # TODO: add_decompress_cap(64)
 add_decompress_cap(128)
 add_decompress_cap(128m)
+add_decompress_cap(128r)
 
 # Test against sail generated C code:
 # This needs GMP (and CMake doesn't include a find module)
