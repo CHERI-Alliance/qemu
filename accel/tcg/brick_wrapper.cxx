@@ -36,6 +36,7 @@ class BrickWrapper
     std::unique_ptr<brick::isa::ExecutionStep::Value> event;
     std::unique_ptr<brick::fb::Value> props;
     int fd = 0;
+    bool in_reset=true;
 
   public:
     /* initialise an evenstream with the supplied path unless a file has
@@ -58,6 +59,17 @@ class BrickWrapper
     // send an output event with the data
     void output_track_event(brick_track_event *ev)
     {
+        if(ev->pc == 0x80000000){
+            in_reset = false;
+        }
+        if(in_reset){ 
+            // if we have not seen the start adddess then drop the stored data
+
+            props = std::make_unique<brick::fb::Value>();
+            event = std::make_unique<brick::isa::ExecutionStep::Value>();
+            event->clear();
+            return;
+        }
         if (fd > 0) {
 
             brick::core::EventBuilder evb;
@@ -67,6 +79,7 @@ class BrickWrapper
 
             event->opcode = ev->insn;
             (*props)["ts"]["value"] = ev->count;
+            (*props)["ts"]["unit"] = "clk";
 
             writer->write(evb.compile<brick::isa::ExecutionStep>(*event),
                           prb.compile(*props));
