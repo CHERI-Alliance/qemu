@@ -193,7 +193,7 @@ static void gen_exception_inst_addr_mis(DisasContext *ctx)
 /* Wrapper for getting reg values - need to check of reg is zero since
  * cpu_gpr[0] is not actually allocated
  */
-static inline void _gen_get_gpr(DisasContext *ctx, TCGv t, int reg_num)
+static inline void gen_get_gpr(DisasContext *ctx, TCGv t, int reg_num)
 {
     if (reg_num == 0) {
         tcg_gen_movi_tl(t, 0);
@@ -205,20 +205,6 @@ static inline void _gen_get_gpr(DisasContext *ctx, TCGv t, int reg_num)
 #endif
     }
 }
-
-#ifdef CONFIG_RVFI_DII
-/*
-#define gen_get_gpr(ctx, t, reg_num, field_prefix)                            \
-   do {                                                                       \
-       _gen_get_gpr(ctx, t, reg_num);                                         \
-       gen_rvfi_dii_set_field(field_prefix##_data, t);                        \
-       gen_rvfi_dii_set_field_const(field_prefix##_addr, reg_num);            \
-   } while (0)
-*/
-#else
-// #define gen_get_gpr(ctx, t, reg_num, field) _gen_get_gpr(ctx, t, reg_num)
-#endif
-#define gen_get_gpr(ctx, t, reg_num) _gen_get_gpr(ctx, t, reg_num)
 
 #include "cheri-translate-utils.h"
 
