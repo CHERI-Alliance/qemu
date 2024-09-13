@@ -90,11 +90,44 @@ class BrickWrapper
             event->clear();
         }
     }
+
+// define macros for indexing into the brick register names headers
+#define CSR(n, i)                                                              \
+    case i:                                                                    \
+        name = #n;                                                             \
+        break;
+#define GPR(n, i)                                                              \
+    case i:                                                                    \
+        name = #n;                                                             \
+        break;
+
+
     void track_reg_write(brick_track_reg *reg_event)
     {
+        std::string name;
+        int64_t index = reg_event->regindex;
+
+        if (reg_event->regtype == REG_TYPE_CSR) {
+            switch (index) {
+#include <isa/csr.inc>
+            default:
+                name = "?";
+                break;
+            }
+        } else if (reg_event->regtype == REG_TYPE_GP) {
+            switch (index) {
+#include <isa/gpr.inc>
+            default:
+                name = "?";
+                break;
+            }
+        }
+#undef CSR
+#undef GPR
+
         if (reg_event->is_cap) {
             brick::isa::Cap::Value cap;
-            cap.name = reg_event->regname;
+            cap.name = name;
 
             __uint128_t capval =
                 reg_event->offset | ((__uint128_t)reg_event->pesbt) << 64;
@@ -104,7 +137,7 @@ class BrickWrapper
             event->caps.push_back(cap);
         } else {
             brick::isa::Reg::Value reg;
-            reg.name = reg_event->regname;
+            reg.name = name;
             reg.value.set<uint64_t>(reg_event->offset);
             event->regs.push_back(reg);
         }
