@@ -1590,11 +1590,12 @@ void mips_cpu_do_interrupt(CPUState *cs)
         }
 #ifdef TARGET_CHERI
         /* Log extra changed register information */
-        qemu_log_instr_cap(env, "PCC", cheri_get_current_pcc(env));
-        qemu_log_instr_cap(env, "EPCC", &env->active_tc.CHWR.EPCC);
-        qemu_log_instr_cap(env, "ErrorEPCC", &env->active_tc.CHWR.ErrorEPCC);
+        qemu_log_instr_cap(env, "PCC", cheri_get_current_pcc(env), 14, 0);
+        qemu_log_instr_cap(env, "EPCC", &env->active_tc.CHWR.EPCC, 14, 0);
+        qemu_log_instr_cap(env, "ErrorEPCC", &env->active_tc.CHWR.ErrorEPCC, 30,
+                           0);
 #endif
-        qemu_log_instr_reg(env, "ErrorEPC", get_CP0_ErrorEPC(env));
+        qemu_log_instr_reg(env, "ErrorEPC", get_CP0_ErrorEPC(env), 30, 0);
     }
 #endif /* CONFIG_TCG_LOG_INSTR */
 

@@ -98,8 +98,8 @@ struct SCRInfo {
 void riscv_log_instr_scr_changed(CPURISCVState *env, int scrno)
 {
     if (qemu_log_instr_enabled(env)) {
-        qemu_log_instr_cap(env, scr_info[scrno].name,
-                           riscv_get_scr(env, scrno));
+        qemu_log_instr_cap(env, scr_info[scrno].name, get_scr(env, scrno),
+                           scrno, LRI_CSR_ACCESS);
     }
 }
 #endif
@@ -183,7 +183,7 @@ void HELPER(csrrw_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
         csr_cap = csr_cap_info->read(env, csr_cap_info);
         cap_register_t *rd_cap = get_cap_in_gpregs(&env->gpcapregs,rd);
         *rd_cap = clip_if_xlen(env,csr_cap);
-        cheri_log_instr_changed_gp_capreg(env, rd, rd_cap);
+        cheri_log_instr_changed_gp_capreg(env, rd, rd_cap, LRI_GPR_ACCESS);
     }
 
     csr_cap_info->write(env, csr_cap_info, rs_cap, cap_get_cursor(&rs_cap),
@@ -220,7 +220,7 @@ void HELPER(csrrs_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
     cap_register_t *dest = get_cap_in_gpregs(&env->gpcapregs,rd);
     if(rd) {
         *dest = clip_if_xlen(env,csr_cap);
-        cheri_log_instr_changed_gp_capreg(env, rd, &csr_cap);
+        cheri_log_instr_changed_gp_capreg(env, rd, &csr_cap, LRI_GPR_ACCESS);
     }
     if (rs1){
         target_ulong new_val;
@@ -257,7 +257,7 @@ void HELPER(csrrc_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
     cap_register_t *dest = get_cap_in_gpregs(&env->gpcapregs,rd);
     if(rd) {
         *dest = clip_if_xlen(env, csr_cap);
-        cheri_log_instr_changed_gp_capreg(env, rd, &csr_cap);
+        cheri_log_instr_changed_gp_capreg(env, rd, &csr_cap, LRI_GPR_ACCESS);
     }
     if (rs1) {
         target_ulong addr;
@@ -291,7 +291,7 @@ void HELPER(csrrwi_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
     if (rd) {
         cap_register_t *dest = get_cap_in_gpregs(&env->gpcapregs,rd);
         *dest = clip_if_xlen(env, csr_cap);
-        cheri_log_instr_changed_gp_capreg(env, rd, &csr_cap);
+        cheri_log_instr_changed_gp_capreg(env, rd, &csr_cap, LRI_GPR_ACCESS);
     }
 
     csr_cap_info->write(env, csr_cap_info, csr_cap, rs1, false);
@@ -321,7 +321,7 @@ void HELPER(csrrsi_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
     if (rd) {
         cap_register_t *rd_cap = get_cap_in_gpregs(&env->gpcapregs,rd);
         *rd_cap = clip_if_xlen(env, csr_cap);
-        cheri_log_instr_changed_gp_capreg(env, rd, &csr_cap);
+        cheri_log_instr_changed_gp_capreg(env, rd, &csr_cap, LRI_GPR_ACCESS);
     }
 
     if (rs1_val) {
@@ -355,7 +355,7 @@ void HELPER(csrrci_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
     if (rd) {
         cap_register_t *rd_cap = get_cap_in_gpregs(&env->gpcapregs,rd);
         *rd_cap = clip_if_xlen(env, csr_cap);
-        cheri_log_instr_changed_gp_capreg(env, rd, &csr_cap);
+        cheri_log_instr_changed_gp_capreg(env, rd, &csr_cap, LRI_GPR_ACCESS);
     }
 
     if (rs1_val) {
@@ -494,10 +494,10 @@ static void lr_c_impl(CPUArchState *env, uint32_t dest_reg, uint32_t auth_reg,
     env->load_val = cursor;
     env->load_pesbt = pesbt;
     env->load_tag = tag;
-    log_changed_special_reg(env, "load_res", env->load_res);
-    log_changed_special_reg(env, "load_val", env->load_val);
-    log_changed_special_reg(env, "load_pesbt", env->load_pesbt);
-    log_changed_special_reg(env, "load_tag", (target_ulong)env->load_tag);
+    // log_changed_special_reg(env, "load_res", env->load_res);
+    // log_changed_special_reg(env, "load_val", env->load_val);
+    // log_changed_special_reg(env, "load_pesbt", env->load_pesbt);
+    // log_changed_special_reg(env, "load_tag", (target_ulong)env->load_tag);
     update_compressed_capreg(env, dest_reg, pesbt, tag, cursor);
 }
 
@@ -553,7 +553,7 @@ static target_ulong sc_c_impl(CPUArchState *env, uint32_t addr_reg,
     // an SC to any address, in between an LR and SC pair.
     // We do this regardless of success/failure.
     env->load_res = -1;
-    log_changed_special_reg(env, "load_res", env->load_res);
+    // log_changed_special_reg(env, "load_res", env->load_res);
     if (addr != expected_addr) {
         goto sc_failed;
     }

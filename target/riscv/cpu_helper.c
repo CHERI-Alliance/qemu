@@ -1651,11 +1651,5 @@ void update_special_register(CPURISCVState *env, cap_register_t *scr,
     } else {
         scr->_cr_cursor = new_cursor;
     }
-    /*
-     * TODO(am2419): this is redundant as we are already logging the update
-     * of the CSR register? Although it migth be useful in case we are making
-     * the capability unrepresentable.
-     */
-    cheri_log_instr_changed_capreg(env, name, scr);
 }
 #endif

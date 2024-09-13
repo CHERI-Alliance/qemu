@@ -1966,7 +1966,10 @@ static inline bool cheri_is_system_ctx(DisasContext *s)
     return FIELD_EX32(s->base.cheri_flags >> TB_FLAG_CHERI_SPARE_INDEX_START,
                       TBFLAG_CHERI, SYSTEM) != 0;
 }
-#define sp_modified(val) gen_reg_modified_int_base(s, ri->name, val)
+#define sp_modified(val)                                                       \
+    do {                                                                       \
+        gen_reg_modified_int_base(s, ri->name, val, rt, 0);                    \
+    } while (0)
 #else
 #define sp_modified(...)
 #endif
@@ -2464,7 +2467,7 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
             } else {
                 gen_move_cap_sp_gp(s, fieldoffset, AS_ZERO(rt));
             }
-            gen_reg_modified_cap_base(s, ri->name, fieldoffset);
+            gen_reg_modified_cap_base(s, ri->name, fieldoffset, rt, 0);
         }
         // CP registers are always decompressed, so regardless of read/write
         // the GPR will be decompressed
