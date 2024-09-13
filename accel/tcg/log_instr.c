@@ -608,7 +608,8 @@ static void emit_brick_entry(CPUArchState *env, cpu_log_instr_info_t *iinfo)
     for (int i = 0; i < iinfo->regs->len; i++) {
         brick_track_reg reg;
         log_reginfo_t *rinfo = &g_array_index(iinfo->regs, log_reginfo_t, i);
-        reg.regname = rinfo->name;
+        reg.regindex = rinfo->index;
+        reg.regtype = rinfo->flags & ~(LRI_HOLDS_CAP|LRI_CAP_REG); 
         reg.is_cap = rinfo->flags & LRI_HOLDS_CAP;
 #ifdef TARGET_CHERI
         reg.pesbt = rinfo->cap.cr_pesbt;

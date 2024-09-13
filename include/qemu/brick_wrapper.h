@@ -21,6 +21,10 @@ typedef enum{
     CAPABILITY,
 }CPU_CHERI_MODE;
 
+typedef enum{
+    REG_TYPE_CSR=4,
+    REG_TYPE_GP=8,
+}BRICK_REGISTER_TYPES;
 
 typedef struct _brick_track_event_
 {
@@ -31,7 +35,9 @@ typedef struct _brick_track_event_
 
 typedef struct _brick_track_reg_
 {
-    const char* regname;
+    // const char* regname;
+    uint64_t regindex;
+    BRICK_REGISTER_TYPES regtype;
     uint64_t offset;
     uint64_t pesbt;
     bool tag_valid;
