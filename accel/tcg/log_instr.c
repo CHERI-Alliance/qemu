@@ -147,10 +147,9 @@ typedef struct cpu_log_instr_info {
  */
 typedef struct {
     uint16_t flags;
-#define LRI_CAP_REG    1
-#define LRI_HOLDS_CAP  2
 
     const char *name;
+    uint16_t index;
     union {
         target_ulong gpr;
 #ifdef TARGET_CHERI
