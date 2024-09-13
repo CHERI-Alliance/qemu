@@ -39,7 +39,8 @@ void riscv_log_instr_csr_changed(CPURISCVState *env, int csrno)
         riscv_csr_cap_ops *cap_ops = get_csr_cap_info(csrno);
         if (cap_ops) {
             cap_register_t cap_value = cap_ops->read(env, cap_ops);
-            qemu_log_instr_cap(env, cap_ops->name, &cap_value);
+            qemu_log_instr_cap(env, cap_ops->name, &cap_value, csrno,
+                               LRI_CSR_ACCESS);
             return;
         }
 #endif
@@ -1526,6 +1527,13 @@ static RISCVException write_pmpcfg(CPURISCVState *env, int csrno,
                                    target_ulong val)
 {
     pmpcfg_csr_write(env, csrno - CSR_PMPCFG0, val);
+#ifdef CONFIG_TCG_LOG_INSTR
+    if (qemu_log_instr_enabled(env)) {
+        char buf[16];
+        snprintf(buf, sizeof(buf), "pmpcfg%d", csrno - CSR_PMPCFG0);
+        qemu_log_instr_reg(env, buf, val, csrno, LRI_CSR_ACCESS);
+    }
+#endif
     return RISCV_EXCP_NONE;
 }
 
@@ -1540,6 +1548,13 @@ static RISCVException write_pmpaddr(CPURISCVState *env, int csrno,
                                     target_ulong val)
 {
     pmpaddr_csr_write(env, csrno - CSR_PMPADDR0, val);
+#ifdef CONFIG_TCG_LOG_INSTR
+    if (qemu_log_instr_enabled(env)) {
+        char buf[16];
+        snprintf(buf, sizeof(buf), "pmpaddr%d", csrno - CSR_PMPADDR0);
+        qemu_log_instr_reg(env, buf, val, csrno, LRI_CSR_ACCESS);
+    }
+#endif
     return RISCV_EXCP_NONE;
 }
 
@@ -2067,7 +2082,8 @@ static void write_cap_csr_reg(CPURISCVState *env,
     }
     /* Log the value and write it. */
     *get_cap_csr(env, csr_cap_info->reg_num) = src;
-    cheri_log_instr_changed_capreg(env, csr_cap_info->name, &src);
+    cheri_log_instr_changed_capreg(env, csr_cap_info->name, &src,
+                                   csr_cap_info->reg_num, LRI_CSR_ACCESS);
 }
 
 static void write_xtvecc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
@@ -2427,7 +2443,8 @@ static void log_changed_csr_fn(CPURISCVState *env, int csrno,
                                target_ulong value)
 {
     if (qemu_log_instr_enabled(env)) {
-        qemu_log_instr_reg(env, csr_ops[csrno].name, value);
+        qemu_log_instr_reg(env, csr_ops[csrno].name, value, csrno,
+                           LRI_CSR_ACCESS);
     }
 }
 #else

@@ -498,10 +498,11 @@ extern const char * const cheri_gp_regnames[];
 #ifdef CONFIG_TCG_LOG_INSTR
 void riscv_log_instr_csr_changed(CPURISCVState *env, int csrno);
 
-#define log_changed_special_reg(env, name, newval) do { \
-        if (qemu_log_instr_enabled(env))                \
-            qemu_log_instr_reg(env, name, newval);      \
-    } while(0)
+#define log_changed_special_reg(env, name, newval, index, type)                \
+    do {                                                                       \
+        if (qemu_log_instr_enabled(env))                                       \
+            qemu_log_instr_reg(env, name, newval, index, type);                \
+    } while (0)
 #else /* !CONFIG_TCG_LOG_INSTR */
 #define log_changed_special_reg(env, name, newval) ((void)0)
 #define riscv_log_instr_csr_changed(env, csrno) ((void)0)
@@ -543,7 +544,7 @@ void update_special_register(CPURISCVState *env, cap_register_t *scr,
 #define SET_SPECIAL_REG(env, name, cheri_name, value)                          \
     do {                                                                       \
         env->name = value;                                                     \
-        log_changed_special_reg(env, #name, value);                            \
+        log_changed_special_reg(env, #name, value, 0, LRI_CSR_ACCESS);         \
     } while (false)
 #endif /* ! TARGET_CHERI */
 
