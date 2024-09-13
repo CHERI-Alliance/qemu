@@ -1075,51 +1075,56 @@ void qemu_log_instr_commit(CPUArchState *env)
     reset_log_buffer(cpulog, iinfo);
 }
 
-void qemu_log_instr_reg(CPUArchState *env, const char *reg_name, target_ulong value)
+void qemu_log_instr_reg(CPUArchState *env, const char *reg_name,
+                        target_ulong value, uint32_t index, uint32_t type)
 {
     cpu_log_instr_info_t *iinfo = get_cpu_log_instr_info(env);
     log_reginfo_t r;
 
-    r.flags = 0;
+    r.flags = type;
+    r.index = index;
     r.name = reg_name;
     r.gpr = value;
     g_array_append_val(iinfo->regs, r);
 }
 
 void helper_qemu_log_instr_reg(CPUArchState *env, const void *reg_name,
-                               target_ulong value)
+                               target_ulong value, uint32_t index,
+                               uint32_t type)
 {
     if (qemu_log_instr_check_enabled(env))
-        qemu_log_instr_reg(env, (const char *)reg_name, value);
+        qemu_log_instr_reg(env, (const char *)reg_name, value, index, type);
 }
 
 #ifdef TARGET_CHERI
 void qemu_log_instr_cap(CPUArchState *env, const char *reg_name,
-                         const cap_register_t *cr)
+                        const cap_register_t *cr, uint32_t index, uint32_t type)
 {
     cpu_log_instr_info_t *iinfo = get_cpu_log_instr_info(env);
     log_reginfo_t r;
 
-    r.flags = LRI_CAP_REG | LRI_HOLDS_CAP;
+    r.flags = type | LRI_CAP_REG | LRI_HOLDS_CAP;
+    r.index = index;
     r.name = reg_name;
     r.cap = *cr;
     g_array_append_val(iinfo->regs, r);
 }
 
 void helper_qemu_log_instr_cap(CPUArchState *env, const void *reg_name,
-                               const void *cr)
+                               const void *cr, uint32_t index, uint32_t type)
 {
     if (qemu_log_instr_check_enabled(env))
-        qemu_log_instr_cap(env, reg_name, cr);
+        qemu_log_instr_cap(env, reg_name, cr, index, type);
 }
 
 void qemu_log_instr_cap_int(CPUArchState *env, const char *reg_name,
-                             target_ulong value)
+                            target_ulong value, uint32_t index, uint32_t type)
 {
     cpu_log_instr_info_t *iinfo = get_cpu_log_instr_info(env);
     log_reginfo_t r;
 
-    r.flags = LRI_CAP_REG;
+    r.flags = LRI_CAP_REG | type;
+    r.index = index;
     r.name = reg_name;
     r.gpr = value;
     g_array_append_val(iinfo->regs, r);

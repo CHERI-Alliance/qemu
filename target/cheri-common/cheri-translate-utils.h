@@ -825,13 +825,18 @@ static inline void gen_cap_get_cursor(DisasContext *ctx, int regnum,
 
 static inline void gen_reg_modified_cap_base(DisasContext *ctx,
                                              const char *str_name,
-                                             size_t env_offset)
+                                             size_t env_offset, uint32_t regnum,
+                                             uint32_t type)
 {
     if (qemu_ctx_logging_enabled(ctx)) {
         TCGv_ptr name = tcg_const_ptr(str_name);
         TCGv_ptr reg = tcg_const_ptr(env_offset);
         tcg_gen_add_ptr(reg, reg, cpu_env);
-        gen_helper_qemu_log_instr_cap(cpu_env, name, reg);
+        TCGv_i32 tcg_regnum = tcg_const_i32(regnum);
+        TCGv_i32 tcg_type = tcg_const_i32(type);
+        gen_helper_qemu_log_instr_cap(cpu_env, name, reg, tcg_regnum, tcg_type);
+        tcg_temp_free_i32(tcg_regnum);
+        tcg_temp_free_i32(tcg_type);
         tcg_temp_free_ptr(reg);
         tcg_temp_free_ptr(name);
     }
@@ -846,16 +851,25 @@ static inline void gen_reg_modified_cap(DisasContext *ctx, int regnum)
     if (qemu_ctx_logging_enabled(ctx)) {
         gen_ensure_cap_decompressed(ctx, regnum);
         gen_reg_modified_cap_base(ctx, cheri_gp_regnames[regnum],
-                                  gp_register_offset(regnum));
+                                  gp_register_offset(regnum), regnum,
+                                  LRI_GPR_ACCESS);
     }
 }
 
 static inline void gen_reg_modified_int_base(DisasContext *ctx,
-                                             const char *str_name, TCGv new_val)
+                                             const char *str_name, TCGv new_val,
+                                             uint32_t regnum, uint32_t type)
 {
     if (qemu_ctx_logging_enabled(ctx)) {
         TCGv_ptr name = tcg_const_ptr(str_name);
-        gen_helper_qemu_log_instr_reg(cpu_env, name, new_val);
+        TCGv_i32 tcg_regnum = tcg_const_i32(regnum);
+        TCGv_i32 tcg_type = tcg_const_i32(LRI_GPR_ACCESS);
+
+        gen_helper_qemu_log_instr_reg(cpu_env, name, new_val, tcg_regnum,
+                                      tcg_type);
+
+        tcg_temp_free_i32(tcg_type);
+        tcg_temp_free_i32(tcg_regnum);
         tcg_temp_free_ptr(name);
     }
 }
@@ -876,7 +890,8 @@ static inline void gen_reg_modified_int(DisasContext *ctx, int regnum)
             cheri_gp_regnames[regnum];
         // TODO: Add some integer names to riscv/mips
 #endif
-        gen_reg_modified_int_base(ctx, str_name, new_val);
+        gen_reg_modified_int_base(ctx, str_name, new_val, regnum,
+                                  LRI_GPR_ACCESS);
         tcg_temp_free(new_val);
     }
 }
