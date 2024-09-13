@@ -35,7 +35,10 @@
 #include "hw/core/cpu.h"
 #include "qemu/log_instr.h"
 #include "cpu.h"
-
+#define LRI_CAP_REG    1
+#define LRI_HOLDS_CAP  2
+#define LRI_CSR_ACCESS 4
+#define LRI_GPR_ACCESS 8
 /*
  * Instruction logging interface for targets.
  *
