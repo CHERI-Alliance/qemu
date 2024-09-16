@@ -398,8 +398,12 @@ static inline void update_capreg_to_intval(CPUArchState *env, unsigned regnum,
     set_capreg_state(gpcrs, regnum, CREG_INTEGER);
     sanity_check_capreg(gpcrs, regnum);
     rvfi_changed_capreg(env, regnum, newval);
-    cheri_log_instr_changed_capreg_int(env, cheri_gp_regnames[regnum], newval,
-                                       regnum, LRI_GPR_ACCESS);
+    if (qemu_log_instr_enabled(env)) {
+        // Decompress and log value if instruction logging is on
+        const cap_register_t *decompressed = get_readonly_capreg(env, regnum);
+        cheri_log_instr_changed_gp_capreg(env, regnum, decompressed,
+                                          LRI_GPR_ACCESS);
+    }
 }
 
 static inline target_ulong get_capreg_cursor(CPUArchState *env, unsigned regnum)

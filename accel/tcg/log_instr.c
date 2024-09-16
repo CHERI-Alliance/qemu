@@ -609,18 +609,32 @@ static void emit_brick_entry(CPUArchState *env, cpu_log_instr_info_t *iinfo)
         brick_track_reg reg;
         log_reginfo_t *rinfo = &g_array_index(iinfo->regs, log_reginfo_t, i);
         reg.regindex = rinfo->index;
-        reg.regtype = rinfo->flags & ~(LRI_HOLDS_CAP|LRI_CAP_REG); 
-        reg.is_cap = rinfo->flags & LRI_HOLDS_CAP;
+
+        /*
+        The two flags indicate.
+        LRI_CAP_REG = The register is a capability lenght register
+        LRI_HOLDS_CAP = The log record contains a capability.
+        We assume that non capability length logs entries for capabilities 
+        indicate a non valid capability. (What about add offset....)
+        */
 #ifdef TARGET_CHERI
-        reg.pesbt = rinfo->cap.cr_pesbt;
-        reg.offset = rinfo->cap._cr_cursor;
-        reg.tag_valid = rinfo->cap.cr_tag;
+        if (rinfo->flags & LRI_HOLDS_CAP) {
+            reg.is_cap = rinfo->flags & LRI_HOLDS_CAP;
+            reg.pesbt = rinfo->cap.cr_pesbt;
+            reg.offset = rinfo->cap._cr_cursor;
+            reg.tag_valid = rinfo->cap.cr_tag;
+        } else {
+            reg.is_cap = (rinfo->flags & LRI_CAP_REG);
+            reg.offset = rinfo->gpr;
+            reg.tag_valid = false;
+            reg.pesbt = 0;
+        }
+        reg.regtype = rinfo->flags & ~(LRI_HOLDS_CAP|LRI_CAP_REG); 
+        track_reg_write(&reg);
 #else
         reg.offset = rinfo->gpr;
-        reg.tag_valid = false;
-        reg.pesbt = 0;
+        reg.regtype = rinfo->flags & ~(LRI_HOLDS_CAP|LRI_CAP_REG); 
 #endif
-        track_reg_write(&reg);
     }
     // finally dump the instruction
     brick_track_event event;
