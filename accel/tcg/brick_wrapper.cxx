@@ -125,21 +125,18 @@ class BrickWrapper
 #undef CSR
 #undef GPR
 
+        brick::isa::Reg::Value reg;
+        reg.name = name;
+        reg.value.set<uint64_t>(reg_event->offset);
+        event->regs.push_back(reg);
+
         if (reg_event->is_cap) {
             brick::isa::Cap::Value cap;
             cap.name = name;
-
-            __uint128_t capval =
-                reg_event->offset | ((__uint128_t)reg_event->pesbt) << 64;
-            cap.value.set<__uint128_t> (capval);
+            cap.value.set<uint64_t> (reg_event->pesbt);
             cap.tag = reg_event->tag_valid;
 
             event->caps.push_back(cap);
-        } else {
-            brick::isa::Reg::Value reg;
-            reg.name = name;
-            reg.value.set<uint64_t>(reg_event->offset);
-            event->regs.push_back(reg);
         }
     }
     void track_cpu_state(brick_track_cpu_state *state)
