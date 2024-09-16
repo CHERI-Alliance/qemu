@@ -230,6 +230,26 @@ tag_upload:
     script:
         - *curl_upload
 
+test_qemu_standard:
+    stage: test
+    rules:
+        - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+        - if: $CI_PIPELINE_SOURCE == "push"
+    script:
+        - *configure_build
+        # If we called meson test directly, we'd need a system meson. ninja
+        # uses either the system's meson or the one from a git submodule.
+        - ninja test 
+    # When this job fails, do not fail the entire pipeline.
+    allow_failure: true
+    artifacts:
+        # By default, artifacts are created only if script succeeds.
+        # We want test output also for failures.
+        when: always
+        reports:
+           junit:
+           - build/meson-logs/testlog.junit.xml
+
 include:
   - template: Jobs/SAST.gitlab-ci.yml
  
