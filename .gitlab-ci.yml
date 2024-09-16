@@ -45,8 +45,54 @@ default:
         - linux
         - nolicense
 
-build_qemu_riscvcheri_64:
+# The leading dot is intentional. We need a hidden job for defining a
+# yaml anchor.
+.configure_build: &configure_build
+    - mkdir build
+    - cd build
+    # --prefix needs an absolute path
+    # $CI_PROJECT_DIR is "The full path the repository is cloned to, and where
+    # the job runs from." Depending on the runner's config, this might be a
+    # relative path.
+    - ../configure
+          --target-list="x86_64-softmmu
+              riscv32-softmmu riscv64-softmmu
+              mips64-softmmu
+              riscv32cheri-softmmu riscv64cheri-softmmu
+              morello-softmmu
+              mips64cheri128-softmmu"
+          --disable-gtk
+          --audio-drv-list=""
+          --disable-brlapi
+          --disable-libiscsi
+          --disable-libnfs
+          --disable-rbd
+          --disable-sdl
+          --disable-snappy
+          --disable-vnc
+          --disable-vnc-jpeg
+          --disable-vnc-sasl
+          --disable-werror
+          --prefix=`realpath $CI_PROJECT_DIR`/install
+
+build_qemu:
     stage: build
+    rules:
+        - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+        - if: $CI_PIPELINE_SOURCE == "push"
+    script:
+        - *configure_build
+        - ninja
+        - ninja install
+    artifacts:
+        paths:
+            - install/bin/qemu-system-riscv32cheri
+            - install/bin/qemu-system-riscv64cheri
+            - install/bin/qemu-img
+        expire_in: 8 hours
+
+test_qemu_riscvcheri_64:
+    stage: test
     rules:
         - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
         - if: $CI_PIPELINE_SOURCE == "push"
@@ -63,8 +109,8 @@ build_qemu_riscvcheri_64:
             - build_riscv64cheri/riscv64cheri_tests.xml
             - build_riscv64cheri/meson-logs/testlog.junit.xml
 
-build_qemu_riscvcheri_32:
-    stage: build
+test_qemu_riscvcheri_32:
+    stage: test
     rules:
         - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
         - if: $CI_PIPELINE_SOURCE == "push"
@@ -81,8 +127,8 @@ build_qemu_riscvcheri_32:
             - build_riscv32cheri/riscv32cheri_tests.xml
             - build_riscv32cheri/meson-logs/testlog.junit.xml
 
-build_qemu_riscv_64:
-    stage: build
+test_qemu_riscv_64:
+    stage: test
     rules:
         - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
         - if: $CI_PIPELINE_SOURCE == "push"
@@ -100,8 +146,8 @@ build_qemu_riscv_64:
             - build_riscv64/meson-logs/testlog.junit.xml
 
 
-build_qemu_riscv_32:
-    stage: build
+test_qemu_riscv_32:
+    stage: test
     rules:
         - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
         - if: $CI_PIPELINE_SOURCE == "push"
@@ -118,8 +164,8 @@ build_qemu_riscv_32:
             - build_riscv32/riscv32_tests.xml
             - build_riscv32/meson-logs/testlog.junit.xml
 
-build_qemu_morellocheri:
-    stage: build
+test_qemu_morellocheri:
+    stage: test
     rules:
         - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
         - if: $CI_PIPELINE_SOURCE == "push"
@@ -136,8 +182,8 @@ build_qemu_morellocheri:
             - build_morello/morello_tests.xml
             - build_morello/meson-logs/testlog.junit.xml
 
-build_qemu_mipscheri:
-    stage: build
+test_qemu_mipscheri:
+    stage: test
     rules:
         - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
         - if: $CI_PIPELINE_SOURCE == "push"
