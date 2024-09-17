@@ -2403,8 +2403,10 @@ RISCVException riscv_csrrw(CPURISCVState *env, int csrno,
                 return ret;
             }
 #ifdef CONFIG_TCG_LOG_INSTR
-            if (csr_ops[csrno].log_update)
+            if (csr_ops[csrno].log_update) {
+                csr_ops[csrno].read(env, csrno, &new_value);
                 csr_ops[csrno].log_update(env, csrno, new_value);
+            }
 #endif
         }
     }
