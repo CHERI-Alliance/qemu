@@ -233,16 +233,8 @@
 #define CSR_MTINST          0x34a
 #define CSR_MTVAL2          0x34b
 
-/*
- * Please note that the addresses for CSR_MSECCFG and CSR_MSECCFGH are
- * incorrect. This will be fixed for v6.2.0 in commit a44da25aa69
- * ("target/riscv: Update the ePMP CSR address").
- * Comment out the define for which we already have a correct version (to
- * avoid tons of compiler warnings).
- * Having two CSR_MSECCFG defines would still work, the later takes precedence.
- */
 /* Enhanced Physical Memory Protection (ePMP) */
-// #define CSR_MSECCFG      0x390
+#define CSR_MSECCFG         0x390
 #define CSR_MSECCFGH        0x391
 /* Physical Memory Protection */
 #define CSR_PMPCFG0         0x3a0
