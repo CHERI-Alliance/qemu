@@ -7,6 +7,16 @@ if targetos == 'windows'
   subdir_done()
 endif
 
+# By default tests run with the usual 30s timeout; particularly
+# slow tests can have that overridden here. The keys here are
+# the testnames without their fp-test- prefix.
+slow_fp_tests = {
+  'rem': 60,
+  'div': 60,
+  'mul': 60,
+  'mulAdd': 180,
+}
+
 fpcflags = [
   # softfloat defines
   '-DSOFTFLOAT_ROUND_ODD',
@@ -618,6 +628,7 @@ fptest_rounding_args = ['-r', 'all']
 foreach k, v : softfloat_conv_tests
   test('fp-test-' + k, fptest,
        args: fptest_args + fptest_rounding_args + v.split(),
+       timeout: slow_fp_tests.get(k, 30),
        suite: ['softfloat', 'softfloat-conv'])
 endforeach
 
@@ -625,6 +636,7 @@ foreach k, v : softfloat_tests
   test('fp-test-' + k, fptest,
        args: fptest_args + fptest_rounding_args +
              ['f16_' + k, 'f32_' + k, 'f64_' + k, 'f128_' + k, 'extF80_' + k],
+       timeout: slow_fp_tests.get(k, 30),
        suite: ['softfloat', 'softfloat-' + v])
 endforeach
 
@@ -633,7 +645,8 @@ test('fp-test-mulAdd', fptest,
      # no fptest_rounding_args
      args: fptest_args +
            ['f16_mulAdd', 'f32_mulAdd', 'f64_mulAdd', 'f128_mulAdd'],
-     suite: ['softfloat-slow', 'softfloat-ops-slow', 'slow'], timeout: 180)
+     timeout: slow_fp_tests.get('mulAdd', 30),
+     suite: ['softfloat-slow', 'softfloat-ops-slow', 'slow'])
 
 executable(
   'fp-bench',
@@ -653,4 +666,5 @@ fptestlog2 = executable(
   c_args: fpcflags,
 )
 test('fp-test-log2', fptestlog2,
+     timeout: slow_fp_tests.get('log2', 30),
      suite: ['softfloat', 'softfloat-ops'])
