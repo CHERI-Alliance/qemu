@@ -170,6 +170,8 @@ class BrickWrapper
     {
         brick::isa::Memory::Value mem;
         auto val = trnsn->val;
+        auto pesbt = trnsn->pesbt;
+
         mem.addr = trnsn->addr;
         mem.pa = trnsn->addr;
         // needs to handle capabilities

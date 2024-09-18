@@ -56,6 +56,7 @@ typedef struct _brick_track_mem_trnsn_{
     uint8_t size;
     uint64_t val;
     uint64_t pesbt;
+    bool tag_valid;
 }brick_track_mem_trnsn;
 
 #define MEM_LD 1
