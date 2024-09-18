@@ -596,10 +596,14 @@ static void emit_brick_entry(CPUArchState *env, cpu_log_instr_info_t *iinfo)
         brick_track_mem_trnsn mem;
         mem.flags = minfo->flags;
         mem.addr = minfo->addr;
-        mem.size = memop_size(minfo->op);
         mem.val = minfo->value;
 #ifdef TARGET_CHERI
+        mem.size = minfo->flags & LMI_CAP ? 16 : memop_size(minfo->op);
+        mem.tag_valid = minfo->flags & LMI_CAP ? minfo->cap.cr_tag : 0;
         mem.pesbt = minfo->cap.cr_pesbt;
+#else
+        mem.size = memop_size(minfo->op);
+        mem.tag_valid = 0;
 #endif
         track_mem_transaction(&mem);
     }
