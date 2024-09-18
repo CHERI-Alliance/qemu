@@ -405,7 +405,7 @@ static inline void
 store_byte_and_clear_tag(CPUMIPSState *env, target_ulong vaddr, uint8_t val,
                          MemOpIdx oi, uintptr_t retaddr)
 {
-    helper_ret_stb_mmu(env, vaddr, val, oi, retaddr);
+    cpu_stb_mmu(env, vaddr, val, oi, retaddr);
 #ifdef TARGET_CHERI
     // If we returned (i.e. write was successful) we also need to invalidate the
     // tags bit to ensure we are consistent with sb
@@ -417,7 +417,7 @@ static inline void
 store_u32_and_clear_tag(CPUMIPSState *env, target_ulong vaddr, uint32_t val,
                          MemOpIdx oi, uintptr_t retaddr)
 {
-    helper_ret_stw_mmu(env, vaddr, val, oi, retaddr);
+    cpu_stw_mmu(env, vaddr, val, oi, retaddr);
 #ifdef TARGET_CHERI
     // If we returned (i.e. write was successful) we also need to invalidate the
     // tags bit to ensure we are consistent with sb
