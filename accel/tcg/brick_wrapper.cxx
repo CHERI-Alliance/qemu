@@ -29,6 +29,66 @@ C wrapper functions call to handle the calls
 #define _Static_assert(X, Y) static_assert(X, Y)
 
 #include "qemu/brick_wrapper.h"
+#ifdef TARGET_RISCV
+#define TARGET_CHERI
+#include "cpu_bits.h"
+static brick::isa::Exception::Type fromRISCV_exception_cause(int32_t cause)
+{
+
+    switch (cause) {
+    case EXCP_NONE:
+        return brick::isa::Exception::NONE; /* sentinel value */
+    case RISCV_EXCP_INST_ADDR_MIS:
+        return brick::isa::Exception::INSTRUCTION_ADDRESS_MISALIGNED;
+    case RISCV_EXCP_INST_ACCESS_FAULT:
+        return brick::isa::Exception::INSTRUCTION_ACCESS_FAULT;
+    case RISCV_EXCP_ILLEGAL_INST:
+        return brick::isa::Exception::ILLEGAL_INSTRUCTION;
+    case RISCV_EXCP_BREAKPOINT:
+        return brick::isa::Exception::BREAKPOINT;
+    case RISCV_EXCP_LOAD_ADDR_MIS:
+        return brick::isa::Exception::LOAD_ADDRESS_MISALIGNED;
+    case RISCV_EXCP_LOAD_ACCESS_FAULT:
+        return brick::isa::Exception::LOAD_ACCESS_FAULT;
+    case RISCV_EXCP_STORE_AMO_ADDR_MIS:
+        return brick::isa::Exception::STORE_AMO_ADDRESS_MISALIGNED;
+    case RISCV_EXCP_STORE_AMO_ACCESS_FAULT:
+        return brick::isa::Exception::STORE_AMO_ACCESS_FAULT;
+    case RISCV_EXCP_U_ECALL:
+        return brick::isa::Exception::ECALL_FROM_U;
+    case RISCV_EXCP_S_ECALL:
+        return brick::isa::Exception::ECALL_FROM_S;
+    case RISCV_EXCP_VS_ECALL:
+        return brick::isa::Exception::ECALL_FROM_VS;
+    case RISCV_EXCP_M_ECALL:
+        return brick::isa::Exception::ECALL_FROM_M;
+    case RISCV_EXCP_INST_PAGE_FAULT:
+        return brick::isa::Exception::INSTRUCTION_PAGE_FAULT; /* since: priv-1.10.0 */
+    case RISCV_EXCP_LOAD_PAGE_FAULT:
+        return brick::isa::Exception::LOAD_PAGE_FAULT; /* since: priv-1.10.0 */
+    case RISCV_EXCP_STORE_PAGE_FAULT:
+        return brick::isa::Exception::STORE_AMO_PAGE_FAULT; /* since: priv-1.10.0 */
+    // case RISCV_EXCP_SEMIHOST:
+    //     return 0x10;
+    case RISCV_EXCP_INST_GUEST_PAGE_FAULT:
+        return brick::isa::Exception::INSTRUCTION_GUEST_PAGE_FAULT;
+    case RISCV_EXCP_LOAD_GUEST_ACCESS_FAULT:
+        return brick::isa::Exception::LOAD_GUEST_PAGE_FAULT;
+    case RISCV_EXCP_VIRT_INSTRUCTION_FAULT:
+        return brick::isa::Exception::VIRTUAL_INSTRUCTION;
+    case RISCV_EXCP_STORE_GUEST_AMO_ACCESS_FAULT:
+        return brick::isa::Exception::STORE_AMO_GUEST_PAGE_FAULT;
+    case RISCV_EXCP_LOAD_CAP_PAGE_FAULT:
+        return brick::isa::Exception::PERMIT_LOAD_CAPABILITY_VIOLATION;
+    case RISCV_EXCP_STORE_AMO_CAP_PAGE_FAULT:
+        return brick::isa::Exception::PERMIT_STORE_CAPABILITY_VIOLATION;
+    case RISCV_EXCP_CHERI:
+        return brick::isa::Exception::CHERI;
+    default:
+        return brick::isa::Exception::NONE;
+    }
+}
+#endif
 
 class BrickWrapper
 {
@@ -76,7 +136,29 @@ class BrickWrapper
             brick::core::PropertiesBuilder prb;
 
             event->pc = ev->pc;
-
+            if (ev->exception!=-1)
+            {
+                #ifdef TARGET_RISCV
+                event->exception = fromRISCV_exception_cause(ev->exception);
+                #else
+                event->exception = brick::isa::Exception::NONE; 
+                #endif
+                switch (ev->kind)
+                {
+                case PROGRAM:
+                event->kind = brick::isa::Kind::PROGRAM;
+                    break;
+                case INTERRUPT:
+                event->kind = brick::isa::Kind::ASYNC;
+                    break;
+                case FAULT:
+                event->kind = brick::isa::Kind::FAULT;
+                    break;
+                
+                default:
+                    break;
+                }
+            }
             event->opcode = ev->insn;
             (*props)["ts"]["value"] = ev->count;
             (*props)["ts"]["unit"] = "clk";

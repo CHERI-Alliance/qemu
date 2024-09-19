@@ -652,7 +652,46 @@ static void emit_brick_entry(CPUArchState *env, cpu_log_instr_info_t *iinfo)
 
     uint64_t mask = ((uint64_t) 1 << (iinfo->insn_size * 8)) - 1;
     event.insn = instruction & mask;
+    /*
+    for brick we need to pass the kind as a fault if the exception was caused
+    by a fail to fetch instructions
+    this would either be
 
+    Or a cheri exception with the type being CapExType_InstrAccess
+    and possibly CapExType_Branch with a cause of CapEx_LengthViolation
+    For cheri exceptions the cause and type are encoded in the faultaddr field
+    the type is encoded in the top 16 bits of tval(fault_addr)
+
+    */
+#if defined TARGET_RISCV
+    if (iinfo->flags &
+        LI_FLAG_INTR_TRAP) { // this will just get traps, what about interrupts.
+        switch (iinfo->intr_code) {
+        case RISCV_EXCP_INST_ADDR_MIS:
+        case RISCV_EXCP_INST_ACCESS_FAULT:
+        case RISCV_EXCP_INST_PAGE_FAULT:
+        case RISCV_EXCP_INST_GUEST_PAGE_FAULT:
+            event.kind = FAULT;
+            break;
+#ifdef TARGET_CHERI
+        case RISCV_EXCP_CHERI:
+        event.kind=PROGRAM;
+            if ((iinfo->intr_faultaddr >> 16) == 0) {
+                event.kind = FAULT;
+            }
+            break;
+#endif
+        default:
+            event.kind = PROGRAM;
+        }
+        event.exception = iinfo->intr_code;
+    } else if (iinfo->flags & LI_FLAG_INTR_ASYNC) {
+        event.kind = INTERRUPT;
+        event.exception = iinfo->intr_code;
+    } else {
+        event.exception = -1;
+    }
+#endif
     output_track_event(&event);
 }
 #define brick_emit_start(ENV, PC)                                              \

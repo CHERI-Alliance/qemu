@@ -26,11 +26,21 @@ typedef enum{
     REG_TYPE_GP=8,
 }BRICK_REGISTER_TYPES;
 
+typedef enum _brick_trap_type_
+{
+    FAULT,
+    PROGRAM,
+    INTERRUPT,
+    NONE
+}brick_trap_type;
 typedef struct _brick_track_event_
 {
     uint32_t insn;
     uint64_t pc;
     uint64_t count;
+    int32_t  exception; // The riscv exception code,
+    brick_trap_type kind;
+
 }brick_track_event;
 
 typedef struct _brick_track_reg_
