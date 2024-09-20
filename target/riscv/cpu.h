@@ -382,10 +382,6 @@ struct CPURISCVState {
     uint32_t elf_flags;
 #endif
 
-#ifndef CONFIG_USER_ONLY
-#endif
-
-
     /* Fields from here on are preserved across CPU reset. */
     QEMUTimer *timer; /* Internal timer */
 };
