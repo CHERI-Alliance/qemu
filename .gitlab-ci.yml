@@ -202,25 +202,33 @@ test_qemu_mipscheri:
             - build_mips64cheri128/mips64cheri128_tests.xml
             - build_mips64cheri128/meson-logs/testlog.junit.xml
 
+.curl_upload: &curl_upload
+    - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN"
+         --upload-file install/bin/qemu-system-riscv32cheri
+         $TGT_DIR/qemu-system-riscv32cheri'
+    - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN"
+         --upload-file install/bin/qemu-system-riscv64cheri
+         $TGT_DIR/qemu-system-riscv64cheri'
+    - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN"
+         --upload-file install/bin/qemu-img $TGT_DIR/qemu-img'
+
 nightly_upload:
     stage: package
     rules:
         - if: $CI_PIPELINE_SOURCE == "schedule"
+    variables:
+        TGT_DIR: "$CI_API_V4_URL/projects/$CI_PROJECT_ID/packages/generic/qemu-cheri/0.0.1"
     script:
-        - TGT_DIR="$CI_API_V4_URL/projects/$CI_PROJECT_ID/packages/generic/qemu-cheri/0.0.1"
-        - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file install/bin/qemu-system-riscv32cheri $TGT_DIR/qemu-system-riscv32cheri'
-        - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file install/bin/qemu-system-riscv64cheri $TGT_DIR/qemu-system-riscv64cheri'
-        - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file install/bin/qemu-img $TGT_DIR/qemu-img'
+        - *curl_upload
 
 tag_upload:
     stage: package
     rules:
         - if: '$CI_COMMIT_TAG != null'
+    variables:
+        TGT_DIR: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/qemu-cheri/${CI_COMMIT_TAG}"
     script:
-        - TGT_DIR="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/qemu-cheri/${CI_COMMIT_TAG}"
-        - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file install/bin/qemu-system-riscv32cheri $TGT_DIR/qemu-system-riscv32cheri'
-        - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file install/bin/qemu-system-riscv64cheri $TGT_DIR/qemu-system-riscv64cheri'
-        - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file install/bin/qemu-img $TGT_DIR/qemu-img'
+        - *curl_upload
 
 include:
   - template: Jobs/SAST.gitlab-ci.yml
