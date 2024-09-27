@@ -80,6 +80,7 @@ build_qemu:
     rules:
         - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
         - if: $CI_PIPELINE_SOURCE == "push"
+        - if: $CI_PIPELINE_SOURCE == "schedule"
     script:
         - *configure_build
         - ninja
@@ -200,23 +201,15 @@ test_qemu_mipscheri:
             - build_mips64cheri128/mips64cheri128_tests.xml
             - build_mips64cheri128/meson-logs/testlog.junit.xml
 
-
-nightly_build:
-    stage:
-        package
+nightly_upload:
+    stage: package
     rules:
-    - if: $CI_PIPELINE_SOURCE =="schedule"
+        - if: $CI_PIPELINE_SOURCE == "schedule"
     script:
-        - scripts/riscv_cheri/package $INSTALL_DIR
-        - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file $INSTALL_DIR/bin/$PACKAGE_NAME32 "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/qemu-cheri/0.0.1/$PACKAGE_NAME32"'
-        - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file $INSTALL_DIR/bin/$PACKAGE_NAME64 "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/qemu-cheri/0.0.1/$PACKAGE_NAME64"'
-        - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file $INSTALL_DIR/bin/qemu-img "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/qemu-cheri/0.0.1/qemu-img"'
-    artifacts:
-        paths:
-        - $INSTALL_DIR/bin/$PACKAGE_NAME32
-        - $INSTALL_DIR/bin/$PACKAGE_NAME64
-        - $INSTALL_DIR/bin/qemu-img
-        expire_in: 1 week
+        - TGT_DIR="$CI_API_V4_URL/projects/$CI_PROJECT_ID/packages/generic/qemu-cheri/0.0.1"
+        - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file install/bin/qemu-system-riscv32cheri $TGT_DIR/qemu-system-riscv32cheri'
+        - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file install/bin/qemu-system-riscv64cheri $TGT_DIR/qemu-system-riscv64cheri'
+        - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file install/bin/qemu-img $TGT_DIR/qemu-img'
 
 tag_build:
     stage:
