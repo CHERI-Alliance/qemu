@@ -81,6 +81,7 @@ build_qemu:
         - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
         - if: $CI_PIPELINE_SOURCE == "push"
         - if: $CI_PIPELINE_SOURCE == "schedule"
+        - if: '$CI_COMMIT_TAG != null'
     script:
         - *configure_build
         - ninja
@@ -211,16 +212,15 @@ nightly_upload:
         - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file install/bin/qemu-system-riscv64cheri $TGT_DIR/qemu-system-riscv64cheri'
         - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file install/bin/qemu-img $TGT_DIR/qemu-img'
 
-tag_build:
-    stage:
-        package
+tag_upload:
+    stage: package
     rules:
-    - if: '$CI_COMMIT_TAG != null'
+        - if: '$CI_COMMIT_TAG != null'
     script:
-        - scripts/riscv_cheri/package $INSTALL_DIR
-        - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file $INSTALL_DIR/bin/$PACKAGE_NAME32 "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/qemu-cheri/${CI_COMMIT_TAG}/$PACKAGE_NAME32"'
-        - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file $INSTALL_DIR/bin/$PACKAGE_NAME64 "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/qemu-cheri/${CI_COMMIT_TAG}/$PACKAGE_NAME64"'
-        - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file $INSTALL_DIR/bin/qemu-img "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/qemu-cheri/${CI_COMMIT_TAG}/qemu-img"'
+        - TGT_DIR="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/qemu-cheri/${CI_COMMIT_TAG}"
+        - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file install/bin/qemu-system-riscv32cheri $TGT_DIR/qemu-system-riscv32cheri'
+        - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file install/bin/qemu-system-riscv64cheri $TGT_DIR/qemu-system-riscv64cheri'
+        - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file install/bin/qemu-img $TGT_DIR/qemu-img'
 
 include:
   - template: Jobs/SAST.gitlab-ci.yml
