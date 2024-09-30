@@ -512,7 +512,6 @@ static bool trans_fence_i(DisasContext *ctx, arg_fence_i *a)
     tcg_temp_free(rs1_pass); \
 } while (0)
 
-#ifdef TARGET_CHERI
 /*
 These functions generate the tcg code for csr acceses.
 As it stands these will not work correctly with the capability ones as they are only expecting 64/32 bit words
@@ -524,37 +523,6 @@ We will need to do this for ours as well.
 Are we able to use a->rd, and a-> rs to determine if they are capabilities, provide correct pre/post code and dispatch to an appropriate handler (i/e one that expects indices of caps rather than pointers)
 
 */
-
-
-static bool is_cap_csr(int csrno)
-{
-    switch (csrno)
-    {
-        case CSR_DPCC:
-        case CSR_DSCRATCH0C:
-        case CSR_DSCRATCH1C:
-        case CSR_MTVECC:
-        case CSR_MSCRATCHC:
-        case CSR_MEPCC:
-        case CSR_STVECC:
-        case CSR_SSCRATCHC:
-        case CSR_SEPCC:
-        case CSR_DDDC:
-        case CSR_MTDC:
-        case CSR_STDC:
-        case CSR_DDC:
-        case CSR_DINFC:
-        case CSR_MTIDC:
-        case CSR_STIDC:
-        case CSR_UTIDC:
-            return true;
-        default:
-            return false;
-    }
-
-
-}
-#endif
 
 /*
 TODO: PB Inovke relevant csrxx_cap variants

@@ -46,6 +46,35 @@ void riscv_log_instr_csr_changed(CPURISCVState *env, int csrno)
 }
 #endif
 
+#ifdef TARGET_CHERI
+bool is_cap_csr(int csrno)
+{
+    switch (csrno)
+    {
+        case CSR_DPCC:
+        case CSR_DSCRATCH0C:
+        case CSR_DSCRATCH1C:
+        case CSR_MTVECC:
+        case CSR_MSCRATCHC:
+        case CSR_MEPCC:
+        case CSR_STVECC:
+        case CSR_SSCRATCHC:
+        case CSR_SEPCC:
+        case CSR_DDDC:
+        case CSR_MTDC:
+        case CSR_STDC:
+        case CSR_DDC:
+        case CSR_DINFC:
+        case CSR_MTIDC:
+        case CSR_STIDC:
+        case CSR_UTIDC:
+            return true;
+        default:
+            return false;
+    }
+}
+#endif
+
 /* CSR function table public API */
 void riscv_get_csr_ops(int csrno, riscv_csr_operations *ops)
 {
