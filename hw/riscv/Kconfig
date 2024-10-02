@@ -4,6 +4,9 @@ config RISCV_NUMA
 config IBEX
     bool
 
+config CMU
+    bool
+
 config MICROCHIP_PFSOC
     bool
     select CADENCE_SDHCI
@@ -95,3 +98,4 @@ config HOBGOBLIN
     select VIRTIO_MMIO
     select SERIAL
     select SSI_SD
+    select CMU
