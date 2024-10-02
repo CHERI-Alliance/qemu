@@ -3586,7 +3586,14 @@ static inline target_ulong arm_get_xreg(CPUARMState *env, int regnum)
 #ifdef TARGET_CHERI
     return get_capreg_cursor(env, regnum);
 #else
-    return (is_a64(env) ? env->xregs[regnum] : env->regs[regnum]);
+    if (is_a64(env))
+            return env->xregs[regnum];
+
+    if (regnum < ARRAY_SIZE(env->regs))
+        return env->regs[regnum];
+
+    g_assert_not_reached();
+    return 0;
 #endif
 }
 
@@ -3600,7 +3607,10 @@ static inline void arm_set_xreg(CPUARMState *env, int regnum,
     if (is_a64(env)) {
         env->xregs[regnum] = value;
     } else {
-        env->regs[regnum] = value;
+        if (regnum < ARRAY_SIZE(env->regs))
+            env->regs[regnum] = value;
+        else
+            g_assert_not_reached();
     }
 #endif
 }
