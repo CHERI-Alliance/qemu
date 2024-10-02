@@ -35,6 +35,7 @@
 #include "hw/sd/sd.h"
 #include "hw/ssi/ssi.h"
 #include "target/riscv/cpu.h"
+#include "hw/riscv/cmu.h"
 #include "hw/riscv/riscv_hart.h"
 #include "hw/intc/sifive_clint.h"
 #include "hw/intc/sifive_plic.h"
@@ -107,6 +108,9 @@ static const memmapEntry_t memmap[] = {
     [HOBGOBLIN_GPIO1] =    { 0x60310000,    0x10000 },
     [HOBGOBLIN_TRNG] =     { 0x60510000,     0x1000 },
     [HOBGOBLIN_TIMER] =    { 0x60600000,     0x8000 },
+    [HOBGOBLIN_INTL_CMU] = { 0x60680000,    0x10000 },
+    [HOBGOBLIN_CMU_DDR0] = { 0x60690000,    0x10000 },
+    [HOBGOBLIN_CMU_DDR1] = { 0x606a0000,    0x10000 },
     /* Each virtio transport channel uses 512 byte */
     [HOBGOBLIN_VIRTIO] =   { 0x70000000,    0x10000 },
     [HOBGOBLIN_DRAM] =     { 0x80000000, 0x40000000,
@@ -326,6 +330,26 @@ static void hobgoblin_add_id_register(HobgoblinState *s,
                        mem_id->base);
 }
 
+static void __attribute__((unused))
+hobgoblin_add_cmu(DeviceState **d, const memmapEntry_t *io, const MemoryRegion *ram)
+{
+    SysBusDevice *bus_cmu;
+
+    *d = qdev_new(TYPE_CMU_DEVICE);
+    bus_cmu = SYS_BUS_DEVICE(*d);
+
+    qdev_prop_set_uint64(*d, "ram-base", ram->addr);
+    /*
+     * int128_get64 assert()s that the upper 64bits are zero. ram->size comes
+     * from our memory map, this check makes sense.
+     */
+    qdev_prop_set_uint64(*d, "ram-size", int128_get64(ram->size));
+    object_property_set_link(OBJECT(*d), "managed-ram", OBJECT(ram), &error_fatal);
+
+    sysbus_realize_and_unref(bus_cmu, &error_fatal);
+    sysbus_mmio_map(bus_cmu, 0, io->base);
+}
+
 static void hobgoblin_add_uart(HobgoblinState *s,
                                MemoryRegion *system_memory)
 {
@@ -537,20 +561,21 @@ static void hobgoblin_machine_init(MachineState *machine)
     HobgoblinState *s = HOBGOBLIN_MACHINE(machine);
     HobgoblinClass *hc = HOBGOBLIN_MACHINE_GET_CLASS(s);
     MemoryRegion *system_memory = get_system_memory();
+    MemoryRegion __attribute__((unused)) *sram, *ddr0, *ddr1 = NULL;
     const int smp_cpus = machine->smp.cpus;
 
     hobgoblin_add_soc(s, smp_cpus);
 
     /* add memory regions */
-    hobgoblin_add_memory_area(system_memory, &memmap[HOBGOBLIN_DRAM]);
+    ddr0 = hobgoblin_add_memory_area(system_memory, &memmap[HOBGOBLIN_DRAM]);
     hobgoblin_add_memory_area(system_memory, &memmap[HOBGOBLIN_MROM]);
     hobgoblin_add_memory_area(system_memory, &memmap[HOBGOBLIN_BOOT_ROM]);
     hobgoblin_add_memory_area(system_memory, &memmap[HOBGOBLIN_BOOT_RAM]);
     /* SRAM exists on FPGA only */
-    hobgoblin_add_memory_area(system_memory, &memmap[HOBGOBLIN_SRAM]);
+    sram = hobgoblin_add_memory_area(system_memory, &memmap[HOBGOBLIN_SRAM]);
 
     if (hc->board_type == BOARD_TYPE_PROFPGA) {
-        hobgoblin_add_memory_area(system_memory, &pro_fpga_memmap[0]);
+        ddr1 = hobgoblin_add_memory_area(system_memory, &pro_fpga_memmap[0]);
     }
 
     /* add interrupt controller */
@@ -558,6 +583,13 @@ static void hobgoblin_machine_init(MachineState *machine)
 
     /* add peripherals (requires having an interrupt controller) */
     hobgoblin_add_id_register(s, system_memory);
+#ifdef TARGET_CHERI
+    hobgoblin_add_cmu(&s->internal_cmu, &memmap[HOBGOBLIN_INTL_CMU], sram);
+    hobgoblin_add_cmu(&s->ddr0_cmu, &memmap[HOBGOBLIN_CMU_DDR0], ddr0);
+    if (ddr1) {
+        hobgoblin_add_cmu(&s->ddr1_cmu, &memmap[HOBGOBLIN_CMU_DDR1], ddr1);
+    }
+#endif
     hobgoblin_add_uart(s, system_memory);
     hobgoblin_add_gpio(s);
     hobgoblin_add_spi(s);
