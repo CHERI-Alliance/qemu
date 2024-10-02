@@ -56,6 +56,9 @@ struct HobgoblinState {
     DeviceState *eth;
     DeviceState *trng;
     DeviceState *timer;
+    DeviceState *internal_cmu;
+    DeviceState *ddr0_cmu;
+    DeviceState *ddr1_cmu;
 };
 
 OBJECT_DECLARE_TYPE(HobgoblinState, HobgoblinClass, HOBGOBLIN_MACHINE)
@@ -78,7 +81,10 @@ enum {
     HOBGOBLIN_TRNG,
     HOBGOBLIN_TIMER,
     HOBGOBLIN_VIRTIO,
-    HOBGOBLIN_DRAM
+    HOBGOBLIN_DRAM,
+    HOBGOBLIN_INTL_CMU,
+    HOBGOBLIN_CMU_DDR0,
+    HOBGOBLIN_CMU_DDR1,
 };
 
 #define NUM_VIRTIO_TRANSPORTS   4
