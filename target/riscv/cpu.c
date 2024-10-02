@@ -1003,6 +1003,15 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
     }
 
 #ifdef TARGET_CHERI
+    if (env->misa_ext & RVJ) {
+        /*
+         * According to the Cheri RISC-V spec, the J extension is incompatible
+         * with capability pointer mode.
+         */
+        error_setg(errp, "J extension is not supported on Cheri systems.");
+        return;
+    }
+
     // Non-standard extensions present
     target_misa |= RV('X');
     set_feature(env, RISCV_FEATURE_CHERI_PURECAP);
