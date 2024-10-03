@@ -477,6 +477,15 @@ static void *cheri_tag_invalidate_one(CPUArchState *env, target_ulong vaddr,
     return host_addr;
 }
 
+
+
+void cheri_tag_phys_invalidate_external(RAMBlock *ram,
+                               ram_addr_t ram_offset, ram_addr_t len)
+{
+    cheri_tag_phys_invalidate(NULL,ram,ram_offset,len,NULL);
+}
+
+
 void cheri_tag_phys_invalidate(CPUArchState *env, RAMBlock *ram,
                                ram_addr_t ram_offset, ram_addr_t len,
                                const target_ulong *vaddr)
