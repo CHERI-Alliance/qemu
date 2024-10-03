@@ -41,6 +41,7 @@
 #include "hw/riscv/hobgoblin.h"
 #include "hw/riscv/boot.h"
 #include "hw/char/serial.h"
+#include "hw/misc/codasip_trng.h"
 #include "chardev/char.h"
 #include "sysemu/device_tree.h"
 #include "sysemu/sysemu.h"
@@ -104,6 +105,7 @@ static const memmapEntry_t memmap[] = {
     [HOBGOBLIN_SPI] =      { 0x60210000,     0x1000 },
     [HOBGOBLIN_GPIO0] =    { 0x60300000,    0x10000 },
     [HOBGOBLIN_GPIO1] =    { 0x60310000,    0x10000 },
+    [HOBGOBLIN_TRNG] =     { 0x60510000,     0x1000 },
     [HOBGOBLIN_TIMER] =    { 0x60600000,     0x8000 },
     /* Each virtio transport channel uses 512 byte */
     [HOBGOBLIN_VIRTIO] =   { 0x70000000,    0x10000 },
@@ -502,6 +504,16 @@ static void hobgoblin_add_axi_ethernet(HobgoblinState *s)
     s->eth = eth;
 }
 
+static void hobgoblin_add_trng(HobgoblinState *s)
+{
+    SysBusDevice *ss;
+
+    s->trng = qdev_new(TYPE_CODASIP_TRNG);
+    ss = SYS_BUS_DEVICE(s->trng);
+    sysbus_realize_and_unref(ss, &error_fatal);
+    sysbus_mmio_map(ss, 0, memmap[HOBGOBLIN_TRNG].base);
+}
+
 /* Codasip Timer at 100 MHz */
 static void hobgoblin_add_timer(HobgoblinState *s)
 {
@@ -567,6 +579,7 @@ static void hobgoblin_machine_init(MachineState *machine)
         hobgoblin_add_axi_ethernet(s);
         break;
     }
+    hobgoblin_add_trng(s);
     hobgoblin_add_timer(s);
     hobgoblin_add_virtio(s);
 
