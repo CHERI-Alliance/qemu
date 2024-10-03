@@ -1260,6 +1260,10 @@ static void riscv_isa_string_ext(RISCVCPU *cpu, char **isa_str, int max_str_len)
         ISA_EDATA_ENTRY(zbb, ext_zbb),
         ISA_EDATA_ENTRY(zbc, ext_zbc),
         ISA_EDATA_ENTRY(zbs, ext_zbs),
+#ifdef TARGET_CHERI
+        {"zcherihybrid", !cpu->cfg.ext_cheri_purecap},
+        {"zcheripurecap", true},
+#endif
     };
 
     for (i = 0; i < ARRAY_SIZE(isa_edata_arr); i++) {
