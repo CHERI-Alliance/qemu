@@ -37,6 +37,11 @@
 #include "exec/memory.h"
 
 #if defined(TARGET_CHERI)
+
+/* Invalidate intended to be called outside CPU*/
+void cheri_tag_phys_invalidate_external(RAMBlock *ram,
+                               ram_addr_t ram_offset, ram_addr_t len);
+
 /* Note: for cheri_tag_phys_invalidate, env may be NULL */
 void cheri_tag_phys_invalidate(CPUArchState *env, RAMBlock *ram,
                                ram_addr_t offset, size_t len,
