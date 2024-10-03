@@ -168,6 +168,9 @@ config SIFIVE_U_OTP
 config SIFIVE_U_PRCI
     bool
 
+config CODASIP_TRNG
+    bool
+
 config VIRT_CTRL
     bool
 
