@@ -1,3 +1,11 @@
 # Default configuration for riscv32cheri-softmmu
 
-include ../riscv32-softmmu/default.mak
+CONFIG_SEMIHOSTING=y
+CONFIG_ARM_COMPATIBLE_SEMIHOSTING=y
+
+# Boards:
+#
+CONFIG_SPIKE=y
+CONFIG_SIFIVE_U=y
+CONFIG_RISCV_VIRT=y
+CONFIG_OPENTITAN=y
