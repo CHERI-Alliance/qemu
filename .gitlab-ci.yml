@@ -120,6 +120,8 @@ test_qemu_standard:
         reports:
            junit:
            - build/meson-logs/testlog.junit.xml
+        paths:
+           - build/meson-logs/testlog.txt
 
 include:
   - template: Jobs/SAST.gitlab-ci.yml
