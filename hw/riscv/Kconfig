@@ -91,3 +91,6 @@ config HOBGOBLIN
     select XILINX_AXI_GPIO
     select XILINX_ETHLITE
     select XILINX_AXI
+    select VIRTIO_MMIO
+    select SERIAL
+    select SSI_SD
