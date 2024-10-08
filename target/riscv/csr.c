@@ -26,7 +26,6 @@
 #ifdef TARGET_CHERI
 #include "cheri-helper-utils.h"
 #endif
-
 /* CSR update logging API */
 #if CONFIG_TCG_LOG_INSTR
 void riscv_log_instr_csr_changed(CPURISCVState *env, int csrno)
