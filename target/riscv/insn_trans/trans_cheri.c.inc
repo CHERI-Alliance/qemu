@@ -429,29 +429,29 @@ static inline bool trans_modesw_int(DisasContext *ctx, arg_modesw_int *a)
  * it's helpful to have the same names in the code instead of reusing
  * TRANSLATE_INT_CAP.
  */
-#define TRANSLATE_INT_CAP_BW(name) \
+#define TRANSLATE_INT_CAP(name) \
     DO_TRANSLATE(name, gen_cheri_int_cap, a->rd, a->cs1)
 
-#define TRANSLATE_CAP_CAP_IMM_BW(name) \
+#define TRANSLATE_CAP_CAP_IMM(name) \
     DO_TRANSLATE(name, gen_cheri_cap_cap_imm, a->cd, a->cs1, a->imm)
 
-#define TRANSLATE_CAP_CAP_INT_BW(name) \
+#define TRANSLATE_CAP_CAP_INT(name) \
     DO_TRANSLATE(name, gen_cheri_cap_cap_int_plus_imm, a->cd, a->cs1, a->rs2, 0)
 
-#define TRANSLATE_INT_CAP_CAP_BW(name) \
+#define TRANSLATE_INT_CAP_CAP(name) \
     DO_TRANSLATE(name, gen_cheri_int_cap_cap, a->rd, a->cs1, a->cs2)
 
-#define TRANSLATE_CAP_CAP_BW(name) \
+#define TRANSLATE_CAP_CAP(name) \
     DO_TRANSLATE(name, gen_cheri_cap_cap, a->cd, a->cs1)
 
-#define TRANSLATE_CAP_CAP_CAP_BW(name) \
+#define TRANSLATE_CAP_CAP_CAP(name) \
     DO_TRANSLATE(name, gen_cheri_cap_cap_cap, a->cd, a->cs1, a->cs2)
 
-TRANSLATE_INT_CAP_BW(gctag)
-TRANSLATE_INT_CAP_BW(gcperm)
-TRANSLATE_INT_CAP_BW(gchi)
-TRANSLATE_INT_CAP_BW(gcbase)
-TRANSLATE_INT_CAP_BW(gclen)
+TRANSLATE_INT_CAP(gctag)
+TRANSLATE_INT_CAP(gcperm)
+TRANSLATE_INT_CAP(gchi)
+TRANSLATE_INT_CAP(gcbase)
+TRANSLATE_INT_CAP(gclen)
 
 static bool trans_cadd(DisasContext *ctx, arg_cadd *a)
 {
@@ -513,18 +513,18 @@ static bool trans_cadd(DisasContext *ctx, arg_cadd *a)
     return true;
 }
 
-TRANSLATE_CAP_CAP_INT_BW(scbnds)
-TRANSLATE_CAP_CAP_INT_BW(scbndsr)
+TRANSLATE_CAP_CAP_INT(scbnds)
+TRANSLATE_CAP_CAP_INT(scbndsr)
 
-TRANSLATE_CAP_CAP_IMM_BW(caddi)
+TRANSLATE_CAP_CAP_IMM(caddi)
 
-TRANSLATE_CAP_CAP_INT_BW(scaddr)
-TRANSLATE_CAP_CAP_INT_BW(schi)
-TRANSLATE_INT_CAP_CAP_BW(sceq)
-TRANSLATE_CAP_CAP_INT_BW(acperm)
-TRANSLATE_CAP_CAP_CAP_BW(cbld)
-TRANSLATE_INT_CAP_CAP_BW(scss)
+TRANSLATE_CAP_CAP_INT(scaddr)
+TRANSLATE_CAP_CAP_INT(schi)
+TRANSLATE_INT_CAP_CAP(sceq)
+TRANSLATE_CAP_CAP_INT(acperm)
+TRANSLATE_CAP_CAP_CAP(cbld)
+TRANSLATE_INT_CAP_CAP(scss)
 
-TRANSLATE_CAP_CAP_BW(sentry)
+TRANSLATE_CAP_CAP(sentry)
 
-TRANSLATE_CAP_CAP_INT_BW(scmode)
+TRANSLATE_CAP_CAP_INT(scmode)
