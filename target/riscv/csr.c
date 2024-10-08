@@ -26,22 +26,38 @@
 #ifdef TARGET_CHERI
 #include "cheri-helper-utils.h"
 #endif
-
 /* CSR update logging API */
 #if CONFIG_TCG_LOG_INSTR
+#ifdef TARGET_CHERI
+bool is_cap_csr(int csrno);
+static inline cap_register_t *get_cap_csr(CPUArchState *env, uint32_t index);
+#endif
 void riscv_log_instr_csr_changed(CPURISCVState *env, int csrno)
 {
     target_ulong value;
-
     if (qemu_log_instr_enabled(env)) {
-        if (csr_ops[csrno].read)
-            csr_ops[csrno].read(env, csrno, &value);
-        else if (csr_ops[csrno].op)
-            csr_ops[csrno].op(env, csrno, &value, 0, /*write_mask*/0);
+
+#ifdef TARGET_CHERI
+        if(is_cap_csr(csrno)){
+            riscv_csr_cap_ops *csr_cap_info = get_csr_cap_info(csrno);
+            // log the value and write it
+            cap_register_t log_reg = *get_cap_csr(env, csr_cap_info->reg_num);
+            cheri_log_instr_changed_capreg(env, csr_cap_info->name, &log_reg,
+                                   csr_cap_info->reg_num, LRI_CSR_ACCESS);
+        }
         else
-            return;
-        if (csr_ops[csrno].log_update)
-            csr_ops[csrno].log_update(env, csrno, value);
+#endif
+        {
+
+            if (csr_ops[csrno].read)
+                csr_ops[csrno].read(env, csrno, &value);
+            else if (csr_ops[csrno].op)
+                csr_ops[csrno].op(env, csrno, &value, 0, /*write_mask*/0);
+            else
+                return;
+            if (csr_ops[csrno].log_update)
+                csr_ops[csrno].log_update(env, csrno, value);
+        }
     }
 }
 #endif

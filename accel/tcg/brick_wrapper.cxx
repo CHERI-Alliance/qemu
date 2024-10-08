@@ -171,9 +171,17 @@ class BrickWrapper
         brick::isa::Memory::Value mem;
         auto val = trnsn->val;
         mem.addr = trnsn->addr;
+        mem.pa = trnsn->addr;
+        // needs to handle capabilities
+        // if there is a tag we should handle it
+        // also need to extend pesbt into val
         for (size_t i = 0; i < trnsn->size; i++) {
             mem.data.push_back(val& 0xff);
-            val >>=8;
+            val = val >> 8 | (pesbt & 0xff) << 56;
+            pesbt = pesbt >> 8;
+        }
+        if (trnsn->flags & MEM_CAP) {
+            mem.tag = trnsn->tag_valid ? 1 : 0;
         }
         if (trnsn->flags & MEM_LD) {
             event->loads.push_back(mem);
