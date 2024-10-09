@@ -70,6 +70,7 @@ default:
           --disable-vnc-jpeg
           --disable-vnc-sasl
           --disable-werror
+          --meson=git
           --prefix=`realpath $CI_PROJECT_DIR`/install
 
 build_qemu:
@@ -125,9 +126,11 @@ test_qemu_standard:
         - if: $CI_PIPELINE_SOURCE == "push"
     script:
         - *configure_build
-        # If we called meson test directly, we'd need a system meson. ninja
-        # uses either the system's meson or the one from a git submodule.
-        - ninja test 
+        # configure --meson=git ensures that we use the submodule meson,
+        # i.e. we can call meson test instead of ninja test. meson test
+        # supports parameters for the test, ninja test doesn't.
+        # -t <factor> extends the timeouts, we saw timeouts on gitlab ci/cd
+        - ../meson/meson.py test -t 30
     # When this job fails, do not fail the entire pipeline.
     allow_failure: true
     artifacts:
