@@ -318,6 +318,8 @@ static RISCVException write_fcsr(CPURISCVState *env, int csrno,
 {
 #if !defined(CONFIG_USER_ONLY)
     env->mstatus |= MSTATUS_FS;
+    log_changed_special_reg(env, "mstatus", env->mstatus, CSR_MSTATUS,
+                            LRI_CSR_ACCESS);
 #endif
     env->frm = (val & FSR_RD) >> FSR_RD_SHIFT;
     if (vs(env, csrno) >= 0) {
