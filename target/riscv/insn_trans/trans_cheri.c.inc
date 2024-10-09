@@ -491,7 +491,7 @@ static bool trans_cadd(DisasContext *ctx, arg_cadd *a)
          * cr_arch_perm.
          */
         gen_move_cap(gp_register_offset(a->cd), gp_register_offset(a->cs1));
-
+        gen_reg_modified_cap(ctx, a->cd); 
 #ifdef ENABLE_STATIC_CAP_OPTS
 #error "Review the cap register copy operation. " \
        "Do we have to call disas_capreg_state_set?"
