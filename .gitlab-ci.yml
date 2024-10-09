@@ -45,6 +45,10 @@ default:
           --disable-vnc
           --disable-vnc-jpeg
           --disable-vnc-sasl
+          --disable-l2tpv3
+          --disable-oss
+          --disable-alsa
+          --disable-tpm
           --disable-werror
           --meson=git
           --prefix=`realpath $CI_PROJECT_DIR`/install
