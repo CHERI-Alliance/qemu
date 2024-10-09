@@ -2272,6 +2272,12 @@ RISCVException riscv_csrrw(CPURISCVState *env, int csrno, target_ulong *ret_valu
             if (csr_ops[csrno].log_update){
                 csr_ops[csrno].read(env, csrno, &new_value);
                 csr_ops[csrno].log_update(env, csrno, new_value);
+                if (csrno == CSR_FCSR){
+                    // special case handling of the FCSR we also need to log mstatus
+                    // as writes to FCSR can change the MSTATUS value
+                    csr_ops[CSR_MSTATUS].read(env,CSR_MSTATUS,&new_value);
+                    csr_ops[CSR_MSTATUS].log_update(env, CSR_MSTATUS, new_value);
+                }
 
             }
 #endif
