@@ -1894,8 +1894,26 @@ target_ulong CHERI_HELPER_IMPL(gchi(CPUArchState *env, uint32_t cb))
      * GCHI: Move Metadata bits to a General-Purpose Register
      * We have to return the compressed form.
      * TODO (from Cambridge): could do this directly from TCG now.
+     * (except for the M flip...)
      */
-    return CAP_cc(compress_mem)(get_readonly_capreg(env, cb));
+
+    const cap_register_t *cbp = get_readonly_capreg(env, cb);
+    cap_register_t result;
+    bool m_flip = false;
+#ifdef TARGET_RISCV
+    RISCVCPU *cpu = env_archcpu(env);
+
+    m_flip = cpu->cfg.m_flip;
+#endif
+
+    if (!m_flip)
+        return CAP_cc(compress_mem)(cbp);
+
+    /* We have to make a copy, cb must remain unchanged. */
+    memcpy(&result, cbp, sizeof(cap_register_t));
+    result.cr_m ^= 0x1;
+    CAP_cc(m_ap_compress)(&result);
+    return CAP_cc(compress_mem)(&result);
 }
 
 target_ulong CHERI_HELPER_IMPL(gcbase(CPUArchState *env, uint32_t cb))
