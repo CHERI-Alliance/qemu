@@ -13,7 +13,7 @@ TEST_CASE("update sealed", "[sealed]") {
 }
 
 /*
- * For 64-bit bakewell, the conversion between M + AP bitfield and its
+ * For 64-bit risc-v cheri, the conversion between M + AP bitfield and its
  * encoding is a trivial 1:1 mapping. Some spot checks will do, there's
  * no point in checking all combinations.
  */
