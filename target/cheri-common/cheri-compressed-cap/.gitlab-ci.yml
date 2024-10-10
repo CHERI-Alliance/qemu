@@ -1,0 +1,27 @@
+variables:
+  GIT_FETCH_EXTRA_FLAGS: --quiet --tags
+  GIT_DEPTH: 0
+
+stages:
+    - build
+
+default:
+    image:
+        name: docker-registry.codasip.com/cheri/qemu:0.1.2
+        entrypoint: [""]
+    interruptible: true
+    tags:
+        - docker
+        - linux
+        - nolicense
+
+build_all:
+    stage: build
+    rules:
+        - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+        - if: $CI_PIPELINE_SOURCE == "push"
+    script:
+        - mkdir build
+        - cd build
+        - cmake -GNinja ..
+        - ninja

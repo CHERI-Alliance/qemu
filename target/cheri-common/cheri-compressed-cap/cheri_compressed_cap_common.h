@@ -46,7 +46,7 @@ enum {
     _CC_N(RESET_EXP) = _CC_N(MAX_EXPONENT),
 #if _CC_N(FIELD_EF_USED) == 1
     _CC_N(RESET_T) = 0,
-    // The value that is encoded in { L8, TE, BE }. Bakewell stores the
+    // The value that is encoded in { L8, TE, BE }. Risc-v cheri stores the
     // difference between max exponent and the actual exponent.
     _CC_N(RESET_EXP_CODED) = (_CC_N(MAX_EXPONENT) - _CC_N(RESET_EXP)),
 #else
@@ -276,12 +276,12 @@ TRUNCATE_LSB_FUNC(64)
 struct _cc_N(bounds_bits) {
     uint16_t B; // bottom bits (currently 14 bits)
     uint16_t T; // top bits (12 bits plus two implied bits)
-    // for bakewell, the exponent is max_exp - { L8 (if present), TE, BE },
+    // for risc-v cheri, the exponent is max_exp - { L8 (if present), TE, BE },
     // this may become negative for invalid encodings
     int8_t E;
     union {
         bool IE; // cheri v9's internal exponent flag
-        bool EF; // cheri bakewell's exponent format
+        bool EF; // cheri risc-v cheri's exponent format
     };
 };
 #define _cc_bounds_bits struct _cc_N(bounds_bits)
@@ -393,7 +393,7 @@ static inline bool _cc_N(bounds_bits_valid)(_cc_bounds_bits bounds) {
 #else
     /*
      * Perform the malformed capability bounds checks as defined in section
-     * 2.2.6 of the cheri bakewell specification.
+     * 2.2.6 of the cheri risc-v cheri specification.
      */
     if (!bounds.EF) {
         if (bounds.E < 0) {
@@ -437,7 +437,7 @@ static inline bool _cc_N(compute_base_top)(_cc_bounds_bits bounds, _cc_addr_t cu
 
     // For the remaining computations we have to clamp E to max_E
     //  let E = min(maxE, unsigned(c.E)) in
-    // For bakewell, a negative bounds.E is an error that'll be caught later.
+    // For risc-v cheri, a negative bounds.E is an error that'll be caught later.
     // We can use any E for the calculations, the result will be discarded.
     uint8_t E = bounds.E > 0 ?  _CC_MIN(_CC_MAX_EXPONENT, bounds.E) : 0;
 
@@ -524,7 +524,7 @@ static inline bool _cc_N(compute_base_top)(_cc_bounds_bits bounds, _cc_addr_t cu
         // _cc_debug_assert(!tagged && "Should not create invalid tagged capabilities");
 #if _CC_N(FIELD_EF_USED) == 1
         /*
-         * For cheri bakewell, malformed bounds decode as zero (e.g. for the
+         * For cheri risc-v cheri, malformed bounds decode as zero (e.g. for the
          * gcbase and gclen instructions).
          */
         *base_out = 0;
