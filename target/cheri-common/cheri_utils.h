@@ -359,7 +359,7 @@ static inline void cap_make_sealed_entry(cap_register_t *c)
 /* If the otype field is not used, we have bakewell's sealed bit. */
 static inline bool cap_is_unsealed(const cap_register_t *c)
 {
-    return !CAP_cc(get_sealed)(c);
+    return !CAP_cc(get_ct)(c);
 }
 
 static inline bool cap_is_sealed_with_type(const cap_register_t *c)
@@ -382,12 +382,12 @@ static inline bool cap_is_sealed_with_type(const cap_register_t *c)
 
 static inline void cap_set_sealed(cap_register_t *c, uint32_t type)
 {
-    CAP_cc(update_sealed)(c, 1);
+    CAP_cc(update_ct)(c, 1);
 }
 
 static inline void cap_set_unsealed(cap_register_t *c)
 {
-    CAP_cc(update_sealed)(c, 0);
+    CAP_cc(update_ct)(c, 0);
 }
 
 static inline bool cap_is_sealed_entry(const cap_register_t *c)
