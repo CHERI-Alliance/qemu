@@ -29,7 +29,6 @@
 /* CSR update logging API */
 #if CONFIG_TCG_LOG_INSTR
 #ifdef TARGET_CHERI
-bool is_cap_csr(int csrno);
 static inline cap_register_t *get_cap_csr(CPUArchState *env, uint32_t index);
 #endif
 void riscv_log_instr_csr_changed(CPURISCVState *env, int csrno)
