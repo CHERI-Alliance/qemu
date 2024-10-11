@@ -620,7 +620,7 @@ static inline void set_max_perms_capability(__attribute__((unused)) CPUArchState
      */
     m = riscv_feature(env, RISCV_FEATURE_CHERI_HYBRID);
 #endif
-    *crp = CAP_cc(make_max_perms_cap_m)(0, cursor, CAP_MAX_TOP, m);
+    *crp = CAP_cc(make_max_perms_cap_m_lv)(0, cursor, CAP_MAX_TOP, m, 0);
     crp->cr_extra = CREG_FULLY_DECOMPRESSED;
 }
 
