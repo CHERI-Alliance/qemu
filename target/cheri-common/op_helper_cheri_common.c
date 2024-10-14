@@ -2158,7 +2158,7 @@ void CHERI_HELPER_IMPL(scmode(CPUArchState *env, uint32_t cd, uint32_t cs1,
             (csp->cr_arch_perm & CAP_AP_X)) {
 #ifdef TARGET_RISCV
         RISCVCPU *cpu = env_archcpu(env);
-        result.cr_m = cpu->cfg.scmode_flip ? !(rs2 & 0x01) : rs2 & 0x01;
+        result.cr_m = cpu->cfg.m_flip ? !(rs2 & 0x01) : rs2 & 0x01;
 #else
         result.cr_m = rs2 & 0x01;
 #endif
