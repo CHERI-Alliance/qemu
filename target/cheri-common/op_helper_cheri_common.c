@@ -1953,9 +1953,21 @@ void CHERI_HELPER_IMPL(schi(CPUArchState *env, uint32_t cd, uint32_t cs1,
                                 target_ulong rs2))
 {
     cap_register_t result;
+    bool m_flip = false;
+#ifdef TARGET_RISCV
+    RISCVCPU *cpu = env_archcpu(env);
+
+    m_flip = cpu->cfg.m_flip;
+#endif
+
     CAP_cc(decompress_mem)(rs2, get_capreg_cursor(env, cs1), false,
                            &result);
     result.cr_extra = CREG_FULLY_DECOMPRESSED;
+    if (m_flip) {
+        result.cr_m ^= 0x1;
+        CAP_cc(m_ap_compress)(&result);
+    }
+
     update_capreg(env, cd, &result);
 }
 
