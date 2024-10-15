@@ -432,6 +432,17 @@ static inline bool valid_m_ap(uint8_t cr_m, uint8_t cr_arch_perm)
     }
 
     /*
+     * We were considering a check for M=1 (int ptr mode) in purecap mode.
+     * This check would be incorrect. acperm could produce a capability with
+     * M=1 in purecap mode.
+     *
+     * acperm does not require that cs1 be tagged. If in purecap mode, we pass
+     * cs1 with tag=0, M=1, AP=X and rs2 = 0x1F to acperm, cd will have M=1.
+     * (cd's tag would still be cleared, cbld would refuse to tag such a
+     * capability).
+     */
+
+    /*
      * Please see the comment in CHERI_HELPER_IMPL(acperm).
      * In a non-executable capability, M is undefined and must be set to 0.
      */
