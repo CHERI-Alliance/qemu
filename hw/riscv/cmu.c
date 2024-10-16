@@ -24,6 +24,7 @@
 #include "qapi/error.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "hw/qdev-properties.h"
 
 static uint64_t cmu_read(void *opaque, hwaddr addr, unsigned int size)
 {
@@ -97,6 +98,14 @@ static const MemoryRegionOps cmu_ops = {
 
 };
 
+static Property cmu_properties[] = {
+    DEFINE_PROP_UINT64("ram-base", CMUDeviceState, base, 0),
+    DEFINE_PROP_UINT64("ram-size", CMUDeviceState, size, 0),
+    DEFINE_PROP_LINK("managed-ram", CMUDeviceState, managed,
+            TYPE_MEMORY_REGION, MemoryRegion *),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void cmu_instance_init(Object *obj)
 {
     CMUDeviceState *s = CMU_DEVICE(obj);
@@ -108,11 +117,19 @@ static void cmu_instance_init(Object *obj)
     s->regs[0] = CMU_FT_DEFAULT;
 }
 
+static void cmu_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    device_class_set_props(dc, cmu_properties);
+}
+
 static const TypeInfo cmu_device_info = {
     .name = TYPE_CMU_DEVICE,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(CMUDeviceState),
     .instance_init = cmu_instance_init,
+    .class_init = cmu_class_init,
 };
 
 static void cmu_device_register_types(void)
