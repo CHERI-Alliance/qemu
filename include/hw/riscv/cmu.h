@@ -77,13 +77,13 @@ struct CMUDeviceState {
     MemoryRegion *managed;
     hwaddr base;
     hwaddr size;
-    void (*invalidate_region)(RAMBlock *ram, ram_addr_t ram_offset,
-                                        ram_addr_t len);
     uint64_t regs[(CMU_REGS_SIZE) / sizeof(uint64_t)];
 };
 
 struct CMUClass {
     SysBusDeviceClass parent_class;
+
+    void (*invalidate_region)(RAMBlock *ram, ram_addr_t ram_offset, ram_addr_t len);
 };
 
 #endif

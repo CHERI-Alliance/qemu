@@ -45,6 +45,7 @@ static uint64_t cmu_read(void *opaque, hwaddr addr, unsigned int size)
 // Extract the region from the device state
 static void cmu_invalidate(CMUDeviceState *s)
 {
+    CMUClass *c = CMU_DEVICE_GET_CLASS(s);
 
     /*  the address field bit definition is largely based on the CLEN, and
        physical address size. Specifically bits 0-> log2(CLEN)-1 are zero Bits
@@ -62,8 +63,8 @@ static void cmu_invalidate(CMUDeviceState *s)
 
     // End address is address of start of cap, so round up to the next 8 caps
     ram_addr_t len = (end_addr - start_addr) + (1 << LOG2_CMU_CLEN);
-    if (s->invalidate_region)
-        s->invalidate_region(s->managed->ram_block, start_addr, len);
+    if (c->invalidate_region)
+        c->invalidate_region(s->managed->ram_block, start_addr, len);
     // clear the activate bit.
     s->regs[REG_CMU_TIEND] = s->regs[REG_CMU_TIEND] & ~CMU_TI_ACTIVE;
 }
@@ -118,18 +119,20 @@ static void cmu_instance_init(Object *obj)
                           CMU_REGION_SIZE);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->iomem);
     s->regs[0] = CMU_FT_DEFAULT;
-#ifdef TARGET_CHERI
-    s->invalidate_region = cheri_tag_phys_invalidate_external;
-#else
-    s->invalidate_region = NULL;
-#endif
 }
 
 static void cmu_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
+    CMUClass *c = CMU_DEVICE_CLASS(oc);
 
     device_class_set_props(dc, cmu_properties);
+
+#ifdef TARGET_CHERI
+    c->invalidate_region = cheri_tag_phys_invalidate_external;
+#else
+    c->invalidate_region = NULL;
+#endif
 }
 
 static const TypeInfo cmu_device_info = {
