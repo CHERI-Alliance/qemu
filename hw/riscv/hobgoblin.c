@@ -211,7 +211,7 @@ static void hobgoblin_add_soc(HobgoblinState *s, const int smp_cpus)
     sysbus_realize(SYS_BUS_DEVICE(&s->soc), &error_fatal);
 }
 
-static void hobgoblin_add_memory_area(MemoryRegion *system_memory,
+static MemoryRegion *hobgoblin_add_memory_area(MemoryRegion *system_memory,
                                       const memmapEntry_t *e)
 {
     MemoryRegion *reg = g_new(MemoryRegion, 1);
@@ -226,6 +226,7 @@ static void hobgoblin_add_memory_area(MemoryRegion *system_memory,
 #endif
 
     memory_region_add_subregion(system_memory, e->base, reg);
+    return reg;
 }
 
 static void hobgoblin_add_interrupt_controller(HobgoblinState *s,
