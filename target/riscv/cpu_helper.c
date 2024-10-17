@@ -1558,7 +1558,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
          * This checks that the exception handler is at the same address that
          * caused the exception and the exception is related to reading an
          * instruction. We know up front that going into the handler will
-         * cause trigger the same exception again.
+         * trigger the same exception again.
          */
         if (
 #ifdef TARGET_CHERI
