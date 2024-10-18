@@ -595,7 +595,13 @@ static void emit_brick_entry(CPUArchState *env, cpu_log_instr_info_t *iinfo)
         log_meminfo_t *minfo = &g_array_index(iinfo->mem, log_meminfo_t, i);
         brick_track_mem_trnsn mem;
         mem.flags = minfo->flags;
+#ifdef TARGET_RISCV
+        CPUState *cs = env_cpu(env);
+        mem.addr = riscv_cpu_get_phys_page_debug(cs, minfo->addr) |
+                   (minfo->addr & ~TARGET_PAGE_MASK);
+#else
         mem.addr = minfo->addr;
+#endif
         mem.val = minfo->value;
 #ifdef TARGET_CHERI
         mem.size = minfo->flags & LMI_CAP ? 16 : memop_size(minfo->op);
