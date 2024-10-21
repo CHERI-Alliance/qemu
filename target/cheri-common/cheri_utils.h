@@ -196,7 +196,7 @@ static inline void cap_set_capmode(cap_register_t *c, bool enable)
     CAP_cc(update_flags)(c, enable ? 1 : 0);
 #else
     CAP_cc(m_ap_decompress)((cap_register_t *)c);
-    c->cr_m = 0;
+    c->cr_m = enable ? 0 : 1;
     CAP_cc(m_ap_compress)((cap_register_t *)c);
 #endif
 }
