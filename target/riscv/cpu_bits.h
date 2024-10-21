@@ -277,8 +277,11 @@
 /* CHERI default and infinite capabiltiies used for legacy mode*/
 #define CSR_DDC             0x416
 #define CSR_DDDC            0x7bc
-#define CSR_DINFC           0x7bd
-
+/*
+ * We removed support for CSR_DINFC (0x7bd). DINFC can be accessed only in
+ * risc-v debug mode. qemu does not implement debug mode (qemu's gdbserver
+ * uses qemu's internal mechanisms for stopping a vm or setting breakpoints).
+ */
 
 /* CHERI Jump Vector Table Capability*/
 #define CSR_JVTC            0x017

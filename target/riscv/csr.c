@@ -79,7 +79,6 @@ bool is_cap_csr(int csrno)
         case CSR_MTDC:
         case CSR_STDC:
         case CSR_DDC:
-        case CSR_DINFC:
         case CSR_MTIDC:
         case CSR_STIDC:
         case CSR_UTIDC:
@@ -1872,8 +1871,6 @@ static inline cap_register_t *get_cap_csr(CPUArchState *env, uint32_t index)
         return &env->dddc;
     case CSR_JVTC:
         return &env->jvtc;
-    case CSR_DINFC:
-        assert(false && "Should never be called to get &dinfc");
     case CSR_MTDC:
         return &env->MTDC;
     case CSR_STDC:
@@ -2124,23 +2121,6 @@ static cap_register_t read_xepcc(CPURISCVState *env,
 
     cap_set_cursor(&retval, val);
     return retval;
-}
-
-static void write_dinfc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
-                        cap_register_t src, target_ulong newval, bool clen)
-{
-    /* Writing to dinf is allowed but ignored*/
-    qemu_log_mask(CPU_LOG_INT, "Attempting to write dinfc is ignored\n");
-}
-
-static cap_register_t read_dinfc(CPURISCVState *env,
-                                 riscv_csr_cap_ops *csr_cap_info)
-{
-    cap_register_t inf;
-    assert(cheri_in_capmode(env) &&
-           "Expect reads of dinfc only in debug/cap mode");
-    set_max_perms_capability(env, &inf,0);
-    return inf;
 }
 
 /*
@@ -2554,7 +2534,6 @@ static riscv_csr_cap_ops csr_cap_ops[] = {
       CSR_OP_REQUIRE_CRE | CSR_OP_IA_CONVERSION },
     { "jvtc", CSR_JVTC, read_capcsr_reg, write_cap_csr_reg,
       CSR_OP_IA_CONVERSION },
-    { "dinf", CSR_DINFC, read_dinfc, write_dinfc, CSR_OP_REQUIRE_CRE },
     { "mtdc", CSR_MTDC, read_capcsr_reg, write_cap_csr_reg,
       CSR_OP_REQUIRE_CRE },
     { "stdc", CSR_STDC, read_capcsr_reg, write_cap_csr_reg,
