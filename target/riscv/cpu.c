@@ -1113,8 +1113,8 @@ static Property riscv_cpu_properties[] = {
      *
      * scmode_flip is deprecated, m_flip should be used instead.
      */
-    DEFINE_PROP_BOOL("scmode_flip", RISCVCPU, cfg.m_flip, true),
-    DEFINE_PROP_BOOL("m_flip", RISCVCPU, cfg.m_flip, true),
+    DEFINE_PROP_BOOL("scmode_flip", RISCVCPU, cfg.m_flip, false),
+    DEFINE_PROP_BOOL("m_flip", RISCVCPU, cfg.m_flip, false),
 #endif
     DEFINE_PROP_STRING("priv_spec", RISCVCPU, cfg.priv_spec),
 
