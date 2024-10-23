@@ -25,6 +25,9 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/qdev-properties.h"
+#ifdef TARGET_CHERI
+#include "cheri_tagmem.h"
+#endif
 
 static uint64_t cmu_read(void *opaque, hwaddr addr, unsigned int size)
 {
@@ -59,8 +62,8 @@ static void cmu_invalidate(CMUDeviceState *s)
 
     // End address is address of start of cap, so round up to the next 8 caps
     ram_addr_t len = (end_addr - start_addr) + (1 << LOG2_CMU_CLEN);
-    s->invalidate_region(s->managed->ram_block,
-                                        start_addr, len);
+    if (s->invalidate_region)
+        s->invalidate_region(s->managed->ram_block, start_addr, len);
     // clear the activate bit.
     s->regs[REG_CMU_TIEND] = s->regs[REG_CMU_TIEND] & ~CMU_TI_ACTIVE;
 }
@@ -115,6 +118,11 @@ static void cmu_instance_init(Object *obj)
                           CMU_REGION_SIZE);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->iomem);
     s->regs[0] = CMU_FT_DEFAULT;
+#ifdef TARGET_CHERI
+    s->invalidate_region = cheri_tag_phys_invalidate_external;
+#else
+    s->invalidate_region = NULL;
+#endif
 }
 
 static void cmu_class_init(ObjectClass *oc, void *data)
