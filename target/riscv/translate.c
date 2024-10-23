@@ -32,6 +32,7 @@
 
 #include "instmap.h"
 
+#include "internals.h"
 
 /* global register indices */
 #ifdef TARGET_CHERI

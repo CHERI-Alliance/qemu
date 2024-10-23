@@ -43,6 +43,7 @@
 #include "exec/helper-proto.h"
 #include "cheri-helper-utils.h"
 #include "cheri_tagmem.h"
+#include "internals.h"
 #ifndef TARGET_CHERI
 #error TARGET_CHERI must be set
 #endif
@@ -400,9 +401,17 @@ void HELPER(cjal)(CPUArchState *env, uint32_t cd, target_ulong target_addr,
     cheri_jump_and_link(env, pcc, target_addr, cd, link_addr, 0);
 }
 
-void HELPER(modesw)(CPUArchState *env)
+void HELPER(modesw)(CPUArchState *env, int switch_op)
 {
-    cap_set_capmode(&env->PCC, !cap_get_capmode(&env->PCC));
+    if (switch_op == MODESW_TOGGLE) {
+        cap_set_capmode(&env->PCC, !cap_get_capmode(&env->PCC));
+    }
+    else if (switch_op == MODESW_CAP) {
+        cap_set_capmode(&env->PCC, true);
+    }
+    else if (switch_op == MODESW_INT) {
+        cap_set_capmode(&env->PCC, false);
+    }
 }
 
 void HELPER(amoswap_cap)(CPUArchState *env, uint32_t dest_reg,

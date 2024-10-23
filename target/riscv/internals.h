@@ -21,6 +21,18 @@
 
 #include "hw/registerfields.h"
 
+#ifdef TARGET_CHERI
+/*
+ * These defines are shared between trans and op helper.
+ * They use arbitrary numeric values.
+ */
+enum {
+   MODESW_TOGGLE = 15,
+   MODESW_CAP,
+   MODESW_INT
+};
+#endif
+
 /* share data between vector helpers and decode code */
 FIELD(VDATA, MLEN, 0, 8)
 FIELD(VDATA, VM, 8, 1)

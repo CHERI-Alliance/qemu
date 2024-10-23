@@ -380,15 +380,11 @@ static inline bool trans_amoswap_c(DisasContext *ctx, arg_amoswap_c *a)
     return true;
 }
 
-
-static inline bool trans_modesw(DisasContext *ctx, arg_modesw *a)
+static inline bool do_trans_modesw(DisasContext *ctx, int switch_op)
 {
-    gen_helper_modesw(cpu_env);
+    gen_helper_modesw(cpu_env, tcg_const_i32(switch_op));
 
     /*
-     * The helper changed the hart's mode from integer pointer to capability
-     * or vice versa.
-     *
      * There's a number of RISC-V instructions whose behaviour depends on the
      * mode. For some of them, the mode is checked at translation time (not at
      * execution time).
@@ -408,6 +404,18 @@ static inline bool trans_modesw(DisasContext *ctx, arg_modesw *a)
      *
      * This cannot happen. The key for locating a cached tb in the hashtable
      * includes the cpu status (part of which is the mode).
+     *
+     * With the new modesw.int and modesw.cap instructions, there are cases
+     * where the helper did not have to change the mode.
+     *
+     * We still have to end the current translation block unconditionally. At
+     * the time we generate the intermediate code, we don't know if the mode
+     * was changed or not.
+     *
+     * We tried to generate a branch instruction to terminate the tb only if
+     * the mode was acutally switched. This works for the generated code,
+     * but we'd also have to set ctx->base.is_jmp either to DISAS_NORETURN or
+     * to DISAS_NEXT. This isn't possible without running the generated code.
      */
 
     /* TODO: Why do we have to update tcg's pc manually in this case? */
@@ -418,6 +426,21 @@ static inline bool trans_modesw(DisasContext *ctx, arg_modesw *a)
     ctx->base.is_jmp = DISAS_NORETURN;
 
     return true;
+}
+
+static inline bool trans_modesw(DisasContext *ctx, arg_modesw *a)
+{
+    return do_trans_modesw(ctx, MODESW_TOGGLE);
+}
+
+static inline bool trans_modesw_cap(DisasContext *ctx, arg_modesw *a)
+{
+    return do_trans_modesw(ctx, MODESW_CAP);
+}
+
+static inline bool trans_modesw_int(DisasContext *ctx, arg_modesw *a)
+{
+    return do_trans_modesw(ctx, MODESW_INT);
 }
 
 /*
