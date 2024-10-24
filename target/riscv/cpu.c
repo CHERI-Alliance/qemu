@@ -813,6 +813,9 @@ static void riscv_cpu_reset(DeviceState *dev)
 #ifdef CONFIG_DEBUG_TCG
     env->_pc_is_current = true;
 #endif
+#ifdef CONFIG_TCG_LOG_INSTR
+    qemu_log_instr_initcpu_mode(env,RISCV_LOG_INSTR_CPU_M);
+#endif
 }
 
 static void riscv_cpu_disas_set_info(CPUState *s, disassemble_info *info)
