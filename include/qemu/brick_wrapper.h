@@ -9,10 +9,10 @@
 
 
 typedef enum{
-    U_MODE=0,
-    S_MODE,
-    H_MODE,
-    M_MODE,
+    U_MODE = 0,
+    S_MODE = 1,
+    H_MODE = 2,
+    M_MODE = 4,
     D_MODE
 }CPU_PRIV_MODE;
 
