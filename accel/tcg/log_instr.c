@@ -806,6 +806,9 @@ static void do_instr_commit(CPUArchState *env)
         /* dfilter disabled, always log */
         emit_entry_event(env, iinfo);
     }
+    if (iinfo->flags & LI_FLAG_MODE_SWITCH) {
+        cpulog->cpu_mode = iinfo->next_cpu_mode;
+    }
 }
 
 /*
@@ -1687,6 +1690,12 @@ void qemu_log_instr_flush(CPUArchState *env)
         curr = (curr + 1) % cpulog->instr_info->len;
     }
     cpulog->ring_tail = cpulog->ring_head;
+}
+
+void qemu_log_instr_initcpu_mode(CPUArchState *env, qemu_log_instr_cpu_mode_t cpu_mode)
+{
+    cpu_log_instr_state_t *cpulog = get_cpu_log_state(env);
+    cpulog->cpu_mode = cpu_mode;
 }
 
 /* Instruction logging helpers */
