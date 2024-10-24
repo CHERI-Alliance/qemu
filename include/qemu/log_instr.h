@@ -136,6 +136,7 @@ typedef struct {
     bool starting;
     /* Per-CPU flags */
     int flags;
+    qemu_log_instr_cpu_mode_t cpu_mode;
 #define QEMU_LOG_INSTR_FLAG_BUFFERED 1
 
     /* Ring buffer of log_instr_info */

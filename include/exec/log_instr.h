@@ -237,6 +237,13 @@ void qemu_log_instr_allcpu_set_level(qemu_log_instr_loglevel_t lvl);
 void qemu_log_instr_flush(CPUArchState *env);
 
 /*
+ * Initialise logging structure CPU mode to architecture defined value
+ * This should be called per cpu in the cpu_reset function
+ */
+void qemu_log_instr_initcpu_mode(CPUArchState *env,
+                                 qemu_log_instr_cpu_mode_t cpu_mode);
+
+/*
  * Drop the current buffered entry and ignore logging until next commit.
  */
 void qemu_log_instr_drop(CPUArchState *env);
