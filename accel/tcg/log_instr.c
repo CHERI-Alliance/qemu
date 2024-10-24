@@ -578,9 +578,9 @@ static void emit_brick_entry(CPUArchState *env, cpu_log_instr_info_t *iinfo)
 
     /* Dump mode switching info */
     brick_track_cpu_state cpu_state;
-#ifdef TARGET_RISCV
-    cpu_state.privilege = env->priv;
-#endif
+
+    cpu_log_instr_state_t *cpulog = get_cpu_log_state(env);
+    cpu_state.privilege = cpulog->cpu_mode;
 #ifdef TARGET_CHERI
     cpu_state.isamode = cheri_in_capmode(env) ? CAPABILITY : INTEGER;
     cpu_state.cheri_mode = true;
