@@ -46,6 +46,7 @@ static uint64_t cmu_read(void *opaque, hwaddr addr, unsigned int size)
 static void cmu_invalidate(CMUDeviceState *s)
 {
     CMUClass *c = CMU_DEVICE_GET_CLASS(s);
+    ram_addr_t start_addr, end_addr, len;
 
     /*  the address field bit definition is largely based on the CLEN, and
        physical address size. Specifically bits 0-> log2(CLEN)-1 are zero Bits
@@ -54,17 +55,27 @@ static void cmu_invalidate(CMUDeviceState *s)
        as it with the low order bits zeroed to round down to the next 8
        capability granularity.
     */
-    ram_addr_t start_addr =
-        (s->regs[REG_CMU_TISTART] & ~((1 << LOG2_CMU_CLEN) - 1)) -
-        s->base;
-    ram_addr_t end_addr =
-        (s->regs[REG_CMU_TIEND] & ~((1 << LOG2_CMU_CLEN) - 1)) -
-        s->base;
+
+    if (__builtin_sub_overflow(
+                (s->regs[REG_CMU_TISTART] & ~((1 << LOG2_CMU_CLEN) - 1)),
+                s->base, &start_addr)) {
+        return;
+    }
+    if (__builtin_sub_overflow(
+                (s->regs[REG_CMU_TIEND] & ~((1 << LOG2_CMU_CLEN) - 1)),
+                s->base, &end_addr)) {
+        return;
+    }
 
     // End address is address of start of cap, so round up to the next 8 caps
-    ram_addr_t len = (end_addr - start_addr) + (1 << LOG2_CMU_CLEN);
-    if (c->invalidate_region)
+    if (__builtin_sub_overflow(end_addr + (1 << LOG2_CMU_CLEN), start_addr, &len)) {
+        return;
+    }
+
+    if (c->invalidate_region) {
         c->invalidate_region(s->managed->ram_block, start_addr, len);
+    }
+
     // clear the activate bit.
     s->regs[REG_CMU_TIEND] = s->regs[REG_CMU_TIEND] & ~CMU_TI_ACTIVE;
 }
