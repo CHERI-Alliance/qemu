@@ -854,16 +854,17 @@ typedef void (*riscv_csr_cap_write_fn)(CPURISCVState *env,
                                        cap_register_t src, target_ulong newval,
                                        bool clen);
 
+#define CSR_OP_REQUIRE_CRE   (1 << 0)
+#define CSR_OP_IA_CONVERSION (1 << 1)
+#define CSR_OP_UPDATE_SCADDR (1 << 2)
+#define CSR_OP_DIRECT_WRITE  (0)
+
 struct _csr_cap_ops_ {
     const char *name;
     unsigned int reg_num;
     riscv_csr_cap_read_fn read;
     riscv_csr_cap_write_fn write;
-    bool require_cre;
-    // flag indicating the write should apply invalid address conversion.
-    bool invalid_address_conversion;
-    // flag indicating that the value is written with scaddr semantics
-    bool update_scadrr;
+    uint8_t flags;
 };
 riscv_csr_cap_ops* get_csr_cap_info(int csrnum);
 #endif
