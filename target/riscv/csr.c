@@ -2017,11 +2017,11 @@ static void write_cap_csr_reg(CPURISCVState *env,
             if (csr_cap_info->flags & CSR_OP_UPDATE_SCADDR) {
                 // xxvec, dpcc
                 // write PC using scaddr
-                src = cap_scaddr(newval, csr); // always update with scaddr
+                src = cap_scaddr(newval, src); // always update with scaddr
             } else { // only apply scadd if validate changes the address
                      // mepcc, sepcc., jvtc
                 if (changed) {
-                    src = cap_scaddr(newval, csr);
+                    src = cap_scaddr(newval, src);
                 } else {
                     // update the csr with direct write
                 }
