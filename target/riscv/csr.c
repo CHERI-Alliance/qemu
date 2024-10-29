@@ -2011,10 +2011,10 @@ static void write_cap_csr_reg(CPURISCVState *env,
     if (clen) // this will apply only to csrrw calls, all other writes are
               // xlen
     {
-        if (csr_cap_info->invalid_address_conversion) {
+        if (csr_cap_info->flags & CSR_OP_IA_CONVERSION) {
             bool changed = validate_cap_address(env, &src, &newval);
 
-            if (csr_cap_info->update_scadrr) {
+            if (csr_cap_info->flags & CSR_OP_UPDATE_SCADDR) {
                 // xxvec, dpcc
                 // write PC using scaddr
                 src = cap_scaddr(newval, csr); // always update with scaddr
@@ -2035,7 +2035,7 @@ static void write_cap_csr_reg(CPURISCVState *env,
         }
     } else { // xlen
 
-        if (csr_cap_info->invalid_address_conversion) {
+        if (csr_cap_info->flags & CSR_OP_IA_CONVERSION) {
             // ignore changed as we always use scaddr
             validate_cap_address(env, &csr, &newval);
         }
@@ -2534,35 +2534,39 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
 // with macros for this
 
 riscv_csr_cap_ops csr_cap_ops[] = {
-    { "mscratchc", CSR_MSCRATCHC, read_capcsr_reg, write_cap_csr_reg, false,
-      false, false },
-    { "mtvecc", CSR_MTVECC, read_capcsr_reg, write_xtvecc, false, true, true },
-    { "stvecc", CSR_STVECC, read_capcsr_reg, write_xtvecc, false, true, true },
-    { "mepcc", CSR_MEPCC, read_xepcc, write_xepcc, false, true, false },
-    { "sepcc", CSR_SEPCC, read_xepcc, write_xepcc, false, true, false },
-    { "sscratchc", CSR_SSCRATCHC, read_capcsr_reg, write_cap_csr_reg, false,
-      false, false },
-    { "dscratch0c", CSR_DSCRATCH0C, read_capcsr_reg, write_cap_csr_reg, false,
-      false, false },
-    { "dscratch1c", CSR_DSCRATCH1C, read_capcsr_reg, write_cap_csr_reg, false,
-      false, false },
-    { "dpcc", CSR_DPCC, read_capcsr_reg, write_cap_csr_reg, false, true,
-      false },
-    { "dddc", CSR_DDDC, read_capcsr_reg, write_cap_csr_reg, true, true, false },
-    { "jvtc", CSR_JVTC, read_capcsr_reg, write_cap_csr_reg, false, true,
-      false },
-    { "dinf", CSR_DINFC, read_dinfc, write_dinfc, true, false, false },
-    { "mtdc", CSR_MTDC, read_capcsr_reg, write_cap_csr_reg, true, false,
-      false },
-    { "stdc", CSR_STDC, read_capcsr_reg, write_cap_csr_reg, true, false,
-      false },
-    { "ddc", CSR_DDC, read_capcsr_reg, write_cap_csr_reg, true, true, false },
-    { "mtidc", CSR_MTIDC, read_capcsr_reg, write_cap_csr_reg, false, false,
-      false },
-    { "stidc", CSR_STIDC, read_capcsr_reg, write_cap_csr_reg, false, false,
-      false },
-    { "utidc", CSR_UTIDC, read_capcsr_reg, write_cap_csr_reg, false, false,
-      false },
+    { "mscratchc", CSR_MSCRATCHC, read_capcsr_reg, write_cap_csr_reg,
+      CSR_OP_DIRECT_WRITE },
+    { "mtvecc", CSR_MTVECC, read_capcsr_reg, write_xtvecc,
+      CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR },
+    { "stvecc", CSR_STVECC, read_capcsr_reg, write_xtvecc,
+      CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR },
+    { "mepcc", CSR_MEPCC, read_xepcc, write_xepcc, CSR_OP_IA_CONVERSION },
+    { "sepcc", CSR_SEPCC, read_xepcc, write_xepcc, CSR_OP_IA_CONVERSION },
+    { "sscratchc", CSR_SSCRATCHC, read_capcsr_reg, write_cap_csr_reg,
+      CSR_OP_DIRECT_WRITE },
+    { "dscratch0c", CSR_DSCRATCH0C, read_capcsr_reg, write_cap_csr_reg,
+      CSR_OP_DIRECT_WRITE },
+    { "dscratch1c", CSR_DSCRATCH1C, read_capcsr_reg, write_cap_csr_reg,
+      CSR_OP_DIRECT_WRITE },
+    { "dpcc", CSR_DPCC, read_capcsr_reg, write_cap_csr_reg,
+      CSR_OP_IA_CONVERSION },
+    { "dddc", CSR_DDDC, read_capcsr_reg, write_cap_csr_reg,
+      CSR_OP_REQUIRE_CRE | CSR_OP_IA_CONVERSION },
+    { "jvtc", CSR_JVTC, read_capcsr_reg, write_cap_csr_reg,
+      CSR_OP_IA_CONVERSION },
+    { "dinf", CSR_DINFC, read_dinfc, write_dinfc, CSR_OP_REQUIRE_CRE },
+    { "mtdc", CSR_MTDC, read_capcsr_reg, write_cap_csr_reg,
+      CSR_OP_REQUIRE_CRE },
+    { "stdc", CSR_STDC, read_capcsr_reg, write_cap_csr_reg,
+      CSR_OP_REQUIRE_CRE },
+    { "ddc", CSR_DDC, read_capcsr_reg, write_cap_csr_reg,
+      CSR_OP_REQUIRE_CRE | CSR_OP_IA_CONVERSION },
+    { "mtidc", CSR_MTIDC, read_capcsr_reg, write_cap_csr_reg,
+      CSR_OP_DIRECT_WRITE },
+    { "stidc", CSR_STIDC, read_capcsr_reg, write_cap_csr_reg,
+      CSR_OP_DIRECT_WRITE },
+    { "utidc", CSR_UTIDC, read_capcsr_reg, write_cap_csr_reg,
+      CSR_OP_DIRECT_WRITE },
 };
 
 riscv_csr_cap_ops* get_csr_cap_info(int csrnum){
