@@ -164,7 +164,8 @@ static RISCVException check_csr_cap_permissions(CPURISCVState *env, int csrno,
         return RISCV_EXCP_ILLEGAL_INST;
     }
 #endif
-    if (csr_cap_info->require_cre && !riscv_cpu_mode_cre(env)){
+    if ((csr_cap_info->flags & CSR_OP_REQUIRE_CRE) &&
+        !riscv_cpu_mode_cre(env)) {
         return RISCV_EXCP_ILLEGAL_INST;
     }
 

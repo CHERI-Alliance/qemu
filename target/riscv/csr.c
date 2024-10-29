@@ -1994,9 +1994,9 @@ static void write_cap_csr_reg(CPURISCVState *env,
     cap_register_t csr = *get_cap_csr(env, csr_cap_info->reg_num);
     /* CLEN writes only for csrrw calls, all other writes are XLEN */
     if (clen) {
-        if (csr_cap_info->invalid_address_conversion) {
+        if (csr_cap_info->flags & CSR_OP_IA_CONVERSION) {
             bool changed = validate_cap_address(env, &src, &newval);
-            if (csr_cap_info->update_scaddr) {
+            if (csr_cap_info->flags & CSR_OP_UPDATE_SCADDR) {
                 /* E.g. xtvec always invalidates sealed caps */
                 src = cap_scaddr(newval, src);
             } else if (changed) {
@@ -2006,7 +2006,7 @@ static void write_cap_csr_reg(CPURISCVState *env,
         }
         /* Otherwise just fall through to direct write */
     } else {
-        if (csr_cap_info->invalid_address_conversion) {
+        if (csr_cap_info->flags & CSR_OP_IA_CONVERSION) {
             /* For XLEN writes we ignore the result as we always use scaddr */
             (void)validate_cap_address(env, &csr, &newval);
         }
@@ -2515,15 +2515,18 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
  */
 
 riscv_csr_cap_ops csr_cap_ops[] = {
-    { "mscratchc", CSR_MSCRATCHC, read_capcsr_reg, write_cap_csr_reg, false,
-      false, false },
-    { "mtvecc", CSR_MTVECC, read_capcsr_reg, write_xtvecc, false, true, true },
-    { "stvecc", CSR_STVECC, read_capcsr_reg, write_xtvecc, false, true, true },
-    { "mepcc", CSR_MEPCC, read_xepcc, write_xepcc, false, true, false },
-    { "sepcc", CSR_SEPCC, read_xepcc, write_xepcc, false, true, false },
-    { "sscratchc", CSR_SSCRATCHC, read_capcsr_reg, write_cap_csr_reg, false,
-      false, false },
-    { "ddc", CSR_DDC, read_capcsr_reg, write_cap_csr_reg, true, true, false },
+    { "mscratchc", CSR_MSCRATCHC, read_capcsr_reg, write_cap_csr_reg,
+      CSR_OP_DIRECT_WRITE },
+    { "mtvecc", CSR_MTVECC, read_capcsr_reg, write_xtvecc,
+      CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR },
+    { "stvecc", CSR_STVECC, read_capcsr_reg, write_xtvecc,
+      CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR },
+    { "mepcc", CSR_MEPCC, read_xepcc, write_xepcc, CSR_OP_IA_CONVERSION },
+    { "sepcc", CSR_SEPCC, read_xepcc, write_xepcc, CSR_OP_IA_CONVERSION },
+    { "sscratchc", CSR_SSCRATCHC, read_capcsr_reg, write_cap_csr_reg,
+      CSR_OP_DIRECT_WRITE },
+    { "ddc", CSR_DDC, read_capcsr_reg, write_cap_csr_reg,
+      CSR_OP_REQUIRE_CRE | CSR_OP_IA_CONVERSION },
 };
 
 riscv_csr_cap_ops *get_csr_cap_info(int csrnum)
