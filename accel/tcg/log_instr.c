@@ -640,11 +640,11 @@ static void emit_brick_entry(CPUArchState *env, cpu_log_instr_info_t *iinfo)
             reg.pesbt = 0;
         }
         reg.regtype = rinfo->flags & ~(LRI_HOLDS_CAP|LRI_CAP_REG); 
-        track_reg_write(&reg);
 #else
         reg.offset = rinfo->gpr;
         reg.regtype = rinfo->flags & ~(LRI_HOLDS_CAP|LRI_CAP_REG); 
 #endif
+        track_reg_write(&reg);
     }
     // finally dump the instruction
     brick_track_event event;
