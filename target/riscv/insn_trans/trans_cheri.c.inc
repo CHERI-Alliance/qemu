@@ -676,6 +676,7 @@ TRANSLATE_SC_EXPLICIT(sc_d, MO_ALIGN | MO_Q);
 
 TRANSLATE_INT_CAP_HELPER(gctag, cgettag)
 TRANSLATE_INT_CAP_HELPER(gcperm, cgetperm)
+TRANSLATE_INT_CAP_HELPER(gctype, cgettype)
 TRANSLATE_INT_CAP_HELPER(gchi, cgethigh)
 TRANSLATE_INT_CAP_HELPER(gcbase, cgetbase)
 TRANSLATE_INT_CAP_HELPER(gclen, cgetlen)
