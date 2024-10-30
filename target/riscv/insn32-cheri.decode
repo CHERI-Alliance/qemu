@@ -69,8 +69,8 @@ gchi        0001000  00100 ..... 000 ..... 0110011 @cr ?pred_cre
 gcbase      0001000  00101 ..... 000 ..... 0110011 @cr ?pred_cre
 gclen       0001000  00110 ..... 000 ..... 0110011 @cr ?pred_cre
 
-@icc     ............    ..... ... ..... ....... &icc     imm=%imm_i %cs1 %cd
-caddi         ............     ..... 010 ..... 0011011 @icc ?pred_cre
+@icc     ............    ..... ... ..... ....... &icc imm=%imm_i %cs1 %cd
+caddi    ............    ..... 010 ..... 0011011 @icc ?pred_cre
 
 ### Zero operands
 modesw     0001001 00000 00000 001 00000 0110011 ?pred_hybrid ?pred_cre
