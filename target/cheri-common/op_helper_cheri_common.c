@@ -1888,6 +1888,31 @@ out:
     return (cap_get_sdp(cbp) << 16) | ap_bits;
 }
 
+target_ulong CHERI_HELPER_IMPL(gcmode(CPUArchState *env, uint32_t cb))
+{
+    /* get_readonly_capreg's result is fully decompressed, see above */
+    const cap_register_t *cbp = get_readonly_capreg(env, cb);
+    bool m_flip = false;
+#ifdef TARGET_RISCV
+    RISCVCPU *cpu = env_archcpu(env);
+
+    m_flip = cpu->cfg.m_flip;
+#endif
+
+    /*
+     * rd must be 0 if cs1 does not grant X permission or cs1's AP field could
+     * not have been produced by acperm
+     */
+    if (!valid_m_ap(cbp->cr_m, cbp->cr_arch_perm)) {
+        return 0;
+    }
+    if (!(cbp->cr_arch_perm & CAP_AP_X)) {
+        return 0;
+    }
+
+    return m_flip ? (cbp->cr_m ^ 0x1) : cbp->cr_m;
+}
+
 target_ulong CHERI_HELPER_IMPL(gchi(CPUArchState *env, uint32_t cb))
 {
     /*
