@@ -557,7 +557,7 @@ static bool trans_csrrw(DisasContext *ctx, arg_csrrw *a)
         // currently this is not appropriate as the behaviour is expectedthe helper function to return the register valu and then the post code moves this into the rd register. This is not the way that
         // we can do directly. Need to look at how this is handled elsewhere.
         gen_cheri_cap_cap_cap(ctx, a->csr, a->rd, a->rs1, &gen_helper_csrrw_cap);
-        return true;
+        return do_csr_post(ctx);
     }
 #endif
     TCGv src = get_gpr(ctx, a->rs1, EXT_NONE);
@@ -579,7 +579,7 @@ static bool trans_csrrs(DisasContext *ctx, arg_csrrs *a)
 #ifdef TARGET_CHERI
     if( is_cap_csr(a->csr) ){
         gen_cheri_cap_cap_cap(ctx, a->csr, a->rd, a->rs1, &gen_helper_csrrs_cap);
-        return true;
+        return do_csr_post(ctx);
     }
 #endif    
     /*
@@ -603,7 +603,7 @@ static bool trans_csrrc(DisasContext *ctx, arg_csrrc *a)
 #ifdef TARGET_CHERI
     if( is_cap_csr(a->csr) ){
         gen_cheri_cap_cap_cap(ctx, a->csr, a->rd, a->rs1, &gen_helper_csrrc_cap);
-        return true;
+        return do_csr_post(ctx);
     }
 #endif
     /*
@@ -626,7 +626,7 @@ static bool trans_csrrwi(DisasContext *ctx, arg_csrrwi *a)
 #ifdef TARGET_CHERI    
     if( is_cap_csr(a->csr) ){
         gen_cheri_cap_cap_cap(ctx, a->csr, a->rd, a->rs1, &gen_helper_csrrwi_cap);
-        return true;
+        return do_csr_post(ctx);
     }
 #endif
     TCGv src = tcg_constant_tl(a->rs1);
@@ -648,7 +648,7 @@ static bool trans_csrrsi(DisasContext *ctx, arg_csrrsi *a)
 #ifdef TARGET_CHERI
     if( is_cap_csr(a->csr) ){
         gen_cheri_cap_cap_cap(ctx, a->csr, a->rd, a->rs1, &gen_helper_csrrsi_cap);
-        return true;
+        return do_csr_post(ctx);
     }
 #endif    
     /*
@@ -672,7 +672,7 @@ static bool trans_csrrci(DisasContext *ctx, arg_csrrci *a)
 #ifdef TARGET_CHERI
     if( is_cap_csr(a->csr) ){
         gen_cheri_cap_cap_cap(ctx, a->csr, a->rd, a->rs1, &gen_helper_csrrci_cap);
-        return true;
+        return do_csr_post(ctx);
     }
 #endif
     /*
