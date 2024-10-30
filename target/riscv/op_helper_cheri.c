@@ -487,6 +487,21 @@ target_ulong HELPER(sc_c_cap)(CPUArchState *env, uint32_t addr_reg,
     return sc_c_impl(env, addr_reg, val_reg, addr, GETPC());
 }
 
+target_ulong HELPER(gcmode)(CPUArchState *env, uint32_t cs1)
+{
+    /*
+     * The output in rd is 0 if the capability in cs1 does not have X-permission
+     * set or the AP field cannot be produced by ACPERM; otherwise, the output
+     * is 0 if cs1 's CHERI execution mode is Capability Pointer Mode or
+     * 1 if the mode is Integer Pointer Mode.
+     */
+    const cap_register_t *cs1p = get_readonly_capreg(env, cs1);
+    if (!cap_has_perms(cs1p, CAP_PERM_EXECUTE)) {
+        return 0;
+    }
+    return cap_get_exec_mode(cs1p) == CHERI_EXEC_CAPMODE ? 0 : 1;
+}
+
 void HELPER(scmode)(CPUArchState *env, uint32_t cd, uint32_t cs1,
                     target_ulong imm)
 {
