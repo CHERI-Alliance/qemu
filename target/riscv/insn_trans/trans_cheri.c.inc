@@ -445,6 +445,7 @@ static inline bool trans_modesw(DisasContext *ctx, arg_modesw *a)
 
 TRANSLATE_INT_CAP(gctag)
 TRANSLATE_INT_CAP(gcperm)
+TRANSLATE_INT_CAP(gctype)
 TRANSLATE_INT_CAP(gcmode)
 TRANSLATE_INT_CAP(gchi)
 TRANSLATE_INT_CAP(gcbase)

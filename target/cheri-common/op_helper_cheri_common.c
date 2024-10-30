@@ -1949,6 +1949,14 @@ out:
     return (cap_get_sdp(cbp) << 16) | ap_bits;
 }
 
+target_ulong CHERI_HELPER_IMPL(gctype(CPUArchState *env, uint32_t cb))
+{
+    /* get_readonly_capreg's result is fully decompressed, see above */
+    const cap_register_t *cbp = get_readonly_capreg(env, cb);
+
+    return cap_is_unsealed(cbp) ? 0 : 1;
+}
+
 target_ulong CHERI_HELPER_IMPL(gcmode(CPUArchState *env, uint32_t cb))
 {
     /* get_readonly_capreg's result is fully decompressed, see above */
