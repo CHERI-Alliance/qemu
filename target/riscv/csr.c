@@ -2533,7 +2533,7 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
 // We don't have as many CSR CAP Ops, and haven't fully defined what we need in the table, so don't bother 
 // with macros for this
 
-riscv_csr_cap_ops csr_cap_ops[] = {
+static riscv_csr_cap_ops csr_cap_ops[] = {
     { "mscratchc", CSR_MSCRATCHC, read_capcsr_reg, write_cap_csr_reg,
       CSR_OP_DIRECT_WRITE },
     { "mtvecc", CSR_MTVECC, read_capcsr_reg, write_xtvecc,
