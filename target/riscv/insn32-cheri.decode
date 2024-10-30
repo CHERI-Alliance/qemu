@@ -78,8 +78,8 @@ gclen       0001000  00110 ..... 000 ..... 0110011 @cr ?pred_cre
 
 scbndsi  000001 . ..... ..... 101 ..... 0010011 @is_unsigned ?pred_cre
 
-@icc     ............    ..... ... ..... ....... &icc     imm=%imm_i %cs1 %cd
-caddi         ............     ..... 010 ..... 0011011 @icc ?pred_cre
+@icc     ............    ..... ... ..... ....... &icc imm=%imm_i %cs1 %cd
+caddi    ............    ..... 010 ..... 0011011 @icc ?pred_cre
 
 ### Zero operands
 
