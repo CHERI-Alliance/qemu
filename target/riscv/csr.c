@@ -2229,7 +2229,38 @@ bool csr_needs_asr(uint32_t csrno, bool is_write)
         return get_field(csrno, 0x300) != 0;
     }
 }
-#endif
+
+
+#ifdef TARGET_CHERI_RISCV_STD_093
+static RISCVException read_stval2(CPURISCVState *env, int csrno,
+                                  target_ulong *val)
+{
+    *val = env->stval2;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_stval2(CPURISCVState *env, int csrno,
+                                   target_ulong val)
+{
+    env->stval2 = val;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException read_vstval2(CPURISCVState *env, int csrno,
+                                  target_ulong *val)
+{
+    *val = env->vstval2;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_vstval2(CPURISCVState *env, int csrno,
+                                   target_ulong val)
+{
+    env->vstval2 = val;
+    return RISCV_EXCP_NONE;
+}
+#endif /* TARGET_CHERI_RISCV_STD_093 */
+#endif /* TARGET_CHERI */
 
 /*
  * riscv_csrrw - read and/or update control and status register
@@ -2541,8 +2572,17 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_VSTVAL] =              CSR_OP_RW(hmode, vstval),
     [CSR_VSATP] =               CSR_OP_RW(hmode, vsatp),
 
+#ifdef TARGET_CHERI_RISCV_STD_093
+    [CSR_MTVAL2] =              CSR_OP_RW(any, mtval2),
+#else
     [CSR_MTVAL2] =              CSR_OP_RW(hmode, mtval2),
+#endif
     [CSR_MTINST] =              CSR_OP_RW(hmode, mtinst),
+
+#ifdef TARGET_CHERI_RISCV_STD_093
+    [CSR_STVAL2] =              CSR_OP_RW(any, stval2),
+    [CSR_VSTVAL2] =             CSR_OP_RW(hmode, vstval2),
+#endif
 
 #ifdef TARGET_CHERI_RISCV_V9
     // CHERI CSRs: For now we always report enabled and dirty and don't support

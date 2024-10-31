@@ -229,6 +229,10 @@
 #define CSR_MENVCFG         0x30a
 #define CSR_SENVCFG         0x10a
 
+#ifdef TARGET_CHERI_RISCV_STD_093
+#define CSR_STVAL2          0x14b
+#define CSR_VSTVAL2         0x24b
+#endif
 
 #define CSR_MTINST          0x34a
 #define CSR_MTVAL2          0x34b

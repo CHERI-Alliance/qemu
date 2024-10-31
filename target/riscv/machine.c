@@ -97,6 +97,10 @@ static const VMStateDescription vmstate_hyper = {
         VMSTATE_UINTTL_OR_CAP(env.vsepc, env.vsepcc, RISCVCPU),
         VMSTATE_UINTTL(env.vscause, RISCVCPU),
         VMSTATE_UINTTL(env.vstval, RISCVCPU),
+#ifdef TARGET_CHERI_RISCV_STD_093
+        VMSTATE_UINTTL(env.vstval2, RISCVCPU),
+        VMSTATE_UINTTL(env.stval2_hs, RISCVCPU),
+#endif
         VMSTATE_UINTTL(env.vsatp, RISCVCPU),
 
         VMSTATE_UINTTL(env.mtval2, RISCVCPU),
@@ -224,6 +228,9 @@ const VMStateDescription vmstate_riscv_cpu = {
         VMSTATE_UINTTL(env.mideleg, RISCVCPU),
         VMSTATE_UINTTL(env.satp, RISCVCPU),
         VMSTATE_UINTTL(env.stval, RISCVCPU),
+#ifdef TARGET_CHERI_RISCV_STD_093
+        VMSTATE_UINTTL(env.stval2, RISCVCPU),
+#endif
         VMSTATE_UINTTL(env.medeleg, RISCVCPU),
         VMSTATE_UINTTL_OR_CAP(env.stvec, env.stvecc, RISCVCPU),
         VMSTATE_UINTTL_OR_CAP(env.sepc, env.sepcc, RISCVCPU),

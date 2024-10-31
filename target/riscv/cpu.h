@@ -260,6 +260,12 @@ struct CPURISCVState {
     cap_register_t stcc_hs;
     cap_register_t sepcc_hs;
     cap_register_t sscratchc_hs;
+
+#ifdef TARGET_CHERI_RISCV_STD_093
+    target_ulong stval2;
+    target_ulong vstval2;
+    target_ulong stval2_hs;
+#endif
 #else
     target_ulong stvec_hs;
     target_ulong sepc_hs;
