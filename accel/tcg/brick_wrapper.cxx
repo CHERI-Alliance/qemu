@@ -20,6 +20,8 @@ C wrapper functions call to handle the calls
 #include "fb/value.h"
 #include <fcntl.h>
 #include <unistd.h>
+#include "qemu/log_instr.h"
+
 // Define some defines that rvfi expects
 #if defined(_WIN32) && (defined(__x86_64__) || defined(__i386__))
 #define QEMU_PACKED __attribute__((gcc_struct, packed))
@@ -224,21 +226,29 @@ class BrickWrapper
     void track_cpu_state(brick_track_cpu_state *state)
     {
         switch (state->privilege) {
-        case M_MODE:
+        case QEMU_LOG_INSTR_CPU_TARGET1:
             event->privilege = brick::isa::Privilege::MACHINE;
             break;
-            case S_MODE:
-            case H_MODE:
+        case QEMU_LOG_INSTR_CPU_SUPERVISOR:
+        case QEMU_LOG_INSTR_CPU_HYPERVISOR:
 
             event->privilege = brick::isa::Privilege::SUPERVISOR;
             break;
-            case U_MODE:
+        case QEMU_LOG_INSTR_CPU_USER:
             event->privilege = brick::isa::Privilege::USER;
             break;
-            case D_MODE:
+        case QEMU_LOG_INSTR_CPU_DEBUG:
             event->privilege = brick::isa::Privilege::DEBUG;
             break;
-            }
+        case QEMU_LOG_INSTR_CPU_TARGET2:
+        case QEMU_LOG_INSTR_CPU_TARGET3:
+        case QEMU_LOG_INSTR_CPU_TARGET4:
+        case QEMU_LOG_INSTR_CPU_MODE_MAX:
+            std::cerr
+                << "Warning unexpected CPU privilege mode treating as MACHINE"
+                << std::endl;
+            event->privilege = brick::isa::Privilege::MACHINE;
+        }
         event->cheri = state->cheri_mode;
         switch (state->isamode) {
         case INTEGER:

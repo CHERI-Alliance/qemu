@@ -6,15 +6,7 @@
 #ifdef __cplusplus
 #include <cstdint>
 #endif
-
-
-typedef enum{
-    U_MODE = 0,
-    S_MODE = 1,
-    H_MODE = 2,
-    M_MODE = 4,
-    D_MODE
-}CPU_PRIV_MODE;
+#include "qemu/log_instr.h"
 
 typedef enum{
     INTEGER=0,
@@ -55,7 +47,7 @@ typedef struct _brick_track_reg_
 }brick_track_reg;
 
 typedef struct _brick_track_cpu_state_{
-    CPU_PRIV_MODE privilege;
+    qemu_log_instr_cpu_mode_t privilege;
     bool cheri_mode;
     CPU_CHERI_MODE isamode;
 }brick_track_cpu_state;
