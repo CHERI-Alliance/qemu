@@ -2441,7 +2441,7 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_SENVCFG] =             CSR_OP_RW(any, senvcfg),
     [CSR_MENVCFG] =             CSR_OP_RW(any, menvcfg),
     /* Physical Memory Protection */
-    [CSR_MSECCFG]    = CSR_OP_FN_RW(epmp, read_mseccfg, write_mseccfg, "mseccfg"),
+    [CSR_MSECCFG] =             CSR_OP_RW(any, mseccfg),
     [CSR_PMPCFG0]    = CSR_OP_FN_RW(pmp, read_pmpcfg, write_pmpcfg, "pmpcfg0"),
     [CSR_PMPCFG1]    = CSR_OP_FN_RW(pmp, read_pmpcfg, write_pmpcfg, "pmpcfg1"),
     [CSR_PMPCFG2]    = CSR_OP_FN_RW(pmp, read_pmpcfg, write_pmpcfg, "pmpcfg2"),
