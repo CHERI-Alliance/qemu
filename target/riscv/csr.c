@@ -2529,7 +2529,7 @@ static riscv_csr_cap_ops csr_cap_ops[] = {
       CSR_OP_REQUIRE_CRE | CSR_OP_IA_CONVERSION },
 };
 
-riscv_csr_cap_ops *get_csr_cap_info(int csrnum)
+riscv_csr_cap_ops *get_csr_cap_info(uint32_t csrnum)
 {
     for (int i = 0; i < ARRAY_SIZE(csr_cap_ops); i++) {
         if (csr_cap_ops[i].reg_num == csrnum)

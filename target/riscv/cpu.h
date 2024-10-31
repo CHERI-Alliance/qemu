@@ -880,12 +880,12 @@ typedef void (*riscv_csr_cap_write_fn)(CPURISCVState *env,
 
 struct _csr_cap_ops {
     const char *name;
-    unsigned int reg_num;
+    uint32_t reg_num;
     riscv_csr_cap_read_fn read;
     riscv_csr_cap_write_fn write;
     uint8_t flags;
 };
-riscv_csr_cap_ops *get_csr_cap_info(int csrnum);
+riscv_csr_cap_ops *get_csr_cap_info(uint32_t csrnum);
 
 /* Do the CRE bits allow cheri access in the current CPU mode? */
 static inline bool riscv_cpu_mode_cre(CPURISCVState *env)
