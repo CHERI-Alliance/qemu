@@ -1411,7 +1411,12 @@ void riscv_cpu_do_interrupt(CPUState *cs)
             tcg_debug_assert(env->last_cap_cause < 5);
             tcg_debug_assert(env->last_cap_index < 64);
             tcg_debug_assert(env->last_cap_type < 3);
-            tval = env->last_cap_cause | env->last_cap_type << 16;
+            if (cpu->cfg.cheri_v090) {
+                tval = env->badaddr;
+                mtval2 = env->last_cap_cause | env->last_cap_type << 16;
+            } else {
+                tval = env->last_cap_cause | env->last_cap_type << 16;
+            }
             qemu_log_instr_or_mask_msg(
                 env, CPU_LOG_INT,
                 "Got CHERI trap %s type %s, caused by register %d\n",
