@@ -2569,28 +2569,16 @@ static riscv_csr_cap_ops csr_cap_ops[] = {
       CSR_OP_DIRECT_WRITE },
 };
 
-riscv_csr_cap_ops* get_csr_cap_info(int csrnum){
-    switch (csrnum){
-        case CSR_MSCRATCHC: return &csr_cap_ops[0];
-        case CSR_MTVECC: return &csr_cap_ops[1];
-        case CSR_STVECC: return &csr_cap_ops[2];
-        case CSR_MEPCC: return &csr_cap_ops[3];
-        case CSR_SEPCC: return &csr_cap_ops[4];
-        case CSR_SSCRATCHC: return &csr_cap_ops[5];
-        case CSR_DSCRATCH0C: return &csr_cap_ops[6];
-        case CSR_DSCRATCH1C: return &csr_cap_ops[7];
-        case CSR_DPCC: return &csr_cap_ops[8];
-        case CSR_DDDC: return &csr_cap_ops[9];
-        case CSR_JVTC: return &csr_cap_ops[10];
-        case CSR_DINFC: return &csr_cap_ops[11];
-        case CSR_MTDC: return &csr_cap_ops[12];
-        case CSR_STDC: return &csr_cap_ops[13];
-        case CSR_DDC: return &csr_cap_ops[14];
-        case CSR_MTIDC: return &csr_cap_ops[15];
-        case CSR_STIDC: return &csr_cap_ops[16];
-        case CSR_UTIDC: return &csr_cap_ops[17];
-        default: return NULL;
+riscv_csr_cap_ops *get_csr_cap_info(int csrnum)
+{
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(csr_cap_ops); i++) {
+      if (csr_cap_ops[i].reg_num == csrnum)
+          return &csr_cap_ops[i];
     }
+
+    return NULL;
 }
 #endif
 
