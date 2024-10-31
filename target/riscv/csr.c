@@ -264,6 +264,18 @@ static RISCVException epmp(CPURISCVState *env, int csrno)
 
     return RISCV_EXCP_ILLEGAL_INST;
 }
+
+static RISCVException epmp_or_cheri093(CPURISCVState *env, int csrno)
+{
+#ifdef TARGET_CHERI_RISCV_STD_093
+    /* For 0.9.3 the CHERI enable/disable bits are in mseccfg. */
+    if (riscv_feature(env, RISCV_FEATURE_CHERI)) {
+        return RISCV_EXCP_NONE; /* NOTE: ASR is checked after calling this. */
+    }
+#endif
+    return epmp(env, csrno);
+}
+
 #endif
 
 /* User Floating-Point CSRs */
@@ -2618,7 +2630,7 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_SENVCFG] =             CSR_OP_RW(any, senvcfg),
     [CSR_MENVCFG] =             CSR_OP_RW(any, menvcfg),
     /* Physical Memory Protection */
-    [CSR_MSECCFG]    = CSR_OP_FN_RW(epmp, read_mseccfg, write_mseccfg, "mseccfg"),
+    [CSR_MSECCFG] =             CSR_OP_RW(epmp_or_cheri093, mseccfg),
     [CSR_PMPCFG0]    = CSR_OP_FN_RW(pmp, read_pmpcfg, write_pmpcfg, "pmpcfg0"),
     [CSR_PMPCFG1]    = CSR_OP_FN_RW(pmp, read_pmpcfg, write_pmpcfg, "pmpcfg1"),
     [CSR_PMPCFG2]    = CSR_OP_FN_RW(pmp, read_pmpcfg, write_pmpcfg, "pmpcfg2"),
