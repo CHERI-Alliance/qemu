@@ -2569,7 +2569,7 @@ static riscv_csr_cap_ops csr_cap_ops[] = {
       CSR_OP_DIRECT_WRITE },
 };
 
-riscv_csr_cap_ops *get_csr_cap_info(int csrnum)
+riscv_csr_cap_ops *get_csr_cap_info(uint32_t csrnum)
 {
     int i;
 
