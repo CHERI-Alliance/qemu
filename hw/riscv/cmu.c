@@ -32,14 +32,20 @@
 static uint64_t cmu_read(void *opaque, hwaddr addr, unsigned int size)
 {
     CMUDeviceState *s = opaque;
-    assert(size == 8);
-    assert(addr <= 0x0fffc);
-    if (addr >= CMU_REGS_SIZE) {
+    assert(addr + size <= 0x10000);
+    assert(size <= 8);
+    if (addr + size > CMU_REGS_SIZE) {
         // attempting to read from filter table or memory window
         // not implemented
         return 0;
     }
-    return s->regs[addr / sizeof(uint64_t)];
+    uint64_t retval = 0;
+    uint8_t *ptr = (uint8_t *)&retval;
+        uint8_t *regptr = ((uint8_t *)&s->regs) + addr;
+    while (size--) {
+        *ptr++ = *regptr++;
+    }
+    return retval;
 }
 // trigger an invalidation on this CMU
 // Extract the region from the device state
@@ -83,19 +89,25 @@ static void cmu_invalidate(CMUDeviceState *s)
 static void cmu_write(void *opaque, hwaddr addr, uint64_t data, unsigned int size)
 {
     CMUDeviceState *s = opaque;
-    assert(size == 8);
-    assert(addr <= 0x0fffc);
 
-    if(addr >= CMU_REGS_SIZE) {
-        // attempting to read from filter table or memory window
+    assert(addr + size <= 0x10000);
+    assert(size <= 8);
+    if (addr + size > CMU_REGS_SIZE) {
+        // attempting to write to filter table or memory window
         // not implemented
         return;
     }
+
     if (addr <= 0x8) {
         return; // dont write to the feature register
     }
 
-    s->regs[addr / sizeof(uint64_t)] = data;
+    uint8_t *inptr = (uint8_t *)&data;
+    uint8_t *regptr = ((uint8_t *)&s->regs) + addr;
+    while (size--) {
+        *regptr++ = *inptr++;
+    }
+
     // after writing have a look at activate bit and trigger an invalidate if
     // required.
     if (s->regs[REG_CMU_TIEND] & CMU_TI_ACTIVE) {
@@ -108,8 +120,9 @@ static const MemoryRegionOps cmu_ops = {
     .write = cmu_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid.max_access_size = 8,
-    .valid.min_access_size = 8,
-    .impl.min_access_size = 8,
+    .valid.min_access_size = 4,
+    .impl.min_access_size = 1,
+    .impl.max_access_size = 8,
 
 };
 
