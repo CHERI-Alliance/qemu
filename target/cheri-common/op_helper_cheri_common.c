@@ -1909,6 +1909,14 @@ target_ulong CHERI_HELPER_IMPL(gctag(CPUArchState *env, uint32_t cb))
     return (target_ulong)get_capreg_tag(env, cb);
 }
 
+/* set _mask_bit in _mask if _cap_ptr grants _cap_bit permission */
+#define CAP_PERM_MASK_SET(_cap_ptr, _cap_bit, _mask, _mask_bit) \
+do { \
+    if ((_cap_ptr)->cr_arch_perm & (_cap_bit)) { \
+        (_mask) |= (1 << (_mask_bit)); \
+    } \
+} while (0)
+
 target_ulong CHERI_HELPER_IMPL(gcperm(CPUArchState *env, uint32_t cb))
 {
     /*
@@ -1926,7 +1934,16 @@ target_ulong CHERI_HELPER_IMPL(gcperm(CPUArchState *env, uint32_t cb))
     if (!valid_m_ap(cbp->cr_m, cbp->cr_arch_perm))
         goto out;
 
-    ap_bits = cbp->cr_arch_perm;
+    /*
+     * See the explanation in the acperm helper. We can't make any
+     * assumptions about mapping the AP bits of a capability variable
+     * to the gcperm bitmask.
+     */
+    CAP_PERM_MASK_SET(cbp, CAP_AP_C, ap_bits, 0);
+    CAP_PERM_MASK_SET(cbp, CAP_AP_W, ap_bits, 1);
+    CAP_PERM_MASK_SET(cbp, CAP_AP_R, ap_bits, 2);
+    CAP_PERM_MASK_SET(cbp, CAP_AP_X, ap_bits, 3);
+    CAP_PERM_MASK_SET(cbp, CAP_AP_ASR, ap_bits, 4);
 
 out:
     return (cap_get_sdp(cbp) << 16) | ap_bits;
