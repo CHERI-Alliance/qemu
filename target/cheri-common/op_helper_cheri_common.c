@@ -951,12 +951,71 @@ static inline QEMU_ALWAYS_INLINE void caddi_impl(CPUArchState *env,
 }
 
 #ifdef TARGET_RISCV
+
+/* clear _cap_bit in _cap unless _mask_bit in _mask is set */
+#define MASK_CLR_CAP_PERM(_mask, _mask_bit, _cap, _cap_bit) \
+do { \
+    if(!((_mask) & (1 << (_mask_bit)))) { \
+        (_cap).cr_arch_perm &= ~(_cap_bit); \
+    } \
+} while (0)
+
 void CHERI_HELPER_IMPL(acperm(CPUArchState *env, uint32_t cd, uint32_t cs1,
-                              target_ulong rs1))
+                              target_ulong rs2))
 {
     const cap_register_t *cbp = get_readonly_capreg(env, cs1);
-    uint32_t perms = ((cap_get_sdp(cbp) << 16) | cbp->cr_arch_perm) & rs1;
     cap_register_t result = *cbp;
+
+    /*
+     * Our processing of the permissions differs from the sequence in the
+     * risc-v cheri specification.
+     *
+     * We have the internal representation of SDP and AP in a decompressed
+     * capability (cap_register_t). It is defined by the cheri-compressed-cap
+     * library.
+     *
+     * The risc-v cheri specification defines the format of the bitmask in
+     * rs2. This format also contains SDP and the AP bits.
+     *
+     * The code must not assume that there's any connection between the two
+     * formats (e.g. that their AP representations are identical).
+     *
+     * In general, changes to the risc-v cheri specification require updates
+     * of the cheri-compressed-cap library (for new AP bits, changes of SDP
+     * size etc.). The rs2 mask for acperm may by changed as well.
+     *
+     * It's necessary that we can implement these changes step by step and
+     * handle intermediate states. The code should still work when new AP
+     * fields were added to cheri-compressed-cap but acperm's rs2 mask has not
+     * been updated for those new bits.
+     *
+     * Therefore, we process acperm as follows:
+     *
+     * - copy cs1 to cd (this was done above)
+     * - apply the rs2 mask field by field
+     * - do the consistency checks on the result capability
+     *   we can then use the CAP_AP_* defines
+     *
+     * (The previous acperm implementation did the masking and the consistency
+     * checks on the rs2 format. This makes it harder to decouple the two
+     * formats.)
+     */
+
+    CAP_cc(update_sdp)(&result,
+            cap_get_sdp(&result) & ((rs2 >> 16) & CAP_CC(FIELD_SDP_SIZE)));
+
+    /*
+     * We have to calculate bitwise AND of cs1's AP field and rs2. Bits that
+     * are not defined in rs2 cannot be set in the result.
+     */
+    result.cr_arch_perm &=
+        (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X | CAP_AP_ASR);
+
+    MASK_CLR_CAP_PERM(rs2, 0, result, CAP_AP_C);
+    MASK_CLR_CAP_PERM(rs2, 1, result, CAP_AP_W);
+    MASK_CLR_CAP_PERM(rs2, 2, result, CAP_AP_R);
+    MASK_CLR_CAP_PERM(rs2, 3, result, CAP_AP_X);
+    MASK_CLR_CAP_PERM(rs2, 4, result, CAP_AP_ASR);
 
     if (!cap_is_unsealed(cbp)) {
         result.cr_tag = 0;
@@ -967,20 +1026,20 @@ void CHERI_HELPER_IMPL(acperm(CPUArchState *env, uint32_t cd, uint32_t cs1,
          * "If AP and M-bit field in cs1 could not have been produced by
          * acperm then clear all AP permissions and the M-bit."
          */
-        perms = 0;
+        result.cr_arch_perm = 0;
         result.cr_m = 0;
     }
     else {
-        /* Enforce the restrictions as per the bakewell specification. */
+        /* Enforce the restrictions as per the risc-v cheri specification. */
 
         /* "Clear ASR-permission unless X-permission is set" */
-        if (!(perms & CAP_AP_X)) {
-            perms &= ~CAP_AP_ASR;
+        if (!(result.cr_arch_perm & CAP_AP_X)) {
+            result.cr_arch_perm &= ~CAP_AP_ASR;
         }
 
         /* "Clear C-permission unless R-permission or W-permission are set" */
-        if (!(perms & (CAP_AP_R|CAP_AP_W))) {
-            perms &= ~CAP_AP_C;
+        if (!(result.cr_arch_perm & (CAP_AP_R|CAP_AP_W))) {
+            result.cr_arch_perm &= ~CAP_AP_C;
         }
 
         /*
@@ -990,45 +1049,30 @@ void CHERI_HELPER_IMPL(acperm(CPUArchState *env, uint32_t cd, uint32_t cs1,
          * undefined and must be set to 0. This is unrelated to the values
          * for capability/integer pointer mode.
          */
-        if (!(perms & CAP_AP_X)) {
+        if (!(result.cr_arch_perm & CAP_AP_X)) {
             result.cr_m = 0;
         }
 
 #if CAP_CC(ADDR_WIDTH) == 32
         /* "Clear ASR-permission unless all other permissions are set." */
-        if ((perms & (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X)) !=
+        if ((result.cr_arch_perm & (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X)) !=
                 (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X)) {
-            perms &= ~CAP_AP_ASR;
+            result.cr_arch_perm &= ~CAP_AP_ASR;
         }
         /* "Clear C-permission and X-permission if R-permission is not set" */
-        if (!(perms & CAP_AP_R)) {
-            perms &= ~(CAP_AP_X | CAP_AP_C);
+        if (!(result.cr_arch_perm & CAP_AP_R)) {
+            result.cr_arch_perm &= ~(CAP_AP_X | CAP_AP_C);
         }
         /*
          * "Clear X-permission if X-permission and R-permission are set, but
          * C-permission and W-permission are not set"
          */
-        if ((perms & (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X)) ==
+        if ((result.cr_arch_perm & (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X)) ==
                 (CAP_AP_X | CAP_AP_R)) {
-            perms &= ~CAP_AP_X;
+            result.cr_arch_perm &= ~CAP_AP_X;
         }
 #endif
     }
-
-    /*
-     * All unused bits in perms are 0, we don't have to mask out higher
-     * bits above the sdp field.
-     */
-    CAP_cc(update_sdp)(&result, perms >> 16);
-
-    /*
-     * Update result's C, W, R, X, ASR to match the bits in perm.
-     * Yet again, this leaves result's M bit alone.
-     */
-    result.cr_arch_perm &=
-        ~(CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X | CAP_AP_ASR);
-    result.cr_arch_perm |=
-        perms & (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X | CAP_AP_ASR);
 
     /*
      * Sync the AP field with th cr_arch_perm update.
