@@ -38,7 +38,6 @@
  * logging.
  */
 
-#ifdef CONFIG_TCG_LOG_INSTR
 
 /* Max printf args. */
 #define QEMU_LOG_PRINTF_ARG_MAX 8
@@ -88,6 +87,7 @@ typedef enum {
     QEMU_LOG_INSTR_LOGLEVEL_USER = 2,
 } qemu_log_instr_loglevel_t;
 
+#ifdef CONFIG_TCG_LOG_INSTR
 static inline void qemu_log_instr_set_format(qemu_log_instr_fmt_t fmt)
 {
     qemu_log_instr_format = fmt;
