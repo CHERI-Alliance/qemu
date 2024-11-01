@@ -81,6 +81,8 @@ enum {
      */
     _CC_N(NULL_PESBT) = _CC_ENCODE_FIELD(0, UPERMS) | _CC_ENCODE_FIELD(0, HWPERMS) | _CC_ENCODE_FIELD(0, RESERVED) |
                         _CC_ENCODE_FIELD(0, FLAGS) |
+                        _CC_ENCODE_FIELD(0, CT) |
+                        _CC_ENCODE_FIELD(0, CL) |
                         _CC_ENCODE_FIELD(1, INTERNAL_EXPONENT) | _CC_ENCODE_FIELD(0, EF) |
                         _CC_ENCODE_FIELD(_CC_N(OTYPE_UNSEALED), OTYPE) |
                         _CC_ENCODE_FIELD(_CC_N(NULL_T), EXP_NONZERO_TOP) | _CC_ENCODE_FIELD(0, EXP_NONZERO_BOTTOM) |
@@ -110,7 +112,7 @@ enum {
 #define _CC_CURSOR_MASK _CC_N(CURSOR_MASK)
 // Check that the sizes of the individual fields match up
 _CC_STATIC_ASSERT_SAME(_CC_N(FIELD_EBT_SIZE) + _CC_N(FIELD_OTYPE_SIZE) + _CC_N(FIELD_FLAGS_SIZE) +
-                           _CC_N(FIELD_SEALED_SIZE) +
+                           _CC_N(FIELD_CT_SIZE) + _CC_N(FIELD_CL_SIZE) +
                            _CC_N(FIELD_M_SIZE) + _CC_N(FIELD_AP_SIZE) + _CC_N(FIELD_SDP_SIZE) +
                            _CC_N(FIELD_RESERVED_SIZE) + _CC_N(FIELD_RESERVED2_SIZE) +
                            _CC_N(FIELD_HWPERMS_SIZE) + _CC_N(FIELD_UPERMS_SIZE),
@@ -145,7 +147,7 @@ static inline uint32_t _cc_N(get_otype)(const _cc_cap_t* cap);
 static inline uint32_t _cc_N(get_perms)(const _cc_cap_t* cap);
 static inline uint32_t _cc_N(get_reserved)(const _cc_cap_t* cap);
 static inline uint32_t _cc_N(get_uperms)(const _cc_cap_t* cap);
-static inline uint8_t _cc_N(get_sealed)(const _cc_cap_t* cap);
+static inline uint8_t _cc_N(get_ct)(const _cc_cap_t* cap);
 
 // In order to allow vector loads and store from memory we can optionally reverse the first two fields.
 struct _cc_N(cap) {
@@ -165,8 +167,9 @@ struct _cc_N(cap) {
     uint8_t cr_bounds_valid; /* Set if bounds decode was given an invalid cap */
     uint8_t cr_exp;          /* Exponent */
     uint8_t cr_extra;        /* Additional data stored by the caller */
-    uint8_t cr_arch_perm;    /* decoded architectural permissions (AP) */
+    uint16_t cr_arch_perm;   /* decoded architectural permissions (AP) */
     uint8_t cr_m;            /* decoded M bit (or a copy of the bit in pesbt) */
+    uint8_t cr_lvbits;       /* lvbits for Zcherilevel (0 if unsupported) */
 #ifdef __cplusplus
     inline _cc_addr_t base() const { return cr_base; }
     inline _cc_addr_t address() const { return _cr_cursor; }
@@ -188,7 +191,7 @@ struct _cc_N(cap) {
 #if _CC_N(FIELD_OTYPE_USED) == 1
         return type() != _CC_N(OTYPE_UNSEALED);
 #else
-        return _cc_N(get_sealed)(this);
+        return _cc_N(get_ct)(this);
 #endif
     }
     inline uint32_t reserved_bits() const { return _cc_N(get_reserved)(this); }
@@ -301,12 +304,13 @@ struct _cc_N(bounds_bits) {
 // access must go through cr_arch_perm and cr_m.
 // TODO: Is there a way to enforce this? Do we need ALL_WRAPPERS_INTERNAL()?
 ALL_WRAPPERS(M, m, uint8_t)
-ALL_WRAPPERS(AP, ap, uint8_t)
+ALL_WRAPPERS(AP, ap, uint16_t)
 ALL_WRAPPERS(SDP, sdp, uint8_t)
+ALL_WRAPPERS(CL, cl, uint8_t)
 ALL_WRAPPERS(HWPERMS, perms, uint32_t)
 ALL_WRAPPERS(UPERMS, uperms, uint32_t)
 ALL_WRAPPERS(OTYPE, otype, uint32_t)
-ALL_WRAPPERS(SEALED, sealed, uint8_t)
+ALL_WRAPPERS(CT, ct, uint8_t)
 ALL_WRAPPERS(FLAGS, flags, uint8_t)
 ALL_WRAPPERS(RESERVED, reserved, uint32_t)
 ALL_WRAPPERS(RESERVED2, reserved2, uint32_t)
@@ -543,6 +547,9 @@ static inline bool _cc_N(compute_base_top)(_cc_bounds_bits bounds, _cc_addr_t cu
 #define CAP_AP_R   (1 << 2)
 #define CAP_AP_X   (1 << 3)
 #define CAP_AP_ASR (1 << 4)
+#define CAP_AP_LM  (1 << 5)
+#define CAP_AP_EL  (1 << 6)
+#define CAP_AP_SL  (1 << 7)
 
 #if _CC_N(M_AP_FCTS) == M_AP_FCTS_NONE
 static inline void _cc_N(m_ap_compress)(__attribute__((unused)) _cc_cap_t *cap)
@@ -555,6 +562,10 @@ static inline void _cc_N(m_ap_decompress)(__attribute__((unused)) _cc_cap_t *cap
 #elif _CC_N(M_AP_FCTS) == M_AP_FCTS_IDENT
 static inline void _cc_N(m_ap_compress)(_cc_cap_t *cap)
 {
+    if ((cap->cr_lvbits == 0) && (cap->cr_arch_perm & (CAP_AP_SL | CAP_AP_EL))) {
+      cap->cr_arch_perm &= ~(CAP_AP_SL | CAP_AP_EL);
+    }
+
     _cc_N(update_ap)(cap, cap->cr_arch_perm);
     _cc_N(update_m)(cap, cap->cr_m);
 }
@@ -562,6 +573,9 @@ static inline void _cc_N(m_ap_compress)(_cc_cap_t *cap)
 static inline void _cc_N(m_ap_decompress)(_cc_cap_t *cap)
 {
     cap->cr_arch_perm = _cc_N(get_ap)(cap);
+    if ((cap->cr_lvbits == 0) && (cap->cr_arch_perm & (CAP_AP_SL | CAP_AP_EL))) {
+      cap->cr_arch_perm &= ~(CAP_AP_SL | CAP_AP_EL);
+    }
     cap->cr_m = _cc_N(get_m)(cap);
 }
 #elif _CC_N(M_AP_FCTS) == M_AP_FCTS_QUADR
@@ -573,6 +587,9 @@ static inline void _cc_N(m_ap_decompress)(_cc_cap_t *cap)
 
 #define CAP_AP_Q_MASK ((uint8_t)(0b11 <<3))
 
+#define EL_OPT(cap) (((cap)->cr_lvbits == 0) ? 0 : CAP_AP_EL)
+#define SL_OPT(cap) (((cap)->cr_lvbits == 0) ? 0 : CAP_AP_SL)
+
 static inline void _cc_N(m_ap_compress)(_cc_cap_t *cap)
 {
     uint8_t res = 0;
@@ -583,14 +600,14 @@ static inline void _cc_N(m_ap_compress)(_cc_cap_t *cap)
           res |= 1;
       }
       switch (cap->cr_arch_perm &
-              (CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_ASR)) {
-          case CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_ASR:
+              (CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_LM | CAP_AP_ASR)) {
+          case CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_LM | CAP_AP_ASR:
               res |= 0;
               break;
-          case CAP_AP_R | CAP_AP_C:
+          case CAP_AP_R | CAP_AP_C | CAP_AP_LM:
               res |= 2;
               break;
-          case CAP_AP_R | CAP_AP_W | CAP_AP_C:
+          case CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_LM:
               res |= 4;
               break;
           case CAP_AP_R | CAP_AP_W:
@@ -601,15 +618,42 @@ static inline void _cc_N(m_ap_compress)(_cc_cap_t *cap)
               res = UINT8_MAX;
       }
     }
-    else if (cap->cr_arch_perm & CAP_AP_C) {
+    else if (cap->cr_m) {
+        /* M is valid only in Q1. Otherwise, M is reserved and must be 0. */
+        res = UINT8_MAX;
+    }
+    else if ((cap->cr_arch_perm &
+                (CAP_AP_R | CAP_AP_C | CAP_AP_LM | CAP_AP_EL | CAP_AP_X | CAP_AP_ASR)) ==
+            (CAP_AP_R | CAP_AP_C | CAP_AP_LM | EL_OPT(cap))) {
       res |= CAP_AP_Q3;
-      switch (cap->cr_arch_perm &
-              (CAP_AP_R | CAP_AP_W | CAP_AP_X | CAP_AP_ASR)) {
-          case CAP_AP_R:
-              res |= 0x3;
+
+      switch (cap->cr_arch_perm & (CAP_AP_W | SL_OPT(cap))) {
+          case 0:
+              res |= 3;
               break;
-          case CAP_AP_R | CAP_AP_W:
-              res |= 0x7;
+          case CAP_AP_W | CAP_AP_SL:
+              res |= 6;
+              break;
+          case CAP_AP_W:
+              res |= 7;
+              break;
+          default:
+              res = UINT8_MAX;
+      }
+    }
+    else if ((cap->cr_arch_perm &
+                (CAP_AP_R | CAP_AP_C | CAP_AP_EL | CAP_AP_X | CAP_AP_ASR )) ==
+            (CAP_AP_R | CAP_AP_C)) {
+      res |= CAP_AP_Q2;
+      switch (cap->cr_arch_perm & (CAP_AP_W | CAP_AP_LM | SL_OPT(cap))) {
+          case 0:
+              res |= 3;
+              break;
+          case CAP_AP_W | CAP_AP_LM | CAP_AP_SL:
+              res |= 6;
+              break;
+          case CAP_AP_W | CAP_AP_LM:
+              res |= 7;
               break;
           default:
               res = UINT8_MAX;
@@ -650,11 +694,27 @@ static inline void _cc_N(m_ap_compress)(_cc_cap_t *cap)
     _cc_N(update_ap)(cap, res);
 }
 
+/*
+ * This shifts the lvbits value when we want to check both lvbits and the
+ * permission encoding (without the quadrant info) at once.
+ *
+ * __builtin_ctz has been supported in gcc since v3.4.6 - it's tricky to
+ * check if it is available (__has_builtin was added to gcc 10)
+ * clang supports __builtin_ctz as well
+ */
+#define __LVBITS(x) ((x) << __builtin_ctz(CAP_AP_Q_MASK))
+
 static inline void _cc_N(m_ap_decompress)(_cc_cap_t *cap)
 {
     uint8_t perm_comp = _cc_N(get_ap)(cap);
     bool m_bit = false;
     uint8_t res = 0;
+
+    /*
+     * For the internal processing below, we assume that EL, SL are used.
+     * If the caller does not use EL and SL, we clear those bits before we
+     * return the bitmask.
+     */
 
     switch (perm_comp & CAP_AP_Q_MASK) {
         case CAP_AP_Q0:
@@ -685,13 +745,13 @@ static inline void _cc_N(m_ap_decompress)(_cc_cap_t *cap)
             }
             switch ((perm_comp & ~CAP_AP_Q_MASK) >> 1) {
                 case 0:
-                    res |= CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_X | CAP_AP_ASR;
+                    res |= CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_LM | CAP_AP_X | CAP_AP_ASR | CAP_AP_EL | CAP_AP_SL;
                     break;
                 case 1:
-                    res |= CAP_AP_R | CAP_AP_C | CAP_AP_X;
+                    res |= CAP_AP_R | CAP_AP_C | CAP_AP_LM | CAP_AP_X | CAP_AP_EL | CAP_AP_SL;
                     break;
                 case 2:
-                    res |= CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_X;
+                    res |= CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_LM | CAP_AP_X | CAP_AP_EL | CAP_AP_SL;
                     break;
                 case 3:
                     res |= CAP_AP_R | CAP_AP_W | CAP_AP_X;
@@ -703,30 +763,53 @@ static inline void _cc_N(m_ap_decompress)(_cc_cap_t *cap)
             }
             break;
         case CAP_AP_Q2:
-            /*
-             * Unsupported encoding in quadrant 2. All permissions are
-             * implicitly granted.
-             */
-            res |= CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_X | CAP_AP_ASR;
-            break;
-        case CAP_AP_Q3:
-            switch (perm_comp & ~CAP_AP_Q_MASK) {
-                case 3:
+            switch (__LVBITS(cap->cr_lvbits) | (perm_comp & ~CAP_AP_Q_MASK)) {
+                case __LVBITS(0) | 3:
+                case __LVBITS(1) | 3:
                     res |= CAP_AP_R | CAP_AP_C;
                     break;
-                case 7:
-                    res |= CAP_AP_R | CAP_AP_W | CAP_AP_C;
+                /* 4 and 5 are reserved for lvbits=2, we don't support this */
+                case __LVBITS(1) | 6:
+                    res |= CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_LM | CAP_AP_SL;
+                    break;
+                case __LVBITS(1) | 7:
+                    res |= CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_LM;
+                    break;
+                default:
+                    /*
+                     * Unsupported encoding in quadrant 2. All permissions are
+                     * implicitly granted.
+                     */
+                    res |= CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_LM | CAP_AP_X | CAP_AP_ASR | CAP_AP_EL | CAP_AP_SL;
+            }
+            break;
+        case CAP_AP_Q3:
+            switch (__LVBITS(cap->cr_lvbits) | (perm_comp & ~CAP_AP_Q_MASK)) {
+                case __LVBITS(0) | 3:
+                case __LVBITS(1) | 3:
+                    res |= CAP_AP_R | CAP_AP_C | CAP_AP_LM | CAP_AP_EL;
+                    break;
+                /* 4 and 5 are reserved for lvbits=2, we don't support this */
+                case __LVBITS(1) | 6:
+                    res |= CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_LM | CAP_AP_EL | CAP_AP_SL;
+                    break;
+                case __LVBITS(0) | 7:
+                case __LVBITS(1) | 7:
+                    res |= CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_LM | CAP_AP_EL;
                     break;
                 default:
                     /*
                      * Unsupported encoding in quadrant 3. All permissions are
                      * implicitly granted.
                      */
-                    res |= CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_X | CAP_AP_ASR;
+                    res |= CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_LM | CAP_AP_X | CAP_AP_ASR | CAP_AP_EL | CAP_AP_SL;
             }
             break;
     }
 
+    if (cap->cr_lvbits == 0) {
+        res &= ~(CAP_AP_EL | CAP_AP_SL);
+    }
     cap->cr_arch_perm = res;
     cap->cr_m = m_bit ? 1 : 0;
 }
@@ -734,11 +817,12 @@ static inline void _cc_N(m_ap_decompress)(_cc_cap_t *cap)
 
 /// Expand a PESBT+address+tag input to a _cc_cap_t, but don't check that the tagged value is derivable.
 /// This is an internal helper and should not not be used outside of this header.
-static inline void _cc_N(unsafe_decompress_raw)(_cc_addr_t pesbt, _cc_addr_t cursor, bool tag, _cc_cap_t* cdp) {
+static inline void _cc_N(unsafe_decompress_raw)(_cc_addr_t pesbt, _cc_addr_t cursor, bool tag, uint8_t lvbits, _cc_cap_t* cdp) {
     memset(cdp, 0, sizeof(*cdp));
     cdp->cr_tag = tag;
     cdp->_cr_cursor = cursor;
     cdp->cr_pesbt = pesbt;
+    cdp->cr_lvbits = lvbits;
 
     _cc_bounds_bits bounds = _cc_N(extract_bounds_bits)(pesbt);
     bool valid = _cc_N(compute_base_top)(bounds, cursor, &cdp->cr_base, &cdp->_cr_top);
@@ -747,8 +831,8 @@ static inline void _cc_N(unsafe_decompress_raw)(_cc_addr_t pesbt, _cc_addr_t cur
     _cc_N(m_ap_decompress)(cdp);
 }
 
-static inline void _cc_N(decompress_raw)(_cc_addr_t pesbt, _cc_addr_t cursor, bool tag, _cc_cap_t* cdp) {
-    _cc_N(unsafe_decompress_raw)(pesbt, cursor, tag, cdp);
+static inline void _cc_N(decompress_raw__)(_cc_addr_t pesbt, _cc_addr_t cursor, bool tag, uint8_t lvbits,_cc_cap_t* cdp) {
+    _cc_N(unsafe_decompress_raw)(pesbt, cursor, tag, lvbits, cdp);
     if (tag) {
         _cc_debug_assert(cdp->cr_base <= _CC_N(MAX_ADDR));
 #ifndef CC_IS_MORELLO
@@ -760,18 +844,22 @@ static inline void _cc_N(decompress_raw)(_cc_addr_t pesbt, _cc_addr_t cursor, bo
     }
 }
 
+static inline void _cc_N(decompress_raw)(_cc_addr_t pesbt, _cc_addr_t cursor, bool tag, _cc_cap_t* cdp) {
+    _cc_N(decompress_raw__)(pesbt, cursor, tag, 0, cdp);
+}
+
 /*
  * Decompress a 128-bit capability.
  */
 static inline void _cc_N(decompress_mem)(uint64_t pesbt, uint64_t cursor, bool tag, _cc_cap_t* cdp) {
-    _cc_N(decompress_raw)(pesbt ^ _CC_N(NULL_XOR_MASK), cursor, tag, cdp);
+    _cc_N(decompress_raw__)(pesbt ^ _CC_N(NULL_XOR_MASK), cursor, tag, 0, cdp);
 }
 
 static inline bool _cc_N(is_cap_sealed)(const _cc_cap_t* cp) {
 #if _CC_N(FIELD_OTYPE_USED) == 1
     return _cc_N(get_otype)(cp) != _CC_N(OTYPE_UNSEALED);
 #else
-    return _cc_N(get_sealed)(cp);
+    return _cc_N(get_ct)(cp);
 #endif
 }
 
@@ -779,7 +867,7 @@ static inline bool _cc_N(is_cap_sealed)(const _cc_cap_t* cp) {
 static inline bool _cc_N(pesbt_is_correct)(const _cc_cap_t* csp) {
     _cc_cap_t tmp;
     // NB: We use the unsafe decompression function here to handle non-derivable caps without asserting.
-    _cc_N(unsafe_decompress_raw)(csp->cr_pesbt, csp->_cr_cursor, csp->cr_tag, &tmp);
+    _cc_N(unsafe_decompress_raw)(csp->cr_pesbt, csp->_cr_cursor, csp->cr_tag, 0, &tmp);
     tmp.cr_extra = csp->cr_extra; // raw_equal also compares, cr_extra but we don't care about that here.
     if (!_cc_N(raw_equal)(&tmp, csp)) {
         return false;
@@ -816,7 +904,7 @@ static inline bool _cc_N(is_representable_cap_exact)(const _cc_cap_t* cap) {
     _cc_addr_t pesbt = _cc_N(compress_raw)(cap);
     _cc_cap_t decompressed_cap;
     // NB: We use the unsafe decompression function here to handle non-derivable caps without asserting.
-    _cc_N(unsafe_decompress_raw)(pesbt, cap->_cr_cursor, cap->cr_tag, &decompressed_cap);
+    _cc_N(unsafe_decompress_raw)(pesbt, cap->_cr_cursor, cap->cr_tag, 0, &decompressed_cap);
     // These fields must not change:
     _cc_debug_assert(decompressed_cap._cr_cursor == cap->_cr_cursor);
     _cc_debug_assert(decompressed_cap.cr_pesbt == cap->cr_pesbt);
@@ -1250,8 +1338,9 @@ static inline bool _cc_N(checked_setbounds)(_cc_cap_t* cap, _cc_length_t req_len
     return _cc_N(setbounds)(cap, req_len);
 }
 
-// For risc-v cheri formats, the value of M depends on Zcherihybrid support. 
-static inline _cc_cap_t _cc_N(make_max_perms_cap_m)(_cc_addr_t base, _cc_addr_t cursor, _cc_length_t top, bool m) {
+// For risc-v cheri formats, the value of M depends on Zcherihybrid support.
+// CL field and SL, EL perms depend on lvbits (number of Zcherilevels or 0 if unsupported)
+static inline _cc_cap_t _cc_N(make_max_perms_cap_m_lv)(_cc_addr_t base, _cc_addr_t cursor, _cc_length_t top, bool m, uint8_t lvbits) {
     _cc_cap_t creg;
     memset(&creg, 0, sizeof(creg));
     assert(base <= top && "Invalid arguments");
@@ -1262,6 +1351,7 @@ static inline _cc_cap_t _cc_N(make_max_perms_cap_m)(_cc_addr_t base, _cc_addr_t 
     /* There's no need to exclude unused fields here. */
     creg.cr_pesbt = _CC_ENCODE_FIELD(_CC_N(UPERMS_ALL), UPERMS) | _CC_ENCODE_FIELD(_CC_N(PERMS_ALL), HWPERMS) |
                     _CC_ENCODE_FIELD(_CC_N(FIELD_SDP_MAX_VALUE), SDP) |
+                    _CC_ENCODE_FIELD(0, CT) |
                     _CC_ENCODE_FIELD(_CC_N(OTYPE_UNSEALED), OTYPE);
     creg.cr_tag = true;
     creg.cr_exp = _CC_N(RESET_EXP);
@@ -1270,13 +1360,20 @@ static inline _cc_cap_t _cc_N(make_max_perms_cap_m)(_cc_addr_t base, _cc_addr_t 
     assert(exact_input && "Invalid arguments");
     assert(_cc_N(is_representable_cap_exact)(&creg));
     creg.cr_m = m ? 1 : 0;
-    creg.cr_arch_perm = CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X | CAP_AP_ASR;
+    assert(lvbits <= 1 && "We only support local-global levels.");
+    creg.cr_lvbits = lvbits;
+    /* We need the most global level here, the level can only be decreased. */
+    creg.cr_pesbt |= _CC_ENCODE_FIELD(lvbits, CL);
+    creg.cr_arch_perm = CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X | CAP_AP_ASR | CAP_AP_LM;
+    if (lvbits > 0) {
+        creg.cr_arch_perm = CAP_AP_EL | CAP_AP_SL;
+    }
     _cc_N(m_ap_compress)(&creg);
     return creg;
 }
 
 static inline _cc_cap_t _cc_N(make_max_perms_cap)(_cc_addr_t base, _cc_addr_t cursor, _cc_length_t top) {
-    return _cc_N(make_max_perms_cap_m)(base, cursor, top, false);
+    return _cc_N(make_max_perms_cap_m_lv)(base, cursor, top, false, 0);
 }
 
 /* @return the mask that needs to be applied to base in order to get a precisely representable capability */

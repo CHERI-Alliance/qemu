@@ -5,10 +5,10 @@
 #include "test_common.cpp"
 #include "cap_m_ap.h"
 
-TEST_CASE("update sealed", "[sealed]") {
+TEST_CASE("update ct", "[ct]") {
     _cc_cap_t cap;
 
-    _cc_N(update_sealed)(&cap, 1);
+    _cc_N(update_ct)(&cap, 1);
     CHECK_FIELD(cap, is_sealed, 1);
 }
 
@@ -20,19 +20,24 @@ TEST_CASE("update sealed", "[sealed]") {
 
 /* M, AP compression */
 
-TEST_CASE_M_AP_COMP(0, CAP_AP_R, CAP_AP_R)
+TEST_CASE_M_AP_COMP(LVB_0, 0, CAP_AP_R, CAP_AP_R)
 
-TEST_CASE_M_AP_COMP(
+TEST_CASE_M_AP_COMP(LVB_0, 
         1, (CAP_AP_X | CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_ASR),
-        1 << 5 | (CAP_AP_X | CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_ASR))
+        1 << _CC_N(FIELD_AP_SIZE) | (CAP_AP_X | CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_ASR))
+
+/* unused SL and EL permissions must be removed */
+TEST_CASE_M_AP_COMP(LVB_0,
+        0, CAP_AP_X | CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_LM | CAP_AP_SL | CAP_AP_EL,
+        CAP_AP_X | CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_LM)
 
 /* M, AP decompression */
 
-TEST_CASE_M_AP_DECOMP(
-        1 << 5 | (CAP_AP_X | CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_ASR),
+TEST_CASE_M_AP_DECOMP(LVB_0,
+        1 << _CC_N(FIELD_AP_SIZE) | (CAP_AP_X | CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_ASR),
         1, (CAP_AP_X | CAP_AP_R | CAP_AP_W | CAP_AP_C | CAP_AP_ASR))
 
-TEST_CASE_M_AP_DECOMP(
+TEST_CASE_M_AP_DECOMP(LVB_0,
         (CAP_AP_X | CAP_AP_R | CAP_AP_W),
         0, (CAP_AP_X | CAP_AP_R | CAP_AP_W));
 
@@ -50,7 +55,7 @@ TEST_CASE("bounds encoding exponent 0", "[bounds]") {
      *
      * top == 0x20, base == 0x0
      */
-    CHECK(cap.cr_pesbt == 0x1ef800004080000);
+    CHECK(cap.cr_pesbt == 0x1e3f00004080000);
 }
 
 TEST_CASE("bounds encoding exponent > 0", "[bounds]") {
@@ -71,5 +76,5 @@ TEST_CASE("bounds encoding exponent > 0", "[bounds]") {
      * LCout = 0, LMSB = 1
      * c_t = 0, c_b = 0
      */
-    CHECK(cap.cr_pesbt == 0x1ef800001334105);
+    CHECK(cap.cr_pesbt == 0x1e3f00001334105);
 }

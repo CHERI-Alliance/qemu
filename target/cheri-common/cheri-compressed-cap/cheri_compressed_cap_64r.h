@@ -1,6 +1,5 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
- * TODO: Is this license ok?
  *
  * Copyright (c) 2024 Codasip
  *
@@ -45,8 +44,9 @@ typedef int32_t cc64r_saddr_t;
 enum {
     _CC_FIELD(SDP, 63, 62),
     _CC_FIELD(AP, 61, 57),
-    _CC_FIELD(RESERVED, 56, 53),
-    _CC_FIELD(SEALED, 52, 52),
+    _CC_FIELD(CL, 56, 56),
+    _CC_FIELD(RESERVED, 55, 53),
+    _CC_FIELD(CT, 52, 52),
     _CC_FIELD(EBT, 51, 32),
 
     _CC_FIELD(EF, 51, 51),

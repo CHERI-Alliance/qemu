@@ -119,9 +119,10 @@ enum {
     _CC_FIELD(EXP_NONZERO_BOTTOM, 79, 67),
     _CC_FIELD(EXPONENT_LOW_PART, 66, 64),
     /* The following fields are unused for the 128m format. */
+    _CC_FIELD(CL, 81, 82),
     _CC_FIELD(M, 81, 82),
     _CC_FIELD(RESERVED2, 81, 82),
-    _CC_FIELD(SEALED, 81, 82),
+    _CC_FIELD(CT, 81, 82),
     _CC_FIELD(SDP, 81, 82),
     _CC_FIELD(AP, 81, 82),
     _CC_FIELD(EF, 81, 82),
