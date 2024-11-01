@@ -4,6 +4,7 @@ variables:
 
 stages:
     - build
+    - test
 
 default:
     image:
@@ -25,3 +26,26 @@ build_all:
         - cd build
         - cmake -GNinja ..
         - ninja
+    artifacts:
+        paths:
+            - build/simple_test_64
+            - build/simple_test_64r
+            - build/simple_test_128
+            - build/simple_test_128m
+            - build/simple_test_128r
+            - build/simple_test_256
+        expire_in: 8 hours
+
+simple_tests:
+    stage: test
+    rules:
+        - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+        - if: $CI_PIPELINE_SOURCE == "push"
+    script:
+        - cd build
+        - ./simple_test_64
+        - ./simple_test_64r
+        - ./simple_test_128
+        - ./simple_test_128m
+        - ./simple_test_128r
+        - ./simple_test_256
