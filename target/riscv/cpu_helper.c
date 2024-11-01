@@ -1536,8 +1536,18 @@ void riscv_cpu_do_interrupt(CPUState *cs)
             if (riscv_cpu_virt_enabled(env) && tval) {
                 env->mstatus = set_field(env->mstatus, MSTATUS_GVA, 1);
             }
-
-            mtval2 = env->guest_phys_fault_addr;
+#ifdef TARGET_CHERI
+/* For guest page fault exceptions mtval and mtval2 take values indicating
+ the faulting address. The logic is a little messy and will need revisiting
+ when we add stval2, so for now ensure we do not overwrite a cheri
+ exceptions value of mtval2. This should not impact non cheri functionality of
+ this value.
+*/
+            if (cause != RISCV_EXCP_CHERI )
+#endif
+            {
+                mtval2 = env->guest_phys_fault_addr;
+            }
 
             /* Trapping to M mode, virt is disabled */
             riscv_cpu_set_virt_enabled(env, 0);
