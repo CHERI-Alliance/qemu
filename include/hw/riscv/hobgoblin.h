@@ -55,6 +55,7 @@ struct HobgoblinState {
     DeviceState *gpio[2];
     DeviceState *eth;
     DeviceState *trng;
+    DeviceState *nvemu;
     DeviceState *timer;
     DeviceState *internal_cmu;
     DeviceState *ddr0_cmu;
@@ -79,6 +80,7 @@ enum {
     HOBGOBLIN_GPIO0,
     HOBGOBLIN_GPIO1,
     HOBGOBLIN_TRNG,
+    HOBGOBLIN_NVEMU,
     HOBGOBLIN_TIMER,
     HOBGOBLIN_VIRTIO,
     HOBGOBLIN_DRAM,
