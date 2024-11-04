@@ -1366,17 +1366,46 @@ cheri_tag_prot_clear_or_trap(CPUArchState *env, target_ulong va,
     return tag;
 }
 
+/*
+ * source must be a fully decompressed capability
+ *
+ * (source is the capability that contains the load address and that
+ * authorizes the memory access. As per the spec, it must point to a
+ * register. We access capability registers via struct GPCapRegs, which
+ * stores decompressed capabilities.)
+ */
 static void squash_mutable_permissions(CPUArchState *env, target_ulong *pesbt,
                                        const cap_register_t *source)
 {
-#ifdef TARGET_AARCH64
-    if (!cap_has_perms(source, CAP_PERM_MUTABLE_LOAD) &&
-        (CAP_cc(cap_pesbt_extract_otype)(*pesbt) == CAP_OTYPE_UNSEALED)) {
-        qemu_maybe_log_instr_extra(env,
-                                   "Squashing mutable load related perms\n");
-        *pesbt &=
-            ~cap_encode_perms(CAP_PERM_MUTABLE_LOAD | CAP_PERM_STORE_LOCAL |
-                              CAP_PERM_STORE_CAP | CAP_PERM_STORE);
+#if defined(TARGET_AARCH64) || defined(TARGET_CHERI_RISCV_STD)
+    if (!cap_has_perms(source, CAP_PERM_MUTABLE_LOAD)) {
+        /*
+         * The spec says "Capabilities that are sealed or untagged do not have
+         * their permissions changed."
+         * The tag has already been checked by the caller.
+         */
+        if (CAP_cc(cap_pesbt_extract_otype)(*pesbt) == CAP_OTYPE_UNSEALED) {
+            qemu_maybe_log_instr_extra(env, "Squashing mutable load perms\n");
+            /*
+             * Create a temporary capability for checking and updating
+             * permissions, its address is not used. All capabilities in the
+             * system use the same number of lvbits, we can copy the value from
+             * any other capability.
+             */
+            cap_register_t tmp = *source;
+            tmp.cr_pesbt = *pesbt;
+            target_ulong perms = cap_get_all_perms(&tmp);
+#if defined(TARGET_AARCH64)
+            perms &= ~(CAP_PERM_MUTABLE_LOAD | CAP_PERM_STORE_LOCAL |
+                       CAP_PERM_STORE_CAP | CAP_PERM_STORE);
+#elif defined(TARGET_CHERI_RISCV_STD)
+            perms &= ~(CAP_PERM_MUTABLE_LOAD | CAP_PERM_STORE);
+#endif
+            /* Strip any other permissions that can no longer be encoded. */
+            cap_legalize_perms(env, &tmp, &perms);
+            cap_set_perms(env, &tmp, perms);
+            *pesbt = tmp.cr_pesbt;
+        }
     }
 #endif
 }
