@@ -718,57 +718,52 @@ static void hobgoblin_machine_class_init(ObjectClass *oc, void *data)
         "Set the Ethernet type (axi-ethernet (default) or ethernetlite)");
 }
 
-static void hobgoblin_genesys2_machine_class_init(ObjectClass *oc, void *data)
+struct HobgoblinInitData {
+    enum board_type board_type;
+    const char *desc;
+    unsigned int cpus;
+};
+
+static void hobgoblin_concrete_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     HobgoblinClass *hc = HOBGOBLIN_MACHINE_CLASS(oc);
+    struct HobgoblinInitData *hid = data;
 
-    mc->desc = "RISC-V Hobgoblin (Genesys2) board";
-    mc->max_cpus = 1;
+    mc->desc = hid->desc;
+    mc->max_cpus = hid->cpus;
     mc->min_cpus = 1;
-    mc->default_cpus = 1;
-    hc->board_type = BOARD_TYPE_GENESYS2;
+    mc->default_cpus = hid->cpus;
+    hc->board_type = hid->board_type;
 }
 
-static void hobgoblin_profpga_machine_class_init(ObjectClass *oc, void *data)
-{
-    MachineClass *mc = MACHINE_CLASS(oc);
-    HobgoblinClass *hc = HOBGOBLIN_MACHINE_CLASS(oc);
-
-    mc->desc = "RISC-V Hobgoblin (ProFPGA) board";
-    mc->max_cpus = 4;
-    mc->min_cpus = 1;
-    mc->default_cpus = 4;
-    hc->board_type = BOARD_TYPE_PROFPGA;
+#define HOBGOBLIN_MACHINE(_type, _desc, _cpus) {                \
+    .name          = TYPE_HOBGOBLIN_ ## _type ## _MACHINE,      \
+    .parent        = TYPE_HOBGOBLIN_MACHINE,                    \
+    .class_init    = hobgoblin_concrete_machine_class_init,      \
+    .class_data    = &((struct HobgoblinInitData) {             \
+        .board_type = BOARD_TYPE_ ## _type,                     \
+        .desc = _desc,                                          \
+        .cpus = _cpus,                                          \
+    })                                                          \
 }
 
-/* QOM support for HobgoblinState */
-static const TypeInfo hobgoblin_typeinfo = {
-    .name          = TYPE_HOBGOBLIN_MACHINE,
-    .parent        = TYPE_MACHINE,
-    .abstract      = true,
-    .instance_size = sizeof(HobgoblinState),
-    .instance_init = hobgoblin_machine_instance_init,
-    .class_init    = hobgoblin_machine_class_init,
+static const TypeInfo hobgoblin_machines_typeinfo[] = {
+    {
+        .name          = TYPE_HOBGOBLIN_MACHINE,
+        .parent        = TYPE_MACHINE,
+        .abstract      = true,
+        .instance_size = sizeof(HobgoblinState),
+        .class_size    = sizeof(HobgoblinClass),
+        .instance_init = hobgoblin_machine_instance_init,
+        .class_init    = hobgoblin_machine_class_init,
+    },
+    HOBGOBLIN_MACHINE(GENESYS2,
+                      "RISC-V Hobgoblin (Genesys2) board",
+                      1),
+    HOBGOBLIN_MACHINE(PROFPGA,
+                      "RISC-V Hobgoblin (proFPGA) board",
+                      4),
 };
 
-static const TypeInfo hobgoblin_genesys2_typeinfo = {
-    .name          = TYPE_HOBGOBLIN_GENESYS2_MACHINE,
-    .parent        = TYPE_HOBGOBLIN_MACHINE,
-    .class_init    = hobgoblin_genesys2_machine_class_init,
-};
-
-static const TypeInfo hobgoblin_profpga_typeinfo = {
-    .name          = TYPE_HOBGOBLIN_PROFPGA_MACHINE,
-    .parent        = TYPE_HOBGOBLIN_MACHINE,
-    .class_init    = hobgoblin_profpga_machine_class_init,
-};
-
-static void hobgoblin_register_types(void)
-{
-    type_register_static(&hobgoblin_typeinfo);
-    type_register_static(&hobgoblin_genesys2_typeinfo);
-    type_register_static(&hobgoblin_profpga_typeinfo);
-}
-
-type_init(hobgoblin_register_types)
+DEFINE_TYPES(hobgoblin_machines_typeinfo)
