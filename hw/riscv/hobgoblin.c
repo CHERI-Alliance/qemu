@@ -39,6 +39,7 @@
 #include "hw/riscv/riscv_hart.h"
 #include "hw/intc/sifive_clint.h"
 #include "hw/intc/sifive_plic.h"
+#include "hw/nvram/hobgoblin_nvemu.h"
 #include "hw/riscv/hobgoblin.h"
 #include "hw/riscv/boot.h"
 #include "hw/char/serial.h"
@@ -107,6 +108,7 @@ static const memmapEntry_t memmap[] = {
     [HOBGOBLIN_GPIO0] =    { 0x60300000,    0x10000 },
     [HOBGOBLIN_GPIO1] =    { 0x60310000,    0x10000 },
     [HOBGOBLIN_TRNG] =     { 0x60510000,     0x1000 },
+    [HOBGOBLIN_NVEMU] =    { 0x60560000,      0xD00 },
     [HOBGOBLIN_TIMER] =    { 0x60600000,     0x8000 },
     [HOBGOBLIN_INTL_CMU] = { 0x60680000,    0x10000 },
     [HOBGOBLIN_CMU_DDR0] = { 0x60690000,    0x10000 },
@@ -529,6 +531,28 @@ static void hobgoblin_add_trng(HobgoblinState *s)
     sysbus_mmio_map(ss, 0, memmap[HOBGOBLIN_TRNG].base);
 }
 
+static void hobgoblin_add_nvemu(HobgoblinState *s)
+{
+    SysBusDevice *ss;
+    Error *e = NULL;
+
+    s->nvemu = qdev_new(TYPE_HOB_NVEMU);
+    ss = SYS_BUS_DEVICE(s->nvemu);
+    /*
+     * To realize the nvemu device, the caller must have provided a memory
+     * backend on the command line.
+     * Most hobgoblin users don't need the nvemu simulation. Don't fail the
+     * hobgoblin machine if nvemu can't be realized (most likely due to
+     * missing mem backend).
+     */
+    if (!sysbus_realize_and_unref(ss, &e)) {
+        object_unparent(OBJECT(s->nvemu));
+        s->nvemu = NULL;
+        return;
+    }
+    sysbus_mmio_map(ss, 0, memmap[HOBGOBLIN_NVEMU].base);
+}
+
 /* Codasip Timer at 100 MHz */
 static void hobgoblin_add_timer(HobgoblinState *s)
 {
@@ -603,6 +627,7 @@ static void hobgoblin_machine_init(MachineState *machine)
         break;
     }
     hobgoblin_add_trng(s);
+    hobgoblin_add_nvemu(s);
     hobgoblin_add_timer(s);
     hobgoblin_add_virtio(s);
 

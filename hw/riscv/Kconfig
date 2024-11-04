@@ -99,3 +99,4 @@ config HOBGOBLIN
     select SERIAL
     select SSI_SD
     select CMU
+    select HOBGOBLIN_NVEMU
