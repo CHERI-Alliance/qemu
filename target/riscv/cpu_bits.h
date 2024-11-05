@@ -211,6 +211,7 @@
 #define CSR_HTIMEDELTA      0x605
 #define CSR_HTIMEDELTAH     0x615
 
+
 /* Virtual CSRs */
 #define CSR_VSSTATUS        0x200
 #define CSR_VSIE            0x204
@@ -225,6 +226,11 @@
 #define CSR_MENVCFG         0x30a
 #define CSR_SENVCFG         0x10a
 
+#ifdef TARGET_CHERI
+#define CSR_STVAL2          0x14b
+#define CSR_HTVAL2          0x64b
+#define CSR_VSTVAL2         0x24b
+#endif
 
 
 #define CSR_MTINST          0x34a

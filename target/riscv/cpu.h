@@ -268,6 +268,11 @@ struct CPURISCVState {
 #ifdef TARGET_CHERI
     cap_register_t stcc_hs;
     cap_register_t sepcc_hs;
+
+    /* Additional hypervisor related registers added by Cheri*/
+    target_ulong stval2;
+    target_ulong htval2;
+    target_ulong vstval2;
 #else
     target_ulong stvec_hs;
     target_ulong sepc_hs;

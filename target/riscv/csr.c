@@ -2145,6 +2145,50 @@ bool csr_needs_asr(int csrno, bool write)
         return get_field(csrno, 0x300);
     }
 }
+
+
+static RISCVException read_stval2(CPURISCVState *env, int csrno,
+                                  target_ulong *val)
+{
+    *val = env->stval2;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_stval2(CPURISCVState *env, int csrno,
+                                   target_ulong val)
+{
+    env->stval2 = val;
+    return RISCV_EXCP_NONE;
+}
+static RISCVException read_htval2(CPURISCVState *env, int csrno,
+                                  target_ulong *val)
+{
+    *val = env->htval2;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_htval2(CPURISCVState *env, int csrno,
+                                   target_ulong val)
+{
+    env->htval2 = val;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException read_vstval2(CPURISCVState *env, int csrno,
+                                  target_ulong *val)
+{
+    *val = env->vstval2;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_vstval2(CPURISCVState *env, int csrno,
+                                   target_ulong val)
+{
+    env->vstval2 = val;
+    return RISCV_EXCP_NONE;
+}
+
+
 #endif
 
 /*
@@ -2438,6 +2482,11 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_MTVAL2] =              CSR_OP_RW(hmode, mtval2),
     [CSR_MTINST] =              CSR_OP_RW(hmode, mtinst),
 
+#ifdef TARGET_CHERI
+    [CSR_STVAL2] =              CSR_OP_RW(any, stval2),
+    [CSR_HTVAL2] =              CSR_OP_RW(hmode, htval2),
+    [CSR_VSTVAL2] =             CSR_OP_RW(hmode, vstval2),
+#endif
     [CSR_SENVCFG] =             CSR_OP_RW(any, senvcfg),
     [CSR_MENVCFG] =             CSR_OP_RW(any, menvcfg),
     /* Physical Memory Protection */
