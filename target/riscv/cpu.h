@@ -273,6 +273,7 @@ struct CPURISCVState {
     target_ulong stval2;
     target_ulong htval2;
     target_ulong vstval2;
+    target_ulong stval2_hs;
 #else
     target_ulong stvec_hs;
     target_ulong sepc_hs;

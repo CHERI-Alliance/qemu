@@ -102,6 +102,7 @@ static const VMStateDescription vmstate_hyper = {
         VMSTATE_UINTTL(env.vstval, RISCVCPU),
 #ifdef TARGET_CHERI
         VMSTATE_UINTTL(env.vstval2, RISCVCPU),
+        VMSTATE_UINTTL(env.stval2_hs, RISCVCPU),
 #endif
         VMSTATE_UINTTL(env.vsatp, RISCVCPU),
 
