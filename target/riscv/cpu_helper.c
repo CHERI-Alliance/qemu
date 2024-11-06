@@ -230,7 +230,9 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env, bool hs_mode_trap)
                             MSTATUS_SPP | MSTATUS_SPIE | MSTATUS_SIE |
                             MSTATUS64_UXL;
     bool current_virt = riscv_cpu_virt_enabled(env);
-
+#ifdef TARGET_CHERI
+        RISCVCPU *cpu = env_archcpu(env);
+#endif
     g_assert(riscv_has_ext(env, RVH));
 
     if (current_virt) {
@@ -272,6 +274,17 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env, bool hs_mode_trap)
             riscv_log_instr_csr_changed(env, CSR_STVAL);
         }
 
+#ifdef TARGET_CHERI
+        if (cpu->cfg.cheri_v090){
+            env->vstval2 = env->stval2;
+            env->stval2 = env->stval2_hs;
+            if (!hs_mode_trap) {
+                /* stval2 will be modified again when trapping to HS-mode */
+                riscv_log_instr_csr_changed(env, CSR_STVAL2);
+            }
+        }
+#endif
+
         env->vsatp = env->satp;
         env->satp = env->satp_hs;
         riscv_log_instr_csr_changed(env, CSR_VSATP);
@@ -305,6 +318,14 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env, bool hs_mode_trap)
         env->stval_hs = env->stval;
         env->stval = env->vstval;
         riscv_log_instr_csr_changed(env, CSR_STVAL);
+
+#ifdef TARGET_CHERI
+        if (cpu->cfg.cheri_v090){
+            env->stval2_hs = env->stval2;
+            env->stval2 = env->vstval2;
+            riscv_log_instr_csr_changed(env, CSR_STVAL2);
+        }
+#endif
 
         env->satp_hs = env->satp;
         env->satp = env->vsatp;
