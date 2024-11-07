@@ -2479,7 +2479,11 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_VSTVAL] =              CSR_OP_RW(hmode, vstval),
     [CSR_VSATP] =               CSR_OP_RW(hmode, vsatp),
 
+#ifdef TARGET_CHERI
+    [CSR_MTVAL2] =              CSR_OP_RW(any, mtval2),
+#else 
     [CSR_MTVAL2] =              CSR_OP_RW(hmode, mtval2),
+#endif
     [CSR_MTINST] =              CSR_OP_RW(hmode, mtinst),
 
 #ifdef TARGET_CHERI
