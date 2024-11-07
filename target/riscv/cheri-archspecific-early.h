@@ -95,7 +95,6 @@ enum CheriSCR {
 #define CHERI_EXC_REGNUM_DDC (32 + CheriSCR_DDC)
 #define CHERI_CONTROLFLOW_CHECK_AT_TARGET 0
 #define CHERI_TAG_CLEAR_ON_INVALID(env) true
-#define CHERI_NO_RELOCATION(env) true
 #define CINVOKE_DATA_REGNUM 31
 
 static inline const cap_register_t *cheri_get_ddc(CPURISCVState *env) {
