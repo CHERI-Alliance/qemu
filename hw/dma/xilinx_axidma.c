@@ -55,7 +55,9 @@ DECLARE_INSTANCE_CHECKER(XilinxAXIDMAStreamSink, XILINX_AXI_DMA_CONTROL_STREAM,
 #define R_DMACR             (0x00 / 4)
 #define R_DMASR             (0x04 / 4)
 #define R_CURDESC           (0x08 / 4)
+#define R_CURDESC_MSB       (0x0c / 4)
 #define R_TAILDESC          (0x10 / 4)
+#define R_TAILDESC_MSB      (0x14 / 4)
 #define R_MAX               (0x30 / 4)
 
 #define CONTROL_PAYLOAD_WORDS 5
@@ -121,6 +123,12 @@ struct XilinxAXIDMAStreamSink {
     struct XilinxAXIDMA *dma;
 };
 
+enum {
+    XILINX_AXIDMA_FLAG_64BIT_BIT,
+};
+
+#define XILINX_AXIDMA_FLAG_64BIT (1 << XILINX_AXIDMA_FLAG_64BIT_BIT)
+
 struct XilinxAXIDMA {
     SysBusDevice busdev;
     MemoryRegion iomem;
@@ -132,6 +140,7 @@ struct XilinxAXIDMA {
     StreamSink *tx_control_dev;
     XilinxAXIDMAStreamSink rx_data_dev;
     XilinxAXIDMAStreamSink rx_control_dev;
+    uint32_t flags;
 
     struct Stream streams[2];
 
@@ -185,6 +194,22 @@ static inline int streamid_from_addr(hwaddr addr)
     return sid;
 }
 
+static inline hwaddr stream_ptr_get(struct Stream *s, int base)
+{
+    if (s->dma->flags & XILINX_AXIDMA_FLAG_64BIT) {
+        return s->regs[base] | ((hwaddr)s->regs[base + 1] << 32);
+    } else {
+        return s->regs[base];
+    }
+}
+
+static inline void stream_ptr_set(struct Stream *s, int base, hwaddr addr)
+{
+    s->regs[base] = addr;
+    if (s->dma->flags & XILINX_AXIDMA_FLAG_64BIT)
+        s->regs[base + 1] = addr >> 32;
+}
+
 static void stream_desc_load(struct Stream *s, hwaddr addr)
 {
     struct SDesc *d = &s->desc;
@@ -192,8 +217,13 @@ static void stream_desc_load(struct Stream *s, hwaddr addr)
     address_space_read(&s->dma->as, addr, MEMTXATTRS_UNSPECIFIED, d, sizeof *d);
 
     /* Convert from LE into host endianness.  */
-    d->buffer_address = le64_to_cpu(d->buffer_address);
-    d->nxtdesc = le64_to_cpu(d->nxtdesc);
+    if (s->dma->flags & XILINX_AXIDMA_FLAG_64BIT) {
+        d->buffer_address = le64_to_cpu(d->buffer_address);
+        d->nxtdesc = le64_to_cpu(d->nxtdesc);
+    } else {
+        d->buffer_address = le32_to_cpu(*(uint32_t *)&d->buffer_address);
+        d->nxtdesc = le32_to_cpu(*(uint32_t *)&d->nxtdesc);
+    }
     d->control = le32_to_cpu(d->control);
     d->status = le32_to_cpu(d->status);
 }
@@ -264,7 +294,7 @@ static void stream_complete(struct Stream *s)
 static void stream_process_mem2s(struct Stream *s, StreamSink *tx_data_dev,
                                  StreamSink *tx_control_dev)
 {
-    uint32_t prev_d;
+    uint64_t prev_d;
     uint32_t txlen;
     uint64_t addr;
     bool eop;
@@ -274,7 +304,7 @@ static void stream_process_mem2s(struct Stream *s, StreamSink *tx_data_dev,
     }
 
     while (1) {
-        stream_desc_load(s, s->regs[R_CURDESC]);
+        stream_desc_load(s, stream_ptr_get(s, R_CURDESC));
 
         if (s->desc.status & SDESC_STATUS_COMPLETE) {
             s->regs[R_DMASR] |= DMASR_HALTED;
@@ -307,12 +337,12 @@ static void stream_process_mem2s(struct Stream *s, StreamSink *tx_data_dev,
 
         /* Update the descriptor.  */
         s->desc.status = txlen | SDESC_STATUS_COMPLETE;
-        stream_desc_store(s, s->regs[R_CURDESC]);
+        stream_desc_store(s, stream_ptr_get(s, R_CURDESC));
 
         /* Advance.  */
-        prev_d = s->regs[R_CURDESC];
-        s->regs[R_CURDESC] = s->desc.nxtdesc;
-        if (prev_d == s->regs[R_TAILDESC]) {
+        prev_d = stream_ptr_get(s, R_CURDESC);
+        stream_ptr_set(s, R_CURDESC, s->desc.nxtdesc);
+        if (prev_d == stream_ptr_get(s, R_TAILDESC)) {
             s->regs[R_DMASR] |= DMASR_IDLE;
             break;
         }
@@ -322,7 +352,7 @@ static void stream_process_mem2s(struct Stream *s, StreamSink *tx_data_dev,
 static size_t stream_process_s2mem(struct Stream *s, unsigned char *buf,
                                    size_t len, bool eop)
 {
-    uint32_t prev_d;
+    uint64_t prev_d;
     unsigned int rxlen;
     size_t pos = 0;
 
@@ -331,7 +361,7 @@ static size_t stream_process_s2mem(struct Stream *s, unsigned char *buf,
     }
 
     while (len) {
-        stream_desc_load(s, s->regs[R_CURDESC]);
+        stream_desc_load(s, stream_ptr_get(s, R_CURDESC));
 
         if (s->desc.status & SDESC_STATUS_COMPLETE) {
             s->regs[R_DMASR] |= DMASR_HALTED;
@@ -358,13 +388,13 @@ static size_t stream_process_s2mem(struct Stream *s, unsigned char *buf,
 
         s->desc.status |= s->sof << SDESC_STATUS_SOF_BIT;
         s->desc.status |= SDESC_STATUS_COMPLETE;
-        stream_desc_store(s, s->regs[R_CURDESC]);
+        stream_desc_store(s, stream_ptr_get(s, R_CURDESC));
         s->sof = eop;
 
         /* Advance.  */
-        prev_d = s->regs[R_CURDESC];
-        s->regs[R_CURDESC] = s->desc.nxtdesc;
-        if (prev_d == s->regs[R_TAILDESC]) {
+        prev_d = stream_ptr_get(s, R_CURDESC);
+        stream_ptr_set(s, R_CURDESC, s->desc.nxtdesc);
+        if (prev_d == stream_ptr_get(s, R_TAILDESC)) {
             s->regs[R_DMASR] |= DMASR_IDLE;
             break;
         }
@@ -502,12 +532,22 @@ static void axidma_write(void *opaque, hwaddr addr,
             break;
 
         case R_TAILDESC:
+        case R_TAILDESC_MSB:
+            if ((addr == R_TAILDESC_MSB) &&
+                !(s->dma->flags & XILINX_AXIDMA_FLAG_64BIT))
+                break;
+
             s->regs[addr] = value;
+            if ((addr == R_TAILDESC) &&
+                (s->dma->flags & XILINX_AXIDMA_FLAG_64BIT))
+                break;
+
             s->regs[R_DMASR] &= ~DMASR_IDLE; /* Not idle.  */
             if (!sid) {
                 stream_process_mem2s(s, d->tx_data_dev, d->tx_control_dev);
             }
             break;
+
         default:
             D(qemu_log("%s: ch=%d addr=" TARGET_FMT_plx " v=%x\n",
                   __func__, sid, addr * 4, (unsigned)value));
@@ -591,6 +631,8 @@ static Property axidma_properties[] = {
                      tx_data_dev, TYPE_STREAM_SINK, StreamSink *),
     DEFINE_PROP_LINK("axistream-control-connected", XilinxAXIDMA,
                      tx_control_dev, TYPE_STREAM_SINK, StreamSink *),
+    DEFINE_PROP_BIT("64bit", XilinxAXIDMA, flags,
+                    XILINX_AXIDMA_FLAG_64BIT_BIT, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
