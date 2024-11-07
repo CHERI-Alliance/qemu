@@ -319,9 +319,6 @@ static void riscv_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     }
 #endif
     qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "pc      ", PC_ADDR(env));
-#ifdef TARGET_CHERI
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "pc (offset) ", GET_SPECIAL_REG_ARCH(env, pc, pcc));
-#endif
 #ifndef CONFIG_USER_ONLY
     {
         static const int dump_csrs[] = {
