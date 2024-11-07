@@ -1635,17 +1635,6 @@ void update_special_register(CPURISCVState *env, cap_register_t *scr,
 {
     /* The new behaviour is that SCR updates affect the address. */
     target_ulong new_cursor = new_value;
-    if (!CHERI_NO_RELOCATION(env)) {
-        /*
-         * Legacy behaviour: with relocation enabled, updates to the SCRs update
-         * the offset since updates to the architectural PC affect offset:
-         * This shall be equivalent to a CSetOffset instruction, but with any
-         * exception condition instead just clearing the tag of the SCR.
-         */
-        target_ulong current_offset = cap_get_offset(scr);
-        target_ulong diff = new_value - current_offset;
-        new_cursor = cap_get_cursor(scr) + diff;
-    }
 
     if (!cap_is_unsealed(scr)) {
         error_report("Attempting to modify sealed %s: " PRINT_CAP_FMTSTR "\r\n",
