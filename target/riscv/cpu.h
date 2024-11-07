@@ -522,15 +522,10 @@ void riscv_log_instr_scr_changed(CPURISCVState *env, int scrno);
  * the SCR to the value written.
  */
 #ifdef TARGET_CHERI
-#define SCR_TO_PROGRAM_COUNTER(env, scr)                                       \
-    (CHERI_NO_RELOCATION(env) ? cap_get_cursor(scr)                            \
-                              : (target_ulong)cap_get_offset(scr))
-/**
- * @returns the architectural view of the underlying SCR,address/offset
- * depending on CHERI ISA version.
- */
-#define GET_SPECIAL_REG_ARCH(env, name, cheri_name)                            \
-    SCR_TO_PROGRAM_COUNTER(env, &((env)->cheri_name))
+
+#define GET_SPECIAL_REG_ARCH(env, name, cheri_name) \
+    cap_get_cursor(&((env)->cheri_name))
+
 /**
  * @returns the address of a given SCR as we feed our PC around as an address
  * not the architectural offset.
