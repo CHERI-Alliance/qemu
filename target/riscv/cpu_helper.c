@@ -1541,6 +1541,15 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         env->htval = htval;
         riscv_log_instr_csr_changed(env, CSR_HTVAL);
 
+#ifdef TARGET_CHERI
+        if ((cause == RISCV_EXCP_CHERI) && cpu->cfg.cheri_v090) {
+            env->stval2 = mtval2;
+            env->htval2 = mtval2;
+            riscv_log_instr_csr_changed(env, CSR_HTVAL2);
+            riscv_log_instr_csr_changed(env, CSR_STVAL2);
+        }
+#endif 
+
         target_ulong stvec = GET_SPECIAL_REG_ADDR(env, stvec, STVECC);
         target_ulong new_pc = (stvec >> 2 << 2) +
             ((async && (stvec & 3) == 1) ? cause * 4 : 0);
