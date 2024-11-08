@@ -1737,6 +1737,64 @@ static RISCVException write_upmbase(CPURISCVState *env, int csrno,
     write_mstatus(env, csrno, mstatus);
     return RISCV_EXCP_NONE;
 }
+#ifndef TARGET_CHERI
+/* Thread ID (Zstid) */
+static RISCVException read_mtid(CPURISCVState *env, int csrno,
+                                   target_ulong *val)
+{
+    *val = env->mtid ;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_mtid(CPURISCVState *env, int csrno,
+                         target_ulong val)
+{
+    env->mtid = val;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException read_stid(CPURISCVState *env, int csrno,
+                                   target_ulong *val)
+{
+    *val = env->stid ;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_stid(CPURISCVState *env, int csrno,
+                         target_ulong val)
+{
+    env->stid = val;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException read_vstid(CPURISCVState *env, int csrno,
+                                   target_ulong *val)
+{
+    *val = env->vstid ;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_vstid(CPURISCVState *env, int csrno,
+                         target_ulong val)
+{
+    env->vstid = val;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException read_utid(CPURISCVState *env, int csrno,
+                                   target_ulong *val)
+{
+    *val = env->utid ;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_utid(CPURISCVState *env, int csrno,
+                         target_ulong val)
+{
+    env->utid = val;
+    return RISCV_EXCP_NONE;
+}
+#endif
 
 #endif
 
@@ -2573,6 +2631,10 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_SSCRATCH] =            CSR_OP_RW(smode, sscratch),
     [CSR_VSEPC] =               CSR_OP_RW(hmode, vsepc),
     [CSR_VSTVEC] =              CSR_OP_RW(hmode, vstvec),
+    [CSR_MTID] =                CSR_OP_RW(stid, mtid),
+    [CSR_STID] =                CSR_OP_RW(stid, stid),
+    [CSR_UTID] =                CSR_OP_RW(stid, utid),
+    [CSR_VSTID] =               CSR_OP_RW(stid, vstid),
 #endif /* !TARGET_CHERI */
 #endif /* !CONFIG_USER_ONLY */
 };
