@@ -975,6 +975,7 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
             // Non-standard extensions present
             ext |= RV('X');
         }
+        set_feature(env, RISCV_FEATURE_STID);
 #endif
 
         set_misa(env, env->misa_mxl, ext);

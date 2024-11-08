@@ -1794,6 +1794,72 @@ static RISCVException write_upmbase(CPURISCVState *env, int csrno,
     write_mstatus(env, csrno, mstatus);
     return RISCV_EXCP_NONE;
 }
+#ifndef TARGET_CHERI
+static RISCVException stid(CPURISCVState *env, int csrno)
+{
+    if (riscv_feature(env, RISCV_FEATURE_STID)) {
+        return RISCV_EXCP_NONE;
+    }
+
+    return RISCV_EXCP_ILLEGAL_INST;
+}
+/* Thread ID (Zstid) */
+static RISCVException read_mtid(CPURISCVState *env, int csrno,
+                                target_ulong *val)
+{
+    *val = env->mtid;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_mtid(CPURISCVState *env, int csrno,
+                                 target_ulong val)
+{
+    env->mtid = val;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException read_stid(CPURISCVState *env, int csrno,
+                                target_ulong *val)
+{
+    *val = env->stid;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_stid(CPURISCVState *env, int csrno,
+                                 target_ulong val)
+{
+    env->stid = val;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException read_vstid(CPURISCVState *env, int csrno,
+                                 target_ulong *val)
+{
+    *val = env->vstid;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_vstid(CPURISCVState *env, int csrno,
+                                  target_ulong val)
+{
+    env->vstid = val;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException read_utid(CPURISCVState *env, int csrno,
+                                target_ulong *val)
+{
+    *val = env->utid;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_utid(CPURISCVState *env, int csrno,
+                                 target_ulong val)
+{
+    env->utid = val;
+    return RISCV_EXCP_NONE;
+}
+#endif
 
 #endif
 
@@ -2494,6 +2560,13 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_MHPMEVENT3    ... CSR_MHPMEVENT31] =     CSR_OP_FN_R(any, read_zero, "mhpmeventN"),
     [CSR_HPMCOUNTER3H  ... CSR_HPMCOUNTER31H] =   CSR_OP_FN_R(ctr32, read_zero, "hpmcounterNh"),
     [CSR_MHPMCOUNTER3H ... CSR_MHPMCOUNTER31H] =  CSR_OP_FN_R(any32, read_zero, "mhpmcounterNh"),
+
+#if !defined(TARGET_CHERI)
+    [CSR_MTID] =                CSR_OP_RW(stid, mtid),
+    [CSR_STID] =                CSR_OP_RW(stid, stid),
+    [CSR_UTID] =                CSR_OP_RW(stid, utid),
+    [CSR_VSTID] =               CSR_OP_RW(stid, vstid),
+#endif /* !TARGET_CHERI */
 #endif /* !CONFIG_USER_ONLY */
 };
 
