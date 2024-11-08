@@ -304,8 +304,16 @@ struct CPURISCVState {
     cap_register_t stidc;
     cap_register_t utidc;
     cap_register_t vstidc;
-
+    cap_register_t stidc_hs;
+#else    
+    /* zstid registers in integer mode */
+    target_ulong mtid;
+    target_ulong stid;
+    target_ulong utid;
+    target_ulong vstid;
+    target_ulong stid_hs;
 #endif
+
     /* temporary htif regs */
     uint64_t mfromhost;
     uint64_t mtohost;
