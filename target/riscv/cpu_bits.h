@@ -296,6 +296,7 @@
 #define CSR_MTIDC           0x780
 #define CSR_STIDC           0x580
 #define CSR_UTIDC           0x480
+#define CSR_VSTIDC          0xa80
 #endif
 
 /* Performance Counters */

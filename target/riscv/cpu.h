@@ -303,6 +303,7 @@ struct CPURISCVState {
     cap_register_t mtidc;
     cap_register_t stidc;
     cap_register_t utidc;
+    cap_register_t vstidc;
 
 #endif
     /* temporary htif regs */
