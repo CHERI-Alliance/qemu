@@ -1957,14 +1957,29 @@ target_ulong CHERI_HELPER_IMPL(gcperm(CPUArchState *env, uint32_t cb))
      * cr_arch_perm without prior decompression.
      */
     const cap_register_t *cbp = get_readonly_capreg(env, cb);
+    cap_register_t cbp_test = *cbp;
     uint8_t ap_bits = 0;
+    bool cheri_v090 = true;
+#ifdef TARGET_RISCV
+    RISCVCPU *cpu = env_archcpu(env);
+
+    cheri_v090 = cpu->cfg.cheri_v090;
+#endif
+
+    if (!cheri_v090) {
+        /* see the comments in the acperm helper */
+        if (cbp_test.cr_arch_perm & (CAP_AP_LM |CAP_AP_C)) {
+            cbp_test.cr_arch_perm |= CAP_AP_LM |CAP_AP_C;
+        }
+    }
 
     /*
      * If acperm can't produce the permissions of our input capability, we
      * have to clear all the AP bits in our result.
      */
-    if (!valid_m_ap(cbp->cr_m, cbp->cr_arch_perm))
+    if (!valid_m_ap(cbp_test.cr_m, cbp_test.cr_arch_perm)) {
         goto out;
+    }
 
     /*
      * See the explanation in the acperm helper. We can't make any
