@@ -30,6 +30,7 @@
 #include "qemu/module.h"
 #include "net/net.h"
 #include "net/checksum.h"
+#include "net/eth.h"
 
 #include "hw/hw.h"
 #include "hw/irq.h"
@@ -712,6 +713,7 @@ static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
     int unicast, broadcast, multicast, ip_multicast = 0;
     uint32_t csum32;
     uint16_t csum16;
+    int mac_hdr_len;
     int i;
 
     DENET(qemu_log("%s: %zd bytes\n", __func__, size));
@@ -804,7 +806,7 @@ static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
         }
     }
 
-    if (size < 12) {
+    if (size < sizeof(struct eth_header)) {
         s->regs[R_IS] |= IS_RX_REJECT;
         enet_update_irq(s);
         return -1;
@@ -821,8 +823,11 @@ static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
         size += 4; /* fcs is inband.  */
     }
 
+    mac_hdr_len = eth_get_l2_hdr_length(s->rxmem);
+
     app[0] = 5 << 28;
-    csum32 = net_checksum_add(size - 14, (uint8_t *)s->rxmem + 14);
+    csum32 = net_checksum_add(size - mac_hdr_len,
+                              (uint8_t *)s->rxmem + mac_hdr_len);
     /* Fold it once.  */
     csum32 = (csum32 & 0xffff) + (csum32 >> 16);
     /* And twice to get rid of possible carries.  */
@@ -842,6 +847,32 @@ static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
 
     /* Good frame.  */
     app[2] |= 1 << 6;
+
+    if (size >= (mac_hdr_len + sizeof(struct ip_header))) {
+        struct ip_header *ip = (struct ip_header *)(s->rxmem + mac_hdr_len);
+        if (IP_HEADER_VERSION(ip) == IP_HEADER_VERSION_4) {
+            /* Assume IP header is good */
+            app[2] |= 1 << 3;
+
+            if (!IP4_IS_FRAGMENT(ip)) {
+                int ip_len = lduw_be_p(&ip->ip_len);
+                switch (ip->ip_p) {
+                case IP_PROTO_TCP:
+                    if (ip_len >= sizeof(tcp_header)) {
+                        /* Assume IP and TCP Headers are good */
+                        app[2] = (app[2] & ~(7 << 3)) | (2 << 3);
+                    }
+                    break;
+                case IP_PROTO_UDP:
+                    if (ip_len >= sizeof(udp_header)) {
+                        /* Assume IP and UDP Headers are good */
+                        app[2] = (app[2] & ~(7 << 3)) | (3 << 3);
+                    }
+                    break;
+                }
+            }
+        }
+    }
 
     s->rxsize = size;
     s->rxpos = 0;
@@ -918,23 +949,38 @@ xilinx_axienet_data_stream_push(StreamSink *obj, uint8_t *buf, size_t size,
         }
     }
 
-    if (s->hdr[0] & 1) {
-        unsigned int start_off = s->hdr[1] >> 16;
-        unsigned int write_off = s->hdr[1] & 0xffff;
-        uint32_t tmp_csum;
-        uint16_t csum;
+    switch (s->hdr[0] & 3) {
+    case 0:
+        /* No transmit checksum offloading */
+        break;
+    case 1:
+        {
+            /* Partial transmit checksum offloading */
+            unsigned int start_off = s->hdr[1] >> 16;
+            unsigned int write_off = s->hdr[1] & 0xffff;
+            uint32_t tmp_csum;
+            uint16_t csum;
 
-        tmp_csum = net_checksum_add(s->txpos - start_off,
-                                    buf + start_off);
-        /* Accumulate the seed.  */
-        tmp_csum += s->hdr[2] & 0xffff;
+            tmp_csum = net_checksum_add(s->txpos - start_off,
+                                        buf + start_off);
+            /* Accumulate the seed.  */
+            tmp_csum += s->hdr[2] & 0xffff;
 
-        /* Fold the 32bit partial checksum.  */
-        csum = net_checksum_finish(tmp_csum);
+            /* Fold the 32bit partial checksum.  */
+            csum = net_checksum_finish(tmp_csum);
 
-        /* Writeback.  */
-        buf[write_off] = csum >> 8;
-        buf[write_off + 1] = csum & 0xff;
+            /* Writeback.  */
+            buf[write_off] = csum >> 8;
+            buf[write_off + 1] = csum & 0xff;
+            break;
+        }
+    case 2:
+        /* Full transmit checksum offloading */
+        net_checksum_calculate(buf, s->txpos, CSUM_ALL);
+        break;
+    case 3:
+        /* Reserved */
+        break;
     }
 
     qemu_send_packet(qemu_get_queue(s->nic), buf, s->txpos);
