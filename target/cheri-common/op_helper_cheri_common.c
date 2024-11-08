@@ -1971,7 +1971,8 @@ target_ulong CHERI_HELPER_IMPL(gcperm(CPUArchState *env, uint32_t cb))
      */
     const cap_register_t *cbp = get_readonly_capreg(env, cb);
     cap_register_t cbp_test = *cbp;
-    uint8_t ap_bits = 0;
+    uint16_t ap_bits = 0;
+    uint8_t mask_sdp_shift;
     bool cheri_v090 = true;
 #ifdef TARGET_RISCV
     RISCVCPU *cpu = env_archcpu(env);
@@ -1999,14 +2000,26 @@ target_ulong CHERI_HELPER_IMPL(gcperm(CPUArchState *env, uint32_t cb))
      * assumptions about mapping the AP bits of a capability variable
      * to the gcperm bitmask.
      */
-    CAP_PERM_MASK_SET(cbp, CAP_AP_C, ap_bits, 0);
-    CAP_PERM_MASK_SET(cbp, CAP_AP_W, ap_bits, 1);
-    CAP_PERM_MASK_SET(cbp, CAP_AP_R, ap_bits, 2);
-    CAP_PERM_MASK_SET(cbp, CAP_AP_X, ap_bits, 3);
-    CAP_PERM_MASK_SET(cbp, CAP_AP_ASR, ap_bits, 4);
+    if (cheri_v090) {
+        CAP_PERM_MASK_SET(&cbp_test, CAP_AP_W, ap_bits, 0);
+        CAP_PERM_MASK_SET(&cbp_test, CAP_AP_LM, ap_bits, 1);
+        /* CL, SL, EL, aren't supported as of Nov 2024 */
+        CAP_PERM_MASK_SET(&cbp_test, CAP_AP_C, ap_bits, 5);
+        CAP_PERM_MASK_SET(&cbp_test, CAP_AP_ASR, ap_bits, 16);
+        CAP_PERM_MASK_SET(&cbp_test, CAP_AP_X, ap_bits, 17);
+        CAP_PERM_MASK_SET(&cbp_test, CAP_AP_R, ap_bits, 18);
+ }
+    else {
+        CAP_PERM_MASK_SET(&cbp_test, CAP_AP_C, ap_bits, 0);
+        CAP_PERM_MASK_SET(&cbp_test, CAP_AP_W, ap_bits, 1);
+        CAP_PERM_MASK_SET(&cbp_test, CAP_AP_R, ap_bits, 2);
+        CAP_PERM_MASK_SET(&cbp_test, CAP_AP_X, ap_bits, 3);
+        CAP_PERM_MASK_SET(&cbp_test, CAP_AP_ASR, ap_bits, 4);
+    }
 
 out:
-    return (cap_get_sdp(cbp) << 16) | ap_bits;
+    mask_sdp_shift = cheri_v090 ? 6 : 16;
+    return (cap_get_sdp(&cbp_test) << mask_sdp_shift) | ap_bits;
 }
 
 target_ulong CHERI_HELPER_IMPL(gctype(CPUArchState *env, uint32_t cb))
