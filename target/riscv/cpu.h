@@ -299,7 +299,7 @@ struct CPURISCVState {
     cap_register_t dpcc;
     cap_register_t dddc;
 
-// zstid registers
+    /* zstid registers */
     cap_register_t mtidc;
     cap_register_t stidc;
     cap_register_t utidc;
