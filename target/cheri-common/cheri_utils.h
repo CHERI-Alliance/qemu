@@ -489,6 +489,9 @@ static inline bool valid_m_ap(uint8_t cr_m, uint8_t cr_arch_perm)
 
 /*
  * update cap's M and AP to a valid set that could be produced by acperm
+ *
+ * TODO: rewrite this function to follow the "acperm rules table" in the
+ * latest version of the spec (end of Nov 2024)
  */
 static inline void sanitize_m_ap(cap_register_t *cap)
 {
@@ -512,6 +515,15 @@ static inline void sanitize_m_ap(cap_register_t *cap)
      */
     if (!(cap->cr_arch_perm & CAP_AP_X)) {
         cap->cr_m = 0;
+    }
+
+    /*
+     * "Clear LM-permission unless C-permission is set."
+     * "Zero SL-permission unless C-permission is set."
+     * "Zero EL-permission unless C-permission is set."
+     */
+    if (!(cap->cr_arch_perm & CAP_AP_C)) {
+        cap->cr_arch_perm &= ~(CAP_AP_SL | CAP_AP_EL | CAP_AP_LM);
     }
 
 #if CAP_CC(ADDR_WIDTH) == 32
