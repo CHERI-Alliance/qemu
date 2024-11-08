@@ -286,6 +286,16 @@ static RISCVException epmp(CPURISCVState *env, int csrno)
 
     return RISCV_EXCP_ILLEGAL_INST;
 }
+
+static RISCVException stid(CPURISCVState *env, int csrno)
+{
+    if (riscv_feature(env, RISCV_FEATURE_STID)) {
+        return RISCV_EXCP_NONE;
+    }
+
+    return RISCV_EXCP_ILLEGAL_INST;
+}
+
 #endif
 
 /* User Floating-Point CSRs */

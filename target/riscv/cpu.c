@@ -1025,6 +1025,7 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
         set_feature(env, RISCV_FEATURE_CHERI_HYBRID);
     }
 
+    set_feature(env, RISCV_FEATURE_STID);
     /*
      * cheri_v090 and m_flip (use legacy definition of M) are incompatible,
      * the v0.9.0 switch takes precedence.
