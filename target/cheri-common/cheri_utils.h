@@ -456,6 +456,13 @@ static inline bool valid_m_ap(uint8_t cr_m, uint8_t cr_arch_perm)
         return false;
     }
 
+    /* LM, EL, SL require C */
+    if (cr_arch_perm & (CAP_AP_LM | CAP_AP_EL | CAP_AP_SL)) {
+        if (!(cr_arch_perm & CAP_AP_C)) {
+            return false;
+        }
+    }
+
 #if CAP_CC(ADDR_WIDTH) == 32
     /* ASR requires that all one other permissions be set. */
     if (cr_arch_perm & CAP_AP_ASR) {
