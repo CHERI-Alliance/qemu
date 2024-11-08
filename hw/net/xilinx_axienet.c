@@ -282,6 +282,7 @@ enum {
 };
 
 #define R_PHYC     (0x414 / 4)
+#define R_ID       (0x4f8 / 4)
 
 #define R_MC       (0x500 / 4)
 #define MC_EN      (1 << 6)
@@ -462,6 +463,10 @@ static uint64_t enet_read(void *opaque, hwaddr addr, unsigned size)
 
         case R_PHYC:
             r = s->phyc;
+            break;
+
+        case R_ID:
+            r = 0x9 << 24;
             break;
 
         case R_MCR:
