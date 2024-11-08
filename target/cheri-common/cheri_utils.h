@@ -480,6 +480,54 @@ static inline bool valid_m_ap(uint8_t cr_m, uint8_t cr_arch_perm)
     return true;
 }
 
+/*
+ * update cap's M and AP to a valid set that could be produced by acperm
+ */
+static inline void sanitize_m_ap(cap_register_t *cap)
+{
+    /* "Clear ASR-permission unless X-permission is set" */
+    if (!(cap->cr_arch_perm & CAP_AP_X)) {
+        cap->cr_arch_perm &= ~CAP_AP_ASR;
+        /* TODO: ASR might already be 0 - then this is no change */
+    }
+
+    /* "Clear C-permission unless R-permission or W-permission are set" */
+    if (!(cap->cr_arch_perm & (CAP_AP_R|CAP_AP_W))) {
+        cap->cr_arch_perm &= ~CAP_AP_C;
+    }
+
+    /*
+     * "M-bit cannot be set without X-permission being set"
+     *
+     * If a capability grants no execution permission, M is effectively
+     * undefined and must be set to 0. This is unrelated to the values
+     * for capability/integer pointer mode.
+     */
+    if (!(cap->cr_arch_perm & CAP_AP_X)) {
+        cap->cr_m = 0;
+    }
+
+#if CAP_CC(ADDR_WIDTH) == 32
+    /* "Clear ASR-permission unless all other permissions are set." */
+    if ((cap->cr_arch_perm & (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X)) !=
+            (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X)) {
+        cap->cr_arch_perm &= ~CAP_AP_ASR;
+    }
+    /* "Clear C-permission and X-permission if R-permission is not set" */
+    if (!(cap->cr_arch_perm & CAP_AP_R)) {
+        cap->cr_arch_perm &= ~(CAP_AP_X | CAP_AP_C);
+    }
+    /*
+     * "Clear X-permission if X-permission and R-permission are set, but
+     * C-permission and W-permission are not set"
+     */
+    if ((cap->cr_arch_perm & (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X)) ==
+            (CAP_AP_X | CAP_AP_R)) {
+        cap->cr_arch_perm &= ~CAP_AP_X;
+    }
+#endif
+}
+
 // Check if num_bytes bytes at addr can be read using capability c
 static inline bool cap_is_in_bounds(const cap_register_t *c, target_ulong addr,
                                     size_t num_bytes)
