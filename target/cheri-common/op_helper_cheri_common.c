@@ -964,7 +964,13 @@ void CHERI_HELPER_IMPL(acperm(CPUArchState *env, uint32_t cd, uint32_t cs1,
                               target_ulong rs2))
 {
     const cap_register_t *cbp = get_readonly_capreg(env, cs1);
-    cap_register_t result = *cbp;
+    cap_register_t result = *cbp, cbp_test = *cbp;
+    bool cheri_v090 = true;
+#ifdef TARGET_RISCV
+    RISCVCPU *cpu = env_archcpu(env);
+
+    cheri_v090 = cpu->cfg.cheri_v090;
+#endif
 
     /*
      * Our processing of the permissions differs from the sequence in the
@@ -1021,11 +1027,29 @@ void CHERI_HELPER_IMPL(acperm(CPUArchState *env, uint32_t cd, uint32_t cs1,
     MASK_CLR_CAP_PERM(rs2, 3, result, CAP_AP_X);
     MASK_CLR_CAP_PERM(rs2, 4, result, CAP_AP_ASR);
 
-    if (!cap_is_unsealed(cbp)) {
+    if (!cheri_v090) {
+        /*
+         * Legacy cheri versions expect capability reads to work if C is
+         * granted. Our internal code and cap format require C and LM for
+         * reading a capability from memory.
+         *
+         * When we fix up the input capability here, we don't have to add a
+         * version check to valid_m_ap. In other words: Make sure that we do
+         * not fail the validity checks (that use v0.9.0 rules) for
+         * capabilities that use a legacy format.
+         */
+        if (cbp_test.cr_arch_perm & (CAP_AP_LM |CAP_AP_C)) {
+            cbp_test.cr_arch_perm |= CAP_AP_LM |CAP_AP_C;
+            /* We should compress here if we ever need the compressed version
+               in this function. */
+        }
+    }
+
+    if (!cap_is_unsealed(&cbp_test)) {
         result.cr_tag = 0;
     }
 
-    if (!valid_m_ap(cbp->cr_m, cbp->cr_arch_perm)) {
+    if (!valid_m_ap(cbp_test.cr_m, cbp_test.cr_arch_perm)) {
         /*
          * "If AP and M-bit field in cs1 could not have been produced by
          * acperm then clear all AP permissions and the M-bit."
