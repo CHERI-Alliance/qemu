@@ -292,6 +292,12 @@
 
 #endif
 
+/* Non CHERI Zstidc defines for the zstidc registers */
+#define CSR_MTID           0x780
+#define CSR_STID           0x580
+#define CSR_UTID           0x480
+#define CSR_VSTID          0xa80
+
 /* Performance Counters */
 #define CSR_MHPMCOUNTER3    0xb03
 #define CSR_MHPMCOUNTER4    0xb04
