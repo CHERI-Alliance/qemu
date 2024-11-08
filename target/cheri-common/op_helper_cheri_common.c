@@ -1506,7 +1506,14 @@ static void squash_mutable_permissions(CPUArchState *env, target_ulong *pesbt,
             CAP_PERM_STORE_CAP | CAP_PERM_STORE);
     }
 #elif CHERI_FMT_RISCV
-    if(!(source->cr_arch_perm & CAP_AP_LM)) {
+    RISCVCPU *cpu = env_archcpu(env);
+
+    /*
+     * An explicit version check here makes backward compatibility much
+     * simpler. We can now set/clear LM anywhere for cheri < v0.9.0 without
+     * running into problems here.
+     */
+    if(cpu->cfg.cheri_v090 && !(source->cr_arch_perm & CAP_AP_LM)) {
         /*
          * Create a temporary capability for checking and updating permissions,
          * its address is not used.
