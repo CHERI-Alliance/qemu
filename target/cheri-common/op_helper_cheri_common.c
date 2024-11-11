@@ -1010,7 +1010,7 @@ void CHERI_HELPER_IMPL(acperm(CPUArchState *env, uint32_t cd, uint32_t cs1,
 
     mask_sdp_shift = cheri_v090 ? 6 : 16;
     CAP_cc(update_sdp)(&result, cap_get_sdp(&result) &
-            ((rs2 >> mask_sdp_shift) & CAP_CC(FIELD_SDP_SIZE)));
+            ((rs2 >> mask_sdp_shift) & CAP_CC(FIELD_SDP_MASK_NOT_SHIFTED)));
 
     /*
      * At this point, we cleared all AP bits in the result capability that are
