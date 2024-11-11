@@ -61,19 +61,6 @@
 #define TYPE_XILINX_AXI_ETHERNET "xlnx.axi-ethernet"
 #define TYPE_XILINX_AXI_DMA "xlnx.axi-dma"
 
-typedef enum {
-    MEM_DEFAULT = 0,
-    MEM_ROM,
-    MEM_RAM_CHERI
-} mem_type_t;
-
-typedef struct {
-    hwaddr base;
-    hwaddr size;
-    const char *name;
-    mem_type_t type;
-} memmapEntry_t;
-
 static const memmapEntry_t memmap[] = {
     [HOBGOBLIN_MROM] =     {     0x1000,      0x100,
         "riscv.hobgoblin.mrom", MEM_ROM },
@@ -108,13 +95,14 @@ static const memmapEntry_t memmap[] = {
     [HOBGOBLIN_CMU_DDR1] = { 0x606a0000,    0x10000 },
     /* Each virtio transport channel uses 512 byte */
     [HOBGOBLIN_VIRTIO] =   { 0x70000000,    0x10000 },
-    [HOBGOBLIN_DRAM] =     { 0x80000000, 0x40000000,
-        "riscv.hobgoblin.ram", MEM_RAM_CHERI },
 };
 
-static const memmapEntry_t pro_fpga_memmap[] = {
-    [0] =                  { 0x2000000000, 0x400000000,
-        "riscv.hobgoblin.ram2", MEM_RAM_CHERI },
+static const memmapEntry_t genesys2_dram_memmap[] = {
+    { 0x80000000, 0x40000000, "riscv.hobgoblin.ram", MEM_RAM_CHERI},
+};
+
+static const memmapEntry_t profpga_dram_memmap[] = {
+    { 0x2000000000, 0x400000000, "riscv.hobgoblin.ram", MEM_RAM_CHERI},
 };
 
 /* sifive_plic_create() parameters */
@@ -130,7 +118,7 @@ static const memmapEntry_t pro_fpga_memmap[] = {
 /* CLINT timebase frequency */
 #define CLINT_TIMEBASE_FREQ             100000000 /* 100 MHz */
 
-static int hobgoblin_load_images(HobgoblinState *s)
+static int hobgoblin_load_images(HobgoblinState *s, const memmapEntry_t *dram)
 {
     MachineState *machine = &s->machine;
     hwaddr start_addr;
@@ -149,7 +137,7 @@ static int hobgoblin_load_images(HobgoblinState *s)
         target_ulong kernel_start_addr = 0;
         int fdt_size = 0;
 
-        start_addr = memmap[HOBGOBLIN_DRAM].base;
+        start_addr = dram->base;
 
         /* Read DTB */
         if (machine->dtb) {
@@ -176,8 +164,8 @@ static int hobgoblin_load_images(HobgoblinState *s)
 
         /* Store (potentially modified) FDT into RAM */
         if (machine->fdt) {
-            fdt_load_addr = riscv_load_fdt(memmap[HOBGOBLIN_DRAM].base,
-                                           memmap[HOBGOBLIN_DRAM].size,
+            fdt_load_addr = riscv_load_fdt(dram->base,
+                                           dram->size,
                                            machine->fdt);
         }
     }
@@ -578,20 +566,21 @@ static void hobgoblin_machine_init(MachineState *machine)
     HobgoblinState *s = HOBGOBLIN_MACHINE(machine);
     HobgoblinClass *hc = HOBGOBLIN_MACHINE_GET_CLASS(s);
     MemoryRegion *system_memory = get_system_memory();
-    MemoryRegion __attribute__((unused)) *sram, *ddr0, *ddr1 = NULL;
+    MemoryRegion __attribute__((unused)) *sram, *ddr[MAX_DRAM];
     const int smp_cpus = machine->smp.cpus;
+    const memmapEntry_t *dram;
 
     hobgoblin_add_soc(s, smp_cpus);
 
     /* add memory regions */
-    ddr0 = hobgoblin_add_memory_area(system_memory, &memmap[HOBGOBLIN_DRAM]);
     hobgoblin_add_memory_area(system_memory, &memmap[HOBGOBLIN_MROM]);
     hobgoblin_add_memory_area(system_memory, &memmap[HOBGOBLIN_BOOT_ROM]);
     sram = hobgoblin_add_memory_area(system_memory, &memmap[HOBGOBLIN_SRAM]);
 
-    if (hc->board_type == BOARD_TYPE_PROFPGA) {
-        ddr1 = hobgoblin_add_memory_area(system_memory, &pro_fpga_memmap[0]);
+    for (int i = 0; i < hc->dram_banks; i++) {
+        ddr[i] = hobgoblin_add_memory_area(system_memory, &hc->dram[i]);
     }
+    dram = &hc->dram[0];
 
     /* add interrupt controller */
     hobgoblin_add_interrupt_controller(s, smp_cpus);
@@ -600,9 +589,8 @@ static void hobgoblin_machine_init(MachineState *machine)
     hobgoblin_add_id_register(s, system_memory);
 #ifdef TARGET_CHERI
     hobgoblin_add_cmu(&s->internal_cmu, &memmap[HOBGOBLIN_INTL_CMU], sram);
-    hobgoblin_add_cmu(&s->ddr0_cmu, &memmap[HOBGOBLIN_CMU_DDR0], ddr0);
-    if (ddr1) {
-        hobgoblin_add_cmu(&s->ddr1_cmu, &memmap[HOBGOBLIN_CMU_DDR1], ddr1);
+    for (int i = 0; i < hc->dram_banks; i++) {
+        hobgoblin_add_cmu(&s->ddr_cmu[i], &memmap[HOBGOBLIN_CMU_DDR0+i], ddr[i]);
     }
 #endif
     hobgoblin_add_uart(s, system_memory);
@@ -623,7 +611,7 @@ static void hobgoblin_machine_init(MachineState *machine)
     hobgoblin_add_virtio(s);
 
     /* load images into memory to boot the platform */
-    int ret = hobgoblin_load_images(s);
+    int ret = hobgoblin_load_images(s, dram);
     if (ret != 0) {
         error_report("loading images failed (%d)", ret);
         exit(1);
@@ -713,6 +701,8 @@ struct HobgoblinInitData {
     enum board_type board_type;
     const char *desc;
     unsigned int cpus;
+    const memmapEntry_t *dram;
+    int dram_banks;
 };
 
 static void hobgoblin_concrete_machine_class_init(ObjectClass *oc, void *data)
@@ -726,9 +716,11 @@ static void hobgoblin_concrete_machine_class_init(ObjectClass *oc, void *data)
     mc->min_cpus = 1;
     mc->default_cpus = hid->cpus;
     hc->board_type = hid->board_type;
+    hc->dram = hid->dram;
+    hc->dram_banks = hid->dram_banks;
 }
 
-#define HOBGOBLIN_MACHINE(_type, _desc, _cpus) {                \
+#define HOBGOBLIN_MACHINE(_type, _desc, _cpus, _dram) {         \
     .name          = TYPE_HOBGOBLIN_ ## _type ## _MACHINE,      \
     .parent        = TYPE_HOBGOBLIN_MACHINE,                    \
     .class_init    = hobgoblin_concrete_machine_class_init,      \
@@ -736,6 +728,8 @@ static void hobgoblin_concrete_machine_class_init(ObjectClass *oc, void *data)
         .board_type = BOARD_TYPE_ ## _type,                     \
         .desc = _desc,                                          \
         .cpus = _cpus,                                          \
+        .dram = _dram,                                          \
+        .dram_banks = ARRAY_SIZE(_dram),                        \
     })                                                          \
 }
 
@@ -751,10 +745,10 @@ static const TypeInfo hobgoblin_machines_typeinfo[] = {
     },
     HOBGOBLIN_MACHINE(GENESYS2,
                       "RISC-V Hobgoblin (Genesys2) board",
-                      1),
+                      1, genesys2_dram_memmap),
     HOBGOBLIN_MACHINE(PROFPGA,
                       "RISC-V Hobgoblin (proFPGA) board",
-                      4),
+                      4, profpga_dram_memmap),
 };
 
 DEFINE_TYPES(hobgoblin_machines_typeinfo)
