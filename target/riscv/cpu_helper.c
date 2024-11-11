@@ -289,6 +289,19 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env, bool hs_mode_trap)
         env->satp = env->satp_hs;
         riscv_log_instr_csr_changed(env, CSR_VSATP);
         riscv_log_instr_csr_changed(env, CSR_SATP);
+
+#ifdef TARGET_CHERI
+        env->vstidc = env->stidc;
+        env->stidc = env->stidc_hs;
+        riscv_log_instr_csr_changed(env, CSR_VSTIDC);
+        riscv_log_instr_csr_changed(env, CSR_STIDC);
+
+#else
+        env->vstid = env->stid;
+        env->stid = env->stid_hs;
+        riscv_log_instr_csr_changed(env, CSR_VSTID);
+        riscv_log_instr_csr_changed(env, CSR_STID);
+#endif
     } else {
         /* Current V=0 and we are about to change to V=1 */
         /*
@@ -330,6 +343,19 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env, bool hs_mode_trap)
         env->satp_hs = env->satp;
         env->satp = env->vsatp;
         riscv_log_instr_csr_changed(env, CSR_SATP);
+#ifdef TARGET_CHERI
+        env->stidc_hs = env->stidc;
+        env->stidc = env->vstidc;
+        riscv_log_instr_csr_changed(env, CSR_VSTIDC);
+        riscv_log_instr_csr_changed(env, CSR_STIDC);
+
+#else
+        env->stid_hs = env->stid;
+        env->stid = env->vstid;
+        riscv_log_instr_csr_changed(env, CSR_VSTID);
+        riscv_log_instr_csr_changed(env, CSR_STID);
+#endif
+
     }
 }
 
