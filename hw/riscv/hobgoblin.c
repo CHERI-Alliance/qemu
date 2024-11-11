@@ -79,13 +79,6 @@ static const memmapEntry_t memmap[] = {
         "riscv.hobgoblin.mrom", MEM_ROM },
     [HOBGOBLIN_BOOT_ROM] = { 0x10000000, 0x00020000,
         "riscv.hobgoblin.boot.rom", MEM_ROM },
-    /*
-     * The boot ram area is too small to be used as cheri tagmem.
-     * The current implementation uses tag blocks of 4096 tags and requires
-     * that there's enough space for capabilities of all tags in all blocks.
-     */
-    [HOBGOBLIN_BOOT_RAM] = { 0x10400000, 0x00008000,
-        "riscv.hobgoblin.boot.ram"},
     [HOBGOBLIN_SRAM] =     { 0x20000000, 0x08000000,
         "riscv.hobgoblin.sram", MEM_RAM_CHERI },
     [HOBGOBLIN_PLIC] =     { 0x40000000,  0x4000000 },
@@ -594,7 +587,6 @@ static void hobgoblin_machine_init(MachineState *machine)
     ddr0 = hobgoblin_add_memory_area(system_memory, &memmap[HOBGOBLIN_DRAM]);
     hobgoblin_add_memory_area(system_memory, &memmap[HOBGOBLIN_MROM]);
     hobgoblin_add_memory_area(system_memory, &memmap[HOBGOBLIN_BOOT_ROM]);
-    hobgoblin_add_memory_area(system_memory, &memmap[HOBGOBLIN_BOOT_RAM]);
     /* SRAM exists on FPGA only */
     sram = hobgoblin_add_memory_area(system_memory, &memmap[HOBGOBLIN_SRAM]);
 
