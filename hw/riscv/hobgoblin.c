@@ -487,6 +487,7 @@ static void hobgoblin_add_axi_ethernet(HobgoblinState *s)
                                   "axistream-control-connected-target", NULL);
     assert(ds && cs);
     qdev_prop_set_uint32(dma, "freqhz", 100 * 1000000);
+    qdev_prop_set_bit(dma, "64bit", true);
     object_property_set_link(OBJECT(dma), "axistream-connected", ds,
                              &error_abort);
     object_property_set_link(OBJECT(dma), "axistream-control-connected", cs,
