@@ -27,6 +27,8 @@
 #define TYPE_HOBGOBLIN_GENESYS2_MACHINE MACHINE_TYPE_NAME("hobgoblin-genesys2")
 #define TYPE_HOBGOBLIN_PROFPGA_MACHINE  MACHINE_TYPE_NAME("hobgoblin-profpga")
 
+#define MAX_DRAM 2
+
 enum board_type {
     BOARD_TYPE_GENESYS2,
     BOARD_TYPE_PROFPGA,
@@ -37,9 +39,24 @@ enum eth_type {
     ETH_TYPE_ETHERNETLITE,
 };
 
+typedef enum {
+    MEM_DEFAULT = 0,
+    MEM_ROM,
+    MEM_RAM_CHERI,
+} mem_type_t;
+
+typedef struct {
+    hwaddr base;
+    hwaddr size;
+    const char *name;
+    mem_type_t type;
+} memmapEntry_t;
+
 struct HobgoblinClass {
     MachineClass parent;
     enum board_type board_type;
+    const memmapEntry_t *dram;
+    int dram_banks;
 };
 
 struct HobgoblinState {
@@ -58,8 +75,7 @@ struct HobgoblinState {
     DeviceState *nvemu;
     DeviceState *timer;
     DeviceState *internal_cmu;
-    DeviceState *ddr0_cmu;
-    DeviceState *ddr1_cmu;
+    DeviceState *ddr_cmu[MAX_DRAM];
 };
 
 OBJECT_DECLARE_TYPE(HobgoblinState, HobgoblinClass, HOBGOBLIN_MACHINE)
@@ -82,7 +98,6 @@ enum {
     HOBGOBLIN_NVEMU,
     HOBGOBLIN_TIMER,
     HOBGOBLIN_VIRTIO,
-    HOBGOBLIN_DRAM,
     HOBGOBLIN_INTL_CMU,
     HOBGOBLIN_CMU_DDR0,
     HOBGOBLIN_CMU_DDR1,
