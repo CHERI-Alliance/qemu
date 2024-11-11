@@ -2295,11 +2295,16 @@ target_ulong CHERI_HELPER_IMPL(scss(CPUArchState *env, uint32_t cs1,
     }
 
     /*
-     * Our working assumption is that we don't have to check for valid
-     * permissions.
+     * Explicitly verify that the permissions are valid.
      * There's no need to decompress, get_readonly_capreg returns fully
      * decompressed capabilities.
      */
+    if(!valid_m_ap(cs1p->cr_m, cs1p->cr_arch_perm)){
+        return 0;
+    }
+    if(!valid_m_ap(cs2p->cr_m, cs2p->cr_arch_perm)){
+        return 0;
+    }
     if ((cs2p->cr_arch_perm & cs1p->cr_arch_perm) != cs2p->cr_arch_perm) {
         return 0;
     }
