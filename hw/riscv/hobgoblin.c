@@ -79,7 +79,7 @@ static const memmapEntry_t memmap[] = {
         "riscv.hobgoblin.mrom", MEM_ROM },
     [HOBGOBLIN_BOOT_ROM] = { 0x10000000, 0x00020000,
         "riscv.hobgoblin.boot.rom", MEM_ROM },
-    [HOBGOBLIN_SRAM] =     { 0x20000000, 0x08000000,
+    [HOBGOBLIN_SRAM] =     { 0x20000000, 0x00080000,
         "riscv.hobgoblin.sram", MEM_RAM_CHERI },
     [HOBGOBLIN_PLIC] =     { 0x40000000,  0x4000000 },
     [HOBGOBLIN_ID_REG] =   { 0x60000000,      0x200,
@@ -587,7 +587,6 @@ static void hobgoblin_machine_init(MachineState *machine)
     ddr0 = hobgoblin_add_memory_area(system_memory, &memmap[HOBGOBLIN_DRAM]);
     hobgoblin_add_memory_area(system_memory, &memmap[HOBGOBLIN_MROM]);
     hobgoblin_add_memory_area(system_memory, &memmap[HOBGOBLIN_BOOT_ROM]);
-    /* SRAM exists on FPGA only */
     sram = hobgoblin_add_memory_area(system_memory, &memmap[HOBGOBLIN_SRAM]);
 
     if (hc->board_type == BOARD_TYPE_PROFPGA) {
