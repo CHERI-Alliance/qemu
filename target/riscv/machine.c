@@ -171,6 +171,14 @@ static const VMStateDescription vmstate_pointermasking = {
     }
 };
 
+static bool stid_needed(void *opaque)
+{
+    RISCVCPU *cpu = opaque;
+    CPURISCVState *env = &cpu->env;
+
+    return riscv_feature(env, RISCV_FEATURE_STID);
+}
+
 #ifdef TARGET_CHERI
 #pragma message("TODO: VMSTATE_CAP_ARRAY")
 #endif
