@@ -26,12 +26,14 @@
 #define TYPE_HOBGOBLIN_MACHINE          MACHINE_TYPE_NAME("hobgoblin")
 #define TYPE_HOBGOBLIN_GENESYS2_MACHINE MACHINE_TYPE_NAME("hobgoblin-genesys2")
 #define TYPE_HOBGOBLIN_PROFPGA_MACHINE  MACHINE_TYPE_NAME("hobgoblin-profpga")
+#define TYPE_HOBGOBLIN_VCU118_MACHINE   MACHINE_TYPE_NAME("hobgoblin-vcu118")
 
 #define MAX_DRAM 2
 
 enum board_type {
     BOARD_TYPE_GENESYS2,
     BOARD_TYPE_PROFPGA,
+    BOARD_TYPE_VCU118,
 };
 
 enum eth_type {
@@ -70,7 +72,7 @@ struct HobgoblinState {
     DeviceState *plic;
     DeviceState *spi;
     DeviceState *gpio[2];
-    DeviceState *eth;
+    DeviceState *eth[2];
     DeviceState *trng;
     DeviceState *nvemu;
     DeviceState *timer;
@@ -90,6 +92,8 @@ enum {
     HOBGOBLIN_ETHLITE,
     HOBGOBLIN_AXI_ETH,
     HOBGOBLIN_AXI_DMA,
+    HOBGOBLIN_FMC_AXI_ETH,
+    HOBGOBLIN_FMC_AXI_DMA,
     HOBGOBLIN_UART0,
     HOBGOBLIN_SPI,
     HOBGOBLIN_GPIO0,
@@ -112,6 +116,9 @@ enum {
     HOBGOBLIN_GPIO0_IRQ    = 7,
     HOBGOBLIN_GPIO1_IRQ    = 8,
     HOBGOBLIN_TIMER_IRQ    = 9,
+    HOBGOBLIN_FMC_ETH_IRQ     = 10,
+    HOBGOBLIN_FMC_AXIDMA_IRQ0 = 11,
+    HOBGOBLIN_FMC_AXIDMA_IRQ1 = 12,
     HOBGOBLIN_ETH_IRQ      = 15,
     HOBGOBLIN_AXIDMA_IRQ0  = 16,
     HOBGOBLIN_AXIDMA_IRQ1  = 17,

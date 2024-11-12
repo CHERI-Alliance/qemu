@@ -73,6 +73,8 @@ static const memmapEntry_t memmap[] = {
         "id_register", MEM_ROM },
     [HOBGOBLIN_CLINT] =    { 0x60014000,     0xc000 },
     [HOBGOBLIN_ETHLITE] =  { 0x60020000,     0x2000 },
+    [HOBGOBLIN_FMC_AXI_DMA] = { 0x60030000,    0x10000 },
+    [HOBGOBLIN_FMC_AXI_ETH] = { 0x60040000,    0x40000 },
     [HOBGOBLIN_AXI_DMA] =  { 0x600a0000,    0x10000 },
     [HOBGOBLIN_AXI_ETH] =  { 0x600c0000,    0x40000 },
     /*
@@ -103,6 +105,11 @@ static const memmapEntry_t genesys2_dram_memmap[] = {
 
 static const memmapEntry_t profpga_dram_memmap[] = {
     { 0x2000000000, 0x400000000, "riscv.hobgoblin.ram", MEM_RAM_CHERI},
+};
+
+static const memmapEntry_t vcu118_dram_memmap[] = {
+    { 0x080000000, 0x800000000, "riscv.hobgoblin.ram0", MEM_RAM_CHERI},
+    { 0x100000000, 0x800000000, "riscv.hobgoblin.ram1", MEM_RAM_CHERI},
 };
 
 /* sifive_plic_create() parameters */
@@ -278,6 +285,7 @@ static void hobgoblin_add_id_register(HobgoblinState *s,
     const uint8_t platform_types[] = {
         [BOARD_TYPE_GENESYS2] = 0x1,
         [BOARD_TYPE_PROFPGA] = 0x2,
+        [BOARD_TYPE_VCU118] = 0x3,
     };
     HobgoblinClass *hc = HOBGOBLIN_MACHINE_GET_CLASS(s);
     uint32_t id_register[] = {
@@ -442,15 +450,20 @@ static void hobgoblin_add_ethernetlite(HobgoblinState *s)
     hobgoblin_connect_plic_irq(s, bus_eth, 0, HOBGOBLIN_ETH_IRQ);
 
     /* publish ETH device */
-    s->eth = eth;
+    s->eth[0] = eth;
 }
 
-static void hobgoblin_add_axi_ethernet(HobgoblinState *s)
+static void hobgoblin_add_axi_ethernet(HobgoblinState *s, int eth_num,
+    int phy_addr,
+    int eth_memmap, int dma_memmap,
+    int eth_irq, int dma_irq0, int dma_irq1)
 {
-    const memmapEntry_t *mem_eth = &memmap[HOBGOBLIN_AXI_ETH];
-    const memmapEntry_t *mem_dma = &memmap[HOBGOBLIN_AXI_DMA];
-    NICInfo *nd = &nd_table[0];
+    const memmapEntry_t *mem_eth = &memmap[eth_memmap];
+    const memmapEntry_t *mem_dma = &memmap[dma_memmap];
+    NICInfo *nd = &nd_table[eth_num];
     const char *eth_model = TYPE_XILINX_AXI_ETHERNET;
+    const char *eth_name = g_strdup_printf("xilinx-eth%d", eth_num);
+    const char *dma_name = g_strdup_printf("xilinx-dma%d", eth_num);
 
     qemu_check_nic_model(nd, eth_model);
 
@@ -458,8 +471,8 @@ static void hobgoblin_add_axi_ethernet(HobgoblinState *s)
     DeviceState *dma = qdev_new(TYPE_XILINX_AXI_DMA);
 
     /* FIXME: attach to the sysbus instead */
-    object_property_add_child(qdev_get_machine(), "xilinx-eth", OBJECT(eth));
-    object_property_add_child(qdev_get_machine(), "xilinx-dma", OBJECT(dma));
+    object_property_add_child(qdev_get_machine(), eth_name, OBJECT(eth));
+    object_property_add_child(qdev_get_machine(), dma_name, OBJECT(dma));
 
     Object *ds, *cs;
     ds = object_property_get_link(OBJECT(dma),
@@ -468,7 +481,7 @@ static void hobgoblin_add_axi_ethernet(HobgoblinState *s)
                                   "axistream-control-connected-target", NULL);
     assert(ds && cs);
     qdev_set_nic_properties(eth, nd);
-    qdev_prop_set_uint32(eth, "phyaddr", 1);
+    qdev_prop_set_uint32(eth, "phyaddr", phy_addr);
     qdev_prop_set_uint32(eth, "rxmem", 0x4000);
     qdev_prop_set_uint32(eth, "txmem", 0x4000);
     object_property_set_link(OBJECT(eth), "axistream-connected", ds,
@@ -479,7 +492,7 @@ static void hobgoblin_add_axi_ethernet(HobgoblinState *s)
     SysBusDevice *eth_busdev = SYS_BUS_DEVICE(eth);
     sysbus_realize_and_unref(eth_busdev, &error_fatal);
     sysbus_mmio_map(eth_busdev, 0, mem_eth->base);
-    hobgoblin_connect_plic_irq(s, eth_busdev, 0, HOBGOBLIN_ETH_IRQ);
+    hobgoblin_connect_plic_irq(s, eth_busdev, 0, eth_irq);
 
     ds = object_property_get_link(OBJECT(eth),
                                   "axistream-connected-target", NULL);
@@ -496,11 +509,11 @@ static void hobgoblin_add_axi_ethernet(HobgoblinState *s)
     SysBusDevice *dma_busdev = SYS_BUS_DEVICE(dma);
     sysbus_realize_and_unref(dma_busdev, &error_fatal);
     sysbus_mmio_map(dma_busdev, 0, mem_dma->base);
-    hobgoblin_connect_plic_irq(s, dma_busdev, 0, HOBGOBLIN_AXIDMA_IRQ0);
-    hobgoblin_connect_plic_irq(s, dma_busdev, 1, HOBGOBLIN_AXIDMA_IRQ1);
+    hobgoblin_connect_plic_irq(s, dma_busdev, 0, dma_irq0);
+    hobgoblin_connect_plic_irq(s, dma_busdev, 1, dma_irq1);
 
     /* publish ETH device */
-    s->eth = eth;
+    s->eth[eth_num] = eth;
 }
 
 static void hobgoblin_add_trng(HobgoblinState *s)
@@ -598,12 +611,21 @@ static void hobgoblin_machine_init(MachineState *machine)
     hobgoblin_add_gpio(s);
     hobgoblin_add_spi(s);
     hobgoblin_add_sd(s);
+    if (hc->board_type == BOARD_TYPE_VCU118)
+        hobgoblin_add_axi_ethernet(s, 1, 1,
+            HOBGOBLIN_FMC_AXI_ETH, HOBGOBLIN_FMC_AXI_DMA,
+            HOBGOBLIN_FMC_ETH_IRQ,
+            HOBGOBLIN_FMC_AXIDMA_IRQ0, HOBGOBLIN_FMC_AXIDMA_IRQ1);
     switch (s->eth_type) {
     case ETH_TYPE_ETHERNETLITE:
         hobgoblin_add_ethernetlite(s);
         break;
     case ETH_TYPE_AXI_ETHERNET:
-        hobgoblin_add_axi_ethernet(s);
+        hobgoblin_add_axi_ethernet(s, 0,
+            (hc->board_type == BOARD_TYPE_VCU118) ? 3 : 1,
+            HOBGOBLIN_AXI_ETH, HOBGOBLIN_AXI_DMA,
+            HOBGOBLIN_ETH_IRQ,
+            HOBGOBLIN_AXIDMA_IRQ0, HOBGOBLIN_AXIDMA_IRQ1);
         break;
     }
     hobgoblin_add_trng(s);
@@ -750,6 +772,9 @@ static const TypeInfo hobgoblin_machines_typeinfo[] = {
     HOBGOBLIN_MACHINE(PROFPGA,
                       "RISC-V Hobgoblin (proFPGA) board",
                       4, profpga_dram_memmap),
+    HOBGOBLIN_MACHINE(VCU118,
+                      "RISC-V Hobgoblin (VCU118) board",
+                      4, vcu118_dram_memmap),
 };
 
 DEFINE_TYPES(hobgoblin_machines_typeinfo)
