@@ -319,7 +319,15 @@ static void hobgoblin_add_id_register(HobgoblinState *s,
         /* (0x0010) Ethernet type */
         ethernet_types[s->eth_type],
         /* (0x0014) Platform features */
-        0,
+#ifdef TARGET_CHERI
+        (1 << 0), /* CHERI */
+#else
+        (0 << 0), /* CHERI */
+#endif
+        /* (0x0018) Security features */
+        (1 << 0) | /* TRNG (True Random Number Generator) */
+        (0 << 1) | /* TPU (Trace Prodection Unit) */
+        (1 << 2),  /* NVE (Non Volatile flash Emulator) */
         /* (0x0100-0x0110) Platform SHA<0:4> */
         [0x0100/4] = 0, 0, 0, 0, 0,
         /* (0x0120-0x012c) Core artifact<0:3> */
