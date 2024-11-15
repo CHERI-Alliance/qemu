@@ -167,6 +167,25 @@ static int hobgoblin_load_images(HobgoblinState *s, const memmapEntry_t *dram)
                                                              firmware_end_addr);
             kernel_entry = riscv_load_kernel(machine->kernel_filename,
                                              kernel_start_addr, NULL);
+
+            if (machine->initrd_filename) {
+                hwaddr start, end;
+                end = riscv_load_initrd(machine->initrd_filename,
+                                        machine->ram_size, kernel_entry,
+                                        &start);
+                if (machine->fdt) {
+                    qemu_fdt_setprop_cell(machine->fdt, "/chosen",
+                                          "linux,initrd-start", start);
+                    qemu_fdt_setprop_cell(machine->fdt, "/chosen",
+                                          "linux,initrd-end", end);
+                }
+            }
+
+            if (machine->fdt && machine->kernel_cmdline &&
+                *machine->kernel_cmdline) {
+                qemu_fdt_setprop_string(machine->fdt, "/chosen",
+                                        "bootargs", machine->kernel_cmdline);
+            }
         }
 
         /* Store (potentially modified) FDT into RAM */
