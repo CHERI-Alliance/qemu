@@ -35,5 +35,4 @@
 # This file defines the RV64-specific encoding
 
 
-lr_c        00010 . . 00000 ..... 100 ..... 0101111 @atom_ld
 sc_c        00011 . . ..... ..... 100 ..... 0101111 @atom_st

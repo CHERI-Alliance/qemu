@@ -921,7 +921,6 @@ TRANS_STUB(lc)
 TRANS_STUB(sc)
 TRANS_STUB(caddi)
 TRANS_STUB(cadd)
-TRANS_STUB(lr_c)
 TRANS_STUB(sc_c)
 TRANS_STUB(scbndsi)
 #endif

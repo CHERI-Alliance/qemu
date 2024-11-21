@@ -211,10 +211,7 @@ amominu_w  11000 . . ..... ..... 010 ..... 0101111 @atom_st
 amomaxu_w  11100 . . ..... ..... 010 ..... 0101111 @atom_st
 
 # *** RV64A Standard Extension (in addition to RV32A) ***
-{
-  lr_c  00010 . . 00000 ..... 011 ..... 0101111 @atom_ld ?!pred_rv64 ?pred_capmode
-  lr_d  00010 . . 00000 ..... 011 ..... 0101111 @atom_ld ?pred_rv64
-}
+lr_d  00010 . . 00000 ..... 011 ..... 0101111 @atom_ld ?pred_rv64
 {
   sc_c  00011 . . ..... ..... 011 ..... 0101111 @atom_st ?!pred_rv64 ?pred_capmode
   sc_d  00011 . . ..... ..... 011 ..... 0101111 @atom_st ?pred_rv64
