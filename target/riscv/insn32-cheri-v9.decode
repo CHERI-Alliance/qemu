@@ -200,6 +200,7 @@ lc       ............    ..... 100 ..... 0001111 @i
 sc        ....... .....   ..... 100 ..... 0100011 @s
 amoswap_c 00001 . . ..... ..... 100 ..... 0101111 @atom_st
 lr_c      00010 . . 00000 ..... 100 ..... 0101111 @atom_ld
+sc_c      00011 . . ..... ..... 100 ..... 0101111 @atom_st
 
 ### Zero operands
 # These are CHERI standard only instruction but we expose them to v9
