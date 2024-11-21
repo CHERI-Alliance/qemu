@@ -34,7 +34,6 @@
 # This is concatenated with insn32-cheri.decode for risc64 targets.
 # This file defines the RV64-specific encoding
 
-lc       ............   ..... 100 ..... 0001111 @i  # def LC_128  : RVInstI<0x4, OPC_MISC_MEM (0b0001111)
 sc       ....... .....  ..... 100 ..... 0100011 @s  # def SC_128  : RVInstS<0x4, OPC_STORE (0b0100011)
 
 lr_c        00010 . . 00000 ..... 100 ..... 0101111 @atom_ld
