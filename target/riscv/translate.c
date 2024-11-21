@@ -544,6 +544,20 @@ static bool pred_rv64_capmode(DisasContext *ctx)
     return pred_capmode(ctx);
 }
 
+static bool pred_xcheri(DisasContext *ctx)
+{
+#ifdef TARGET_CHERI_RISCV_V9
+    return true;
+#else
+    return false;
+#endif
+}
+
+static bool pred_xcheri_rv32(DisasContext *ctx)
+{
+    return pred_xcheri(ctx) && get_xl(ctx) == MXL_RV32;
+}
+
 /* Include the auto-generated decoder for 32 bit insn */
 #include "decode-insn32.c.inc"
 

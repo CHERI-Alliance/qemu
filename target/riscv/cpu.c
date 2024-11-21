@@ -791,6 +791,9 @@ static void riscv_cpu_disas_set_info(CPUState *s, disassemble_info *info)
     }
 #ifdef TARGET_CHERI
     info->flags |= RISCV_DIS_FLAG_CHERI;
+#ifdef TARGET_CHERI_RISCV_V9
+    info->flags |= RISCV_DIS_FLAG_CHERI_V9;
+#endif
     if (cheri_in_capmode(&cpu->env)) {
         info->flags |= RISCV_DIS_FLAG_CAPMODE;
     }

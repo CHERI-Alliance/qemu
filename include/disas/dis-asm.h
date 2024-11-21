@@ -462,6 +462,7 @@ int print_insn_riscv32          (bfd_vma, disassemble_info*);
 int print_insn_riscv64          (bfd_vma, disassemble_info*);
 #define RISCV_DIS_FLAG_CHERI 1
 #define RISCV_DIS_FLAG_CAPMODE 2
+#define RISCV_DIS_FLAG_CHERI_V9 4
 int print_insn_rx(bfd_vma, disassemble_info *);
 int print_insn_hexagon(bfd_vma, disassemble_info *);
 

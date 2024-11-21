@@ -90,3 +90,7 @@ caddi         ............   ..... 010 ..... 0011011 @cci
 %imm_scale     25:1
 @is_unsigned  ...... . ..... ..... ... ..... ....... scale=%imm_scale imm=%imm5_unsigned %cs1 %cd
 scbndsi       000001 . ..... ..... 101 ..... 0010011 @is_unsigned
+
+
+# Loads and stores
+lc       ............   ..... 100 ..... 0001111 @i

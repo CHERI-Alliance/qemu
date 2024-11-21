@@ -1850,7 +1850,7 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa, int flags)
             case 1: op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_clh : rv_op_lh; break;
             case 2: op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_clw : rv_op_lw; break;
             case 3:
-                if (isa == rv32 && flags & RISCV_DIS_FLAG_CHERI) {
+                if (isa == rv32 && flags & RISCV_DIS_FLAG_CHERI_V9) {
                     op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_clc : rv_op_lc;
                 } else {
                     op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_cld : rv_op_ld;
@@ -1874,11 +1874,14 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa, int flags)
             case 0: op = rv_op_fence; break;
             case 1: op = rv_op_fence_i; break;
             case 2:
-                if (isa == rv64 && flags & RISCV_DIS_FLAG_CHERI) {
+                if (isa == rv64 && flags & RISCV_DIS_FLAG_CHERI_V9) {
                     op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_clc : rv_op_lc;
                 } else {
                     op = rv_op_lq;
                 }
+                break;
+            case 4:
+                op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_clc : rv_op_lc;
                 break;
             }
             break;
