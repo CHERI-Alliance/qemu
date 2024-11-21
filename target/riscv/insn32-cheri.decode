@@ -56,6 +56,7 @@ scmode  0000110  ..... ..... 111 ..... 0110011 @rcc ?pred_cre ?pred_hybrid
 
 amoswap_c   00001 . . ..... ..... 100 ..... 0101111 @atom_st ?pred_cre
 lr_c        00010 . . 00000 ..... 100 ..... 0101111 @atom_ld ?pred_cre
+sc_c        00011 . . ..... ..... 100 ..... 0101111 @atom_st ?pred_cre
 
 ### Two operands (source and dest)
 cram        0001000  00111 ..... 000 ..... 0110011 @r2 ?pred_cre

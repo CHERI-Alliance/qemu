@@ -14,7 +14,7 @@ gen32_cheri = [
 ]
 gen64_cheri = [
   decodetree.process('insn16.decode', extra_args: ['--static-decode=decode_insn16', '--insnwidth=16']),
-  decodetree.process('insn32.decode', extra_args: [dir / 'insn32-cheri.decode', dir / 'insn32-cheri-64.decode', '--static-decode=decode_insn32']),
+  decodetree.process('insn32.decode', extra_args: [dir / 'insn32-cheri.decode', '--static-decode=decode_insn32']),
 ]
 
 cheri_ss = ss.source_set()
