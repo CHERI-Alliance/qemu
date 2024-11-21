@@ -1733,13 +1733,7 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa, int flags)
             case 0: op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_clb : rv_op_lb; break;
             case 1: op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_clh : rv_op_lh; break;
             case 2: op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_clw : rv_op_lw; break;
-            case 3:
-                if (isa == rv32 && flags & RISCV_DIS_FLAG_CHERI) {
-                    op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_clc : rv_op_lc;
-                } else {
-                    op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_cld : rv_op_ld;
-                }
-                break;
+            case 3: op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_cld : rv_op_ld; break;
             case 4: op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_clbu : rv_op_lbu; break;
             case 5: op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_clhu : rv_op_lhu; break;
             case 6: op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_clwu : rv_op_lwu; break;

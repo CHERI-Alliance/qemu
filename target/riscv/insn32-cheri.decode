@@ -73,6 +73,8 @@ gclen       0001000  00110 ..... 000 ..... 0110011 @cr ?pred_cre
 @icc     ............    ..... ... ..... ....... &icc imm=%imm_i %cs1 %cd
 caddi    ............    ..... 010 ..... 0011011 @icc ?pred_cre
 
+lc       ............    ..... 100 ..... 0001111 @i ?pred_cre
+
 ### Zero operands
 {
   modesw     0001001 00000 00000 001 00000 0110011 ?pred_hybrid ?pred_cre ?!pred_cheri_v090

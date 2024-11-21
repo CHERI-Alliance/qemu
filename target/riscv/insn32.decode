@@ -164,11 +164,7 @@ csrrci   ............     ..... 111 ..... 1110011 @csr
 
 # *** RV64I Base Instruction Set (in addition to RV32I) ***
 lwu      ............   ..... 110 ..... 0000011 @i
-{
-  ld     ............   ..... 011 ..... 0000011 @i ?pred_rv64
-  # def LC_64  : RVInstI<0x3, OPC_LOAD (0b0000011)
-  lc     ............   ..... 011 ..... 0000011 @i ?!pred_rv64 ?pred_capmode
-}
+ld       ............   ..... 011 ..... 0000011 @i ?pred_rv64
 {
   sd     ....... .....  ..... 011 ..... 0100011 @s ?pred_rv64
   # def SC_64  : RVInstS<0x3, OPC_STORE (0b0100011)
