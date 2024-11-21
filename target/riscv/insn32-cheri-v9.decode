@@ -199,6 +199,7 @@ lc       ............    ..... 100 ..... 0001111 @i
 # Support them for RV32 as well so we can eventually GC the old encodings.
 sc        ....... .....   ..... 100 ..... 0100011 @s
 amoswap_c 00001 . . ..... ..... 100 ..... 0101111 @atom_st
+lr_c      00010 . . 00000 ..... 100 ..... 0101111 @atom_ld
 
 ### Zero operands
 # These are CHERI standard only instruction but we expose them to v9

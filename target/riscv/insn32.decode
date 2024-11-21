@@ -209,8 +209,8 @@ amomaxu_w  11100 . . ..... ..... 010 ..... 0101111 @atom_st
 # *** RV64A Standard Extension (in addition to RV32A) ***
 # CHERI RV32: We reuse the lr_d/sc_d/swap_d opcodes for lr_c/sc_c/swap_c
 {
+  lr_c       00010 . . 00000 ..... 011 ..... 0101111 @atom_ld ?pred_xcheri_rv32
   lr_d       00010 . . 00000 ..... 011 ..... 0101111 @atom_ld
-  lr_c       00010 . . 00000 ..... 011 ..... 0101111 @atom_ld
 }
 {
   sc_d       00011 . . ..... ..... 011 ..... 0101111 @atom_st
