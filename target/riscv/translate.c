@@ -858,6 +858,9 @@ TRANS_STUB(lc)
 TRANS_STUB(sc)
 TRANS_STUB(caddi)
 TRANS_STUB(cadd)
+TRANS_STUB(lr_c)
+TRANS_STUB(sc_c)
+TRANS_STUB(scbndsi)
 #endif
 
 static void decode_opc(CPURISCVState *env, DisasContext *ctx, uint16_t opcode)
