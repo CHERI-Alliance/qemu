@@ -193,8 +193,11 @@ sc_w_cap       1111100  ..... ..... 000 11010 1011011 @atom_st_cap_or_ddc
 #                                       11110 is reserved
 #                                       11111 is reserved
 
-# Support the new standard encoding of LC as well
+# Support the new standard encoding of LC as well (different from RV64 V9)
 lc       ............    ..... 100 ..... 0001111 @i
+# The standard encoding of SC is the same as RV64 V9.
+# Support it for RV32 as well so we can eventually GC the old encoding.
+sc       ....... .....   ..... 100 ..... 0100011 @s
 
 ### Zero operands
 # These are CHERI standard only instruction but we expose them to v9
