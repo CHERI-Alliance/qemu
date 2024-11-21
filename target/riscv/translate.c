@@ -923,7 +923,6 @@ TRANS_STUB(caddi)
 TRANS_STUB(cadd)
 TRANS_STUB(lr_c)
 TRANS_STUB(sc_c)
-TRANS_STUB(amoswap_c)
 TRANS_STUB(scbndsi)
 #endif
 
