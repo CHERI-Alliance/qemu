@@ -5,7 +5,7 @@ gen16 = decodetree.process('insn16.decode', extra_args: ['--static-decode=decode
 
 gen32 = decodetree.process('insn32.decode', extra_args: '--static-decode=decode_insn32')
 gen32_cheri = decodetree.process('insn32.decode', extra_args: [dir / 'insn32-cheri.decode', '--static-decode=decode_insn32'])
-gen64_cheri = decodetree.process('insn32.decode', extra_args: [dir / 'insn32-cheri.decode', dir / 'insn32-cheri-64.decode', '--static-decode=decode_insn32'])
+gen64_cheri = decodetree.process('insn32.decode', extra_args: [dir / 'insn32-cheri.decode', '--static-decode=decode_insn32'])
 
 riscv32_ss = ss.source_set()
 riscv64_ss = ss.source_set()
