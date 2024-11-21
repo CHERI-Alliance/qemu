@@ -83,6 +83,7 @@ scbndsi  000001 . ..... ..... 101 ..... 0010011 @is_unsigned ?pred_cre
 caddi    ............    ..... 010 ..... 0011011 @icc ?pred_cre
 
 lc       ............    ..... 100 ..... 0001111 @i ?pred_cre
+sc       ....... .....   ..... 100 ..... 0100011 @s ?pred_cre
 
 ### Zero operands
 
