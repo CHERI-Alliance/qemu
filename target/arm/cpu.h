@@ -3821,6 +3821,14 @@ extern void aarch_cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
 #define EX_TBFLAG_M32(IN, WHICH)   FIELD_EX32(IN.flags2, TBFLAG_M32, WHICH)
 #define EX_TBFLAG_AM32(IN, WHICH)  FIELD_EX32(IN.flags2, TBFLAG_AM32, WHICH)
 
+extern void aarch_cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
+                                       target_ulong *cs_base,
+                                       target_ulong *pcc_base,
+                                       target_ulong *pcc_top,
+                                       uint32_t *cheri_flags, uint32_t *pflags);
+// Ugly macro hack to avoid having to modify cpu_get_tb_cpu_state in all targets
+#define cpu_get_tb_cpu_state_ext aarch_cpu_get_tb_cpu_state
+
 /**
  * cpu_mmu_index:
  * @env: The cpu environment

@@ -134,12 +134,12 @@ static inline bool cheri_cap_perms_valid_for_exec(const cap_register_t *pcc)
 static inline void cheri_cpu_get_tb_cpu_state(CPUArchState *env,
                                               const cap_register_t *pcc,
                                               const cap_register_t *ddc,
-                                              target_ulong *cs_base,
-                                              target_ulong *cs_top,
+                                              target_ulong *pcc_base,
+                                              target_ulong *pcc_top,
                                               uint32_t *cheri_flags)
 {
-    *cs_base = cap_get_base(pcc);
-    *cs_top = cap_get_top(pcc);
+    *pcc_base = cap_get_base(pcc);
+    *pcc_top = cap_get_top(pcc);
     cheri_debug_assert(*cheri_flags == 0);
     if (cheri_in_capmode(env))
         *cheri_flags |= TB_FLAG_CHERI_CAPMODE;
@@ -151,7 +151,7 @@ static inline void cheri_cpu_get_tb_cpu_state(CPUArchState *env,
             *cheri_flags |= TB_FLAG_CHERI_PCC_READABLE;
     }
 
-    if (*cs_base == 0)
+    if (*pcc_base == 0)
         *cheri_flags |= TB_FLAG_CHERI_PCC_BASE_ZERO;
     if (cap_get_top_full(pcc) == CAP_MAX_TOP)
         *cheri_flags |= TB_FLAG_CHERI_PCC_TOP_MAX;
