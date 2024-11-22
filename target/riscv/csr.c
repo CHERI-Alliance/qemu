@@ -2110,16 +2110,17 @@ static cap_register_t read_xepcc(CPURISCVState *env,
         warn_report("Clearing low bit(s) of MXPCC (contained an unaligned "
                     "capability): " PRINT_CAP_FMTSTR,
                     PRINT_CAP_ARGS(&retval));
+
+        if (!cap_is_unsealed(&retval)) {
+            warn_report("Invalidating sealed XEPCC (contained an unaligned "
+                        "capability): " PRINT_CAP_FMTSTR,
+                        PRINT_CAP_ARGS(&retval));
+            retval.cr_tag = false;
+        }
+
         cap_set_cursor(&retval, val);
     }
-    if (!cap_is_unsealed(&retval)) {
-        warn_report("Invalidating sealed XEPCC (contained an unaligned "
-                    "capability): " PRINT_CAP_FMTSTR,
-                    PRINT_CAP_ARGS(&retval));
-        retval.cr_tag = false;
-    }
 
-    cap_set_cursor(&retval, val);
     return retval;
 }
 
