@@ -1040,24 +1040,6 @@ void CHERI_HELPER_IMPL(acperm(CPUArchState *env, uint32_t cd, uint32_t cs1,
         MASK_CLR_CAP_PERM(rs2, 4, result, CAP_AP_ASR);
     }
 
-    if (!cheri_v090) {
-        /*
-         * Legacy cheri versions expect capability reads to work if C is
-         * granted. Our internal code and cap format require C and LM for
-         * reading a capability from memory.
-         *
-         * When we fix up the input capability here, we don't have to add a
-         * version check to valid_m_ap. In other words: Make sure that we do
-         * not fail the validity checks (that use v0.9.0 rules) for
-         * capabilities that use a legacy format.
-         */
-        if (cbp_test.cr_arch_perm & (CAP_AP_LM |CAP_AP_C)) {
-            cbp_test.cr_arch_perm |= CAP_AP_LM |CAP_AP_C;
-            /* We should compress here if we ever need the compressed version
-               in this function. */
-        }
-    }
-
     if (!cap_is_unsealed(&cbp_test)) {
         result.cr_tag = 0;
     }
@@ -1979,13 +1961,6 @@ target_ulong CHERI_HELPER_IMPL(gcperm(CPUArchState *env, uint32_t cb))
 
     cheri_v090 = cpu->cfg.cheri_v090;
 #endif
-
-    if (!cheri_v090) {
-        /* see the comments in the acperm helper */
-        if (cbp_test.cr_arch_perm & (CAP_AP_LM |CAP_AP_C)) {
-            cbp_test.cr_arch_perm |= CAP_AP_LM |CAP_AP_C;
-        }
-    }
 
     /*
      * If acperm can't produce the permissions of our input capability, we
