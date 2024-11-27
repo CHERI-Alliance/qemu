@@ -78,6 +78,14 @@ static void cmu_invalidate(CMUDeviceState *s)
         return;
     }
 
+    /*
+     * start_addr is the offset into the ram region. len is the size of the
+     * area we want to clear. The region's length must be >= start_addr + len.
+     */
+    if (qemu_ram_get_used_length(s->managed->ram_block) < (start_addr + len)) {
+        return;
+    }
+
     if (c->invalidate_region) {
         c->invalidate_region(s->managed->ram_block, start_addr, len);
     }
