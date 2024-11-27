@@ -1062,7 +1062,7 @@ void CHERI_HELPER_IMPL(acperm(CPUArchState *env, uint32_t cd, uint32_t cs1,
         result.cr_tag = 0;
     }
 
-    if (!valid_m_ap(cbp_test.cr_m, cbp_test.cr_arch_perm)) {
+    if (fix_up_m_ap(env, &cbp_test)) {
         /*
          * "If AP and M-bit field in cs1 could not have been produced by
          * acperm then clear all AP permissions and the M-bit."
@@ -1071,7 +1071,7 @@ void CHERI_HELPER_IMPL(acperm(CPUArchState *env, uint32_t cd, uint32_t cs1,
         result.cr_m = 0;
     }
     else {
-        sanitize_m_ap(&result);
+        fix_up_m_ap(env, &result);
     }
 
     /*
@@ -1574,7 +1574,7 @@ static void squash_mutable_permissions(CPUArchState *env, target_ulong *pesbt,
         CAP_cc(m_ap_decompress)(&tmp);
         tmp.cr_arch_perm &= ~(CAP_AP_LM | CAP_AP_W);
         /* Update the modified set to be in line with the acperm rules again. */
-        sanitize_m_ap(&tmp);
+        fix_up_m_ap(env, &tmp);
         CAP_cc(m_ap_compress)(&tmp);
 
         *pesbt = tmp.cr_pesbt;
@@ -1991,7 +1991,7 @@ target_ulong CHERI_HELPER_IMPL(gcperm(CPUArchState *env, uint32_t cb))
      * If acperm can't produce the permissions of our input capability, we
      * have to clear all the AP bits in our result.
      */
-    if (!valid_m_ap(cbp_test.cr_m, cbp_test.cr_arch_perm)) {
+    if (fix_up_m_ap(env, &cbp_test)) {
         goto out;
     }
 
@@ -2034,6 +2034,7 @@ target_ulong CHERI_HELPER_IMPL(gcmode(CPUArchState *env, uint32_t cb))
 {
     /* get_readonly_capreg's result is fully decompressed, see above */
     const cap_register_t *cbp = get_readonly_capreg(env, cb);
+    cap_register_t ctmp = *cbp;
     bool m_flip = false;
 #ifdef TARGET_RISCV
     RISCVCPU *cpu = env_archcpu(env);
@@ -2045,7 +2046,7 @@ target_ulong CHERI_HELPER_IMPL(gcmode(CPUArchState *env, uint32_t cb))
      * rd must be 0 if cs1 does not grant X permission or cs1's AP field could
      * not have been produced by acperm
      */
-    if (!valid_m_ap(cbp->cr_m, cbp->cr_arch_perm)) {
+    if (fix_up_m_ap(env, &ctmp)) {
         return 0;
     }
     if (!(cbp->cr_arch_perm & CAP_AP_X)) {
@@ -2153,7 +2154,7 @@ void CHERI_HELPER_IMPL(cbld(CPUArchState *env, uint32_t cd, uint32_t cs1,
     const cap_register_t *cs1p = get_readonly_capreg(env, cs1);
     const cap_register_t *cs2p = get_readonly_capreg(env, cs2);
     GET_HOST_RETPC_IF_TRAPPING_CHERI_ARCH();
-    cap_register_t result = *cs2p;
+    cap_register_t result = *cs2p, ctmp = *cs2p;
     DEFINE_RESULT_VALID;
 
     if (cs1 == 0) {
@@ -2189,7 +2190,7 @@ void CHERI_HELPER_IMPL(cbld(CPUArchState *env, uint32_t cd, uint32_t cs1,
          */
         raise_cheri_exception_or_invalidate(env, CapEx_PermissionViolation,
                 CapExType_Data, cs1);
-    } else if (!valid_m_ap(cs2p->cr_m, cs2p->cr_arch_perm)) {
+    } else if (fix_up_m_ap(env, &ctmp)) {
         raise_cheri_exception_or_invalidate(env, CapEx_PermissionViolation,
                 CapExType_Data, cs2);
     } else if ((cap_get_sdp(cs2p) & cap_get_sdp(cs1p)) != cap_get_sdp(cs2p)) {
@@ -2269,6 +2270,7 @@ target_ulong CHERI_HELPER_IMPL(scss(CPUArchState *env, uint32_t cs1,
      */
     const cap_register_t *cs1p = get_readonly_capreg(env, cs1);
     const cap_register_t *cs2p = get_readonly_capreg(env, cs2);
+    cap_register_t ctmp;
 
     /* Malformed bounds decode as base, top == 0, see the cbld helper. */
     if (cap_get_length_full(cs1p) == 0 || cap_get_length_full(cs2p) == 0) {
@@ -2299,10 +2301,12 @@ target_ulong CHERI_HELPER_IMPL(scss(CPUArchState *env, uint32_t cs1,
      * There's no need to decompress, get_readonly_capreg returns fully
      * decompressed capabilities.
      */
-    if(!valid_m_ap(cs1p->cr_m, cs1p->cr_arch_perm)){
+    ctmp = *cs1p;
+    if (fix_up_m_ap(env, &ctmp)) {
         return 0;
     }
-    if(!valid_m_ap(cs2p->cr_m, cs2p->cr_arch_perm)){
+    ctmp = *cs2p;
+    if (fix_up_m_ap(env, &ctmp)) {
         return 0;
     }
     if ((cs2p->cr_arch_perm & cs1p->cr_arch_perm) != cs2p->cr_arch_perm) {
@@ -2342,7 +2346,7 @@ void CHERI_HELPER_IMPL(scmode(CPUArchState *env, uint32_t cd, uint32_t cs1,
                                 target_ulong rs2))
 {
     const cap_register_t *csp = get_readonly_capreg(env, cs1);
-    cap_register_t result = *csp;
+    cap_register_t result = *csp, ctmp = *csp;
 
     if (cd == 0) {
         /*
@@ -2356,8 +2360,7 @@ void CHERI_HELPER_IMPL(scmode(CPUArchState *env, uint32_t cd, uint32_t cs1,
     if (!cap_is_unsealed(csp))
         result.cr_tag = 0;
 
-    if (valid_m_ap(csp->cr_m, csp->cr_arch_perm) &&
-            (csp->cr_arch_perm & CAP_AP_X)) {
+    if (!fix_up_m_ap(env, &ctmp) && (csp->cr_arch_perm & CAP_AP_X)) {
 #ifdef TARGET_RISCV
         RISCVCPU *cpu = env_archcpu(env);
         result.cr_m = cpu->cfg.m_flip ? !(rs2 & 0x01) : rs2 & 0x01;
