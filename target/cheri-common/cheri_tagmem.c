@@ -163,7 +163,10 @@ static inline QEMU_ALWAYS_INLINE CheriTagBlock *cheri_tag_block(size_t tag_index
 {
     const size_t tagbock_index = tag_index >> CAP_TAGBLK_SHFT;
     cheri_debug_assert(ram->cheri_tags);
-    cheri_debug_assert(tagbock_index < num_tagblocks(ram));
+    if(tagbock_index >= num_tagblocks(ram)){
+        error_report("Call to access tag out of bounds");
+        return NULL;
+    }
     CheriTagBlock **tagmem = (CheriTagBlock **)ram->cheri_tags;
     return tagmem[tagbock_index];
 }
@@ -726,6 +729,7 @@ bool cheri_tag_get_debug(RAMBlock *ram, ram_addr_t ram_offset)
 
     uint64_t tag = ram_offset / CHERI_CAP_SIZE;
     CheriTagBlock *tagblk = cheri_tag_block(tag, ram);
+    cheri_debug_assert(tagblk);
     const size_t tagblk_index = CAP_TAGBLK_IDX(tag);
     return tagblock_get_tag(tagblk, tagblk_index);
 }
