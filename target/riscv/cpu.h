@@ -869,6 +869,7 @@ typedef void (*riscv_csr_cap_write_fn)(CPURISCVState *env,
 #define CSR_OP_REQUIRE_CRE   (1 << 0)
 #define CSR_OP_IA_CONVERSION (1 << 1)
 #define CSR_OP_UPDATE_SCADDR (1 << 2)
+#define CSR_OP_EXTENDED_REG  (1 << 3)
 #define CSR_OP_DIRECT_WRITE  (0)
 
 struct _csr_cap_ops_ {
