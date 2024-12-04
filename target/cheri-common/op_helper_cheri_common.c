@@ -1953,7 +1953,7 @@ target_ulong CHERI_HELPER_IMPL(gcperm(CPUArchState *env, uint32_t cb))
      */
     const cap_register_t *cbp = get_readonly_capreg(env, cb);
     cap_register_t cbp_test = *cbp;
-    uint16_t ap_bits = 0;
+    uint32_t ap_bits = 0;
     uint8_t mask_sdp_shift;
     bool cheri_v090 = true;
 #ifdef TARGET_RISCV
