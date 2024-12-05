@@ -3460,7 +3460,7 @@ static void do_nonatomic_op_i64(TCGv_i64 ret, TCGv_cap_checked_ptr checked_addr,
     // Note: For CHERI tcg_gen_qemu_st_i64 calls gen_cheri_invalidate_tags()
     tcg_gen_qemu_st_i64_with_checked_addr(t2, checked_addr, idx, memop);
 
-    tcg_gen_ext_i64(ret, (new_val ? t2 : t1), memop);
+    tcg_gen_ext_i64(ret, (new_val ? t2 : t1), memop &= ~MO_SIGN);
     tcg_temp_free_i64(t1);
     tcg_temp_free_i64(t2);
 }

@@ -1275,6 +1275,9 @@ typedef uint32_t TCGMemOpIdx;
  */
 static inline TCGMemOpIdx make_memop_idx(MemOp op, unsigned idx)
 {
+    if ((op & MO_SIZE) == MO_Q) {
+        op &= ~MO_SIGN;
+    }
     tcg_debug_assert(idx <= 15);
     return (op << 4) | idx;
 }
