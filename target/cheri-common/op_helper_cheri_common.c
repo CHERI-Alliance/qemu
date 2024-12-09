@@ -2301,12 +2301,12 @@ void CHERI_HELPER_IMPL(sentry(CPUArchState *env, uint32_t cd, uint32_t cs1))
     const cap_register_t *cs1p = get_readonly_capreg(env, cs1);
     cap_register_t result = *cs1p;
 
-#ifndef RISCV
+#ifndef TARGET_RISCV
     if (!cs1p->cr_tag) {
         raise_cheri_exception_or_invalidate(env, CapEx_TagViolation,
                                             CapExType_InstrAccess, cs1);
-    } else 
-#endif    
+    } else
+#endif
     if (!cap_is_unsealed(cs1p)) {
         raise_cheri_exception_or_invalidate(env, CapEx_SealViolation,
                                             CapExType_InstrAccess, cs1);
