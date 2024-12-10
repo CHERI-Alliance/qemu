@@ -105,12 +105,12 @@ void helper_store_cap_pair_via_cap(CPUArchState *env, uint32_t cd, uint32_t cd2,
     cap_check_common_reg(perms_for_store(env, cd), env, cb, addr,
                          CHERI_CAP_SIZE, _host_return_address, cbp,
                          CHERI_CAP_SIZE, raise_unaligned_store_exception);
-    store_cap_to_memory(env, cd, addr, _host_return_address);
+    store_cap_to_memory(env, cd, cb, addr, _host_return_address);
     cap_check_common_reg(perms_for_store(env, cd2), env, cb,
                          addr + CHERI_CAP_SIZE, CHERI_CAP_SIZE,
                          _host_return_address, cbp, CHERI_CAP_SIZE,
                          raise_unaligned_store_exception);
-    store_cap_to_memory(env, cd2, addr + CHERI_CAP_SIZE, _host_return_address);
+    store_cap_to_memory(env, cd2, cb, addr + CHERI_CAP_SIZE, _host_return_address);
 }
 
 void helper_load_exclusive_cap_via_cap(CPUArchState *env, uint32_t cd,
@@ -208,9 +208,9 @@ void helper_store_exclusive_cap_via_cap(CPUArchState *env, uint32_t rs,
     }
 
     if (success) {
-        store_cap_to_memory(env, cd, addr, _host_return_address);
+        store_cap_to_memory(env, cd, cb, addr, _host_return_address);
         if (cd2 != REG_NONE)
-            store_cap_to_memory(env, cd2, addr + CHERI_CAP_SIZE,
+            store_cap_to_memory(env, cd2, cb, addr + CHERI_CAP_SIZE,
                                 _host_return_address);
     }
 
@@ -262,7 +262,7 @@ static void swap_cap_via_cap_impl(CPUArchState *env, uint32_t cd, uint32_t cs,
 
     // Store
     if (do_store) {
-        store_cap_to_memory(env, cd, addr, _host_return_address);
+        store_cap_to_memory(env, cd, cb, addr, _host_return_address);
     } else {
         cd_tagged = get_without_decompress_tag(env, cd);
         // Even if there is no store, we possibly need an MMU permission fault
