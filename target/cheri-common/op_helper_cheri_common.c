@@ -1686,6 +1686,10 @@ void load_cap_from_memory(CPUArchState *env, uint32_t cd, uint32_t cb,
     update_compressed_capreg(env, cd, pesbt, tag, cursor);
 }
 
+/*
+ * cs is the register of the capability that will be stored
+ * cb is the register of the authorizing capability
+ */
 void store_cap_to_memory_mmu_index(CPUArchState *env, uint32_t cs,
                                    uint32_t cb __attribute__((unused)),
                                    target_ulong vaddr, uintptr_t retpc,
@@ -1699,6 +1703,17 @@ void store_cap_to_memory_mmu_index(CPUArchState *env, uint32_t cs,
     }
 #endif
     bool tag = get_capreg_tag_filtered(env, cs);
+#if defined(TARGET_RISCV)
+    const cap_register_t *cbp = get_capreg_or_special(env, cb);
+    /*
+     * For risc-v cheri, we have to store the capability with its tag cleared
+     * if the authorizing capability grants R (this has already been checked),
+     * but not C.
+     */
+    if (!cap_has_perms(cbp, CAP_PERM_STORE_CAP)) {
+        tag = false;
+    }
+#endif
     if (cs == NULL_CAPREG_INDEX) {
         tcg_debug_assert(pesbt_for_mem == 0 && "Wrong value for cnull?");
         tcg_debug_assert(cursor == 0 && "Wrong value for cnull?");
