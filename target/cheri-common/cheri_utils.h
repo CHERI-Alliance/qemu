@@ -122,9 +122,9 @@ static inline uint32_t cap_get_sdp(const cap_register_t *c)
 
 /*
  * qemu uses the CAP_PERMS_xxx defines in lots of places, including code
- * that'll be shared between v9 and bakewell. We keep using those defines
- * although they're based on the permissions in v9. For bakewell, we have
- * to map AP settings to CAP_PERMS_xxx.
+ * that'll be shared between mips/morello and risc-v cheri. We keep using
+ * those defines although they're based on the mips/morello permissions.
+ * For risc-v cheri, we have to map AP settings to CAP_PERMS_xxx.
  */
 static inline uint32_t cap_get_perms(const cap_register_t *c)
 {
@@ -137,8 +137,8 @@ static inline uint32_t cap_get_perms(const cap_register_t *c)
     if (c->cr_arch_perm & CAP_AP_R) {
         res |= CAP_PERM_LOAD;
         /*
-         * As of May 2024, bakewell has no local/global mechanism. Read or
-         * write implies global.
+         * As of Dec 2024, our risc-v cheri implementation does not support
+         * levels (local/global). Read or write implies global.
          */
         res |= CAP_PERM_GLOBAL;
         if (c->cr_arch_perm & CAP_AP_C) {
@@ -156,8 +156,8 @@ static inline uint32_t cap_get_perms(const cap_register_t *c)
             /* Write access to a capability implies seal + unseal. */
             res |= CAP_PERM_SEAL | CAP_PERM_UNSEAL;
             /*
-             * As of May 2024, bakewell has no compartment id. Write access
-             * to a capability implies the right of set all its metadata.
+             * As of Dec 2024, risc-v cheri has no compartment id. Write access
+             * to a capability implies the right to set all its metadata.
              */
             res |= CAP_PERM_SETCID;
         }
