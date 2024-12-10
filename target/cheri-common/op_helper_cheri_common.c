@@ -1687,6 +1687,7 @@ void load_cap_from_memory(CPUArchState *env, uint32_t cd, uint32_t cb,
 }
 
 void store_cap_to_memory_mmu_index(CPUArchState *env, uint32_t cs,
+                                   uint32_t cb __attribute__((unused)),
                                    target_ulong vaddr, uintptr_t retpc,
                                    int mmu_idx)
 {
@@ -1767,11 +1768,10 @@ void store_cap_to_memory_mmu_index(CPUArchState *env, uint32_t cs,
 #endif
 }
 
-void store_cap_to_memory(CPUArchState *env, uint32_t cs,
-                         uint32_t cb __attribute__((unused)),
+void store_cap_to_memory(CPUArchState *env, uint32_t cs, uint32_t cb,
                          target_ulong vaddr, uintptr_t retpc)
 {
-    return store_cap_to_memory_mmu_index(env, cs, vaddr, retpc,
+    return store_cap_to_memory_mmu_index(env, cs, cb, vaddr, retpc,
                                          cpu_mmu_index(env, false));
 }
 
