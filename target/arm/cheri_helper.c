@@ -68,7 +68,7 @@ void helper_store_cap_via_cap_mmu_idx(CPUArchState *env, uint32_t cd,
                          CHERI_CAP_SIZE, _host_return_address, cbp,
                          CHERI_CAP_SIZE, raise_unaligned_store_exception);
 
-    store_cap_to_memory_mmu_index(env, cd, addr, _host_return_address, mmu_idx);
+    store_cap_to_memory_mmu_index(env, cd, cb, addr, _host_return_address, mmu_idx);
 }
 
 void helper_load_cap_pair_via_cap(CPUArchState *env, uint32_t cd, uint32_t cd2,
