@@ -290,10 +290,12 @@ static inline uint32_t perms_for_load(void) { return CAP_PERM_LOAD; }
 static inline uint32_t perms_for_store(CPUArchState *env, uint32_t cs)
 {
     uint32_t perms = CAP_PERM_STORE;
+#ifndef TARGET_RISCV
     if (get_capreg_tag(env, cs))
         perms |= CAP_PERM_STORE_CAP;
     if (cap_is_local(env, cs))
         perms |= CAP_PERM_STORE_LOCAL;
+#endif
     return perms;
 }
 
