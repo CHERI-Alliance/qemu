@@ -1469,7 +1469,7 @@ void CHERI_HELPER_IMPL(store_cap_via_cap(CPUArchState *env, uint32_t valreg,
                              CHERI_CAP_SIZE, _host_return_address, cbp,
                              CHERI_CAP_SIZE, raise_unaligned_store_exception);
 
-    store_cap_to_memory(env, valreg, checked_addr, _host_return_address);
+    store_cap_to_memory(env, valreg, authreg, checked_addr, _host_return_address);
 }
 
 void CHERI_HELPER_IMPL(store_cap_via_ddc(CPUArchState *env, uint32_t valreg,
@@ -1481,7 +1481,7 @@ void CHERI_HELPER_IMPL(store_cap_via_ddc(CPUArchState *env, uint32_t valreg,
         cheri_ddc_relative_addr(env, intaddr), CHERI_CAP_SIZE,
         _host_return_address, cheri_get_ddc(env), CHERI_CAP_SIZE,
         raise_unaligned_store_exception);
-    store_cap_to_memory(env, valreg, checked_addr, _host_return_address);
+    store_cap_to_memory(env, valreg, CHERI_EXC_REGNUM_DDC, checked_addr, _host_return_address);
 }
 
 static inline bool
@@ -1767,8 +1767,9 @@ void store_cap_to_memory_mmu_index(CPUArchState *env, uint32_t cs,
 #endif
 }
 
-void store_cap_to_memory(CPUArchState *env, uint32_t cs, target_ulong vaddr,
-                         uintptr_t retpc)
+void store_cap_to_memory(CPUArchState *env, uint32_t cs,
+                         uint32_t cb __attribute__((unused)),
+                         target_ulong vaddr, uintptr_t retpc)
 {
     return store_cap_to_memory_mmu_index(env, cs, vaddr, retpc,
                                          cpu_mmu_index(env, false));
