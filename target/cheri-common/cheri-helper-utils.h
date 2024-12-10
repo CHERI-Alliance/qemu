@@ -259,8 +259,8 @@ static inline const char* cheri_cause_str(CheriCapExcCause cause) {
     abort();
 }
 
-void store_cap_to_memory(CPUArchState *env, uint32_t cs, target_ulong vaddr,
-                         uintptr_t retpc);
+void store_cap_to_memory(CPUArchState *env, uint32_t cs, uint32_t cb,
+                         target_ulong vaddr, uintptr_t retpc);
 void store_cap_to_memory_mmu_index(CPUArchState *env, uint32_t cs,
                                    target_ulong vaddr, uintptr_t retpc,
                                    int mmu_idx);
