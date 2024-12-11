@@ -1035,7 +1035,7 @@ static void raise_mmu_exception(CPURISCVState *env, target_ulong address,
             cs->exception_index = RISCV_EXCP_LOAD_GUEST_ACCESS_FAULT;
 #if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
         } else if (cheri_violation) {
-            cs->exception_index = RISCV_EXCP_LOAD_CAP_PAGE_FAULT;
+            cs->exception_index = RISCV_EXCP_LOAD_PAGE_FAULT;
 #endif
         } else {
             cs->exception_index = page_fault_exceptions ?
@@ -1050,7 +1050,7 @@ static void raise_mmu_exception(CPURISCVState *env, target_ulong address,
             cs->exception_index = RISCV_EXCP_STORE_GUEST_AMO_ACCESS_FAULT;
 #if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
         } else if (cheri_violation) {
-            cs->exception_index = RISCV_EXCP_STORE_AMO_CAP_PAGE_FAULT;
+            cs->exception_index = RISCV_EXCP_STORE_PAGE_FAULT;
 #endif
         } else {
             cs->exception_index = page_fault_exceptions ?
@@ -1438,10 +1438,6 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         case RISCV_EXCP_INST_PAGE_FAULT:
         case RISCV_EXCP_LOAD_PAGE_FAULT:
         case RISCV_EXCP_STORE_PAGE_FAULT:
-#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
-        case RISCV_EXCP_LOAD_CAP_PAGE_FAULT:
-        case RISCV_EXCP_STORE_AMO_CAP_PAGE_FAULT:
-#endif
         case RISCV_EXCP_INST_ADDR_MIS:
         case RISCV_EXCP_INST_ACCESS_FAULT:
         case RISCV_EXCP_LOAD_ADDR_MIS:

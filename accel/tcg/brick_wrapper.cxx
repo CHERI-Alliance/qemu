@@ -80,10 +80,6 @@ static brick::isa::Exception::Type fromRISCV_exception_cause(int32_t cause)
         return brick::isa::Exception::VIRTUAL_INSTRUCTION;
     case RISCV_EXCP_STORE_GUEST_AMO_ACCESS_FAULT:
         return brick::isa::Exception::STORE_AMO_GUEST_PAGE_FAULT;
-    case RISCV_EXCP_LOAD_CAP_PAGE_FAULT:
-        return brick::isa::Exception::PERMIT_LOAD_CAPABILITY_VIOLATION;
-    case RISCV_EXCP_STORE_AMO_CAP_PAGE_FAULT:
-        return brick::isa::Exception::PERMIT_STORE_CAPABILITY_VIOLATION;
     case RISCV_EXCP_CHERI:
         return brick::isa::Exception::CHERI;
     default:
