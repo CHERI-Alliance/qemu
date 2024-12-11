@@ -673,6 +673,7 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
     }
 
     CPUState *cs = env_cpu(env);
+    RISCVCPU *cpu = env_archcpu(env);
     int va_bits = PGSHIFT + levels * ptidxbits + widened;
     target_ulong mask, masked_msbs;
 
@@ -783,14 +784,6 @@ restart:
             qemu_log_mask(CPU_LOG_MMU, "%s Translate fail: Reserved WRX 011\n",
                           __func__);
             return TRANSLATE_FAIL;
-#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
-        } else if ((pte & (PTE_CR | PTE_CRG)) == PTE_CRG) {
-            /* Reserved CHERI-extended PTE flags: no CR but CRG */
-            return TRANSLATE_CHERI_FAIL;
-        } else if ((pte & (PTE_CR | PTE_CRM | PTE_CRG)) == (PTE_CR | PTE_CRG)) {
-            /* Reserved CHERI-extended PTE flags: CR and no CRM but CRG */
-            return TRANSLATE_CHERI_FAIL;
-#endif
         } else if ((pte & PTE_U) && ((mode != PRV_U) &&
                    (!sum || access_type == MMU_INST_FETCH))) {
             /* User PTE flags when not U mode and mstatus.SUM is not set,
@@ -830,18 +823,11 @@ restart:
             qemu_log_mask(CPU_LOG_MMU, "%s Translate fail: X bit not set\n",
                           __func__);
             return TRANSLATE_FAIL;
-#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32) && defined(BW_KERNEL_FULL_PTE_SUPPORT)
-            /*
-             * BW_KERNEL_FULL_PTE_SUPPORT is not defined anywhere. The idea is
-             * to effectively disable the cheri-specific PTE checks. We still
-             * want to have the code visible here rather than deleting it.
-             *
-             * As of Jul 2024, we're experimenting with linux kernels that
-             * have partial cheri support and do not set cheri PTE bits.
-             */
-         } else if (access_type == MMU_DATA_CAP_STORE && !(pte & PTE_CW)) {
+#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
+        } else if ((cpu->cfg.cheri_pte) && access_type == MMU_DATA_CAP_STORE &&
+                   !(pte & PTE_CW)) {
             /* CW inhibited */
-            return TRANSLATE_CHERI_FAIL;
+            return TRANSLATE_FAIL;
 #endif
 #if RISCV_PTE_TRAPPY & PTE_A
         } else if (!(pte & PTE_A)) {
@@ -865,24 +851,12 @@ restart:
                           __func__);
             return TRANSLATE_FAIL;
 #endif
-#if RISCV_PTE_TRAPPY & PTE_CD
-        } else if (access_type == MMU_DATA_CAP_STORE && !(pte & PTE_CD)) {
-            /* CD clear; force the software trap handler to get involved */
-            return TRANSLATE_CHERI_FAIL;
-#endif
 #endif
         } else {
             /* if necessary, set accessed and dirty bits. */
             target_ulong updated_pte = pte | PTE_A;
-            switch (access_type) {
-#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
-            case MMU_DATA_CAP_STORE:
-                updated_pte |= PTE_CD;
-                QEMU_FALLTHROUGH;
-#endif
-            case MMU_DATA_STORE:
+            if (access_type == MMU_DATA_STORE) {
                 updated_pte |= PTE_D;
-                break;
             }
 
             /* Page table updates need to be atomic with MTTCG enabled */
@@ -945,30 +919,37 @@ restart:
                  (access_type == MMU_DATA_CAP_STORE) || (pte & PTE_D))) {
                 *prot |= PAGE_WRITE;
             }
-#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32) && defined(BW_KERNEL_FULL_PTE_SUPPORT)
-           /* see the comment above about BW_KERNEL_FULL_PTE_SUPPORT */
-           if ((pte & PTE_CR) == 0) {
-                if ((pte & PTE_CRM) == 0) {
+#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
+            bool pte_crg = (pte & PTE_CRG);
+            bool status_crg = (env->mstatus & SSTATUS64_CRG);
+
+            if (cpu->cfg.cheri_pte) {
+                if (!(pte & PTE_CW)) {
+                    /* CW inhibited */
                     *prot |= PAGE_LC_CLEAR;
-                } else {
+                } else if (status_crg != pte_crg) {
                     *prot |= PAGE_LC_TRAP;
                 }
-            } else {
-                if (pte & PTE_CRM) {
-                    /* Cap-loads checked against [SU]GCLG in CCSR using PTE_U */
-                    target_ulong gclgmask =
-                        (pte & PTE_U) ? SCCSR_UGCLG : SCCSR_SGCLG;
-                    bool gclg = (env->sccsr & gclgmask) != 0;
-                    bool lclg = (pte & PTE_CRG) != 0;
 
-                    if (gclg != lclg) {
-                        *prot |= PAGE_LC_TRAP;
+                if (!(pte & PTE_CW)) {
+                    if (pte_crg) {
+                        /*  Page fault or update!
+                            For now treat the cheri_pte_svadu param as if it
+                           were the ADUE bit in the envcfg. When we merge in
+                            upstream with svadu support we will update this.
+                        */
+
+                        // no implementation provided bit manipulation
+                        // so take a trap
+                        *prot |= PAGE_SC_TRAP;
+                    } else {
+                        // no cw or crg, so trap
+                        *prot |= PAGE_SC_TRAP;
                     }
                 }
             }
-            if ((pte & PTE_CW) == 0) {
-                *prot |= PAGE_SC_TRAP;
-            }
+            /* TODO: We probably shouldn't update the PTE's if we are going to
+             * take trap*/
 #endif
             return TRANSLATE_SUCCESS;
         }
