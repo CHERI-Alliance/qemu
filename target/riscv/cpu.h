@@ -479,6 +479,7 @@ struct RISCVCPU {
         bool ext_cheri_purecap; 
         bool m_flip;
         bool cheri_v090;
+        bool cheri_pte;
 #endif
         char *priv_spec;
         char *user_spec;

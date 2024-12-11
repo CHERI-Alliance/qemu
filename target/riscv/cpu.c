@@ -1137,6 +1137,7 @@ static Property riscv_cpu_properties[] = {
     DEFINE_PROP_BOOL("scmode_flip", RISCVCPU, cfg.m_flip, false),
     DEFINE_PROP_BOOL("m_flip", RISCVCPU, cfg.m_flip, false),
     DEFINE_PROP_BOOL("cheri_v090", RISCVCPU, cfg.cheri_v090, false),
+    DEFINE_PROP_BOOL("cheri_pte", RISCVCPU, cfg.cheri_pte, false),
 #endif
 
     DEFINE_PROP_STRING("vext_spec", RISCVCPU, cfg.vext_spec),
