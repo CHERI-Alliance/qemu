@@ -538,7 +538,11 @@ static const target_ulong vs_delegable_excps = DELEGABLE_EXCPS &
       (1ULL << (RISCV_EXCP_STORE_GUEST_AMO_ACCESS_FAULT)));
 static const target_ulong sstatus_v1_10_mask = SSTATUS_SIE | SSTATUS_SPIE |
     SSTATUS_UIE | SSTATUS_UPIE | SSTATUS_SPP | SSTATUS_FS | SSTATUS_XS |
-    SSTATUS_SUM | SSTATUS_MXR | (target_ulong)SSTATUS64_UXL;
+    SSTATUS_SUM | SSTATUS_MXR | (target_ulong)SSTATUS64_UXL
+#if defined(TARGET_RISCV64)
+    | SSTATUS64_CRG
+#endif
+    ;
 static const target_ulong sip_writable_mask = SIP_SSIP | MIP_USIP | MIP_UEIP;
 static const target_ulong hip_writable_mask = MIP_VSSIP;
 static const target_ulong hvip_writable_mask = MIP_VSSIP | MIP_VSTIP | MIP_VSEIP;
@@ -618,9 +622,11 @@ static RISCVException write_mstatus(CPURISCVState *env, int csrno,
         tlb_flush(env_cpu(env));
     }
     mask = MSTATUS_SIE | MSTATUS_SPIE | MSTATUS_MIE | MSTATUS_MPIE |
-        MSTATUS_SPP | MSTATUS_FS | MSTATUS_MPRV | MSTATUS_SUM |
-        MSTATUS_MPP | MSTATUS_MXR | MSTATUS_TVM | MSTATUS_TSR |
-        MSTATUS_TW;
+           MSTATUS_SPP | MSTATUS_FS | MSTATUS_MPRV | MSTATUS_SUM | MSTATUS_MPP |
+           MSTATUS_MXR | MSTATUS_TVM | MSTATUS_TSR | MSTATUS_TW;
+#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
+            mask = mask | MSTATUS64_CRG;
+#endif
 
     if (riscv_cpu_mxl(env) != MXL_RV32) {
         /*
