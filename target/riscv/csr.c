@@ -502,18 +502,12 @@ static const target_ulong vs_delegable_ints = VS_MODE_INTERRUPTS;
 static const target_ulong all_ints = M_MODE_INTERRUPTS | S_MODE_INTERRUPTS |
                                      VS_MODE_INTERRUPTS;
 
-#ifdef TARGET_CHERI
-#ifndef TARGET_RISCV32
-#define CHERI_DELEGABLE_EXCPS ( \
-        (1ULL << (RISCV_EXCP_LOAD_CAP_PAGE_FAULT)) | \
-        (1ULL << (RISCV_EXCP_STORE_AMO_CAP_PAGE_FAULT)) | \
-        (1ULL << (RISCV_EXCP_CHERI)))
+#ifndef TARGET_CHERI
+#define CHERI_DELEGABLE_EXCPS 0
 #else
 #define CHERI_DELEGABLE_EXCPS (1ULL << (RISCV_EXCP_CHERI))
 #endif
-#else
-#define CHERI_DELEGABLE_EXCPS 0
-#endif
+
 #define DELEGABLE_EXCPS ((1ULL << (RISCV_EXCP_INST_ADDR_MIS)) | \
                          (1ULL << (RISCV_EXCP_INST_ACCESS_FAULT)) | \
                          (1ULL << (RISCV_EXCP_ILLEGAL_INST)) | \
