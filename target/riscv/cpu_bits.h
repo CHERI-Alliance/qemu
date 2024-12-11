@@ -478,6 +478,10 @@
 #define MSTATUS32_SD        0x80000000
 #define MSTATUS64_SD        0x8000000000000000ULL
 
+#if defined(TARGET_CHERI_RISCV_STD_093)
+#define MSTATUS64_UCRG      BIT_ULL(61)
+#endif
+
 #define MISA32_MXL          0xC0000000
 #define MISA64_MXL          0xC000000000000000ULL
 #ifdef TARGET_RISCV32
@@ -507,6 +511,10 @@ typedef enum {
 
 #define SSTATUS32_SD        0x80000000
 #define SSTATUS64_SD        0x8000000000000000ULL
+
+#if defined(TARGET_CHERI_RISCV_STD_093)
+#define SSTATUS64_UCRG      BIT_ULL(61)
+#endif
 
 /* hstatus CSR bits */
 #define HSTATUS_VSBE         0x00000020
