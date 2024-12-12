@@ -1663,6 +1663,16 @@ bool load_cap_from_memory_raw_tag_mmu_idx(
     return tag;
 }
 
+bool load_raw_cap_from_memory(CPUArchState *env, target_ulong *pesbt,
+                              target_ulong *cursor,
+                              target_ulong vaddr, uintptr_t retpc)
+{
+    return load_cap_from_memory_raw_tag_mmu_idx(env, pesbt, cursor, 0, NULL,
+                                                vaddr, retpc, NULL, NULL,
+                                                cpu_mmu_index(env, false),
+                                                /* all_raw */ true);
+}
+
 bool load_cap_from_memory_raw_tag(CPUArchState *env, target_ulong *pesbt,
                                   target_ulong *cursor, uint32_t cb,
                                   const cap_register_t *source,
