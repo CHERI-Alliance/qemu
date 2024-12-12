@@ -1567,8 +1567,25 @@ static void squash_mutable_permissions(CPUArchState *env, target_ulong *pesbt,
 bool load_cap_from_memory_raw_tag_mmu_idx(
     CPUArchState *env, target_ulong *pesbt, target_ulong *cursor, uint32_t cb,
     const cap_register_t *source, target_ulong vaddr, uintptr_t retpc,
-    hwaddr *physaddr, bool *raw_tag, int mmu_idx)
+    hwaddr *physaddr, bool *raw_tag, int mmu_idx, bool all_raw)
 {
+    /*
+     * If all_raw is set, we return tag, pesbt and cursor exactly as they are
+     * stored in memory.
+     *
+     * source/cb point to the authorizing capability. Generally, the caller
+     * must have checked permissions for the memory read. We use the
+     * authorizing capability's permission to fix up the mem capability (e.g.
+     * clear the tag, strip W for missing LM, ...). In the all_raw case, there
+     * is no such fixup, cb/source are not needed. raw_tag isn't needed either,
+     * the function returns the raw tag.
+     */
+    if (all_raw) {
+        cheri_debug_assert(cb == 0);
+        cheri_debug_assert(source == NULL);
+        cheri_debug_assert(raw_tag == NULL);
+    }
+
     cheri_debug_assert(QEMU_IS_ALIGNED(vaddr, CHERI_CAP_SIZE));
     /*
      * Load otype and perms from memory (might trap on load)
@@ -1604,13 +1621,17 @@ bool load_cap_from_memory_raw_tag_mmu_idx(
     int prot;
     bool tag =
         cheri_tag_get(env, vaddr, cb, physaddr, &prot, retpc, mmu_idx, host);
-    if (raw_tag) {
-        *raw_tag = tag;
+    /* Skip fixups if the caller wants the exact raw capability, see above. */
+    if (!all_raw) {
+        if (raw_tag) {
+            *raw_tag = tag;
+        }
+        tag = cheri_tag_prot_clear_or_trap(env, vaddr, cb, source, prot,
+                                           retpc, tag);
+        if (tag) {
+            squash_mutable_permissions(env, pesbt, source);
+        }
     }
-    tag =
-        cheri_tag_prot_clear_or_trap(env, vaddr, cb, source, prot, retpc, tag);
-    if (tag)
-        squash_mutable_permissions(env, pesbt, source);
 
     env->statcounters_cap_read++;
     if (tag)
@@ -1650,7 +1671,8 @@ bool load_cap_from_memory_raw_tag(CPUArchState *env, target_ulong *pesbt,
 {
     return load_cap_from_memory_raw_tag_mmu_idx(env, pesbt, cursor, cb, source,
                                                 vaddr, retpc, physaddr, raw_tag,
-                                                cpu_mmu_index(env, false));
+                                                cpu_mmu_index(env, false),
+                                                /* all_raw */ false);
 }
 
 bool load_cap_from_memory_raw(CPUArchState *env, target_ulong *pesbt,
