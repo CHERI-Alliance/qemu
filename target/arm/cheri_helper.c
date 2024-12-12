@@ -52,7 +52,7 @@ void helper_load_cap_via_cap_mmu_idx(CPUArchState *env, uint32_t cd,
     target_ulong cursor;
     bool tag = load_cap_from_memory_raw_tag_mmu_idx(
         env, &pesbt, &cursor, cb, cbp, addr, _host_return_address, NULL, NULL,
-        mmu_idx);
+        mmu_idx, /* all_raw */ false);
     update_compressed_capreg(env, cd, pesbt, tag, cursor);
 }
 
