@@ -522,10 +522,14 @@ static void lr_c_impl(CPUArchState *env, uint32_t dest_reg, uint32_t auth_reg,
     } else if (!QEMU_IS_ALIGNED(addr, CHERI_CAP_SIZE)) {
         raise_unaligned_store_exception(env, addr, _host_return_address);
     }
+    bool tag;
     target_ulong pesbt;
     target_ulong cursor;
-    bool tag = load_cap_from_memory_raw(env, &pesbt, &cursor, auth_reg, cbp,
-                                        addr, _host_return_address, NULL);
+
+    /* For the reservation, we need the raw memory content without any fixups
+       (tag clearing, W stripped due to missing LM, ...). */
+    tag = load_raw_cap_from_memory(env, &pesbt, &cursor, addr,
+                                   _host_return_address);
     // If this didn't trap, update the lr state:
     env->load_res = addr;
     env->load_val = cursor;
@@ -535,6 +539,20 @@ static void lr_c_impl(CPUArchState *env, uint32_t dest_reg, uint32_t auth_reg,
     // log_changed_special_reg(env, "load_val", env->load_val);
     // log_changed_special_reg(env, "load_pesbt", env->load_pesbt);
     // log_changed_special_reg(env, "load_tag", (target_ulong)env->load_tag);
+
+    /*
+     * For the memory content that we store in cd, we have to read and apply
+     * the fixups.
+     *
+     * TODO: This is inefficient. We may have to review the format of the
+     * internal reservation.
+     *
+     * TODO: Could load_cap_from_memory_raw return an indication if fixups had
+     * to be applied or not?
+     */
+    tag = load_cap_from_memory_raw(env, &pesbt, &cursor, auth_reg, cbp, addr,
+                                   _host_return_address, NULL);
+
     update_compressed_capreg(env, dest_reg, pesbt, tag, cursor);
 }
 
