@@ -388,6 +388,10 @@ static inline QEMU_ALWAYS_INLINE target_ulong cap_check_common_reg(
     return addr;
 }
 
+bool load_raw_cap_from_memory(CPUArchState *env, target_ulong *pesbt,
+                              target_ulong *cursor,
+                              target_ulong vaddr, uintptr_t retpc);
+
 // Helper for RISCV AMOSWAP
 bool load_cap_from_memory_raw(CPUArchState *env, target_ulong *pesbt,
                               target_ulong *cursor, uint32_t cb,
