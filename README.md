@@ -57,17 +57,33 @@ implementation.
 This is a boolean property. If enabled, QEMU-CHERI runs in purecap mode. By
 default, `Xcheri\_purecap` is off and QEMU-CHERI runs in hybrid mode.
 
+* `cheri_v090`
+
+This is a boolean property. If enabled, QEMU-CHERI runs in a mode compatible
+with the v0.9 version of the CHERI specificaiton. This flag defaults to off
+at present. It includes setting the v0.9 orientation of the m_flip flag as well
+as updated permissions definition and new instructions.
+
+* `cheri_pte`
+
+This is a boolean property which defaults to off. If enabled it will activate
+the ZCheriPTE part of the the Cheri specification. Enabling This extension
+requires PTE entries to include PTE_CW and PTE_CRG configuration, if these are
+not present then attempts to read/write capabilities to virtual addresses will
+generate a page fault.
+
 * `m_flip`
 
 This boolean property also defaults to off. It can be enabled for guest
 software that has not yet been updated to RISC-V CHERI v0.8.3 and needs the
-legacy definition of a capability's M bit.
+legacy definition of a capability's M bit. This flag should be deprecated.
 
 Here's an example for setting the two properties.
 
 ```
-$ qemu-system-riscv64cheri -cpu codasip-a730,Xcheri_purecap=on,m_flip=on \
-   -M virt -nographic -semihosting -bios ./hello
+$ qemu-system-riscv64cheri \ 
+    -cpu codasip-a730,Xcheri_purecap=on,cheri_v090=on,cheri_pte=on \
+    -M virt -nographic -semihosting -bios ./hello
 ```
 
 ## Limitations
