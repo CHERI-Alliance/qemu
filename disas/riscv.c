@@ -616,6 +616,9 @@ typedef enum {
     rv_op_lr_c_cap_ptr,
     rv_op_lr_c_int_ptr,
 
+    rv_op_sc_c_cap_ptr,
+    rv_op_sc_c_int_ptr,
+
     // FP loads/store
     rv_op_cflw,
     rv_op_cfsw,
@@ -744,6 +747,8 @@ static const char rv_freg_name_sym[32][5] = {
 #define rv_fmt_cd_cs2_offs0_rs1       "O\tC0,C2,i(1)"
 #define rv_fmt_cd_offs0_cs1           "O\tC0,i(C1)"
 #define rv_fmt_cd_offs0_rs1           "O\tC0,i(1)"
+#define rv_fmt_rd_cs2_offs0_cs1       "O\t0,C2,i(C1)"
+#define rv_fmt_rd_cs2_offs0_rs1       "O\t0,C2,i(1)"
 #define rv_fmt_cd_cs1                 "O\tC0,C1"
 #define rv_fmt_cd_rs1                 "O\tC0,1"
 #define rv_fmt_rs1_offset             "O\t1,o"
@@ -1440,6 +1445,11 @@ const rv_opcode_data opcode_data[] = {
     [rv_op_lr_c_int_ptr] = { "lr.c", rv_codec_r_l, rv_fmt_cd_offs0_rs1, NULL,
                              0, 0, 0 },
 
+    [rv_op_sc_c_cap_ptr] = { "sc.c", rv_codec_r, rv_fmt_rd_cs2_offs0_cs1,
+                            NULL, 0, 0, 0 },
+    [rv_op_sc_c_int_ptr] = { "sc.c", rv_codec_r, rv_fmt_rd_cs2_offs0_rs1,
+                            NULL, 0, 0, 0 },
+
     // FP load store
     [rv_op_cflw] = { "cflw", rv_codec_i, rv_fmt_frd_offset_cs1, NULL, 0, 0, 0 },
     [rv_op_cfsw] = { "cfsw", rv_codec_s, rv_fmt_frs2_offset_cs1, NULL, 0, 0, 0 },
@@ -2064,7 +2074,14 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa, int flags)
                 break;
             case 26: op = rv_op_sc_w; break;
             case 27: op = rv_op_sc_d; break;
-            case 28: op = rv_op_sc_q; break;
+            case 28:
+                if (flags & RISCV_DIS_FLAG_CHERI) {
+                    op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_sc_c_cap_ptr
+                                                          : rv_op_sc_c_int_ptr;
+                } else {
+                    op = rv_op_sc_q;
+                }
+                break;
             case 34: op = rv_op_amoxor_w; break;
             case 35: op = rv_op_amoxor_d; break;
             case 36: op = rv_op_amoxor_q; break;
