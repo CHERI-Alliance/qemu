@@ -3794,13 +3794,6 @@ FIELD(TBFLAG_A64, TCMA, 16, 2)
 FIELD(TBFLAG_A64, MTE_ACTIVE, 18, 1)
 FIELD(TBFLAG_A64, MTE0_ACTIVE, 19, 1)
 
-extern void aarch_cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
-                                       target_ulong *cs_base,
-                                       target_ulong *cs_top,
-                                       uint32_t *cheri_flags, uint32_t *pflags);
-// Ugly macro hack to avoid having to modify cpu_get_tb_cpu_state in all targets
-#define cpu_get_tb_cpu_state_6 aarch_cpu_get_tb_cpu_state
-
 /*
  * Helpers for using the above.
  */
