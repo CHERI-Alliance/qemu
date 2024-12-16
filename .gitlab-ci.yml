@@ -33,7 +33,7 @@ stages:
 
 default:
     image:
-        name: docker-registry.codasip.com/cheri/qemu:0.1.2
+        name: docker-registry.codasip.com/cheri/qemu_test_env:latest
         entrypoint: [""]
     interruptible: true
     tags:
@@ -92,6 +92,7 @@ build_qemu:
         paths:
             - install/bin/qemu-system-riscv32cheri
             - install/bin/qemu-system-riscv64cheri
+            - install/bin/qemu-system-morello
             - install/bin/qemu-img
         expire_in: 8 hours
 
@@ -146,6 +147,33 @@ test_qemu_standard:
            - build/meson-logs/testlog.junit.xml
         paths:
            - build/meson-logs/testlog.txt
+
+test_morello:
+    stage: test
+    rules:
+        - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+        - if: $CI_PIPELINE_SOURCE == "push"
+    script:
+        - git clone --depth 1
+              https://github.com/rems-project/morello-generated-tests
+              $CI_PROJECT_DIR/morello-generated-tests/
+        - virtualenv venv
+        - source venv/bin/activate
+        - pip install pytest-xdist
+        - pytest tests/morello
+              --morello-tests-dir $CI_PROJECT_DIR/morello-generated-tests/
+              --qemu install/bin/qemu-system-morello
+              --junit-xml=morello-generated-tests.xml |
+              tee morello-generated-tests.log
+    # See the comments above in test_qemu_standard
+    allow_failure: true
+    artifacts:
+        when: always
+        reports:
+           junit:
+           - morello-generated-tests.xml
+        paths:
+           - morello-generated-tests.log
 
 include:
   - template: Jobs/SAST.gitlab-ci.yml
