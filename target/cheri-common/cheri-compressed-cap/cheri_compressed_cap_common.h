@@ -145,9 +145,12 @@ typedef struct _cc_N(cap) _cc_N(cap_t);
 static inline uint8_t _cc_N(get_flags)(const _cc_cap_t* cap);
 static inline uint32_t _cc_N(get_otype)(const _cc_cap_t* cap);
 static inline uint32_t _cc_N(get_perms)(const _cc_cap_t* cap);
+static inline uint16_t _cc_N(get_ap)(const _cc_cap_t* cap);
 static inline uint32_t _cc_N(get_reserved)(const _cc_cap_t* cap);
 static inline uint32_t _cc_N(get_uperms)(const _cc_cap_t* cap);
+static inline uint8_t _cc_N(get_sdp)(const _cc_cap_t* cap);
 static inline uint8_t _cc_N(get_ct)(const _cc_cap_t* cap);
+static inline uint8_t _cc_N(get_cl)(const _cc_cap_t* cap);
 
 // In order to allow vector loads and store from memory we can optionally reverse the first two fields.
 struct _cc_N(cap) {
@@ -184,8 +187,36 @@ struct _cc_N(cap) {
         const _cc_length_t l = length();
         return l > _CC_MAX_ADDR ? _CC_MAX_ADDR : (_cc_addr_t)l;
     }
-    inline uint32_t software_permissions() const { return _cc_N(get_uperms)(this); }
-    inline uint32_t permissions() const { return _cc_N(get_perms)(this); }
+    inline uint32_t software_permissions() const {
+#if _CC_N(FIELD_UPERMS_USED)
+        return _cc_N(get_uperms)(this);
+#else
+        return _cc_N(get_sdp)(this);
+#endif
+    }
+    inline uint32_t permissions() const {
+#if _CC_N(FIELD_HWPERMS_USED)
+        return _cc_N(get_perms)(this);
+#else
+        /*
+         * This assumes that the capability is "decompressed", i.e.
+         * cr_arch_perm is in sync with the encoded AP field.
+         * (We can't change a struct member in a const function.)
+         *
+         * It seems that applications create capabilities via
+         * _cc_N(make_max_perms_cap), _cc_N(make_null_derived_cap) or
+         * _cc_N(decompress_mem). In thoses cases, we should be ok.
+         */
+        return cr_arch_perm;
+#endif
+    }
+    inline uint8_t global() const {
+#if _CC_N(FIELD_CL_USED)
+        return _cc_N(get_cl)(this);
+#else
+        return (permissions() & _CC_N(PERM_GLOBAL)) != 0;
+#endif
+    }
     inline uint32_t type() const { return _cc_N(get_otype)(this); }
     inline bool is_sealed() const {
 #if _CC_N(FIELD_OTYPE_USED) == 1
@@ -1366,7 +1397,7 @@ static inline _cc_cap_t _cc_N(make_max_perms_cap_m_lv)(_cc_addr_t base, _cc_addr
     creg.cr_pesbt |= _CC_ENCODE_FIELD(lvbits, CL);
     creg.cr_arch_perm = CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X | CAP_AP_ASR | CAP_AP_LM;
     if (lvbits > 0) {
-        creg.cr_arch_perm = CAP_AP_EL | CAP_AP_SL;
+        creg.cr_arch_perm |= CAP_AP_EL | CAP_AP_SL;
     }
     _cc_N(m_ap_compress)(&creg);
     return creg;
