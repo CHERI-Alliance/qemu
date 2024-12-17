@@ -61,7 +61,7 @@ default, `Xcheri_purecap` is off and QEMU-CHERI runs in hybrid mode.
 
 This is a boolean property. If enabled, QEMU-CHERI runs in a mode compatible
 with the v0.9 version of the CHERI specificaiton. This flag defaults to off
-at present. It includes setting the v0.9 orientation of the m_flip flag as well
+at present. It includes setting the v0.9 orientation of the M bit as well
 as updated permissions definition and new instructions.
 
 * `cheri_pte`
@@ -71,12 +71,6 @@ the ZCheriPTE part of the the Cheri specification. Enabling this extension
 requires PTE entries to include PTE_CW and PTE_CRG configuration, if these are
 not present then attempts to read/write capabilities to virtual addresses will
 generate a page fault.
-
-* `m_flip`
-
-This boolean property also defaults to off. It can be enabled for guest
-software that has not yet been updated to RISC-V CHERI v0.8.3 and needs the
-legacy definition of a capability's M bit. This flag should be deprecated.
 
 Here's an example for setting the properties.
 
