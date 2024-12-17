@@ -7,7 +7,7 @@ University](https://github.com/CTSRD-CHERI/qemu).
 
 QEMU-CHERI supports system emulation of RISC-V 32 and 64-bit machines. It
 implements the [RISC-V CHERI specification
-v0.8.3](https://github.com/riscv/riscv-cheri/releases/tag/v0.8.3-prerelease).
+v0.9.1](https://github.com/riscv/riscv-cheri/releases/tag/v0.9.1-prelease).
 
 ## Building
 
