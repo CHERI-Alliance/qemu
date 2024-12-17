@@ -82,6 +82,8 @@ $ qemu-system-riscv64cheri \
 
 ## Limitations
 
+At the moment, the Zcherilevels extension (local/global) is not supported.
+
 The code contains a CHERI implementation for the mips platform that has not
 been tested.
 
