@@ -540,7 +540,9 @@ typedef enum {
     rv_op_csw,
     rv_op_csd,
 
-    rv_op_modesw,
+    rv_op_modesw_cap,
+    rv_op_modesw_int,
+
     // Two operand
     rv_op_cram,
 
@@ -1304,7 +1306,12 @@ const rv_opcode_data opcode_data[] = {
     [rv_op_clc] = { "clc", rv_codec_i, rv_fmt_cd_offset_cs1, NULL, 0, 0, 0 },
     [rv_op_sc] = { "sc", rv_codec_s, rv_fmt_cs2_offset_rs1, NULL, 0, 0, 0 },
     [rv_op_csc] = { "csc", rv_codec_s, rv_fmt_cs2_offset_cs1, NULL, 0, 0, 0 },
-    [rv_op_modesw] = { "modesw", rv_codec_none, rv_fmt_none, NULL, 0, 0, 0 },
+
+    [rv_op_modesw_cap] = { "modesw.cap", rv_codec_none, rv_fmt_none, NULL, 0,
+                           0, 0 },
+    [rv_op_modesw_int] = { "modesw.int", rv_codec_none, rv_fmt_none, NULL, 0,
+                           0, 0 },
+
     // Two operand
     [rv_op_cram] = { "cram", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0, 0 },
 
@@ -1982,7 +1989,8 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa, int flags)
                 case 0b01000: op = rv_op_sentry; break;
                 }
                 break;
-            case 73:  op = rv_op_modesw; break;
+            case 73:  op = rv_op_modesw_cap; break;
+            case 81:  op = rv_op_modesw_int; break;
             case 130: op = rv_op_sh1add; break;
             case 132: op = rv_op_sh2add; break;
             case 134: op = rv_op_sh3add; break;
