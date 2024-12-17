@@ -82,7 +82,7 @@ $ qemu-system-riscv64cheri \
 
 ## Limitations
 
-The code contains CHERI implementations for mips and morello platforms that
-have not been tested.
+The code contains a CHERI implementation for the mips platform that has not
+been tested.
 
 QEMU's userspace emulation does not support CHERI yet.
