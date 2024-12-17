@@ -60,7 +60,7 @@ default, `Xcheri_purecap` is off and QEMU-CHERI runs in hybrid mode.
 * `cheri_v090`
 
 This is a boolean property. If enabled, QEMU-CHERI runs in a mode compatible
-with the v0.9 version of the CHERI specificaiton. This flag defaults to on.
+with the v0.9 version of the CHERI specification. This flag defaults to on.
 It includes setting the v0.9 orientation of the M bit as well as updated
 permissions definition and new instructions.
 
