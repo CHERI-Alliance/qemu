@@ -216,7 +216,7 @@ static void hobgoblin_add_soc(HobgoblinState *s, const int smp_cpus)
                             TYPE_RISCV_HART_ARRAY);
 
     object_property_set_str(OBJECT(&s->soc), "cpu-type",
-                            TYPE_RISCV_CPU_CODASIP_A730, &error_abort);
+                            machine->cpu_type, &error_abort);
 
     object_property_set_int(OBJECT(&s->soc), "num-harts",
                             smp_cpus, &error_abort);
