@@ -1019,7 +1019,7 @@ void CHERI_HELPER_IMPL(acperm(CPUArchState *env, uint32_t cd, uint32_t cs1,
      *
      * This caused failures in the RV32 newlib testsuite. If the input
      * capability has AP bits set that we don't understand, we must not clear
-     * those bits implicitly or we might end up with an set permissions that
+     * those bits implicitly or we might end up with a set of permissions that
      * CAP_cc(m_ap_compress) considers as invalid.
      */
 
