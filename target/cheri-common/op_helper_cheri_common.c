@@ -1397,9 +1397,12 @@ static void update_loaded_cap_perms(CPUArchState *env, target_ulong *pesbt,
     target_ulong perms = original_perms;
     if (!cap_has_perms(source, CAP_PERM_MUTABLE_LOAD)) {
         /*
-         * The spec says "Capabilities that are sealed or untagged do not have
-         * their permissions changed."
+         * The spec says about permission updates triggered by LM:
+         * "Capabilities that are sealed or untagged do not have their
+         * permissions changed."
          * The tag has already been checked by the caller.
+         *
+         * cap_is_unsealed does not require tmp to be decompressed.
          */
         if (cap_is_unsealed(&tmp)) {
             qemu_maybe_log_instr_extra(env, "Squashing mutable load perms\n");
