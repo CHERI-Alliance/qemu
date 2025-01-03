@@ -142,14 +142,14 @@ static Property cmu_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static void cmu_instance_init(Object *obj)
+static void cmu_realize(DeviceState *dev, Error **errp)
 {
-    CMUDeviceState *s = CMU_DEVICE(obj);
+    CMUDeviceState *s = CMU_DEVICE(dev);
 
     /* allocate memory map region */
-    memory_region_init_io(&s->iomem, obj, &cmu_ops, s, TYPE_CMU_DEVICE,
+    memory_region_init_io(&s->iomem, OBJECT(dev), &cmu_ops, s, TYPE_CMU_DEVICE,
                           CMU_REGION_SIZE);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->iomem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
     s->regs[0] = CMU_FT_DEFAULT;
 }
 
@@ -158,6 +158,7 @@ static void cmu_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
     CMUClass *c = CMU_DEVICE_CLASS(oc);
 
+    dc->realize = cmu_realize;
     device_class_set_props(dc, cmu_properties);
 
 #ifdef TARGET_CHERI
@@ -171,7 +172,6 @@ static const TypeInfo cmu_device_info = {
     .name = TYPE_CMU_DEVICE,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(CMUDeviceState),
-    .instance_init = cmu_instance_init,
     .class_init = cmu_class_init,
 };
 
