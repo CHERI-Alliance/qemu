@@ -285,9 +285,17 @@ static inline bool cap_is_local(CPUArchState *env, uint32_t cs)
            !(get_capreg_hwperms(env, cs) & CAP_PERM_GLOBAL);
 }
 
-static inline uint32_t perms_for_load(void) { return CAP_PERM_LOAD; }
+/*
+ * min_perms_for_load/store return the minimum mandatory permissions. They are
+ * checked up front. If one of them is missing, the load/store instruction
+ * throws an exception.
+ * (There are other permissions that result in the loaded/stored capability
+ * being modified. They are checked when the instruction is executed.)
+ */
 
-static inline uint32_t perms_for_store(CPUArchState *env, uint32_t cs)
+static inline uint32_t min_perms_for_load(void) { return CAP_PERM_LOAD; }
+
+static inline uint32_t min_perms_for_store(CPUArchState *env, uint32_t cs)
 {
     uint32_t perms = CAP_PERM_STORE;
 #ifndef TARGET_RISCV
@@ -303,7 +311,7 @@ typedef void QEMU_NORETURN (*unaligned_memaccess_handler)(CPUArchState *env,
                                                           target_ulong addr,
                                                           uintptr_t retpc);
 /* Do all the permission and bounds checks for loads/stores on cbp.
- * Use perms_for_load() and perms_for_store() for required_perms.
+ * Use min_perms_for_load() and min_perms_for_store() for required_perms.
  *
  * Note: This is marked as QEMU_ALWAYS_INLINE since profiling indicates that
  * it has a large impact on overall QEMU speed (since it is called for every
