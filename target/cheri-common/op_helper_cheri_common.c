@@ -1536,12 +1536,10 @@ static void squash_mutable_permissions(CPUArchState *env, target_ulong *pesbt,
         /*
          * Create a temporary capability for checking and updating permissions,
          * its address is not used.
-         * All capabilities in the system use the same number of lvbits, we
-         * can copy the value from any other capability.
          */
         cap_register_t tmp;
         memset(&tmp, 0x0, sizeof(tmp));
-        tmp.cr_lvbits = source->cr_lvbits;
+        tmp.cr_lvbits = cpu->cfg.lvbits;
         tmp.cr_pesbt = *pesbt;
 
         /*
@@ -1655,8 +1653,12 @@ bool load_cap_from_memory_raw_tag_mmu_idx(
          * again in logging implementation. Passing pesbt + cursor would
          * assume a 128-bit format and be less generic?
          */
+        uint8_t lvbits = 0;
+#ifdef TARGET_RISCV
+        lvbits = env_archcpu(env)->cfg.lvbits;
+#endif
         cap_register_t ncd;
-        CAP_cc(decompress_raw)(*pesbt, *cursor, tag, &ncd);
+        CAP_cc(decompress_raw__)(*pesbt, *cursor, tag, lvbits, &ncd);
         qemu_log_instr_ld_cap(env, vaddr, &ncd);
     }
 #endif
@@ -1702,7 +1704,11 @@ cap_register_t load_and_decompress_cap_from_memory_raw(
     bool tag = load_cap_from_memory_raw(env, &pesbt, &cursor, cb, source, vaddr,
                                         retpc, physaddr);
     cap_register_t result;
-    CAP_cc(decompress_raw)(pesbt, cursor, tag, &result);
+    uint8_t lvbits = 0;
+#if defined(TARGET_RISCV)
+    lvbits = env_archcpu(env)->cfg.lvbits;
+#endif
+    CAP_cc(decompress_raw__)(pesbt, cursor, tag, lvbits, &result);
     result.cr_extra = CREG_FULLY_DECOMPRESSED;
     return result;
 }

@@ -652,8 +652,11 @@ static inline cap_register_t *cap_mark_unrepresentable(target_ulong addr,
     /*
      * Recompute the decompressed bounds relative to the new address. In most
      * cases they will refer to a different region of memory now.
+     *
+     * Keep the number of level bits from the input capability. Reading it
+     * from the cpu configuration would need lots of refactoring.
      */
-    CAP_cc(decompress_raw)(cr->cr_pesbt, addr, false, cr);
+    CAP_cc(decompress_raw__)(cr->cr_pesbt, addr, false, cr->cr_lvbits, cr);
     cr->cr_extra = CREG_FULLY_DECOMPRESSED;
     return cr;
 }
@@ -665,16 +668,17 @@ static inline cap_register_t *cap_mark_unrepresentable(target_ulong addr,
 static inline void set_max_perms_capability(__attribute__((unused)) CPUArchState *env,
         cap_register_t *crp, target_ulong cursor)
 {
+    uint8_t lvbits = 0;
     bool m = false;
-
 #if defined(TARGET_RISCV)
+    lvbits = env_archcpu(env)->cfg.lvbits;
     /*
      * If hybrid mode is supported, the infinite capability has to set integer
      * pointer mode (M = 1).
      */
     m = riscv_feature(env, RISCV_FEATURE_CHERI_HYBRID);
 #endif
-    *crp = CAP_cc(make_max_perms_cap_m_lv)(0, cursor, CAP_MAX_TOP, m, 0);
+    *crp = CAP_cc(make_max_perms_cap_m_lv)(0, cursor, CAP_MAX_TOP, m, lvbits);
     crp->cr_extra = CREG_FULLY_DECOMPRESSED;
 }
 
