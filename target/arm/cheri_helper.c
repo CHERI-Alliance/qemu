@@ -44,7 +44,7 @@ void helper_load_cap_via_cap_mmu_idx(CPUArchState *env, uint32_t cd,
     GET_HOST_RETPC();
     const cap_register_t *cbp = get_capreg_or_special(env, cb);
 
-    cap_check_common_reg(perms_for_load(), env, cb, addr, CHERI_CAP_SIZE,
+    cap_check_common_reg(min_perms_for_load(), env, cb, addr, CHERI_CAP_SIZE,
                          _host_return_address, cbp, CHERI_CAP_SIZE,
                          raise_unaligned_load_exception);
 
@@ -64,7 +64,7 @@ void helper_store_cap_via_cap_mmu_idx(CPUArchState *env, uint32_t cd,
 
     const cap_register_t *cbp = get_capreg_or_special(env, cb);
 
-    cap_check_common_reg(perms_for_store(env, cd), env, cb, addr,
+    cap_check_common_reg(min_perms_for_store(env, cd), env, cb, addr,
                          CHERI_CAP_SIZE, _host_return_address, cbp,
                          CHERI_CAP_SIZE, raise_unaligned_store_exception);
 
@@ -78,7 +78,7 @@ void helper_load_cap_pair_via_cap(CPUArchState *env, uint32_t cd, uint32_t cd2,
 
     const cap_register_t *cbp = get_capreg_or_special(env, cb);
 
-    cap_check_common_reg(perms_for_load(), env, cb, addr, CHERI_CAP_SIZE * 2,
+    cap_check_common_reg(min_perms_for_load(), env, cb, addr, CHERI_CAP_SIZE * 2,
                          _host_return_address, cbp, CHERI_CAP_SIZE,
                          raise_unaligned_load_exception);
 
@@ -102,11 +102,11 @@ void helper_store_cap_pair_via_cap(CPUArchState *env, uint32_t cd, uint32_t cd2,
 
     const cap_register_t *cbp = get_capreg_or_special(env, cb);
 
-    cap_check_common_reg(perms_for_store(env, cd), env, cb, addr,
+    cap_check_common_reg(min_perms_for_store(env, cd), env, cb, addr,
                          CHERI_CAP_SIZE, _host_return_address, cbp,
                          CHERI_CAP_SIZE, raise_unaligned_store_exception);
     store_cap_to_memory(env, cd, cb, addr, _host_return_address);
-    cap_check_common_reg(perms_for_store(env, cd2), env, cb,
+    cap_check_common_reg(min_perms_for_store(env, cd2), env, cb,
                          addr + CHERI_CAP_SIZE, CHERI_CAP_SIZE,
                          _host_return_address, cbp, CHERI_CAP_SIZE,
                          raise_unaligned_store_exception);
@@ -126,7 +126,7 @@ void helper_load_exclusive_cap_via_cap(CPUArchState *env, uint32_t cd,
 
     // Exclusives must be aligned to the entire size of the operation, not just
     // one of the elements
-    cap_check_common_reg(perms_for_load(), env, cb, addr, size,
+    cap_check_common_reg(min_perms_for_load(), env, cb, addr, size,
                          _host_return_address, cbp, size,
                          raise_unaligned_load_exception);
 
@@ -163,11 +163,11 @@ void helper_store_exclusive_cap_via_cap(CPUArchState *env, uint32_t rs,
     // requirement if storing two caps, then do the check manually.
     uint32_t size_align = (cd2 == REG_NONE) ? CHERI_CAP_SIZE : 0;
 
-    cap_check_common_reg(perms_for_store(env, cd), env, cb, addr,
+    cap_check_common_reg(min_perms_for_store(env, cd), env, cb, addr,
                          CHERI_CAP_SIZE, _host_return_address, &cbp, size_align,
                          raise_unaligned_store_exception);
     if (cd2 != REG_NONE) {
-        cap_check_common_reg(perms_for_store(env, cd2), env, cb,
+        cap_check_common_reg(min_perms_for_store(env, cd2), env, cb,
                              addr + CHERI_CAP_SIZE, CHERI_CAP_SIZE,
                              _host_return_address, &cbp, 0,
                              raise_unaligned_store_exception);
@@ -226,7 +226,7 @@ static void swap_cap_via_cap_impl(CPUArchState *env, uint32_t cd, uint32_t cs,
 
     const cap_register_t *cbp = get_capreg_or_special(env, cb);
 
-    uint32_t perms = perms_for_store(env, cd) | perms_for_load();
+    uint32_t perms = min_perms_for_store(env, cd) | min_perms_for_load();
 
     // Capability checks for both the load and store
     // Note: For Morello, RMW ops raise unaligned load exceptions.
@@ -311,7 +311,7 @@ void helper_load_pair_and_branch_and_link(CPUArchState *env, uint32_t cn,
         cap_unseal_reserved_otype(&base);
     }
 
-    cap_check_common_reg(perms_for_load(), env, cn, addr, CHERI_CAP_SIZE * 2,
+    cap_check_common_reg(min_perms_for_load(), env, cn, addr, CHERI_CAP_SIZE * 2,
                          _host_return_address, &base, CHERI_CAP_SIZE,
                          raise_unaligned_load_exception);
 
@@ -341,7 +341,7 @@ void helper_load_and_branch_and_link(CPUArchState *env, uint32_t cn,
 
     uint64_t addr = base._cr_cursor + (int64_t)(int32_t)im;
 
-    cap_check_common_reg(perms_for_load(), env, cn, addr, CHERI_CAP_SIZE,
+    cap_check_common_reg(min_perms_for_load(), env, cn, addr, CHERI_CAP_SIZE,
                          _host_return_address, &base, CHERI_CAP_SIZE,
                          raise_unaligned_load_exception);
 
@@ -387,7 +387,7 @@ uint64_t helper_load_tags(CPUArchState *env, uint32_t cn, target_ulong addr)
 
     cap_register_t base = *get_capreg_or_special(env, cn);
 
-    cap_check_common_reg(perms_for_load(), env, cn, addr, MORELLO_TAGS_OPS_SIZE,
+    cap_check_common_reg(min_perms_for_load(), env, cn, addr, MORELLO_TAGS_OPS_SIZE,
                          _host_return_address, &base, MORELLO_TAGS_OPS_SIZE,
                          raise_unaligned_load_exception);
 
