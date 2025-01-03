@@ -46,7 +46,7 @@
      CMU_FT_LOG2AFTSZ | CMU_FT_LOG2LMW_BYTE | CMU_FT_LOG2LMSZ_KBYTE |          \
      CMU_FT_LOG2TCLSZ_BYTE | CMU_FT_PASZ_BYTE)
 
-#define TYPE_CMU_DEVICE "riscv.cmu"
+#define TYPE_CMU_DEVICE "riscv-cmu"
 #define CMU_REGION_SIZE (1024 * 64)
 #define CMU_REGS_SIZE (0x2b0) // Only support the registers not memory windows
 
