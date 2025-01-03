@@ -38,13 +38,12 @@
 #define CMU_FT_LOG2AFTSZ      (0x3l << 28)  // log2(8)
 #define CMU_FT_LOG2LMW_BYTE   (0x2l << 31)  // log2(4)
 #define CMU_FT_LOG2LMSZ_KBYTE (0x8l << 34)  // log2(256)
-#define CMU_FT_LOG2TCLSZ_BYTE (0x6l << 38)  // log2(512) - 3
 #define CMU_FT_PASZ_BYTE      (0x28l << 42) // 40
-#define CMU_FT_DEFAULT                                                         \
+#define CMU_FT_CONST_DEFAULT                                                   \
     (CMU_MINOR_VN | CMU_MAJOR_VN | CMU_PERIP_ID | CMU_FT_TS | CMU_FT_TC |      \
      CMU_FT_TG | CMU_FT_HPM | CMU_FT_RAS | CMU_FT_CLEN128 | CMU_FT_AFG |       \
      CMU_FT_LOG2AFTSZ | CMU_FT_LOG2LMW_BYTE | CMU_FT_LOG2LMSZ_KBYTE |          \
-     CMU_FT_LOG2TCLSZ_BYTE | CMU_FT_PASZ_BYTE)
+     CMU_FT_PASZ_BYTE)
 
 #define TYPE_CMU_DEVICE "riscv-cmu"
 #define CMU_REGION_SIZE (1024 * 64)
@@ -77,6 +76,7 @@ struct CMUDeviceState {
     MemoryRegion *managed;
     hwaddr base;
     hwaddr size;
+    uint16_t cache_line_size;
     uint64_t regs[(CMU_REGS_SIZE) / sizeof(uint64_t)];
 };
 
