@@ -122,10 +122,15 @@ set_capreg_state(GPCapRegs *gpcrs, unsigned regnum, CapRegState new_state)
 static inline const cap_register_t *
 _update_from_compressed(GPCapRegs *gpcrs, unsigned regnum, bool tag)
 {
+    uint8_t lvbits = 0;
+#ifdef TARGET_CHERI_RISCV_STD
+    CPUArchState *env = container_of(gpcrs, CPUArchState, gpcapregs);
+    lvbits = env_archcpu(env)->cfg.lvbits;
+#endif
     // Note: The _cr_cusor field is always valid. All others are lazy.
-    CAP_cc(decompress_raw)(get_cap_in_gpregs(gpcrs, regnum)->cr_pesbt,
-                           get_cap_in_gpregs(gpcrs, regnum)->_cr_cursor, tag,
-                           get_cap_in_gpregs(gpcrs, regnum));
+    CAP_cc(decompress_raw_ext)(get_cap_in_gpregs(gpcrs, regnum)->cr_pesbt,
+                               get_cap_in_gpregs(gpcrs, regnum)->_cr_cursor,
+                               tag, lvbits, get_cap_in_gpregs(gpcrs, regnum));
     set_capreg_state(gpcrs, regnum, CREG_FULLY_DECOMPRESSED);
     return get_cap_in_gpregs(gpcrs, regnum);
 }

@@ -334,8 +334,14 @@ static inline void assert_valid_jump_target(const cap_register_t *target)
 
 static inline cap_register_t *null_capability(cap_register_t *cp)
 {
-    *cp = CAP_cc(make_null_derived_cap(0));
+    uint8_t lvbits = CAP_CC(MANDATORY_LEVEL_BITS);
+#ifdef TARGET_CHERI_RISCV_STD
+    /* Keep the number of level bits from the input capability. */
+    lvbits = cr->cr_lvbits;
+#endif
+    *cp = CAP_cc(make_null_derived_cap_ext)(0, lvbits);
     cp->cr_extra = CREG_FULLY_DECOMPRESSED;
+
     return cp;
 }
 
@@ -388,8 +394,15 @@ static inline cap_register_t *cap_mark_unrepresentable(target_ulong addr,
     /*
      * Recompute the decompressed bounds relative to the new address. In most
      * cases they will refer to a different region of memory now.
+     *
+     * Keep the number of level bits from the input capability. Reading it
+     * from the cpu configuration would need lots of refactoring.
      */
-    CAP_cc(decompress_raw)(cr->cr_pesbt, addr, false, cr);
+    uint8_t lvbits = CAP_CC(MANDATORY_LEVEL_BITS);
+#ifdef TARGET_CHERI_RISCV_STD
+    lvbits = cr->cr_lvbits;
+#endif
+    CAP_cc(decompress_raw_ext)(cr->cr_pesbt, addr, false, lvbits, cr);
     cr->cr_extra = CREG_FULLY_DECOMPRESSED;
     return cr;
 }
@@ -410,7 +423,8 @@ static inline void set_max_perms_capability(G_GNUC_UNUSED CPUArchState *env,
     CAP_CC(Mode) m = riscv_feature(env, RISCV_FEATURE_CHERI_HYBRID)
                          ? CAP_CC(MODE_INT)
                          : CAP_CC(MODE_CAP);
-    *crp = CAP_cc(make_max_perms_cap_ext)(0, cursor, CAP_MAX_TOP, m, 0);
+    uint8_t lvbits = env_archcpu(env)->cfg.lvbits;
+    *crp = CAP_cc(make_max_perms_cap_ext)(0, cursor, CAP_MAX_TOP, m, lvbits);
 #else
     *crp = CAP_cc(make_max_perms_cap)(0, cursor, CAP_MAX_TOP);
 

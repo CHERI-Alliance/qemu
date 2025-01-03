@@ -1464,8 +1464,12 @@ bool load_cap_from_memory_raw_tag_mmu_idx(
          * again in logging implementation. Passing pesbt + cursor would
          * assume a 128-bit format and be less generic?
          */
+        uint8_t lvbits = 0;
+#ifdef TARGET_CHERI_RISCV_STD
+        lvbits = env_archcpu(env)->cfg.lvbits;
+#endif
         cap_register_t ncd;
-        CAP_cc(decompress_raw)(*pesbt, *cursor, tag, &ncd);
+        CAP_cc(decompress_raw_ext)(*pesbt, *cursor, tag, lvbits, &ncd);
         qemu_log_instr_ld_cap(env, vaddr, &ncd);
     }
 #endif
@@ -1511,7 +1515,11 @@ cap_register_t load_and_decompress_cap_from_memory_raw(
     bool tag = load_cap_from_memory_raw(env, &pesbt, &cursor, cb, source, vaddr,
                                         retpc, physaddr);
     cap_register_t result;
-    CAP_cc(decompress_raw)(pesbt, cursor, tag, &result);
+    uint8_t lvbits = 0;
+#ifdef TARGET_CHERI_RISCV_STD
+    lvbits = env_archcpu(env)->cfg.lvbits;
+#endif
+    CAP_cc(decompress_raw_ext)(pesbt, cursor, tag, lvbits, &result);
     result.cr_extra = CREG_FULLY_DECOMPRESSED;
     return result;
 }
