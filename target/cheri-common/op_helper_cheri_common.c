@@ -1286,7 +1286,7 @@ void CHERI_HELPER_IMPL(load_cap_via_cap(CPUArchState *env, uint32_t dstreg,
     const cap_register_t *cbp = get_capreg_or_special(env, authreg);
 
     const target_ulong checked_addr =
-        cap_check_common_reg(perms_for_load(), env, authreg, addr,
+        cap_check_common_reg(min_perms_for_load(), env, authreg, addr,
                              CHERI_CAP_SIZE, _host_return_address, cbp,
                              CHERI_CAP_SIZE, raise_unaligned_load_exception);
 
@@ -1300,7 +1300,7 @@ void CHERI_HELPER_IMPL(load_cap_via_ddc(CPUArchState *env, uint32_t dstreg,
     GET_HOST_RETPC();
     const cap_register_t *ddc = cheri_get_ddc(env);
     const target_ulong checked_addr =
-        cap_check_common_reg(perms_for_load(), env, CHERI_EXC_REGNUM_DDC,
+        cap_check_common_reg(min_perms_for_load(), env, CHERI_EXC_REGNUM_DDC,
                              cheri_ddc_relative_addr(env, intaddr),
                              CHERI_CAP_SIZE, _host_return_address, ddc,
                              CHERI_CAP_SIZE, raise_unaligned_load_exception);
@@ -1315,8 +1315,8 @@ void CHERI_HELPER_IMPL(store_cap_via_cap(CPUArchState *env, uint32_t valreg,
     const cap_register_t *cbp = get_capreg_or_special(env, authreg);
 
     const target_ulong checked_addr =
-        cap_check_common_reg(perms_for_store(env, valreg), env, authreg, addr,
-                             CHERI_CAP_SIZE, _host_return_address, cbp,
+        cap_check_common_reg(min_perms_for_store(env, valreg), env, authreg,
+                             addr, CHERI_CAP_SIZE, _host_return_address, cbp,
                              CHERI_CAP_SIZE, raise_unaligned_store_exception);
 
     store_cap_to_memory(env, valreg, authreg, checked_addr,
@@ -1328,7 +1328,7 @@ void CHERI_HELPER_IMPL(store_cap_via_ddc(CPUArchState *env, uint32_t valreg,
 {
     GET_HOST_RETPC();
     const target_ulong checked_addr = cap_check_common_reg(
-        perms_for_store(env, valreg), env, CHERI_EXC_REGNUM_DDC,
+        min_perms_for_store(env, valreg), env, CHERI_EXC_REGNUM_DDC,
         cheri_ddc_relative_addr(env, intaddr), CHERI_CAP_SIZE,
         _host_return_address, cheri_get_ddc(env), CHERI_CAP_SIZE,
         raise_unaligned_store_exception);
