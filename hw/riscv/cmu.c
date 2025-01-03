@@ -18,6 +18,7 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <math.h>
 #include "qemu/osdep.h"
 #include "hw/riscv/cmu.h"
 #include "qemu/osdep.h"
@@ -137,6 +138,7 @@ static const MemoryRegionOps cmu_ops = {
 static Property cmu_properties[] = {
     DEFINE_PROP_UINT64("ram-base", CMUDeviceState, base, 0),
     DEFINE_PROP_UINT64("ram-size", CMUDeviceState, size, 0),
+    DEFINE_PROP_UINT16("cache-line-size", CMUDeviceState, cache_line_size, 512),
     DEFINE_PROP_LINK("managed-ram", CMUDeviceState, managed,
             TYPE_MEMORY_REGION, MemoryRegion *),
     DEFINE_PROP_END_OF_LIST(),
@@ -145,12 +147,21 @@ static Property cmu_properties[] = {
 static void cmu_realize(DeviceState *dev, Error **errp)
 {
     CMUDeviceState *s = CMU_DEVICE(dev);
+    uint64_t cl_log2;
 
     /* allocate memory map region */
     memory_region_init_io(&s->iomem, OBJECT(dev), &cmu_ops, s, TYPE_CMU_DEVICE,
                           CMU_REGION_SIZE);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
-    s->regs[0] = CMU_FT_DEFAULT;
+
+    s->regs[0] = CMU_FT_CONST_DEFAULT;
+
+    cl_log2 = (uint64_t)round(log2(s->cache_line_size));
+    if (cl_log2 < 3) {
+        error_setg(errp, "invalid cache line size");
+        return;
+    }
+    s->regs[0] |= ((cl_log2 - 3) << 38);
 }
 
 static void cmu_class_init(ObjectClass *oc, void *data)
