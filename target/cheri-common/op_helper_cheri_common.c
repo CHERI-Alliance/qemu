@@ -1536,39 +1536,52 @@ static void squash_mutable_permissions(CPUArchState *env, target_ulong *pesbt,
     }
 #elif CHERI_FMT_RISCV
     RISCVCPU *cpu = env_archcpu(env);
+    /*
+     * temporary capability for checking and updating permissions, its address
+     * is not used, cr_arch_perm will be decompressed only if permissions must
+     * be modified.
+     */
+    cap_register_t tmp;
+    bool tmp_decompressed = false;
 
     /*
-     * An explicit version check here makes backward compatibility much
-     * simpler. We can now set/clear LM anywhere for cheri < v0.9.0 without
-     * running into problems here.
+     * Internally, we're using the full permission set for capabilities,
+     * regardless of the risc-v cheri version.
+     * An explicit version check here makes it much easier to deal with
+     * permissions that exist in the capability format but not in the
+     * instruction handling.
      */
-    if(cpu->cfg.cheri_v090 && !(source->cr_arch_perm & CAP_AP_LM)) {
-        /*
-         * Create a temporary capability for checking and updating permissions,
-         * its address is not used.
-         */
-        cap_register_t tmp;
-        memset(&tmp, 0x0, sizeof(tmp));
-        tmp.cr_lvbits = cpu->cfg.lvbits;
-        tmp.cr_pesbt = *pesbt;
+    if(!cpu->cfg.cheri_v090)
+        return;
 
+    memset(&tmp, 0x0, sizeof(tmp));
+    tmp.cr_lvbits = cpu->cfg.lvbits;
+    tmp.cr_pesbt = *pesbt;
+
+    if (!(source->cr_arch_perm & CAP_AP_LM)) {
         /*
-         * The spec says "Capabilities that are sealed or untagged do not have
-         * their permissions changed."
+         * The spec says about permission updates triggered by LM:
+         * "Capabilities that are sealed or untagged do not have their
+         * permissions changed."
          * The tag has already been checked by the caller.
+         *
+         * cap_is_unsealed does not require tmp to be decompressed.
          */
-        if (!cap_is_unsealed(&tmp)) {
-            return;
+        if (cap_is_unsealed(&tmp)) {
+            if (!tmp_decompressed) {
+                CAP_cc(m_ap_decompress)(&tmp);
+                tmp_decompressed = true;
+            }
+            tmp.cr_arch_perm &= ~(CAP_AP_LM | CAP_AP_W);
         }
+    }
 
-        CAP_cc(m_ap_decompress)(&tmp);
-        tmp.cr_arch_perm &= ~(CAP_AP_LM | CAP_AP_W);
-        /* Update the modified set to be in line with the acperm rules again. */
+    if (tmp_decompressed) {
+        /* Update the modified set to be in line with acperm rules. */
         fix_up_m_ap(env, &tmp);
         CAP_cc(m_ap_compress)(&tmp);
-
-        *pesbt = tmp.cr_pesbt;
     }
+    *pesbt = tmp.cr_pesbt;
 #endif
 }
 
