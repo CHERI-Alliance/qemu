@@ -1623,6 +1623,7 @@ void store_cap_to_memory_mmu_index(CPUArchState *env, uint32_t cs,
 #endif
     bool tag = get_capreg_tag_filtered(env, cs);
 #if defined(TARGET_CHERI_RISCV_STD)
+    RISCVCPU *cpu = env_archcpu(env);
     const cap_register_t *cbp = get_capreg_or_special(env, cb);
     /*
      * For risc-v cheri, we have to store the capability with its tag cleared
@@ -1632,6 +1633,15 @@ void store_cap_to_memory_mmu_index(CPUArchState *env, uint32_t cs,
     if (!cap_has_perms(cbp, CAP_PERM_STORE_CAP)) {
         tag = false;
     }
+
+    /* If lvbits == 0, the format still has SL, but it's always 0 (reserved). */
+    if ((cpu->cfg.lvbits > 0) && !cap_has_perms(cbp, CAP_PERM_STORE_LOCAL)) {
+        const cap_register_t *csp = get_capreg_or_special(env, cs);
+        if (!cap_has_perms(csp, CAP_PERM_GLOBAL)) {
+            tag = false;
+        }
+    }
+
 #endif
     if (cs == NULL_CAPREG_INDEX) {
         tcg_debug_assert(pesbt_for_mem == 0 && "Wrong value for cnull?");
