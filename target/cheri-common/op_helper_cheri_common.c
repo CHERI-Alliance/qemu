@@ -2020,10 +2020,12 @@ target_ulong CHERI_HELPER_IMPL(gcperm(CPUArchState *env, uint32_t cb))
     uint32_t ap_bits = 0;
     uint8_t mask_sdp_shift;
     bool cheri_v090 = true;
+    uint8_t lvbits = 0;
 #ifdef TARGET_RISCV
     RISCVCPU *cpu = env_archcpu(env);
 
     cheri_v090 = cpu->cfg.cheri_v090;
+    lvbits = cpu->cfg.lvbits;
 #endif
 
     /*
@@ -2042,7 +2044,15 @@ target_ulong CHERI_HELPER_IMPL(gcperm(CPUArchState *env, uint32_t cb))
     if (cheri_v090) {
         CAP_PERM_MASK_SET(&cbp_test, CAP_AP_W, ap_bits, 0);
         CAP_PERM_MASK_SET(&cbp_test, CAP_AP_LM, ap_bits, 1);
-        /* CL, SL, EL, aren't supported as of Nov 2024 */
+        /* risc-v cheri v0.9.x supports at most 2^1 levels */
+        cheri_debug_assert(lvbits <= 1);
+        if (lvbits == 1) {
+            CAP_PERM_MASK_SET(&cbp_test, CAP_AP_EL, ap_bits, 2);
+            CAP_PERM_MASK_SET(&cbp_test, CAP_AP_SL, ap_bits, 3);
+            if (CAP_cc(get_cl)(&cbp_test)) {
+                ap_bits |= (1 << 4);
+            }
+        }
         CAP_PERM_MASK_SET(&cbp_test, CAP_AP_C, ap_bits, 5);
         CAP_PERM_MASK_SET(&cbp_test, CAP_AP_ASR, ap_bits, 16);
         CAP_PERM_MASK_SET(&cbp_test, CAP_AP_X, ap_bits, 17);
