@@ -2843,6 +2843,7 @@ if 'CONFIG_BRICK' in config_host
     message('Adding brick as depenedncy')
     brickdir = config_host['BRICK_DIR']
     brick_header_dir = brickdir+'/include'
+    brick_extheader_dir = brickdir+'/include/ext'
 
     brickdep = dependency('brick', method : 'cmake',
         modules : ['brick::core', 'brick::capture', 'brick::fb','brick::isa', 'brick::tools', 'brick::utils', 'brick::sb'],
@@ -2902,6 +2903,7 @@ foreach target : target_dirs
 
   if 'CONFIG_BRICK' in config_host
         target_inc += brick_header_dir
+        target_inc += brick_extheader_dir
         c_args+=['-DCONFIG_BRICK']
   endif
   if target.endswith('-softmmu')
