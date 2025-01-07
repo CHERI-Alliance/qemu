@@ -985,6 +985,8 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
         if (cpu->cfg.ext_zyhybrid) {
             set_feature(env, RISCV_FEATURE_CHERI_HYBRID);
         }
+        /* Zylevels1 is not supported yet. */
+        cpu->cfg.lvbits = 0;
 #endif
     }
     set_feature(env, RISCV_FEATURE_STID);
