@@ -96,7 +96,8 @@ enum {
     TRANSLATE_PMP_FAIL,
     TRANSLATE_G_STAGE_FAIL,
 #if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
-    TRANSLATE_CHERI_FAIL,
+    TRANSLATE_CHERI_FAIL,  // The fail is just a cheri fail
+    TRANSLATE_FAIL_CHERI_FAIL,   // The fail is both a normal page fault and a cheri page fault
 #endif
 };
 
