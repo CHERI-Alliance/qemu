@@ -666,7 +666,9 @@ static const char rv_freg_name_sym[32][5] = {
 #define rv_fmt_pred_succ              "O\tp,s"
 #define rv_fmt_rs1_rs2                "O\t1,2"
 #define rv_fmt_rd_imm                 "O\t0,i"
+#define rv_fmt_rd_uimm                "O\t0,Ui"
 #define rv_fmt_rd_offset              "O\t0,o"
+#define rv_fmt_rd_uoffset             "O\t0,Uo"
 #define rv_fmt_cd_offset              "O\tC0,o"
 #define rv_fmt_rd_rs1_rs2             "O\t0,1,2"
 #define rv_fmt_cd_cs1_cs2             "O\tC0,C1,C2"
@@ -939,8 +941,8 @@ static const rv_comp_data rvcp_fsgnjx_q[] = {
 
 const rv_opcode_data opcode_data[] = {
     { "illegal", rv_codec_illegal, rv_fmt_none, NULL, 0, 0, 0 },
-    { "lui", rv_codec_u, rv_fmt_rd_imm, NULL, 0, 0, 0 },
-    { "auipc", rv_codec_u, rv_fmt_rd_offset, NULL, 0, 0, 0 },
+    { "lui", rv_codec_u, rv_fmt_rd_uimm, NULL, 0, 0, 0 },
+    { "auipc", rv_codec_u, rv_fmt_rd_uoffset, NULL, 0, 0, 0 },
     { "jal", rv_codec_uj, rv_fmt_rd_offset, rvcp_jal, 0, 0, 0 },
     { "jalr", rv_codec_i, rv_fmt_rd_rs1_offset, rvcp_jalr, 0, 0, 0 },
     { "beq", rv_codec_sb, rv_fmt_rs1_rs2_offset, rvcp_beq, 0, 0, 0 },
@@ -1180,7 +1182,7 @@ const rv_opcode_data opcode_data[] = {
     { "c.li", rv_codec_ci_li, rv_fmt_rd_rs1_imm, NULL, rv_op_addi, rv_op_addi, rv_op_addi },
     { "c.addi16sp", rv_codec_ci_16sp, rv_fmt_rd_rs1_imm, NULL, rv_op_addi,
       rv_op_addi, rv_op_addi, rvcd_imm_nz },
-    { "c.lui", rv_codec_ci_lui, rv_fmt_rd_imm, NULL, rv_op_lui, rv_op_lui,
+    { "c.lui", rv_codec_ci_lui, rv_fmt_rd_uimm, NULL, rv_op_lui, rv_op_lui,
       rv_op_lui, rvcd_imm_nz },
     { "c.srli", rv_codec_cb_sh6, rv_fmt_rd_rs1_imm, NULL, rv_op_srli,
       rv_op_srli, rv_op_srli, rvcd_imm_nz },
@@ -3157,6 +3159,19 @@ static void format_inst(char *buf, size_t buflen, size_t tab, rv_decode *dec)
             snprintf(tmp, sizeof(tmp), "# 0x%" PRIx64,
                 dec->pc + dec->imm);
             append(buf, tmp, buflen);
+            break;
+        case 'U':
+            fmt++;
+            snprintf(tmp, sizeof(tmp), "%d", dec->imm >> 12);
+            append(buf, tmp, buflen);
+            if (*fmt == 'o') {
+                while (strlen(buf) < tab * 2) {
+                    append(buf, " ", buflen);
+                }
+                snprintf(tmp, sizeof(tmp), "# 0x%" PRIx64,
+                    dec->pc + dec->imm);
+                append(buf, tmp, buflen);
+            }
             break;
         case 'c': {
             const char *name = csr_name(dec->imm & 0xfff);
