@@ -1289,6 +1289,7 @@ static void riscv_isa_string_ext(RISCVCPU *cpu, char **isa_str, int max_str_len)
         {"zcherihybrid", cpu->cfg.ext_zyhybrid},
         {"zcheripurecap", cpu->cfg.ext_cheri},
         {"zcheripte", cpu->cfg.cheri_pte },
+        {"zcherilevels", cpu->cfg.lvbits > 0 },
         ISA_EDATA_ENTRY(zish4add, ext_zish4add),
 #endif
     };
