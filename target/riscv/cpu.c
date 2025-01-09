@@ -1273,6 +1273,7 @@ static void riscv_isa_string_ext(RISCVCPU *cpu, char **isa_str, int max_str_len)
 #ifdef TARGET_CHERI
         {"zcherihybrid", !cpu->cfg.ext_cheri_purecap},
         {"zcheripurecap", true},
+        {"zcheripte", true },
 #endif
     };
 
