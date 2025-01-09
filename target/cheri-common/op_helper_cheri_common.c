@@ -1367,45 +1367,75 @@ cheri_tag_prot_clear_or_trap(CPUArchState *env, target_ulong va,
 }
 
 /*
- * source must be a fully decompressed capability
+ * Update the permissions of a capability that has just been loaded from
+ * memory. pesbt points to the metadata of the loaded capability, source is
+ * the capability that authorized the load.
  *
- * (source is the capability that contains the load address and that
- * authorizes the memory access. As per the spec, it must point to a
- * register. We access capability registers via struct GPCapRegs, which
- * stores decompressed capabilities.)
+ * Permission updates may be enforced by load mutable or capability levels.
+ *
+ * source must be fully decompressed. This is a reasonable assumption since
+ * it's always pointing to a register.
  */
-static void squash_mutable_permissions(CPUArchState *env, target_ulong *pesbt,
-                                       const cap_register_t *source)
+static void update_loaded_cap_perms(CPUArchState *env, target_ulong *pesbt,
+                                    const cap_register_t *source)
 {
 #if defined(TARGET_AARCH64) || defined(TARGET_CHERI_RISCV_STD)
+    /*
+     * Create a temporary capability for checking and updating
+     * permissions, its address is not used. All capabilities in the
+     * system use the same number of lvbits, we can copy the value from
+     * any other capability.
+     */
+    cap_register_t tmp = *source;
+    tmp.cr_pesbt = *pesbt;
+    /* Note: original_perms also contains the level */
+    const target_ulong original_perms = cap_get_all_perms(&tmp);
+    target_ulong perms = original_perms;
     if (!cap_has_perms(source, CAP_PERM_MUTABLE_LOAD)) {
         /*
          * The spec says "Capabilities that are sealed or untagged do not have
          * their permissions changed."
          * The tag has already been checked by the caller.
          */
-        if (CAP_cc(cap_pesbt_extract_otype)(*pesbt) == CAP_OTYPE_UNSEALED) {
+        if (cap_is_unsealed(&tmp)) {
             qemu_maybe_log_instr_extra(env, "Squashing mutable load perms\n");
-            /*
-             * Create a temporary capability for checking and updating
-             * permissions, its address is not used. All capabilities in the
-             * system use the same number of lvbits, we can copy the value from
-             * any other capability.
-             */
-            cap_register_t tmp = *source;
-            tmp.cr_pesbt = *pesbt;
-            target_ulong perms = cap_get_all_perms(&tmp);
 #if defined(TARGET_AARCH64)
             perms &= ~(CAP_PERM_MUTABLE_LOAD | CAP_PERM_STORE_LOCAL |
                        CAP_PERM_STORE_CAP | CAP_PERM_STORE);
 #elif defined(TARGET_CHERI_RISCV_STD)
             perms &= ~(CAP_PERM_MUTABLE_LOAD | CAP_PERM_STORE);
 #endif
-            /* Strip any other permissions that can no longer be encoded. */
-            cap_legalize_perms(env, &tmp, &perms);
-            cap_set_perms(env, &tmp, perms);
-            *pesbt = tmp.cr_pesbt;
         }
+    }
+
+#if defined(TARGET_CHERI_RISCV_STD_093)
+    /*
+     * Any unsealed capability with its tag set to 1 that is loaded from memory
+     * has its EL-permission cleared and its Capability Level (CL) restricted to
+     * the authorizing capability’s Capability Level (CL) if the authorizing
+     * capability does not grant EL-permission. If sealed, then only CL is
+     * modified, EL-permission is unchanged. This permission is similar to the
+     * existing LM-permission, but instead of applying to the W-permission on
+     * the loaded capability it restricts the CL field.
+     */
+    if (source->cr_lvbits > 0 &&
+        !cap_has_perms(source, CAP_PERM_ELEVATE_LEVEL)) {
+        cheri_debug_assert(source->cr_lvbits == 1 && "Only 0 and 1 supported");
+        qemu_maybe_log_instr_extra(env, "Squashing elevate level perms\n");
+        if (!cap_has_perms(source, CAP_PERM_GLOBAL)) {
+            /* Note: CL is always modified, even for sealed capabilities. */
+            perms &= ~CAP_PERM_GLOBAL;
+        }
+        if (cap_is_unsealed(&tmp)) {
+            perms &= ~CAP_PERM_ELEVATE_LEVEL;
+        }
+    }
+#endif
+    if (perms != original_perms) {
+        /* Strip any other permissions that can no longer be encoded. */
+        cap_legalize_perms(env, &tmp, &perms);
+        cap_set_perms(env, &tmp, perms);
+        *pesbt = tmp.cr_pesbt;
     }
 #endif
 }
@@ -1496,7 +1526,7 @@ bool load_cap_from_memory_raw_tag_mmu_idx(
         tag = cheri_tag_prot_clear_or_trap(env, vaddr, cb, source, prot, retpc,
                                            tag);
         if (tag) {
-            squash_mutable_permissions(env, pesbt, source);
+            update_loaded_cap_perms(env, pesbt, source);
         }
     }
 
