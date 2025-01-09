@@ -481,10 +481,9 @@ struct RISCVCPU {
         bool m_flip;
         bool cheri_v090;
         bool cheri_pte;
-        /*
-         * This cpu supports 2^lvbits levels for a capability.
-         * We might make this a property if the caller has a real choice...
-         */
+        /* number of levels (Zcherilevels): 0 invalid, 1 disabled (default)) */
+        uint8_t levels;
+        /* This cpu supports 2^lvbits levels for a capability. */
         uint8_t lvbits;
 #endif
         char *priv_spec;
