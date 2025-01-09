@@ -462,11 +462,8 @@ struct RISCVCPU {
 #elif defined(TARGET_CHERI_RISCV_STD)
         bool ext_cheri;
         bool ext_zyhybrid;
-        /*
-         * This cpu supports 2^lvbits levels for a capability.
-         * We might make this a property if the caller has a real choice...
-         */
-        uint8_t lvbits;
+        bool ext_zylevels1;
+        uint8_t lvbits; /* Only 0 and 1 (Zylevels1) are currently supported. */
 #endif
         char *priv_spec;
         char *user_spec;

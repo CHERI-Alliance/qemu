@@ -985,8 +985,8 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
         if (cpu->cfg.ext_zyhybrid) {
             set_feature(env, RISCV_FEATURE_CHERI_HYBRID);
         }
-        /* Zylevels1 is not supported yet. */
-        cpu->cfg.lvbits = 0;
+        /* When Zylevels1 is enabled we have 1 level bits (local/global). */
+        cpu->cfg.lvbits = (uint8_t)cpu->cfg.ext_zylevels1;
 #endif
     }
     set_feature(env, RISCV_FEATURE_STID);
@@ -1081,6 +1081,7 @@ static Property riscv_cpu_properties[] = {
 #elif defined(TARGET_CHERI_RISCV_STD)
     DEFINE_PROP_BOOL("y", RISCVCPU, cfg.ext_cheri, true),
     DEFINE_PROP_BOOL("Zyhybrid", RISCVCPU, cfg.ext_zyhybrid, true),
+    DEFINE_PROP_BOOL("Zylevels1", RISCVCPU, cfg.ext_zylevels1, false),
 #endif
     DEFINE_PROP_STRING("vext_spec", RISCVCPU, cfg.vext_spec),
     DEFINE_PROP_UINT16("vlen", RISCVCPU, cfg.vlen, 128),
