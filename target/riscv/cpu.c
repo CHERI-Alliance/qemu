@@ -1288,6 +1288,7 @@ static void riscv_isa_string_ext(RISCVCPU *cpu, char **isa_str, int max_str_len)
 #ifdef TARGET_CHERI_RISCV_STD_093
         {"zcherihybrid", cpu->cfg.ext_zyhybrid},
         {"zcheripurecap", cpu->cfg.ext_cheri},
+        {"zcheripte", cpu->cfg.cheri_pte },
         ISA_EDATA_ENTRY(zish4add, ext_zish4add),
 #endif
     };
