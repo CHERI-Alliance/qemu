@@ -729,7 +729,7 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
 
     int ptshift = (levels - 1) * ptidxbits;
     int i;
-
+    int return_code = TRANSLATE_SUCCESS;
 #if !TCG_OVERSIZED_GUEST
 restart:
 #endif
@@ -818,86 +818,104 @@ restart:
             }
 #endif
             base = ppn << PGSHIFT;
-        } else if ((pte & (PTE_R | PTE_W | PTE_X)) == PTE_W) {
+            continue;
+        }
+        if ((pte & (PTE_R | PTE_W | PTE_X)) == PTE_W) {
             /* Reserved leaf PTE flags: PTE_W */
             qemu_log_mask(CPU_LOG_MMU, "%s Translate fail: Reserved WRX 100\n",
                           __func__);
-            return TRANSLATE_FAIL;
-        } else if ((pte & (PTE_R | PTE_W | PTE_X)) == (PTE_W | PTE_X)) {
+            return_code = TRANSLATE_FAIL;
+        }
+        if ((pte & (PTE_R | PTE_W | PTE_X)) == (PTE_W | PTE_X)) {
             /* Reserved leaf PTE flags: PTE_W + PTE_X */
             qemu_log_mask(CPU_LOG_MMU, "%s Translate fail: Reserved WRX 011\n",
                           __func__);
-            return TRANSLATE_FAIL;
-        } else if ((pte & PTE_U) && ((mode != PRV_U) &&
-                   (!sum || access_type == MMU_INST_FETCH))) {
+            return_code = TRANSLATE_FAIL;
+        }
+        if ((pte & PTE_U) &&
+            ((mode != PRV_U) && (!sum || access_type == MMU_INST_FETCH))) {
             /* User PTE flags when not U mode and mstatus.SUM is not set,
                or the access type is an instruction fetch */
             qemu_log_mask(CPU_LOG_MMU,
                           "%s Translate fail: U set but no SUM in S/M mode\n",
                           __func__);
-            return TRANSLATE_FAIL;
-        } else if (!(pte & PTE_U) && (mode != PRV_S)) {
+            return_code = TRANSLATE_FAIL;
+        }
+        if (!(pte & PTE_U) && (mode != PRV_S)) {
             /* Supervisor PTE flags when not S mode */
             qemu_log_mask(CPU_LOG_MMU,
                           "%s Translate fail: user accessing non user page\n",
                           __func__);
-            return TRANSLATE_FAIL;
-        } else if (ppn & ((1ULL << ptshift) - 1)) {
+            return_code = TRANSLATE_FAIL;
+        }
+        if (ppn & ((1ULL << ptshift) - 1)) {
             /* Misaligned PPN */
             qemu_log_mask(CPU_LOG_MMU, "%s Translate fail: misaligned PPN\n",
                           __func__);
-            return TRANSLATE_FAIL;
-        } else if ((access_type == MMU_DATA_LOAD ||
-                    access_type == MMU_DATA_CAP_LOAD) &&
-                   !((pte & PTE_R) || ((pte & PTE_X) && mxr))) {
+            return_code = TRANSLATE_FAIL;
+        }
+        if ((access_type == MMU_DATA_LOAD ||
+             access_type == MMU_DATA_CAP_LOAD) &&
+            !((pte & PTE_R) || ((pte & PTE_X) && mxr))) {
             /* Read access check failed */
             qemu_log_mask(CPU_LOG_MMU,
                           "%s Translate fail: read access check failed\n",
                           __func__);
-            return TRANSLATE_FAIL;
-        } else if ((access_type == MMU_DATA_STORE ||
-                    access_type == MMU_DATA_CAP_STORE) && !(pte & PTE_W)) {
+            return_code = TRANSLATE_FAIL;
+        }
+        if ((access_type == MMU_DATA_STORE ||
+             access_type == MMU_DATA_CAP_STORE) &&
+            !(pte & PTE_W)) {
             /* Write access check failed */
             qemu_log_mask(CPU_LOG_MMU,
                           "%s Translate fail: write access check failed\n",
                           __func__);
-            return TRANSLATE_FAIL;
-        } else if (access_type == MMU_INST_FETCH && !(pte & PTE_X)) {
+            return_code = TRANSLATE_FAIL;
+        }
+        if (access_type == MMU_INST_FETCH && !(pte & PTE_X)) {
             /* Fetch access check failed */
             qemu_log_mask(CPU_LOG_MMU, "%s Translate fail: X bit not set\n",
                           __func__);
-            return TRANSLATE_FAIL;
+            return_code = TRANSLATE_FAIL;
+        }
 #if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
-        } else if ((cpu->cfg.cheri_pte) && access_type == MMU_DATA_CAP_STORE &&
-                   !(pte & PTE_CW)) {
+        if ((cpu->cfg.cheri_pte) && access_type == MMU_DATA_CAP_STORE &&
+            !(pte & PTE_CW)) {
             /* CW inhibited */
-            qemu_log_mask(CPU_LOG_MMU, "%s Translate fail: CW bit not set on level %d\n",
-                __func__, i);
-            return TRANSLATE_FAIL;
+            qemu_log_mask(CPU_LOG_MMU,
+                          "%s Translate fail: CW bit not set on level %d\n",
+                          __func__, i);
+            return_code = TRANSLATE_FAIL;
+        }
 #endif
 #if RISCV_PTE_TRAPPY & PTE_A
-        } else if (!(pte & PTE_A)) {
+        if (!(pte & PTE_A)) {
             /* PTE not marked as accessed */
             qemu_log_mask(CPU_LOG_MMU, "%s Translate fail: A not set\n",
                           __func__);
-            return TRANSLATE_FAIL;
+            return_code = TRANSLATE_FAIL;
+        }
 #endif
 #if RISCV_PTE_TRAPPY & PTE_D
-        } else if ((access_type == MMU_DATA_STORE) && !(pte & PTE_D)) {
+        if ((access_type == MMU_DATA_STORE) && !(pte & PTE_D)) {
             /* PTE not marked as dirty */
             qemu_log_mask(CPU_LOG_MMU, "%s Translate fail: D not set\n",
                           __func__);
-            return TRANSLATE_FAIL;
+            return_code = TRANSLATE_FAIL;
+        }
 #endif
 #if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
 #if RISCV_PTE_TRAPPY & PTE_D
-        } else if (access_type == MMU_DATA_CAP_STORE && !(pte & PTE_D)) {
+        if (access_type == MMU_DATA_CAP_STORE && !(pte & PTE_D)) {
             /* PTE not marked as dirty for cap store */
             qemu_log_mask(CPU_LOG_MMU, "%s Translate fail: D not set (cap)\n",
                           __func__);
-            return TRANSLATE_FAIL;
+            return_code = TRANSLATE_FAIL;
+        }
 #endif
 #endif
+        if (return_code != TRANSLATE_SUCCESS) {
+            return return_code;
         } else {
             /* if necessary, set accessed and dirty bits. */
             target_ulong updated_pte = pte | PTE_A;
