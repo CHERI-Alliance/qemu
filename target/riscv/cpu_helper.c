@@ -553,6 +553,21 @@ static int get_physical_address_pmp(CPURISCVState *env, int *prot,
     return TRANSLATE_SUCCESS;
 }
 
+static void pte_print(target_ulong pte, int level)
+{
+    qemu_log_mask(
+        CPU_LOG_MMU, "PTE - " TARGET_FMT_plx " %s%s%s%s%s%s%s%s%s%s %d\n", pte,
+#if TARGET_CHERI && !defined(TARGET_RISCV32)
+        pte & PTE_CRG ? "CRG" : "", pte & PTE_CW ? "CW" : "",
+#else
+        "", "",
+#endif
+        pte & PTE_R ? "R" : "", pte & PTE_W ? "W" : "", pte & PTE_X ? "X" : "",
+        pte & PTE_A ? "A" : "", pte & PTE_U ? "U" : "", pte & PTE_D ? "D" : "",
+        pte & PTE_A ? "A" : "", pte & PTE_V ? "V" : "", level);
+}
+
+#define TRACEME qemu_log_mask(CPU_LOG_MMU, "Trace %s %d\n",__func__ , __LINE__);
 /* get_physical_address - get the physical address for this virtual address
  *
  * Do a page table walk to obtain the physical address corresponding to a
@@ -767,7 +782,7 @@ restart:
         } else {
             pte = address_space_ldq(cs->as, pte_addr, attrs, &res);
         }
-
+        pte_print(pte, i);
         if (res != MEMTX_OK) {
             qemu_log_mask(
                 CPU_LOG_MMU,
@@ -794,6 +809,14 @@ restart:
             return TRANSLATE_FAIL;
         } else if (!(pte & (PTE_R | PTE_W | PTE_X))) {
             /* Inner PTE, continue walking */
+#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
+            if(pte & PTE_CW){
+                // This bit set on a leaf node is illegal regardless of cheripte
+                qemu_log_mask(CPU_LOG_MMU, "%s Translate fail: Reserved CW set\n",
+                            __func__);
+                return TRANSLATE_FAIL;
+            }
+#endif
             base = ppn << PGSHIFT;
         } else if ((pte & (PTE_R | PTE_W | PTE_X)) == PTE_W) {
             /* Reserved leaf PTE flags: PTE_W */
@@ -848,6 +871,8 @@ restart:
         } else if ((cpu->cfg.cheri_pte) && access_type == MMU_DATA_CAP_STORE &&
                    !(pte & PTE_CW)) {
             /* CW inhibited */
+            qemu_log_mask(CPU_LOG_MMU, "%s Translate fail: CW bit not set on level %d\n",
+                __func__, i);
             return TRANSLATE_FAIL;
 #endif
 #if RISCV_PTE_TRAPPY & PTE_A
