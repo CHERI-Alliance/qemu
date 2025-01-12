@@ -456,8 +456,10 @@ static inline bool fix_up_m_ap(CPUArchState *env, cap_register_t *cap)
     {
         uint16_t non_asr_perms = CAP_AP_C | CAP_AP_R | CAP_AP_W | CAP_AP_X;
         if (cheri_v090) {
-            /* as of Nov 2024, EL and SL permissions are not supported */
             non_asr_perms |= CAP_AP_LM;
+            if (lvbits > 0) {
+                non_asr_perms |= CAP_AP_EL | CAP_AP_SL;
+            }
         }
 
         /* rule 1 */
