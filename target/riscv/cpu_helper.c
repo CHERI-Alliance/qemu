@@ -885,7 +885,7 @@ restart:
             qemu_log_mask(CPU_LOG_MMU,
                           "%s Translate fail: CW bit not set on level %d\n",
                           __func__, i);
-            return_code = TRANSLATE_FAIL;
+            return_code = TRANSLATE_CHERI_FAIL;
         }
 #endif
 #if RISCV_PTE_TRAPPY & PTE_A
