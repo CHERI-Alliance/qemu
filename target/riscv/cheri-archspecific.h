@@ -59,6 +59,7 @@ static inline void QEMU_NORETURN raise_load_tag_exception(
     g_assert_not_reached();
 #else
     env->badaddr = va;
+    env->last_cap_cause = 1;
     riscv_raise_exception(env, RISCV_EXCP_LOAD_PAGE_FAULT, retpc);
 #endif
 }
