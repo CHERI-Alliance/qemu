@@ -82,7 +82,12 @@ static inline void QEMU_NORETURN raise_load_tag_exception(
     g_assert_not_reached();
 #else
     env->badaddr = va;
+#ifdef TARGET_CHERI_RISCV_STD_093
+    env->last_cap_cause = 1;
+    riscv_raise_exception(env, RISCV_EXCP_LOAD_PAGE_FAULT, retpc);
+#else
     riscv_raise_exception(env, RISCV_EXCP_LOAD_CAP_PAGE_FAULT, retpc);
+#endif
 #endif
 }
 
@@ -95,7 +100,12 @@ static inline void QEMU_NORETURN raise_store_tag_exception(CPUArchState *env,
     g_assert_not_reached();
 #else
     env->badaddr = va;
+#ifdef TARGET_CHERI_RISCV_STD_093
+    env->last_cap_cause = 1;
+    riscv_raise_exception(env, RISCV_EXCP_STORE_PAGE_FAULT, retpc);
+#else
     riscv_raise_exception(env, RISCV_EXCP_STORE_AMO_CAP_PAGE_FAULT, retpc);
+#endif
 #endif
 }
 

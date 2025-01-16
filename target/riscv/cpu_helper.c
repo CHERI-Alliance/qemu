@@ -990,6 +990,15 @@ static void raise_mmu_exception(CPURISCVState *env, target_ulong address,
 
     page_fault_exceptions = vm != VM_1_10_MBARE && !pmp_violation;
 
+#if defined(TARGET_CHERI_RISCV_STD_093) && !defined(TARGET_RISCV32)
+    /*
+     * The 0.9.3 spec also defines both CHERI+normal page fault and reporting
+     * a value of 2 for that case. However, detecting both cases requires
+     * more invasive changes that will go away once we no longer support 0.9.3.
+     */
+    env->last_cap_cause = cheri_violation ? 1 : 0;
+#endif
+
     switch (access_type) {
     case MMU_INST_FETCH:
         if (riscv_cpu_virt_enabled(env) && !first_stage) {
@@ -1007,7 +1016,11 @@ static void raise_mmu_exception(CPURISCVState *env, target_ulong address,
             cs->exception_index = RISCV_EXCP_LOAD_GUEST_ACCESS_FAULT;
 #if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
         } else if (cheri_violation) {
+#ifdef TARGET_CHERI_RISCV_STD_093
+            cs->exception_index = RISCV_EXCP_LOAD_PAGE_FAULT;
+#else
             cs->exception_index = RISCV_EXCP_LOAD_CAP_PAGE_FAULT;
+#endif
 #endif
         } else {
             cs->exception_index = page_fault_exceptions ?
@@ -1022,11 +1035,16 @@ static void raise_mmu_exception(CPURISCVState *env, target_ulong address,
             cs->exception_index = RISCV_EXCP_STORE_GUEST_AMO_ACCESS_FAULT;
 #if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
         } else if (cheri_violation) {
+#ifdef TARGET_CHERI_RISCV_STD_093
+            cs->exception_index = RISCV_EXCP_STORE_PAGE_FAULT;
+#else
             cs->exception_index = RISCV_EXCP_STORE_AMO_CAP_PAGE_FAULT;
 #endif
+#endif
         } else {
-            cs->exception_index = page_fault_exceptions ?
-                RISCV_EXCP_STORE_PAGE_FAULT : RISCV_EXCP_STORE_AMO_ACCESS_FAULT;
+            cs->exception_index = page_fault_exceptions
+                                      ? RISCV_EXCP_STORE_PAGE_FAULT
+                                      : RISCV_EXCP_STORE_AMO_ACCESS_FAULT;
         }
         break;
     default:
@@ -1404,7 +1422,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         case RISCV_EXCP_INST_PAGE_FAULT:
         case RISCV_EXCP_LOAD_PAGE_FAULT:
         case RISCV_EXCP_STORE_PAGE_FAULT:
-#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
+#if defined(TARGET_CHERI_RISCV_V9) && !defined(TARGET_RISCV32)
         case RISCV_EXCP_LOAD_CAP_PAGE_FAULT:
         case RISCV_EXCP_STORE_AMO_CAP_PAGE_FAULT:
 #endif

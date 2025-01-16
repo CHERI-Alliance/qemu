@@ -101,7 +101,7 @@ static const char * const riscv_excp_names[] = {
     "guest_store_page_fault",
     // 24-31 Reserved for custom use
 #ifdef TARGET_CHERI
-#ifndef TARGET_RISCV32
+#if !defined(TARGET_RISCV32) && !defined(TARGET_CHERI_RISCV_STD_093)
     [RISCV_EXCP_LOAD_CAP_PAGE_FAULT] = "load_cap_page_fault",
     [RISCV_EXCP_STORE_AMO_CAP_PAGE_FAULT] = "store_cap_page_fault",
 #endif
