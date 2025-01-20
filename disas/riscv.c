@@ -156,6 +156,7 @@ typedef enum {
     rv_codec_css_swsp,
     rv_codec_css_sdsp,
     rv_codec_css_sqsp,
+    rv_codec_scbndsi
 } rv_codec;
 
 typedef enum {
@@ -608,6 +609,9 @@ typedef enum {
     rv_op_cfsw,
     rv_op_cfld,
     rv_op_cfsd,
+
+    /* Special case scbndsi 2 registers, 1 immediate, 1 flag */
+    rv_op_scbndsi,
 } rv_op;
 
 /* structures */
@@ -1400,6 +1404,9 @@ const rv_opcode_data opcode_data[] = {
     [rv_op_cfsw] = { "cfsw", rv_codec_s, rv_fmt_frs2_offset_cs1, NULL, 0, 0, 0 },
     [rv_op_cfld] = { "cfld", rv_codec_i, rv_fmt_frd_offset_cs1, NULL, 0, 0, 0 },
     [rv_op_cfsd] = { "cfsd", rv_codec_s, rv_fmt_frs2_offset_cs1, NULL, 0, 0, 0 },
+
+    /* 2 registers, 1 flag, 1 immediate */
+    [rv_op_scbndsi] = { "scbdsi", rv_codec_scbndsi, rv_fmt_cd_cs1_imm, NULL, 0, 0, 0 }
 };
 
 /* CSR names */
@@ -1889,7 +1896,15 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa, int flags)
             case 4: op = rv_op_xori; break;
             case 5:
                 switch (((inst >> 27) & 0b11111)) {
-                case 0b00000: op = rv_op_srli; break;
+                case 0b00000:
+                    switch (((inst >> 26) & 0b1)) {
+                    case 0:
+                        op = rv_op_srli;
+                        break;
+                    case 1:
+                        op = rv_op_scbndsi;
+                    }
+                    break;
                 case 0b00101: op = rv_op_orc_b; break;
                 case 0b01000: op = rv_op_srai; break;
                 case 0b01001: op = rv_op_bexti; break;
@@ -2706,6 +2721,16 @@ static uint32_t operand_cimmq(rv_inst inst)
         ((inst << 57) >> 62) << 6;
 }
 
+static uint32_t operand_scaled(rv_inst inst)
+{
+    return (inst << 38) >> 63;
+}
+
+static uint32_t operand_uimm20(rv_inst inst)
+{
+    return (inst << 39) >> 59;
+}
+
 /* decode operands */
 
 static void decode_inst_operands(rv_decode *dec)
@@ -2984,6 +3009,12 @@ static void decode_inst_operands(rv_decode *dec)
         dec->rs1 = rv_ireg_sp;
         dec->rs2 = operand_crs2(inst);
         dec->imm = operand_cimmsqsp(inst);
+        break;
+    case rv_codec_scbndsi:
+        dec->rd = operand_rd(inst);
+        dec->rs1 = operand_rs1(inst);
+        dec->imm = operand_scaled(inst) ? operand_uimm20(inst) << 4
+                                        : operand_uimm20(inst);
         break;
     };
 }
