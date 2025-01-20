@@ -2662,6 +2662,16 @@ static uint32_t operand_cimmq(rv_inst inst)
         ((inst << 57) >> 62) << 6;
 }
 
+static uint32_t operand_scaled(rv_inst inst)
+{
+    return (inst << 38) >> 63;
+}
+
+static uint32_t operand_uimm20(rv_inst inst)
+{
+    return (inst << 39) >> 59;
+}
+
 /* decode operands */
 
 static void decode_inst_operands(rv_decode *dec)
