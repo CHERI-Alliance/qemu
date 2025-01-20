@@ -1842,7 +1842,15 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa, int flags)
             case 4: op = rv_op_xori; break;
             case 5:
                 switch (((inst >> 27) & 0b11111)) {
-                case 0b00000: op = rv_op_srli; break;
+                case 0b00000:
+                    switch (((inst >> 26) & 0b1)) {
+                    case 0:
+                        op = rv_op_srli;
+                        break;
+                    case 1:
+                        op = rv_op_scbndsi;
+                    }
+                    break;
                 case 0b00101: op = rv_op_orc_b; break;
                 case 0b01000: op = rv_op_srai; break;
                 case 0b01001: op = rv_op_bexti; break;
