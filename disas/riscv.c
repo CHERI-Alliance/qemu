@@ -156,6 +156,7 @@ typedef enum {
     rv_codec_css_swsp,
     rv_codec_css_sdsp,
     rv_codec_css_sqsp,
+    rv_codec_scbndsi
 } rv_codec;
 
 typedef enum {
@@ -2950,6 +2951,12 @@ static void decode_inst_operands(rv_decode *dec)
         dec->rs1 = rv_ireg_sp;
         dec->rs2 = operand_crs2(inst);
         dec->imm = operand_cimmsqsp(inst);
+        break;
+    case rv_codec_scbndsi:
+        dec->rd = operand_rd(inst);
+        dec->rs1 = operand_rs1(inst);
+        dec->imm = operand_scaled(inst) ? operand_uimm20(inst) << 4
+                                        : operand_uimm20(inst);
         break;
     };
 }
