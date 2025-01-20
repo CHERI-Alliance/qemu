@@ -595,6 +595,9 @@ typedef enum {
     rv_op_c_sc_rv32,
     rv_op_c_lcsp_rv32,
     rv_op_c_scsp_rv32,
+
+    // Special case scbndsi 2 registers, 1 immediate, 1 flag
+    rv_op_scbndsi
 } rv_op;
 
 /* structures */
@@ -1410,6 +1413,10 @@ const rv_opcode_data opcode_data[] = {
     [rv_op_cfsw] = { "cfsw", rv_codec_s, rv_fmt_frs2_offset_cs1, NULL, 0, 0, 0 },
     [rv_op_cfld] = { "cfld", rv_codec_i, rv_fmt_frd_offset_cs1, NULL, 0, 0, 0 },
     [rv_op_cfsd] = { "cfsd", rv_codec_s, rv_fmt_frs2_offset_cs1, NULL, 0, 0, 0 },
+    
+    // 2 register 1 flag, 1 immediate
+    [rv_op_scbndsi] = { "scbdsi", rv_codec_scbndsi, rv_fmt_cd_cs1_imm, NULL, 0,
+                        0, 0 }
 };
 
 /* CSR names */
