@@ -468,6 +468,7 @@ struct RISCVCPU {
         bool ext_counters;
         bool ext_ifencei;
         bool ext_icsr;
+        bool ext_icbom;
         bool ext_icboz;
 #ifdef TARGET_CHERI
 #ifdef TARGET_CHERI_RISCV_V9
@@ -492,6 +493,7 @@ struct RISCVCPU {
         char *vext_spec;
         uint16_t vlen;
         uint16_t elen;
+        uint16_t cbom_blocksize;
         uint16_t cboz_blocksize;
         bool mmu;
         bool pmp;
