@@ -125,12 +125,11 @@ static void check_zicbo_envcfg(CPURISCVState *env, target_ulong envbits,
 #endif
 }
 
-void helper_cbo_zero(CPURISCVState *env, target_ulong address)
+static void do_cbo_zero(CPURISCVState *env, target_ulong address, uintptr_t ra)
 {
     RISCVCPU *cpu = env_archcpu(env);
     uint16_t cbozlen = cpu->cfg.cboz_blocksize;
     int mmu_idx = cpu_mmu_index(env, false);
-    uintptr_t ra = GETPC();
     void *mem;
 
     check_zicbo_envcfg(env, MENVCFG_CBZE, ra);
@@ -162,6 +161,11 @@ void helper_cbo_zero(CPURISCVState *env, target_ulong address)
             cpu_stb_mmuidx_ra(env, address + i, 0, mmu_idx, ra);
         }
     }
+}
+
+void helper_cbo_zero(CPURISCVState *env, target_ulong address)
+{
+    do_cbo_zero(env, address, GETPC());
 }
 
 /*
