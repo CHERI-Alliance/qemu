@@ -175,6 +175,38 @@ void helper_cbo_zero(CPURISCVState *env, target_ulong address)
     do_cbo_zero(env, address, ra);
 }
 
+#ifdef TARGET_CHERI
+void helper_cbo_zero_cap(CPURISCVState *env, uint32_t addr_reg)
+{
+    uintptr_t _host_return_address = GETPC();
+    RISCVCPU *cpu = env_archcpu(env);
+    check_zicbo_envcfg(env, MENVCFG_CBZE, _host_return_address);
+    uint32_t auth_reg = cheri_in_capmode(env) ? addr_reg : CHERI_EXC_REGNUM_DDC;
+    const cap_register_t *auth_cap = get_capreg_or_special(env, auth_reg);
+    if (!auth_cap->cr_tag) {
+        raise_cheri_exception(env, CapEx_TagViolation, auth_reg);
+    } else if (!cap_is_unsealed(auth_cap)) {
+        raise_cheri_exception(env, CapEx_SealViolation, auth_reg);
+    }
+    if (!cap_has_perms(auth_cap, CAP_PERM_STORE)) {
+        raise_cheri_exception(env, CapEx_PermitStoreViolation, auth_reg);
+    }
+    if (cap_has_invalid_perms_encoding(env, auth_cap)) {
+        raise_cheri_exception(env, CapEx_UserDefViolation, auth_reg);
+    }
+    target_ulong address = get_capreg_cursor(env, addr_reg);
+    uint16_t cbozlen = cpu->cfg.cboz_blocksize;
+    /* Mask off low-bits to align-down to the cache-block. */
+    address &= ~(cbozlen - 1);
+
+    if (!cap_is_in_bounds(auth_cap, address, cbozlen)) {
+        raise_cheri_exception(env, CapEx_LengthViolation, addr_reg);
+    }
+
+    do_cbo_zero(env, address, _host_return_address);
+}
+#endif
+
 /*
  * check_zicbom_access
  *
