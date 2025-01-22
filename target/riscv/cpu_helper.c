@@ -1041,7 +1041,7 @@ static void rvfi_dii_update_mem_addr(CPURISCVState *env,
 static void raise_mmu_exception(CPURISCVState *env, target_ulong address,
                                 MMUAccessType access_type, bool pmp_violation,
 #if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
-                                bool cheri_violation,
+                                int translate_fail,
 #endif
                                 bool first_stage, bool two_stage)
 {
@@ -1063,6 +1063,24 @@ static void raise_mmu_exception(CPURISCVState *env, target_ulong address,
 
     page_fault_exceptions = vm != VM_1_10_MBARE && !pmp_violation;
 
+#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
+    bool cheri_violation = false;
+     if (translate_fail == TRANSLATE_CHERI_FAIL)
+    {
+        env->last_cap_cause = 1;
+        cheri_violation = true;
+    }
+    else if (translate_fail == TRANSLATE_FAIL_CHERI_FAIL)
+    {
+        env->last_cap_cause = 2;
+        cheri_violation = true;
+    }
+    else
+    {
+        env->last_cap_cause = 0;
+    }
+#endif
+
     switch (access_type) {
     case MMU_INST_FETCH:
         if (riscv_cpu_virt_enabled(env) && !first_stage) {
@@ -1081,15 +1099,10 @@ static void raise_mmu_exception(CPURISCVState *env, target_ulong address,
 #if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
         } else if (cheri_violation) {
             cs->exception_index = RISCV_EXCP_LOAD_PAGE_FAULT;
-            env->last_cap_cause = 1;
-
 #endif
         } else {
             cs->exception_index = page_fault_exceptions ?
                 RISCV_EXCP_LOAD_PAGE_FAULT : RISCV_EXCP_LOAD_ACCESS_FAULT;
-#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
-            env->last_cap_cause = 0;
-#endif
         }
         break;
     case MMU_DATA_STORE:
@@ -1101,14 +1114,11 @@ static void raise_mmu_exception(CPURISCVState *env, target_ulong address,
 #if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
         } else if (cheri_violation) {
             cs->exception_index = RISCV_EXCP_STORE_PAGE_FAULT;
-            env->last_cap_cause = 1;
 #endif
         } else {
-            cs->exception_index = page_fault_exceptions ?
-                RISCV_EXCP_STORE_PAGE_FAULT : RISCV_EXCP_STORE_AMO_ACCESS_FAULT;
-#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
-            env->last_cap_cause = 0;
-#endif
+            cs->exception_index = page_fault_exceptions
+                                      ? RISCV_EXCP_STORE_PAGE_FAULT
+                                      : RISCV_EXCP_STORE_AMO_ACCESS_FAULT;
         }
         break;
     default:
@@ -1401,7 +1411,7 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     } else {
         raise_mmu_exception(env, address, access_type, pmp_violation,
 #if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
-                            ret == TRANSLATE_CHERI_FAIL,
+                            ret,
 #endif
                             first_stage_error,
                             riscv_cpu_virt_enabled(env) ||
