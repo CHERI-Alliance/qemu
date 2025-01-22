@@ -82,6 +82,9 @@ DEF_HELPER_FLAGS_2(clmulr, TCG_CALL_NO_RWG_SE, tl, tl, tl)
 DEF_HELPER_2(cbo_clean_flush, void, env, tl)
 DEF_HELPER_2(cbo_inval, void, env, tl)
 DEF_HELPER_2(cbo_zero, void, env, tl)
+#ifdef TARGET_CHERI
+DEF_HELPER_2(cbo_zero_cap, void, env, i32)
+#endif
 
 /* Special functions */
 DEF_HELPER_2(csrr, tl, env, int)

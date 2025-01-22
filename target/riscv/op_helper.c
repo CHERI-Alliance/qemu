@@ -176,6 +176,63 @@ void helper_cbo_zero(CPURISCVState *env, target_ulong address)
     do_cbo_zero(env, address);
 }
 
+#ifdef TARGET_CHERI
+void helper_cbo_zero_cap(CPURISCVState *env, uint32_t addr_reg)
+{
+    uintptr_t _host_return_address = GETPC();
+    RISCVCPU *cpu = env_archcpu(env);
+    target_long address;
+    uint16_t cbozlen;
+    uint32_t auth_reg; /* register number of the authorizing capability */
+    const cap_register_t *auth_cap;
+    cap_register_t ctmp;
+
+    check_zicbo_envcfg(env, MENVCFG_CBZE, _host_return_address);
+
+    auth_reg = cheri_in_capmode(env) ? addr_reg : CHERI_EXC_REGNUM_DDC;
+    auth_cap = get_capreg_or_special(env, auth_reg);
+    if (!auth_cap->cr_tag) {
+        raise_cheri_exception(env, CapEx_TagViolation, CapExType_Data,
+                              auth_reg);
+    } else if (!cap_is_unsealed(auth_cap)) {
+        raise_cheri_exception(env, CapEx_SealViolation, CapExType_Data,
+                              auth_reg);
+    }
+    if (!(auth_cap->cr_arch_perm & CAP_AP_W)) {
+        raise_cheri_exception(env, CapEx_PermissionViolation, CapExType_Data,
+                              auth_reg);
+    }
+    /* TODO: fix_up_m_ap should have a check-only mode that does not modify
+       the input capability. */
+    ctmp = *auth_cap;
+    if (fix_up_m_ap(env, &ctmp)) {
+        raise_cheri_exception(env, CapEx_PermissionViolation, CapExType_Data,
+                              auth_reg);
+    }
+
+    /*
+     * qemu does not convert an invalid address into a different invalid
+     * address to save space. We can skip the "Invalid address violation"
+     * check.
+     */
+
+    /* get_capreg_cursor works in cap and int ptr mode. */
+    address = get_capreg_cursor(env, addr_reg);
+    cbozlen = cpu->cfg.cboz_blocksize;
+    /* Mask off low-bits to align-down to the cache-block. */
+    address &= ~(cbozlen - 1);
+
+    if (!cap_is_in_bounds(auth_cap, address, cbozlen)) {
+        /* The spec requires "bounds violation", this is the same number as
+           CapEx_LengthViolation. */
+        raise_cheri_exception(env, CapEx_LengthViolation, CapExType_Data,
+                              addr_reg);
+    }
+
+    do_cbo_zero(env, address);
+}
+#endif
+
 /*
  * check_zicbom_access
  *
