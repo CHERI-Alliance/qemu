@@ -48,11 +48,7 @@ static bool trans_auipc(DisasContext *ctx, arg_auipc *a)
         return true;
     }
 #endif
-    /*
-     * AUIPC returns a value relative to PCC.base for ISAv8 but the address for
-     * v9. This is handled by the pcc_reloc() macro.
-     */
-    gen_set_gpr_const(ctx, a->rd, a->imm + ctx->base.pc_next - pcc_reloc(ctx));
+    gen_set_gpr_const(ctx, a->rd, a->imm + ctx->base.pc_next);
     return true;
 }
 
