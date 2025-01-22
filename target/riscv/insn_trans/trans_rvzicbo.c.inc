@@ -52,11 +52,16 @@ static bool trans_cbo_inval(DisasContext *ctx, arg_cbo_inval *a)
 static bool trans_cbo_zero(DisasContext *ctx, arg_cbo_zero *a)
 {
     REQUIRE_ZICBOZ(ctx);
+#ifdef TARGET_CHERI
+    TCGv_i32 addr_reg = tcg_const_i32(a->rs1);
+    gen_helper_cbo_zero_cap(cpu_env, addr_reg);
+#else
     /*
      * The register value maps to a TCGv_tl parameter (== a target_ulong in
      * the helper function). We don't have to zero-expand it. This would be
      * required only if the parameter was always 64-bit, even for RV32.
      */
     gen_helper_cbo_zero(cpu_env, get_gpr(ctx, a->rs1, EXT_NONE));
+#endif
     return true;
 }
