@@ -603,6 +603,9 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
     MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
     int mode = mmu_idx & TB_FLAGS_PRIV_MMU_MASK;
     bool use_background = false;
+#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
+    bool pte_cheri_error = false;
+#endif
 #ifdef CONFIG_RVFI_DII
     if (env->rvfi_dii_have_injected_insn && access_type == MMU_INST_FETCH) {
         /*
@@ -885,7 +888,7 @@ restart:
             qemu_log_mask(CPU_LOG_MMU,
                           "%s Translate fail: CW bit not set on level %d\n",
                           __func__, i);
-            return_code = TRANSLATE_CHERI_FAIL;
+            pte_cheri_error = true;
         }
 #endif
 #if RISCV_PTE_TRAPPY & PTE_A
@@ -913,6 +916,13 @@ restart:
             return_code = TRANSLATE_FAIL;
         }
 #endif
+#endif
+#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
+        if (pte_cheri_error) {
+            return (return_code == TRANSLATE_FAIL ? TRANSLATE_FAIL_CHERI_FAIL
+                                                  : TRANSLATE_CHERI_FAIL);
+        }
+
 #endif
         if (return_code != TRANSLATE_SUCCESS) {
             return return_code;
