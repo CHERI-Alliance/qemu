@@ -337,6 +337,7 @@ struct CPURISCVState {
 
     uint64_t menvcfg;
     target_ulong senvcfg;
+    uint64_t henvcfg;
 #endif
 
     float_status fp_status;
