@@ -94,6 +94,8 @@ DEF_HELPER_2(cbo_inval, void, env, tl)
 DEF_HELPER_2(cbo_zero, void, env, tl)
 #ifdef TARGET_CHERI
 DEF_HELPER_2(cbo_zero_cap, void, env, i32)
+DEF_HELPER_2(cbo_clean_flush_cap, void, env, i32)
+DEF_HELPER_2(cbo_inval_cap, void, env, i32)
 #endif
 
 /* Special functions */
