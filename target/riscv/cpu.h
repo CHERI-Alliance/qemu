@@ -340,6 +340,9 @@ struct CPURISCVState {
     target_ulong spmbase;
     target_ulong upmmask;
     target_ulong upmbase;
+
+    uint64_t menvcfg;
+    target_ulong senvcfg;
 #endif
 
     float_status fp_status;
@@ -393,8 +396,6 @@ struct CPURISCVState {
 
     target_ulong mhartid;
 
-    target_ulong menvcfg;
-    target_ulong senvcfg;
     uint32_t features;
 
 #ifdef CONFIG_USER_ONLY
