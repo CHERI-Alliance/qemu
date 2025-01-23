@@ -995,13 +995,13 @@ restart:
             }
 #if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
             bool pte_crg = (pte & PTE_CRG);
-            bool status_crg = (env->mstatus & SSTATUS64_CRG);
+            bool status_ucrg = (env->mstatus & SSTATUS64_UCRG);
 
             if (cpu->cfg.cheri_pte) {
                 if (!(pte & PTE_CW)) {
                     /* CW inhibited */
                     *prot |= PAGE_LC_CLEAR;
-                } else if (status_crg != pte_crg) {
+                } else if (status_ucrg != pte_crg) {
                     *prot |= PAGE_LC_TRAP;
                 }
 

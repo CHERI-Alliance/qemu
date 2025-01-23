@@ -550,7 +550,7 @@ static const target_ulong sstatus_v1_10_mask = SSTATUS_SIE | SSTATUS_SPIE |
     SSTATUS_UIE | SSTATUS_UPIE | SSTATUS_SPP | SSTATUS_FS | SSTATUS_XS |
     SSTATUS_SUM | SSTATUS_MXR
 #if defined(TARGET_RISCV64)
-    | SSTATUS64_UXL | SSTATUS64_CRG
+    | SSTATUS64_UXL | SSTATUS64_UCRG
 #endif
     ;
 static const target_ulong sip_writable_mask = SIP_SSIP | MIP_USIP | MIP_UEIP;
@@ -635,7 +635,7 @@ static RISCVException write_mstatus(CPURISCVState *env, int csrno,
            MSTATUS_SPP | MSTATUS_FS | MSTATUS_MPRV | MSTATUS_SUM | MSTATUS_MPP |
            MSTATUS_MXR | MSTATUS_TVM | MSTATUS_TSR | MSTATUS_TW | MSTATUS_VS;
 #if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
-            mask = mask | MSTATUS64_CRG;
+            mask = mask | MSTATUS64_UCRG;
 #endif            
 
     if (riscv_cpu_mxl(env) != MXL_RV32) {
