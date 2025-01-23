@@ -1003,7 +1003,7 @@ restart:
                 if (!(pte & PTE_CW)) {
                     /* CW inhibited */
                     *prot |= PAGE_LC_CLEAR;
-                } else if (status_ucrg != pte_crg) {
+                } else if ((pte & PTE_U) && (status_ucrg != pte_crg)) {
                     *prot |= PAGE_LC_TRAP;
                 }
 
