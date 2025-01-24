@@ -25,6 +25,7 @@
 #include "exec/helper-proto.h"
 #ifdef TARGET_CHERI
 #include "cheri-helper-utils.h"
+#include "cheri_tagmem.h"
 #endif
 
 /* Exceptions processing helpers */
@@ -143,6 +144,21 @@ static void do_cbo_zero(CPURISCVState *env, target_ulong address)
     mem = probe_write(env, address, cbozlen, mmu_idx, ra);
 
     if (likely(mem)) {
+#ifdef TARGET_CHERI
+        RAMBlock *r;
+        ram_addr_t offs;
+
+        /* TODO: Memory update and tag change must be atomic. */
+        assert(!qemu_tcg_mttcg_enabled() ||
+                cpu_in_exclusive_context(env_cpu(env)));
+
+        rcu_read_lock(); /* protect r from changes while we use it */
+        r = qemu_ram_block_from_host(mem, /* round to page? */ false, &offs);
+        if (r) {
+            cheri_tag_phys_invalidate(env, r, offs, cbozlen, NULL);
+        }
+        rcu_read_unlock();
+#endif
         memset(mem, 0, cbozlen);
     } else {
         /*
