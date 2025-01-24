@@ -8,11 +8,6 @@ mips_ss.add(files(
   'msa.c',
 ))
 
-mips_ss.add(files('op_helper_beri.c'))
-mips_ss.add(when: 'TARGET_CHERI', if_true: files('op_helper_cheri.c'))
-mips_ss.add(when: ['CONFIG_TCG', 'CONFIG_TCG_LOG_INSTR'],
-  if_true: files('op_helper_log_instr.c'))
-
 if have_system
   subdir('sysemu')
 endif

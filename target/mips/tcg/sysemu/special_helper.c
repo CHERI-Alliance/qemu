@@ -62,9 +62,10 @@ static void debug_pre_eret(CPUMIPSState *env)
     if (qemu_log_instr_enabled(env)) {
         // Print the new PCC value for debugging traces (compare to null
         // so that we always print it)
-        qemu_log_instr_cap(env, "PCC", &env->active_tc.PCC);
-        qemu_log_instr_cap(env, "EPCC", &env->active_tc.CHWR.EPCC);
-        qemu_log_instr_cap(env, "ErrorEPCC", &env->active_tc.CHWR.ErrorEPCC);
+        qemu_log_instr_cap(env, "PCC", &env->active_tc.PCC, 14, 0);
+        qemu_log_instr_cap(env, "EPCC", &env->active_tc.CHWR.EPCC, 14, 0);
+        qemu_log_instr_cap(env, "ErrorEPCC", &env->active_tc.CHWR.ErrorEPCC, 30,
+                           0);
     }
 #endif /* defined(CONFIG_TCG_LOG_INSTR) && defined(TARGET_CHERI) */
 }
@@ -76,6 +77,7 @@ static void debug_post_eret(CPUMIPSState *env)
 #ifdef CONFIG_TCG_LOG_INSTR
     mips_log_instr_mode_changed(env, cpu_get_recent_pc(env));
 #endif
+
     if (qemu_log_instr_or_mask_enabled(env, CPU_LOG_EXEC)) {
         qemu_log_instr_or_mask_msg(env, CPU_LOG_EXEC,
             "  =>  PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx,
@@ -195,7 +197,9 @@ void helper_deret(CPUMIPSState *env)
     env->hflags &= ~MIPS_HFLAG_DM;
     compute_hflags(env);
 
-    mips_env_set_pc(env, env->CP0_DEPC);
+    /* TODO: Review that we did not break the eret functionality during the
+       v6.1.0 merge. */
+    set_pc_for_eret(env, env->CP0_DEPC);
 
     debug_post_eret(env);
 #endif

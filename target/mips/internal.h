@@ -9,12 +9,11 @@
 #define MIPS_INTERNAL_H
 
 #include "exec/memattrs.h"
-#ifdef CONFIG_TCG
 #include "qemu/log.h"
 #include "exec/log_instr.h"
+#ifdef CONFIG_TCG
 #include "tcg/tcg-internal.h"
 #endif
-
 
 /*
  * MMU types, the first four entries have the same layout as the
@@ -79,12 +78,6 @@ struct mips_def_t {
 
 extern const char regnames[32][3];
 extern const char fregnames[32][4];
-extern const char regnames_HI[4][4];
-extern const char regnames_LO[4][4];
-extern const char mips_cop0_regnames[32*8][32];
-#ifdef TARGET_CHERI
-extern const char mips_cheri_hw_regnames[32][10];
-#endif
 
 extern const struct mips_def_t mips_defs[];
 extern const int mips_defs_number;
@@ -180,6 +173,8 @@ struct CPUMIPSTLBContext {
     } mmu;
 };
 
+bool r4k_lookup_tlb(CPUMIPSState *env, int *matching, bool use_extra);
+
 void sync_c0_status(CPUMIPSState *env, CPUMIPSState *cpu, int tc);
 void cpu_mips_store_status(CPUMIPSState *env, target_ulong val);
 void cpu_mips_store_cause(CPUMIPSState *env, target_ulong val);
@@ -238,7 +233,6 @@ void cpu_mips_store_count(CPUMIPSState *env, uint32_t value);
 void cpu_mips_store_compare(CPUMIPSState *env, uint32_t value);
 void cpu_mips_start_count(CPUMIPSState *env);
 void cpu_mips_stop_count(CPUMIPSState *env);
-
 
 uint64_t cpu_mips_get_rtc64 (CPUMIPSState *env);
 void cpu_mips_set_rtc64 (CPUMIPSState *env, uint64_t value);
@@ -552,6 +546,8 @@ void r4k_dump_tlb(CPUMIPSState *env, int idx);
 #endif
 void do_hexdump(GString *strbuf, uint8_t* buffer, target_ulong length,
                 target_ulong vaddr);
+hwaddr do_translate_address(CPUMIPSState *env, target_ulong address,
+                            MMUAccessType access_type, uintptr_t retaddr);
 
 #ifdef TARGET_CHERI
 #include "cheri-helper-utils.h"

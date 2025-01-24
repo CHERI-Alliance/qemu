@@ -9,6 +9,8 @@
  * SPDX-License-Identifier: LGPL-2.1-or-later
  */
 
+#ifndef TARGET_CHERI
+
 /* MIPS16 major opcodes */
 enum {
   M16_OPC_ADDIUSP = 0x00,
@@ -197,6 +199,7 @@ static void gen_mips16_save(DisasContext *ctx,
         gen_op_addr_add(ctx, t0, t0, t2);                        \
         gen_load_gpr(t1, reg);                                   \
         tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUL); \
+        gen_log_instr_gpr_update(ctx, reg);                      \
     } while (0)
 
     if (do_ra) {
@@ -280,6 +283,7 @@ static void gen_mips16_save(DisasContext *ctx,
 
     tcg_gen_movi_tl(t2, -framesize);
     gen_op_addr_add(ctx, cpu_gpr[29], cpu_gpr[29], t2);
+    gen_log_instr_gpr_update(ctx, 29);
     tcg_temp_free(t0);
     tcg_temp_free(t1);
     tcg_temp_free(t2);
@@ -390,6 +394,10 @@ static void gen_mips16_restore(DisasContext *ctx,
     tcg_temp_free(t1);
     tcg_temp_free(t2);
 }
+
+#endif // !TARGET_CHERI
+
+#ifndef TARGET_CHERI // No MIPS16 with TARGET_CHERI
 
 #if defined(TARGET_MIPS64)
 static void decode_i64_mips16(DisasContext *ctx,
@@ -588,9 +596,11 @@ static int decode_extended_mips16_opc(CPUMIPSState *env, DisasContext *ctx)
         break;
     case M16_OPC_LI:
         tcg_gen_movi_tl(cpu_gpr[rx], (uint16_t) imm);
+        gen_log_instr_gpr_update(ctx, rx);
         break;
     case M16_OPC_CMPI:
         tcg_gen_xori_tl(cpu_gpr[24], cpu_gpr[rx], (uint16_t) imm);
+        gen_log_instr_gpr_update(ctx, 24);
         break;
 #if defined(TARGET_MIPS64)
     case M16_OPC_SD:
@@ -651,6 +661,9 @@ static int decode_extended_mips16_opc(CPUMIPSState *env, DisasContext *ctx)
 
     return 4;
 }
+#endif // !TARGET_CHERI
+
+#ifndef TARGET_CHERI /* MIPS16 not supported */
 
 static int decode_ase_mips16e(CPUMIPSState *env, DisasContext *ctx)
 {
@@ -1039,6 +1052,7 @@ static int decode_ase_mips16e(CPUMIPSState *env, DisasContext *ctx)
                 gen_reserved_instruction(ctx);
                 break;
             }
+            gen_log_instr_gpr_update(ctx, rx);
             break;
         case RR_MFLO:
             gen_HILO(ctx, OPC_MFLO, 0, rx);
@@ -1105,8 +1119,12 @@ static int decode_ase_mips16e(CPUMIPSState *env, DisasContext *ctx)
         }
         break;
     case M16_OPC_EXTEND:
+#ifdef TARGET_CHERI
+        generate_exception_end(ctx, EXCP_RI); // Not supported, needs more changes
+#else
         decode_extended_mips16_opc(env, ctx);
         n_bytes = 4;
+#endif
         break;
 #if defined(TARGET_MIPS64)
     case M16_OPC_I64:
@@ -1121,3 +1139,5 @@ static int decode_ase_mips16e(CPUMIPSState *env, DisasContext *ctx)
 
     return n_bytes;
 }
+
+#endif

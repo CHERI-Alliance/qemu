@@ -23,95 +23,6 @@ DEF_HELPER_FLAGS_1(dbitswap, TCG_CALL_NO_RWG_SE, tl, tl)
 
 DEF_HELPER_FLAGS_4(rotx, TCG_CALL_NO_RWG_SE, tl, tl, i32, i32, i32)
 
-#ifndef CONFIG_USER_ONLY
-// QEMU-CHERI extension:
-DEF_HELPER_1(mfc0_rtc64, i64, env)
-DEF_HELPER_2(mtc0_rtc64, void, env, i64)
-// BERI extension:
-DEF_HELPER_1(mfc0_coreid, tl, env)
-
-#ifdef CONFIG_TCG_LOG_INSTR
-/* Target dependent-helpers */
-DEF_HELPER_FLAGS_3(mips_log_instr_gpr, TCG_CALL_NO_WG, void, env, i32, tl)
-DEF_HELPER_FLAGS_4(mips_log_instr_cop0, TCG_CALL_NO_WG, void, env, i32, i32, tl)
-DEF_HELPER_FLAGS_4(mips_log_instr_hilo, TCG_CALL_NO_WG, void, env, i32, i32, tl)
-DEF_HELPER_FLAGS_3(mips_log_instr32, TCG_CALL_NO_WG, void, env, tl, i32)
-DEF_HELPER_FLAGS_1(mips_log_instr_drop, TCG_CALL_NO_WG, void, env)
-/* Extra MIPS-only helpers */
-DEF_HELPER_2(cheri_debug_message, void, env, i64)
-// Dump MIPS register state
-DEF_HELPER_2(mtc0_dumpstate, void, env, tl)
-#endif /* CONFIG_TCG_LOG_INSTR */
-/* Break after n cycles have been executed */
-DEF_HELPER_1(check_breakcount, void, env)
-DEF_HELPER_2(magic_library_function, void, env, tl)
-DEF_HELPER_1(smp_yield, void, env)
-
-#if defined(TARGET_CHERI)
-#include "cheri-helper-common.h"
-DEF_HELPER_2(mtc2_dumpcstate, void, env, tl)
-DEF_HELPER_2(cgettag, tl, env, i32)
-DEF_HELPER_2(cgetperm, tl, env, i32)
-DEF_HELPER_2(cgethigh, tl, env, i32)
-DEF_HELPER_2(cgetbase, tl, env, i32)
-DEF_HELPER_2(cgetflags, tl, env, i32)
-DEF_HELPER_2(cgetlen, tl, env, i32)
-DEF_HELPER_1(copy_cap_btarget_to_pcc, void, env)
-DEF_HELPER_3(ccheck_store, cap_checked_ptr, env, tl, i32)
-DEF_HELPER_3(ccheck_load, cap_checked_ptr, env, tl, i32)
-DEF_HELPER_3(ccheck_load_pcrel, void, env, tl, i32)
-DEF_HELPER_3(ccheck_load_right, cap_checked_ptr, env, tl, i32)
-DEF_HELPER_3(cbez, tl, env, i32, i32)
-DEF_HELPER_3(cbnz, tl, env, i32, i32)
-DEF_HELPER_3(cbts, tl, env, i32, i32)
-DEF_HELPER_3(cbtu, tl, env, i32, i32)
-DEF_HELPER_3(ccall, void, env, i32, i32)
-DEF_HELPER_3(ccall_notrap, tl, env, i32, i32)
-DEF_HELPER_3(ccall_notrap2, tl, env, i32, i32)
-DEF_HELPER_2(cclearreg, void, env, i32)
-DEF_HELPER_1(cgetcause, tl, env)
-DEF_HELPER_2(cgetpcc, void, env, i32)
-DEF_HELPER_2(cjr, tl, env, i32)
-DEF_HELPER_1(creturn, void, env)
-DEF_HELPER_2(csetcause, void, env, tl)
-DEF_HELPER_4(cmovz, void, env, i32, i32, tl)
-DEF_HELPER_4(cmovn, void, env, i32, i32, tl)
-
-DEF_HELPER_3(creadhwr, void, env, i32, i32)
-DEF_HELPER_3(cwritehwr, void, env, i32, i32)
-
-DEF_HELPER_3(ceq, tl, env, i32, i32)
-DEF_HELPER_3(cne, tl, env, i32, i32)
-DEF_HELPER_3(clt, tl, env, i32, i32)
-DEF_HELPER_3(cle, tl, env, i32, i32)
-DEF_HELPER_3(cltu, tl, env, i32, i32)
-DEF_HELPER_3(cleu, tl, env, i32, i32)
-DEF_HELPER_3(cgetandaddr, tl, env, i32, tl)
-
-DEF_HELPER_3(cloadlinked, cap_checked_ptr, env, i32, i32)
-
-DEF_HELPER_3(cstorecond, cap_checked_ptr, env, i32, i32)
-
-DEF_HELPER_3(cscc_without_tcg, tl, env, i32, i32)
-DEF_HELPER_3(cllc_without_tcg, void, env, i32, i32)
-
-DEF_HELPER_2(mtc0_capfilter_lo, void, env, tl)
-DEF_HELPER_2(mtc0_capfilter_hi, void, env, tl)
-DEF_HELPER_2(mtc0_capfilter_perms, void, env, tl)
-
-DEF_HELPER_4(cincoffset, void, env, i32, i32, tl)
-DEF_HELPER_4(csetaddr, void, env, i32, i32, tl)
-#endif
-
-/* Special functions */
-/* cannot access EPC directly since it is the offset of EPCC */
-DEF_HELPER_1(mfc0_epc, tl, env)
-DEF_HELPER_2(mtc0_epc, void, env, tl)
-DEF_HELPER_1(mfc0_error_epc, tl, env)
-DEF_HELPER_2(mtc0_error_epc, void, env, tl)
-#endif /* TARGET_CHERI */
-#endif /* !CONFIG_USER_ONLY */
-
 /* microMIPS functions */
 DEF_HELPER_4(lwm, void, env, tl, tl, i32)
 DEF_HELPER_4(swm, void, env, tl, tl, i32)
@@ -276,6 +187,16 @@ FOP_PROTO(sune)
 FOP_PROTO(sne)
 #undef FOP_PROTO
 
+/* Special functions */
+#ifndef CONFIG_USER_ONLY
+#if defined(TARGET_CHERI)
+/* cannot access EPC directly since it is the offset of EPCC */
+DEF_HELPER_1(mfc0_epc, tl, env)
+DEF_HELPER_2(mtc0_epc, void, env, tl)
+DEF_HELPER_1(mfc0_error_epc, tl, env)
+DEF_HELPER_2(mtc0_error_epc, void, env, tl)
+#endif
+#endif /* !CONFIG_USER_ONLY */
 DEF_HELPER_1(rdhwr_cpunum, tl, env)
 DEF_HELPER_1(rdhwr_synci_step, tl, env)
 DEF_HELPER_1(rdhwr_cc, tl, env)

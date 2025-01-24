@@ -24,6 +24,7 @@ void mips_cpu_do_unaligned_access(CPUState *cpu, vaddr addr,
 
 const char *mips_exception_name(int32_t exception);
 
+/* TODO: We changed uint32_t -> MipsExcp during the v6.1.0 merge. Is this ok? */
 void QEMU_NORETURN do_raise_exception_err(CPUMIPSState *env, MipsExcp exception,
                                           int error_code, uintptr_t pc);
 
