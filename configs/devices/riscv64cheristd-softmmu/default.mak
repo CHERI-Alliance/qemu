@@ -1,13 +1,3 @@
 # Default configuration for riscv64cheri-softmmu
 
-CONFIG_SEMIHOSTING=y
-CONFIG_ARM_COMPATIBLE_SEMIHOSTING=y
-
-# Boards:
-#
-CONFIG_SPIKE=y
-CONFIG_SIFIVE_U=y
-CONFIG_RISCV_VIRT=y
-CONFIG_MICROCHIP_PFSOC=y
-CONFIG_SHAKTI_C=y
-CONFIG_HOBGOBLIN=y
+include ../riscv64-softmmu/default.mak

@@ -99,6 +99,9 @@ static inline bool cheri_have_access_sysregs(CPUArchState *env);
 int mips_gdb_get_sys_reg(CPUMIPSState *env, GByteArray *buf, int n);
 int mips_gdb_set_sys_reg(CPUMIPSState *env, uint8_t *mem_buf, int n);
 
+void mips_cpu_do_interrupt(CPUState *cpu);
+bool mips_cpu_exec_interrupt(CPUState *cpu, int int_req);
+hwaddr mips_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
 int mips_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
 int mips_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 
@@ -252,6 +255,7 @@ static inline void mips_env_set_pc(CPUMIPSState *env, target_ulong value)
         env->hflags &= ~(MIPS_HFLAG_M16);
     }
 }
+
 
 static inline void restore_pamask(CPUMIPSState *env)
 {
