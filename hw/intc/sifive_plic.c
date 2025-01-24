@@ -456,12 +456,6 @@ static void sifive_plic_realize(DeviceState *dev, Error **errp)
     s->m_external_irqs = g_malloc(sizeof(qemu_irq) * s->num_harts);
     qdev_init_gpio_out(dev, s->m_external_irqs, s->num_harts);
 
-    plic->s_external_irqs = g_malloc(sizeof(qemu_irq) * plic->num_harts);
-    qdev_init_gpio_out(dev, plic->s_external_irqs, plic->num_harts);
-
-    plic->m_external_irqs = g_malloc(sizeof(qemu_irq) * plic->num_harts);
-    qdev_init_gpio_out(dev, plic->m_external_irqs, plic->num_harts);
-
     /* We can't allow the supervisor to control SEIP as this would allow the
      * supervisor to clear a pending external interrupt which will result in
      * lost a interrupt in the case a PLIC is attached. The SEIP bit must be
