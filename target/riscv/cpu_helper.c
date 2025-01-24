@@ -243,8 +243,8 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env, bool hs_mode_trap)
         riscv_log_instr_csr_changed(env, CSR_VSSTATUS);
         /* mstatus may be modified again by do_interrupt */
 
-        COPY_SPECIAL_REG(env, vstvec, vstcc, stvec, STVECC);
-        COPY_SPECIAL_REG(env, stvec, STVECC, stvec_hs, stcc_hs);
+        COPY_SPECIAL_REG(env, vstvec, vstcc, stvec, stvecc);
+        COPY_SPECIAL_REG(env, stvec, stvecc, stvec_hs, stcc_hs);
         LOG_SPECIAL_REG(env, CSR_VSTVEC, CheriSCR_BSTCC);
         riscv_log_instr_csr_changed(env, CSR_STVEC);
 
@@ -312,8 +312,8 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env, bool hs_mode_trap)
         env->mstatus &= ~mstatus_mask;
         env->mstatus |= env->vsstatus;
 
-        COPY_SPECIAL_REG(env, stvec_hs, stcc_hs, stvec, STVECC);
-        COPY_SPECIAL_REG(env, stvec, STVECC, vstvec, vstcc);
+        COPY_SPECIAL_REG(env, stvec_hs, stcc_hs, stvec, stvecc);
+        COPY_SPECIAL_REG(env, stvec, stvecc, vstvec, vstcc);
         riscv_log_instr_csr_changed(env, CSR_STVEC);
 
         env->sscratch_hs = env->sscratch;
@@ -673,7 +673,9 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
     }
 
     CPUState *cs = env_cpu(env);
+#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
     RISCVCPU *cpu = env_archcpu(env);
+#endif
     int va_bits = PGSHIFT + levels * ptidxbits + widened;
     target_ulong mask, masked_msbs;
 
@@ -1361,8 +1363,8 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
          * the exception handler is meant to run in capability pointer mode.
          */ \
         if (src_cap && cap_has_perms(src_cap, CAP_PERM_EXECUTE)) { \
-            cheri_update_pcc_for_exc_handler(&env->PCC, src_cap, new_pc); \
-            qemu_log_instr_dbg_cap(env, "PCC", &env->PCC); \
+            cheri_update_pcc_for_exc_handler(&env->pcc, src_cap, new_pc); \
+            qemu_log_instr_dbg_cap(env, "PCC", &env->pcc); \
         } \
         else { \
           __UPDATE_PC \
@@ -1553,10 +1555,10 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         }
 #endif 
 
-        target_ulong stvec = GET_SPECIAL_REG_ADDR(env, stvec, STVECC);
+        target_ulong stvec = GET_SPECIAL_REG_ADDR(env, stvec, stvecc);
         target_ulong new_pc = (stvec >> 2 << 2) +
             ((async && (stvec & 3) == 1) ? cause * 4 : 0);
-        riscv_update_pc_for_exc_handler(env, &env->STVECC, new_pc);
+        riscv_update_pc_for_exc_handler(env, &env->stvecc, new_pc);
         riscv_cpu_set_mode(env, PRV_S);
     } else {
         /* handle the trap in M-mode */
@@ -1598,7 +1600,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         env->mtval = tval;
         env->mtval2 = mtval2;
 
-        target_ulong mtvec = GET_SPECIAL_REG_ADDR(env, mtvec, MTVECC);
+        target_ulong mtvec = GET_SPECIAL_REG_ADDR(env, mtvec, mtvecc);
         target_ulong new_pc = (mtvec >> 2 << 2) +
             ((async && (mtvec & 3) == 1) ? cause * 4 : 0);
 
@@ -1610,7 +1612,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
          */
         if (
 #ifdef TARGET_CHERI
-                cap_exactly_equal(&env->PCC, &env->MTVECC)
+                cap_exactly_equal(&env->pcc, &env->mtvecc)
 #else
                 (env->pc == new_pc)
 #endif
@@ -1627,7 +1629,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
             riscv_log_instr_csr_changed(env, CSR_MTVAL2);
         }
 
-        riscv_update_pc_for_exc_handler(env, &env->MTVECC, new_pc);
+        riscv_update_pc_for_exc_handler(env, &env->mtvecc, new_pc);
         riscv_cpu_set_mode(env, PRV_M);
     }
 

@@ -26,9 +26,6 @@
 #include "exec/cpu-defs.h"
 #include "qapi/qapi-types-common.h"
 
-#define cpu_get_tb_cpu_state_6(env, pc, cs_base, cs_top, cheri_flags, pflags) \
-   cpu_get_tb_cpu_state(env, pc, cs_base, pflags)
-
 /* The x86 has a strong memory model with some store-after-load re-ordering */
 #define TCG_GUEST_DEFAULT_MO      (TCG_MO_ALL & ~TCG_MO_ST_LD)
 

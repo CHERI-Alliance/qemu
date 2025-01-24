@@ -26,6 +26,7 @@
 #ifdef TARGET_CHERI
 #include "cheri-helper-utils.h"
 #endif
+
 /* CSR update logging API */
 #if CONFIG_TCG_LOG_INSTR
 #ifdef TARGET_CHERI
@@ -34,6 +35,7 @@ static inline cap_register_t *get_cap_csr(CPUArchState *env, uint32_t index);
 void riscv_log_instr_csr_changed(CPURISCVState *env, int csrno)
 {
     target_ulong value;
+
     if (qemu_log_instr_enabled(env)) {
 
 #ifdef TARGET_CHERI
@@ -817,13 +819,6 @@ static RISCVException read_mcounteren(CPURISCVState *env, int csrno,
 static RISCVException write_mcounteren(CPURISCVState *env, int csrno,
                                        target_ulong val)
 {
-    *val = env->mcounteren;
-    return RISCV_EXCP_NONE;
-}
-
-static RISCVException write_mcounteren(CPURISCVState *env, int csrno,
-                                       target_ulong val)
-{
     env->mcounteren = val;
     return RISCV_EXCP_NONE;
 }
@@ -924,7 +919,7 @@ static RISCVException write_vsie(CPURISCVState *env, int csrno,
     return write_mie(env, CSR_MIE, newval);
 }
 
-static int write_sie(CPURISCVState *env, int csrno, target_ulong val)
+static RISCVException write_sie(CPURISCVState *env, int csrno, target_ulong val)
 {
     if (riscv_cpu_virt_enabled(env)) {
         write_vsie(env, CSR_VSIE, val);
@@ -1376,46 +1371,32 @@ static RISCVException write_mtinst(CPURISCVState *env, int csrno,
     return RISCV_EXCP_NONE;
 }
 
-static int read_mseccfg(CPURISCVState *env, int csrno, target_ulong *val)
-{
-    // at present the CRE bit is the only supported field in the register
-    *val = env->mseccfg & MSECCFG_CRE;
-    return 0;
-}
-
-static int write_mseccfg(CPURISCVState *env, int csrno, target_ulong val)
-{
-    // at present the CRE bit is the only supported field in the register
-    env->mseccfg = val & MSECCFG_CRE;
-    return 0;
-}
-
-static int read_menvcfg(CPURISCVState *env, int csrno, target_ulong *val)
+static RISCVException read_menvcfg(CPURISCVState *env, int csrno, target_ulong *val)
 {
     // at present the CRE bit is the only supported field in the register
     *val = env->menvcfg & MENVCFG_CRE;
-    return 0;
+    return RISCV_EXCP_NONE;
 }
 
-static int write_menvcfg(CPURISCVState *env, int csrno, target_ulong val)
+static RISCVException write_menvcfg(CPURISCVState *env, int csrno, target_ulong val)
 {
     // at present the CRE bit is the only supported field in the register
     env->menvcfg = (val & MENVCFG_CRE);
-    return 0;
+    return RISCV_EXCP_NONE;
 }
 
-static int read_senvcfg(CPURISCVState *env, int csrno, target_ulong *val)
+static RISCVException read_senvcfg(CPURISCVState *env, int csrno, target_ulong *val)
 {
     // at present the CRE bit is the only supported field in the register
     *val = env->senvcfg & SENVCFG_CRE;
-    return 0;
+    return RISCV_EXCP_NONE;
 }
 
-static int write_senvcfg(CPURISCVState *env, int csrno, target_ulong val)
+static RISCVException write_senvcfg(CPURISCVState *env, int csrno, target_ulong val)
 {
     // at present the CRE bit is the only supported field in the register
     env->senvcfg = (val & SENVCFG_CRE);
-    return 0;
+    return RISCV_EXCP_NONE;
 }
 
 
@@ -1801,13 +1782,13 @@ static RISCVException write_utid(CPURISCVState *env, int csrno,
 #ifndef TARGET_CHERI
 /* Integer CSR Read/write functions for CSRs which have CLEN counterparts*/
 /* Machine Trap Handling */
-static int read_mtvec(CPURISCVState *env, int csrno, target_ulong *val)
+static RISCVException read_mtvec(CPURISCVState *env, int csrno, target_ulong *val)
 {
     *val = env->mtvec;
-    return 0;
+    return RISCV_EXCP_NONE;
 }
 
-static int write_mtvec(CPURISCVState *env, int csrno, target_ulong val)
+static RISCVException write_mtvec(CPURISCVState *env, int csrno, target_ulong val)
 {
     /* bits [1:0] encode mode; 0 = direct, 1 = vectored, 2 >= reserved */
     if ((val & 3) < 2) {
@@ -1815,45 +1796,45 @@ static int write_mtvec(CPURISCVState *env, int csrno, target_ulong val)
     } else {
         qemu_log_mask(LOG_UNIMP, "CSR_MTVEC: reserved mode not supported\n");
     }
-    return 0;
+    return RISCV_EXCP_NONE;
 }
 
-static int read_mscratch(CPURISCVState *env, int csrno, target_ulong *val)
+static RISCVException read_mscratch(CPURISCVState *env, int csrno, target_ulong *val)
 {
     *val = env->mscratch;
-    return 0;
+    return RISCV_EXCP_NONE;
 }
 
-static int write_mscratch(CPURISCVState *env, int csrno, target_ulong val)
+static RISCVException write_mscratch(CPURISCVState *env, int csrno, target_ulong val)
 {
     env->mscratch = val;
-    return 0;
+    return RISCV_EXCP_NONE;
 }
 
-static int read_mepc(CPURISCVState *env, int csrno, target_ulong *val)
+static RISCVException read_mepc(CPURISCVState *env, int csrno, target_ulong *val)
 {
     *val = env->mepc;
     // RISC-V privileged spec 3.1.15 Machine Exception Program Counter (mepc):
     // "The low bit of mepc (mepc[0]) is always zero. [...] Whenever IALIGN=32,
     // mepc[1] is masked on reads so that it appears to be 0."
     *val &= ~(target_ulong)(riscv_has_ext(env, RVC) ? 1 : 3);
-    return 0;
+    return RISCV_EXCP_NONE;
 }
 
-static int write_mepc(CPURISCVState *env, int csrno, target_ulong val)
+static RISCVException write_mepc(CPURISCVState *env, int csrno, target_ulong val)
 {
     env->mepc = val;
-    return 0;
+    return RISCV_EXCP_NONE;
 }
 
-static int read_stvec(CPURISCVState *env, int csrno, target_ulong *val)
+static RISCVException read_stvec(CPURISCVState *env, int csrno, target_ulong *val)
 {
     *val = env->stvec;
-    return 0;
+    return RISCV_EXCP_NONE;
 }
 
 /* Supervisor Trap Handling */
-static int write_stvec(CPURISCVState *env, int csrno, target_ulong val)
+static RISCVException write_stvec(CPURISCVState *env, int csrno, target_ulong val)
 {
     /* bits [1:0] encode mode; 0 = direct, 1 = vectored, 2 >= reserved */
     if ((val & 3) < 2) {
@@ -1861,57 +1842,57 @@ static int write_stvec(CPURISCVState *env, int csrno, target_ulong val)
     } else {
         qemu_log_mask(LOG_UNIMP, "CSR_STVEC: reserved mode not supported\n");
     }
-    return 0;
+    return RISCV_EXCP_NONE;
 }
-static int read_sscratch(CPURISCVState *env, int csrno, target_ulong *val)
+static RISCVException read_sscratch(CPURISCVState *env, int csrno, target_ulong *val)
 {
     *val = env->sscratch;
-    return 0;
+    return RISCV_EXCP_NONE;
 }
 
-static int write_sscratch(CPURISCVState *env, int csrno, target_ulong val)
+static RISCVException write_sscratch(CPURISCVState *env, int csrno, target_ulong val)
 {
     env->sscratch = val;
-    return 0;
+    return RISCV_EXCP_NONE;
 }
 
-static int read_sepc(CPURISCVState *env, int csrno, target_ulong *val)
+static RISCVException read_sepc(CPURISCVState *env, int csrno, target_ulong *val)
 {
     *val = env->sepc;
     // RISC-V privileged spec 4.1.7 Supervisor Exception Program Counter (sepc)
     // "The low bit of sepc (sepc[0]) is always zero. [...] Whenever IALIGN=32,
     // sepc[1] is masked on reads so that it appears to be 0."
     *val &= ~(target_ulong)(riscv_has_ext(env, RVC) ? 1 : 3);
-    return 0;
+    return RISCV_EXCP_NONE;
 }
 
-static int write_sepc(CPURISCVState *env, int csrno, target_ulong val)
+static RISCVException write_sepc(CPURISCVState *env, int csrno, target_ulong val)
 {
     env->sepc = val;
-    return 0;
+    return RISCV_EXCP_NONE;
 }
-static int read_vstvec(CPURISCVState *env, int csrno, target_ulong *val)
+static RISCVException read_vstvec(CPURISCVState *env, int csrno, target_ulong *val)
 {
     *val = env->vstvec;
-    return 0;
+    return RISCV_EXCP_NONE;
 }
 
 /* Hypervisor trap handling*/
-static int write_vstvec(CPURISCVState *env, int csrno, target_ulong val)
+static RISCVException write_vstvec(CPURISCVState *env, int csrno, target_ulong val)
 {
     env->vstvec = val;
-    return 0;
+    return RISCV_EXCP_NONE;
 }
-static int read_vsepc(CPURISCVState *env, int csrno, target_ulong *val)
+static RISCVException read_vsepc(CPURISCVState *env, int csrno, target_ulong *val)
 {
     *val = env->vsepc;
-    return 0;
+    return RISCV_EXCP_NONE;
 }
 
-static int write_vsepc(CPURISCVState *env, int csrno, target_ulong val)
+static RISCVException write_vsepc(CPURISCVState *env, int csrno, target_ulong val)
 {
     env->vsepc = val;
-    return 0;
+    return RISCV_EXCP_NONE;
 }
 #else
 // defined(TARGET_CHERI)
@@ -1919,17 +1900,17 @@ static inline cap_register_t *get_cap_csr(CPUArchState *env, uint32_t index)
 {
     switch (index) {
     case CSR_MSCRATCHC:
-        return &env->MScratchC;
+        return &env->mscratchc;
     case CSR_MTVECC:
-        return &env->MTVECC;
+        return &env->mtvecc;
     case CSR_STVECC:
-        return &env->STVECC;
+        return &env->stvecc;
     case CSR_MEPCC:
-        return &env->MEPCC;
+        return &env->mepcc;
     case CSR_SEPCC:
-        return &env->SEPCC;
+        return &env->sepcc;
     case CSR_SSCRATCHC:
-        return &env->SScratchC;
+        return &env->sscratchc;
     case CSR_DSCRATCH0C:
         return &env->dscratch0c;
     case CSR_DSCRATCH1C:
@@ -1941,11 +1922,11 @@ static inline cap_register_t *get_cap_csr(CPUArchState *env, uint32_t index)
     case CSR_JVTC:
         return &env->jvtc;
     case CSR_MTDC:
-        return &env->MTDC;
+        return &env->mtdc;
     case CSR_STDC:
-        return &env->STDC;
+        return &env->stdc;
     case CSR_DDC:
-        return &env->DDC;
+        return &env->ddc;
     case CSR_MTIDC:
         return &env->mtidc;
     case CSR_STIDC:
@@ -1978,7 +1959,8 @@ static inline int64_t SignExtend64(uint64_t X, unsigned B)
 
 
 static inline uint8_t topbit_for_address_mode(CPUArchState *env){
-    uint64_t vm = get_field(env->vsatp, SATP_MODE);
+    uint64_t vm = get_field(env->vsatp,
+            riscv_cpu_mxl(env) == MXL_RV32 ? SATP32_MODE : SATP64_MODE);
     uint8_t checkbit = 0;
     switch (vm) {
     case VM_1_10_SV32:
@@ -2016,7 +1998,7 @@ static inline bool is_address_valid_for_cap(CPUArchState *env,
 #ifdef TARGET_RISCV32
     return true;
 #endif
-    uint64_t vm = get_field(env->vsatp, SATP_MODE);
+    uint64_t vm = get_field(env->vsatp, SATP64_MODE);
     if (vm == VM_1_10_MBARE || vm == VM_1_10_SV32) {
         return true;
     }
@@ -2041,7 +2023,8 @@ This is implementation dependant and depends on the address translation mode
 static inline target_ulong get_valid_cap_address(CPUArchState *env,
                                                  target_ulong addr)
 {
-    uint64_t vm = get_field(env->vsatp, SATP_MODE);
+    uint64_t vm = get_field(env->vsatp,
+            riscv_cpu_mxl(env) == MXL_RV32 ? SATP32_MODE : SATP64_MODE);
     if (vm == VM_1_10_MBARE || vm == VM_1_10_SV32) {
         return addr;
     }
@@ -2567,7 +2550,7 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_SENVCFG] =             CSR_OP_RW(any, senvcfg),
     [CSR_MENVCFG] =             CSR_OP_RW(any, menvcfg),
     /* Physical Memory Protection */
-    [CSR_MSECCFG] =             CSR_OP_RW(any, mseccfg),
+    [CSR_MSECCFG]    = CSR_OP_FN_RW(epmp, read_mseccfg, write_mseccfg, "mseccfg"),
     [CSR_PMPCFG0]    = CSR_OP_FN_RW(pmp, read_pmpcfg, write_pmpcfg, "pmpcfg0"),
     [CSR_PMPCFG1]    = CSR_OP_FN_RW(pmp, read_pmpcfg, write_pmpcfg, "pmpcfg1"),
     [CSR_PMPCFG2]    = CSR_OP_FN_RW(pmp, read_pmpcfg, write_pmpcfg, "pmpcfg2"),
@@ -2588,19 +2571,6 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_PMPADDR13]  = CSR_OP_FN_RW(pmp, read_pmpaddr, write_pmpaddr, "pmpaddr13"),
     [CSR_PMPADDR14]  = CSR_OP_FN_RW(pmp, read_pmpaddr, write_pmpaddr, "pmpaddr14"),
     [CSR_PMPADDR15]  = CSR_OP_FN_RW(pmp, read_pmpaddr, write_pmpaddr, "pmpaddr15"),
-
-    /* User Pointer Masking */
-    [CSR_UMTE]    =    { "umte",    pointer_masking, read_umte,    write_umte    },
-    [CSR_UPMMASK] =    { "upmmask", pointer_masking, read_upmmask, write_upmmask },
-    [CSR_UPMBASE] =    { "upmbase", pointer_masking, read_upmbase, write_upmbase },
-    /* Machine Pointer Masking */
-    [CSR_MMTE]    =    { "mmte",    pointer_masking, read_mmte,    write_mmte    },
-    [CSR_MPMMASK] =    { "mpmmask", pointer_masking, read_mpmmask, write_mpmmask },
-    [CSR_MPMBASE] =    { "mpmbase", pointer_masking, read_mpmbase, write_mpmbase },
-    /* Supervisor Pointer Masking */
-    [CSR_SMTE]    =    { "smte",    pointer_masking, read_smte,    write_smte    },
-    [CSR_SPMMASK] =    { "spmmask", pointer_masking, read_spmmask, write_spmmask },
-    [CSR_SPMBASE] =    { "spmbase", pointer_masking, read_spmbase, write_spmbase },
 
     /* User Pointer Masking */
     [CSR_UMTE]    =    { "umte",    pointer_masking, read_umte,    write_umte    },

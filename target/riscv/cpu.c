@@ -223,7 +223,7 @@ static void rv64_codasip_a730_cpu_init(Object *obj)
      * qemu 6.x has no RVG definition
      * RVG == RVI | RVM | RVA | RVF | RVD
      */
-    set_misa(env, RV64 | RVI | RVM | RVA | RVF | RVD | RVC | RVS | RVU);
+    set_misa(env, MXL_RV64, RVI | RVM | RVA | RVF | RVD | RVC | RVS | RVU);
 
     /* This CPU supports priv v1.12. Qemu 6.x supports only up to 1.11. */
     set_priv_version(env, PRIV_VERSION_1_11_0);
@@ -783,14 +783,14 @@ static void riscv_cpu_reset(DeviceState *dev)
     }
     set_max_perms_capability(env, &env->ddc, 0);
     // Supervisor mode trap handling
-    set_max_perms_capability(env, &env->STVECC, 0);
+    set_max_perms_capability(env, &env->stvecc, 0);
     null_capability(&env->stdc);
     null_capability(&env->sscratchc);
     set_max_perms_capability(env, &env->sepcc, 0);
     // Machine mode trap handling
     null_capability(&env->mtdc);
     null_capability(&env->mscratchc);
-    set_max_perms_capability(env, &env->MTVECC,0);
+    set_max_perms_capability(env, &env->mtvecc, 0);
     set_max_perms_capability(env, &env->mepcc, 0);
     null_capability(&env->dscratch0c);
     null_capability(&env->dscratch1c);
@@ -1002,36 +1002,36 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
         if (cpu->cfg.ext_j) {
             ext |= RVJ;
         }
-    }
 
 #ifdef TARGET_CHERI
-    if (env->misa_ext & RVJ) {
-        /*
-         * According to the Cheri RISC-V spec, the J extension is incompatible
-         * with capability pointer mode.
-         */
-        error_setg(errp, "J extension is not supported on Cheri systems.");
-        return;
-    }
+	if (env->misa_ext & RVJ) {
+	    /*
+	     * According to the Cheri RISC-V spec, the J extension is incompatible
+	     * with capability pointer mode.
+	     */
+	    error_setg(errp, "J extension is not supported on Cheri systems.");
+	    return;
+	}
 
-    // Non-standard extensions present
-    target_misa |= RV('X');
-    set_feature(env, RISCV_FEATURE_CHERI_PURECAP);
-    if (!cpu->cfg.ext_cheri_purecap) {
-        set_feature(env, RISCV_FEATURE_CHERI_HYBRID);
-    }
+	// Non-standard extensions present
+	ext |= RV('X');
+	set_feature(env, RISCV_FEATURE_CHERI_PURECAP);
+	if (!cpu->cfg.ext_cheri_purecap) {
+	    set_feature(env, RISCV_FEATURE_CHERI_HYBRID);
+	}
 
-    set_feature(env, RISCV_FEATURE_STID);
-    /*
-     * cheri_v090 and m_flip (use legacy definition of M) are incompatible,
-     * the v0.9.0 switch takes precedence.
-     */
-    if (cpu->cfg.cheri_v090) {
-        cpu->cfg.m_flip = false;
-    }
+	set_feature(env, RISCV_FEATURE_STID);
+	/*
+	 * cheri_v090 and m_flip (use legacy definition of M) are incompatible,
+	 * the v0.9.0 switch takes precedence.
+	 */
+	if (cpu->cfg.cheri_v090) {
+	    cpu->cfg.m_flip = false;
+	}
 #endif
 
-    set_misa(env, env->misa_mxl, ext);
+        set_misa(env, env->misa_mxl, ext);
+    }
 
     riscv_cpu_register_gdb_regs_for_features(cs);
 

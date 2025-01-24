@@ -505,7 +505,7 @@ static bool trans_cadd(DisasContext *ctx, arg_cadd *a)
     dest_regnum = tcg_const_i32(a->cd);
     source_regnum = tcg_const_i32(a->cs1);
     gpr_value = tcg_temp_new();
-    gen_get_gpr(gpr_value, a->rs2);
+    gen_get_gpr(ctx, gpr_value, a->rs2);
 
     gen_helper_caddi(cpu_env, dest_regnum, source_regnum, gpr_value);
 

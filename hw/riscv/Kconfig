@@ -87,7 +87,7 @@ config SPIKE
 
 config HOBGOBLIN
     bool
-    select SIFIVE_CLINT
+    select RISCV_ACLINT
     select SIFIVE_PLIC
     select CODASIP_TIMER
     select CODASIP_TRNG

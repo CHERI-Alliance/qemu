@@ -210,9 +210,9 @@ struct CPURISCVState {
 
 #ifdef TARGET_CHERI
     cap_register_t stdc;      // SCR 13 Supervisor trap data cap. (STDC)
-    cap_register_t sscratchc; // SCR 14 Supervisor scratch cap. (SScratchC)
-    cap_register_t sepcc;     // SCR 15 Supervisor exception PC cap. (SEPCC)
-    cap_register_t STVECC;
+    cap_register_t sscratchc; // SCR 14 Supervisor scratch cap. (sscratchc)
+    cap_register_t sepcc;     // SCR 15 Supervisor exception PC cap. (sepcc)
+    cap_register_t stvecc;
 #else
     target_ulong stvec;
     target_ulong sepc;
@@ -221,9 +221,9 @@ struct CPURISCVState {
 
 #ifdef TARGET_CHERI
     cap_register_t mtdc;      // SCR 29 Machine trap data cap. (MTDC)
-    cap_register_t mscratchc; // SCR 30 Machine scratch cap. (MScratchC)
-    cap_register_t mepcc;     // Machine exception PC cap. (MEPCC)
-    cap_register_t MTVECC;
+    cap_register_t mscratchc; // SCR 30 Machine scratch cap. (mscratchc)
+    cap_register_t mepcc;     // Machine exception PC cap. (mepcc)
+    cap_register_t mtvecc;
 #else
     target_ulong mtvec;
     target_ulong mepc;

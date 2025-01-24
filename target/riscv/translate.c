@@ -530,6 +530,11 @@ static int ex_rvc_shifti(DisasContext *ctx, int imm)
     return imm ? imm : 64;
 }
 
+static bool pred_rv64(DisasContext *ctx)
+{
+    return (get_xl(ctx) != MXL_RV32);
+}
+
 static bool __attribute__((unused)) pred_cheri_v090(DisasContext *ctx)
 {
 #ifdef TARGET_CHERI
@@ -858,7 +863,6 @@ TRANS_STUB(lc)
 TRANS_STUB(sc)
 TRANS_STUB(caddi)
 TRANS_STUB(cadd)
-TRANS_STUB(scbndsi)
 #endif
 
 static void decode_opc(CPURISCVState *env, DisasContext *ctx, uint16_t opcode)

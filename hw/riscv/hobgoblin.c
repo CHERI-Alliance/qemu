@@ -37,7 +37,7 @@
 #include "target/riscv/cpu.h"
 #include "hw/riscv/cmu.h"
 #include "hw/riscv/riscv_hart.h"
-#include "hw/intc/sifive_clint.h"
+#include "hw/intc/riscv_aclint.h"
 #include "hw/intc/sifive_plic.h"
 #include "hw/nvram/hobgoblin_nvemu.h"
 #include "hw/riscv/hobgoblin.h"

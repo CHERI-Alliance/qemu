@@ -98,7 +98,7 @@ struct SCRInfo {
 void riscv_log_instr_scr_changed(CPURISCVState *env, int scrno)
 {
     if (qemu_log_instr_enabled(env)) {
-        qemu_log_instr_cap(env, scr_info[scrno].name, get_scr(env, scrno),
+        qemu_log_instr_cap(env, scr_info[scrno].name, riscv_get_scr(env, scrno),
                            scrno, LRI_CSR_ACCESS);
     }
 }

@@ -101,7 +101,6 @@ DEF_HELPER_2(mtc0_capfilter_perms, void, env, tl)
 
 DEF_HELPER_4(cincoffset, void, env, i32, i32, tl)
 DEF_HELPER_4(csetaddr, void, env, i32, i32, tl)
-#endif
 
 /* Special functions */
 /* cannot access EPC directly since it is the offset of EPCC */

@@ -190,17 +190,17 @@ static int riscv_gdb_get_cheri_reg(CPURISCVState *env, GByteArray *buf, int n)
     case CHERI_GDB_NUM_GP_CAPREGS + 5:
         return gdb_get_capreg(buf, &env->dscratch1c);
     case CHERI_GDB_NUM_GP_CAPREGS + 6:
-        return gdb_get_capreg(buf, &env->MTVECC);
+        return gdb_get_capreg(buf, &env->stvecc);
     case CHERI_GDB_NUM_GP_CAPREGS + 7:
-        return gdb_get_capreg(buf, &env->MScratchC);
+        return gdb_get_capreg(buf, &env->mscratchc);
     case CHERI_GDB_NUM_GP_CAPREGS + 8:
-        return gdb_get_capreg(buf, &env->MEPCC);
+        return gdb_get_capreg(buf, &env->mepcc);
     case CHERI_GDB_NUM_GP_CAPREGS + 9:
-        return gdb_get_capreg(buf, &env->STVECC);
+        return gdb_get_capreg(buf, &env->stvecc);
     case CHERI_GDB_NUM_GP_CAPREGS + 10:
-        return gdb_get_capreg(buf, &env->SScratchC);
+        return gdb_get_capreg(buf, &env->sscratchc);
     case CHERI_GDB_NUM_GP_CAPREGS + 11:
-        return gdb_get_capreg(buf, &env->SEPCC);
+        return gdb_get_capreg(buf, &env->sepcc);
     case CHERI_GDB_NUM_GP_CAPREGS + 12:
         return gdb_get_capreg(buf, &env->stidc);
     case CHERI_GDB_NUM_GP_CAPREGS + 13:
@@ -254,64 +254,6 @@ static int riscv_gen_dynamic_csr_xml(CPUState *cs, int base_reg)
     return CSR_TABLE_SIZE;
 }
 
-#if defined(TARGET_CHERI)
-static struct SCR {
-    int index;
-    const char *name;
-    bool code;
-} scrs[] = {
-    { .index = CheriSCR_STDC, .name = "stdc"},
-
-    { .index = CheriSCR_MTDC, .name = "mtdc"},
-    { .index = CheriSCR_MEPCC, .name = "mepcc", .code = true },
-};
-
-static int riscv_gdb_get_scr(CPURISCVState *env, GByteArray *buf, int n)
-{
-    if (n < ARRAY_SIZE(scrs)) {
-        cap_register_t *scr = riscv_get_scr(env, scrs[n].index);
-        return gdb_get_capreg(buf, scr);
-    }
-    return 0;
-}
-
-static int riscv_gdb_set_scr(CPURISCVState *env, uint8_t *mem_buf, int n)
-{
-    /* All CHERI registers are read-only currently.  */
-    if (n < ARRAY_SIZE(scrs)) {
-        return CHERI_CAP_SIZE + 1;
-    }
-    return 0;
-}
-
-static int riscv_gen_dynamic_scr_xml(CPUState *cs, int base_reg)
-{
-    RISCVCPU *cpu = RISCV_CPU(cs);
-    CPURISCVState *env = &cpu->env;
-    GString *s = g_string_new(NULL);
-    int bitsize = riscv_cpu_mxl(env) == MXL_RV32 ? 64 : 128;
-    int i;
-
-    g_string_printf(s, "<?xml version=\"1.0\"?>");
-    g_string_append_printf(s, "<!DOCTYPE feature SYSTEM \"gdb-target.dtd\">");
-    g_string_append_printf(s, "<feature name=\"org.gnu.gdb.riscv.scr\">");
-
-    for (i = 0; i < ARRAY_SIZE(scrs); i++) {
-        g_string_append_printf(s, "<reg name=\"%s\"", scrs[i].name);
-        g_string_append_printf(s, " bitsize=\"%d\"", bitsize);
-        g_string_append_printf(s, " type=\"%s_capability\"",
-                               scrs[i].code ? "code" : "data");
-        g_string_append_printf(s, " group=\"system\"");
-        g_string_append_printf(s, " regnum=\"%d\"/>", base_reg + i);
-    }
-
-    g_string_append_printf(s, "</feature>");
-
-    cpu->dyn_scr_xml = g_string_free(s, false);
-    return ARRAY_SIZE(scrs);
-}
-#endif
-
 void riscv_cpu_register_gdb_regs_for_features(CPUState *cs)
 {
     RISCVCPU *cpu = RISCV_CPU(cs);
@@ -345,9 +287,4 @@ void riscv_cpu_register_gdb_regs_for_features(CPUState *cs)
     gdb_register_coprocessor(cs, riscv_gdb_get_csr, riscv_gdb_set_csr,
                              riscv_gen_dynamic_csr_xml(cs, cs->gdb_num_regs),
                              "riscv-csr.xml", 0);
-#if defined(TARGET_CHERI)
-    gdb_register_coprocessor(cs, riscv_gdb_get_scr, riscv_gdb_set_scr,
-                             riscv_gen_dynamic_scr_xml(cs, cs->gdb_num_regs),
-                             "riscv-scr.xml", 0);
-#endif
 }

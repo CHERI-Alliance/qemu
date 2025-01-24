@@ -568,12 +568,6 @@
 #       "not applicable". In contrast, reserve=false will bail out if it cannot
 #       be configured accordingly.
 #
-# Note: prealloc=true and reserve=false cannot be set at the same time. With
-#       reserve=true, the behavior depends on the operating system: for example,
-#       Linux will not reserve swap space for shared file mappings --
-#       "not applicable". In contrast, reserve=false will bail out if it cannot
-#       be configured accordingly.
-#
 # Since: 2.1
 ##
 { 'struct': 'MemoryBackendProperties',

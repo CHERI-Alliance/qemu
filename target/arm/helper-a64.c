@@ -1154,11 +1154,7 @@ void HELPER(dc_zva)(CPUARMState *env, target_ulong vaddr_in)
 void QEMU_NORETURN helper_alignment_fault_exception(CPUArchState *env,
                                                     uint64_t addr)
 {
-#ifdef TARGET_CHERI
     GET_HOST_RETPC();
-#else
-    const uintptr_t _host_return_address = GETPC();
-#endif
     arm_cpu_do_unaligned_access(env_cpu(env), addr, MMU_DATA_STORE,
                                 cpu_mmu_index(env, false),
                                 _host_return_address);
