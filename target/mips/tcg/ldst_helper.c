@@ -105,18 +105,16 @@ static inline void invalidate_tags_store_left_right(CPUMIPSState *env,
 #endif
 }
 
-
-
 void helper_swl(CPUMIPSState *env, target_ulong arg1, target_ulong arg2,
                 int mem_idx)
 {
     target_ulong lmask = get_lmask(env, arg2, 32);
+    int dir = cpu_is_bigendian(env) ? 1 : -1;
+
 #ifdef TARGET_CHERI
     const int num_bytes = 4 - lmask;
     arg2 = check_ddc(env, CAP_PERM_STORE, arg2, num_bytes, GETPC());
 #endif
-    int dir = cpu_is_bigendian(env) ? 1 : -1;
-
     cpu_stb_mmuidx_ra(env, arg2, (uint8_t)(arg1 >> 24), mem_idx, GETPC());
 
     if (lmask <= 2) {
@@ -133,17 +131,18 @@ void helper_swl(CPUMIPSState *env, target_ulong arg1, target_ulong arg2,
         cpu_stb_mmuidx_ra(env, arg2 + 3 * dir, (uint8_t)arg1,
                           mem_idx, GETPC());
     }
+    invalidate_tags_store_left_right(env, arg2, GETPC());
 }
 
 void helper_swr(CPUMIPSState *env, target_ulong arg1, target_ulong arg2,
                 int mem_idx)
 {
-#ifdef TARGET_CHERI
-    arg2 = ccheck_store_right(env, arg2, 4, GETPC());
-#endif
     target_ulong lmask = get_lmask(env, arg2, 32);
     int dir = cpu_is_bigendian(env) ? 1 : -1;
 
+#ifdef TARGET_CHERI
+    arg2 = ccheck_store_right(env, arg2, 4, GETPC());
+#endif
     cpu_stb_mmuidx_ra(env, arg2, (uint8_t)arg1, mem_idx, GETPC());
 
     if (lmask >= 1) {
@@ -160,6 +159,7 @@ void helper_swr(CPUMIPSState *env, target_ulong arg1, target_ulong arg2,
         cpu_stb_mmuidx_ra(env, arg2 - 3 * dir, (uint8_t)(arg1 >> 24),
                           mem_idx, GETPC());
     }
+    invalidate_tags_store_left_right(env, arg2, GETPC());
 }
 
 #if defined(TARGET_MIPS64)
@@ -171,14 +171,13 @@ void helper_swr(CPUMIPSState *env, target_ulong arg1, target_ulong arg2,
 void helper_sdl(CPUMIPSState *env, target_ulong arg1, target_ulong arg2,
                 int mem_idx)
 {
-    target_ulong lmask32 = get_lmask(env, arg2, 32);
-#ifdef TARGET_CHERI
-    const int num_bytes = 4 - lmask32;
-    arg2 = check_ddc(env, CAP_PERM_STORE, arg2, num_bytes, GETPC());
-#endif
     target_ulong lmask = get_lmask(env, arg2, 64);
     int dir = cpu_is_bigendian(env) ? 1 : -1;
 
+#ifdef TARGET_CHERI
+    const int num_bytes = 4 - lmask;
+    arg2 = check_ddc(env, CAP_PERM_STORE, arg2, num_bytes, GETPC());
+#endif
     cpu_stb_mmuidx_ra(env, arg2, (uint8_t)(arg1 >> 56), mem_idx, GETPC());
 
     if (lmask <= 6) {
@@ -215,17 +214,18 @@ void helper_sdl(CPUMIPSState *env, target_ulong arg1, target_ulong arg2,
         cpu_stb_mmuidx_ra(env, arg2 + 7 * dir, (uint8_t)arg1,
                           mem_idx, GETPC());
     }
+    invalidate_tags_store_left_right(env, arg2, GETPC());
 }
 
 void helper_sdr(CPUMIPSState *env, target_ulong arg1, target_ulong arg2,
                 int mem_idx)
 {
-#ifdef TARGET_CHERI
-    arg2 = ccheck_store_right(env, arg2, 8, GETPC());
-#endif
     target_ulong lmask = get_lmask(env, arg2, 64);
     int dir = cpu_is_bigendian(env) ? 1 : -1;
 
+#ifdef TARGET_CHERI
+    arg2 = ccheck_store_right(env, arg2, 8, GETPC());
+#endif
     cpu_stb_mmuidx_ra(env, arg2, (uint8_t)arg1, mem_idx, GETPC());
 
     if (lmask >= 1) {
@@ -262,6 +262,7 @@ void helper_sdr(CPUMIPSState *env, target_ulong arg1, target_ulong arg2,
         cpu_stb_mmuidx_ra(env, arg2 - 7 * dir, (uint8_t)(arg1 >> 56),
                           mem_idx, GETPC());
     }
+    invalidate_tags_store_left_right(env, arg2, GETPC());
 }
 #endif /* TARGET_MIPS64 */
 

@@ -223,7 +223,7 @@ int get_physical_address(CPUMIPSState *env, hwaddr *physical,
      * BERI hardware reference we should still be using 0x1FFFFFFF as the mask
      * for kseg0 and kseg1
      */
-     } else if (address < KSEG1_BASE) {
+    } else if (address < KSEG1_BASE) {
         /* kseg0 */
         ret = get_segctl_physical_address(env, physical, prot, real_address,
                                           access_type, mmu_idx,

@@ -21,6 +21,9 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "internal.h"
+#ifdef TARGET_CHERI
+#include "cheri_utils.h"
+#endif
 #include "exec/helper-proto.h"
 #include "exec/exec-all.h"
 
@@ -76,8 +79,7 @@ void helper_wait(CPUMIPSState *env)
     raise_exception(env, EXCP_HLT);
 }
 
-void mips_cpu_synchronize_from_tb(CPUState *cs,
-                                         const TranslationBlock *tb)
+void mips_cpu_synchronize_from_tb(CPUState *cs, const TranslationBlock *tb)
 {
     MIPSCPU *cpu = MIPS_CPU(cs);
     CPUMIPSState *env = &cpu->env;
@@ -146,10 +148,8 @@ const char *mips_exception_name(int32_t exception)
     return excp_names[exception];
 }
 
-void QEMU_NORETURN do_raise_exception_err(CPUMIPSState *env,
-                                          MipsExcp exception,
-                                          int error_code,
-                                          uintptr_t pc)
+void do_raise_exception_err(CPUMIPSState *env, MipsExcp exception,
+                            int error_code, uintptr_t pc)
 {
     CPUState *cs = env_cpu(env);
 
@@ -162,13 +162,26 @@ void QEMU_NORETURN do_raise_exception_err(CPUMIPSState *env,
         }
     }
 #endif
-    if (qemu_log_instr_or_mask_enabled(env, CPU_LOG_INT)) {
-        qemu_log_instr_or_mask_msg(env, CPU_LOG_INT, "%s: %d (%s) %d\n",
-                                   __func__, exception,
-                                   mips_exception_name(exception), error_code);
-    }
+    qemu_log_mask(CPU_LOG_INT, "%s: %d (%s) %d\n",
+                  __func__, exception, mips_exception_name(exception),
+                  error_code);
     cs->exception_index = exception;
     env->error_code = error_code;
 
     cpu_loop_exit_restore(cs, pc);
+}
+
+void helper_check_breakcount(struct CPUMIPSState* env)
+{
+    CPUState *cs = env_cpu(env);
+    /* Decrement the startup breakcount, if set. */
+    if (unlikely(cs->breakcount)) {
+        cs->breakcount--;
+        if (cs->breakcount == 0UL) {
+            if (qemu_log_instr_or_mask_enabled(env, CPU_LOG_INT | CPU_LOG_EXEC))
+                qemu_log_instr_or_mask_msg(env, CPU_LOG_INT | CPU_LOG_EXEC,
+                    "Reached breakcount!\n");
+            helper_raise_exception_debug(env);
+        }
+    }
 }

@@ -30,6 +30,8 @@
 #include "hw/mips/cpudevs.h"
 #include "exec/helper-proto.h"
 
+static bool r4k_lookup_tlb(CPUMIPSState *env, int *matching, bool use_extra);
+
 /* TLB management */
 static void r4k_mips_tlb_flush_extra(CPUMIPSState *env, int first)
 {
@@ -125,7 +127,7 @@ static void r4k_helper_tlbinvf(CPUMIPSState *env)
     cpu_mips_tlb_flush(env);
 }
 
-void r4k_helper_tlbwi(CPUMIPSState *env, uintptr_t retpc)
+static void r4k_helper_tlbwi(CPUMIPSState *env, uintptr_t retpc)
 {
     bool mi = !!((env->CP0_Config5 >> CP0C5_MI) & 1);
     target_ulong VPN;
@@ -211,7 +213,7 @@ void r4k_helper_tlbwi(CPUMIPSState *env, uintptr_t retpc)
 #endif /* CONFIG_TCG_LOG_INSTR */
 }
 
-void r4k_helper_tlbwr(CPUMIPSState *env, uintptr_t retpc)
+static void r4k_helper_tlbwr(CPUMIPSState *env, uintptr_t retpc)
 {
     int r = cpu_mips_get_random(env);
 
@@ -293,7 +295,7 @@ static inline uint64_t get_entrylo_pfn_from_tlb(uint64_t tlb_pfn)
 #endif
 }
 
-void r4k_helper_tlbr(CPUMIPSState *env)
+static void r4k_helper_tlbr(CPUMIPSState *env)
 {
     bool mi = !!((env->CP0_Config5 >> CP0C5_MI) & 1);
     uint16_t ASID = env->CP0_EntryHi & env->CP0_EntryHi_ASID_mask;
@@ -640,7 +642,6 @@ void cpu_mips_tlb_flush(CPUMIPSState *env)
     tlb_flush(env_cpu(env));
     env->tlb->tlb_in_use = env->tlb->nb_tlb;
 }
-
 
 #ifdef TARGET_CHERI
 static void raise_mmu_exception(CPUMIPSState *env, target_ulong address,
@@ -1173,6 +1174,7 @@ hwaddr cpu_mips_translate_address(CPUMIPSState *env, target_ulong address,
     raise_mmu_exception(env, address, access_type, ret);
 #endif
     cpu_loop_exit_restore(cs, retaddr);
+    return -1LL;
 }
 
 static void set_hflags_for_handler(CPUMIPSState *env)
@@ -1597,15 +1599,14 @@ void mips_cpu_do_interrupt(CPUState *cs)
     }
 #endif /* CONFIG_TCG_LOG_INSTR */
 
-    // TODO(am2419): log these as extra changed registers?
-    if (qemu_log_instr_or_mask_enabled(env, CPU_LOG_INT) &&
-        cs->exception_index != EXCP_EXT_INTERRUPT) {
-        qemu_log_instr_or_mask_msg(env, CPU_LOG_INT,
-            "%s: PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx " cause %d\n"
-            "    S %08x C %08x A " TARGET_FMT_lx " D " TARGET_FMT_lx "\n",
-            __func__, PC_ADDR(env), get_CP0_EPC(env), cause,
-            env->CP0_Status, env->CP0_Cause, env->CP0_BadVAddr,
-            env->CP0_DEPC);
+    if (qemu_log_instr_or_mask_enabled(env, CPU_LOG_INT)
+        && cs->exception_index != EXCP_EXT_INTERRUPT) {
+        qemu_log_instr_or_mask_msg(env, CPU_LOG_INT, "%s: PC " TARGET_FMT_lx
+                 " EPC " TARGET_FMT_lx " cause %d\n"
+                 "    S %08x C %08x A " TARGET_FMT_lx " D " TARGET_FMT_lx "\n",
+                 __func__, PC_ADDR(env), get_CP0_EPC(env), cause,
+                 env->CP0_Status, env->CP0_Cause, env->CP0_BadVAddr,
+                 env->CP0_DEPC);
     }
     cs->exception_index = EXCP_NONE;
 
@@ -1614,7 +1615,7 @@ void mips_cpu_do_interrupt(CPUState *cs)
 #endif
 }
 
-bool r4k_lookup_tlb(CPUMIPSState *env, int *matching, bool use_extra)
+static bool r4k_lookup_tlb(CPUMIPSState *env, int *matching, bool use_extra)
 {
     bool mi = !!((env->CP0_Config5 >> CP0C5_MI) & 1);
     r4k_tlb_t *tlb;

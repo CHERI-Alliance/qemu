@@ -865,9 +865,7 @@ static inline void gen_movep(DisasContext *ctx, int enc_dest, int enc_rt,
     rd = rd_enc[enc_dest];
     re = re_enc[enc_dest];
     gen_load_gpr(cpu_gpr[rd], rs_rt_enc[enc_rs]);
-    gen_log_instr_gpr_update(ctx, rd);
     gen_load_gpr(cpu_gpr[re], rs_rt_enc[enc_rt]);
-    gen_log_instr_gpr_update(ctx, re);
 }
 
 static void gen_pool16c_r6_insn(DisasContext *ctx)
@@ -973,7 +971,6 @@ static void gen_ldst_pair(DisasContext *ctx, uint32_t opc, int rd,
 
     t0 = tcg_temp_new();
     t1 = tcg_temp_new();
-    TCGv_cap_checked_ptr ddc_adjusted = tcg_temp_new_cap_checked();
 
     gen_base_offset_addr(ctx, t0, base, offset);
 
@@ -983,23 +980,20 @@ static void gen_ldst_pair(DisasContext *ctx, uint32_t opc, int rd,
             gen_reserved_instruction(ctx);
             return;
         }
-        // FIXME: should LWP fail early or allow loading one word for $ddc errors?
-        generate_ddc_checked_load_ptr(ddc_adjusted, ctx, t0, memop_size(MO_TESL) * 2);
-        tcg_gen_qemu_ld_tl_with_checked_addr(t1, ddc_adjusted, ctx->mem_idx, MO_TESL);
+        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_TESL);
         gen_store_gpr(t1, rd);
         tcg_gen_movi_tl(t1, 4);
-        gen_op_addr_add(ctx, (TCGv)ddc_adjusted, (TCGv)ddc_adjusted, t1);
-        tcg_gen_qemu_ld_tl_with_checked_addr(t1, ddc_adjusted, ctx->mem_idx, MO_TESL);
+        gen_op_addr_add(ctx, t0, t0, t1);
+        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_TESL);
         gen_store_gpr(t1, rd + 1);
         break;
     case SWP:
-        generate_ddc_checked_store_ptr(ddc_adjusted, ctx, t0, memop_size(MO_TESL) * 2);
         gen_load_gpr(t1, rd);
-        tcg_gen_qemu_st_tl_with_checked_addr(t1, ddc_adjusted, ctx->mem_idx, MO_TEUL);
+        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUL);
         tcg_gen_movi_tl(t1, 4);
-        gen_op_addr_add(ctx, (TCGv)ddc_adjusted, (TCGv)ddc_adjusted, t1);
+        gen_op_addr_add(ctx, t0, t0, t1);
         gen_load_gpr(t1, rd + 1);
-        tcg_gen_qemu_st_tl_with_checked_addr(t1, ddc_adjusted, ctx->mem_idx, MO_TEUL);
+        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUL);
         break;
 #ifdef TARGET_MIPS64
     case LDP:
@@ -1007,28 +1001,25 @@ static void gen_ldst_pair(DisasContext *ctx, uint32_t opc, int rd,
             gen_reserved_instruction(ctx);
             return;
         }
-        generate_ddc_checked_load_ptr(ddc_adjusted, ctx, t0, memop_size(MO_TEQ) * 2);
-        tcg_gen_qemu_ld_tl_with_checked_addr(t1, ddc_adjusted, ctx->mem_idx, MO_TEQ);
+        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_TEQ);
         gen_store_gpr(t1, rd);
         tcg_gen_movi_tl(t1, 8);
-        gen_op_addr_add(ctx, (TCGv)ddc_adjusted, (TCGv)ddc_adjusted, t1);
-        tcg_gen_qemu_ld_tl_with_checked_addr(t1, ddc_adjusted, ctx->mem_idx, MO_TEQ);
+        gen_op_addr_add(ctx, t0, t0, t1);
+        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_TEQ);
         gen_store_gpr(t1, rd + 1);
         break;
     case SDP:
-        generate_ddc_checked_store_ptr(ddc_adjusted, ctx, t0, memop_size(MO_TEQ) * 2);
         gen_load_gpr(t1, rd);
-        tcg_gen_qemu_st_tl_with_checked_addr(t1, ddc_adjusted, ctx->mem_idx, MO_TEQ);
+        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEQ);
         tcg_gen_movi_tl(t1, 8);
-        gen_op_addr_add(ctx, (TCGv)ddc_adjusted, (TCGv)ddc_adjusted, t1);
+        gen_op_addr_add(ctx, t0, t0, t1);
         gen_load_gpr(t1, rd + 1);
-        tcg_gen_qemu_st_tl_with_checked_addr(t1, ddc_adjusted, ctx->mem_idx, MO_TEQ);
+        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEQ);
         break;
 #endif
     }
     tcg_temp_free(t0);
     tcg_temp_free(t1);
-    tcg_temp_free_cap_checked(ddc_adjusted);
 }
 
 static void gen_pool32axf(CPUMIPSState *env, DisasContext *ctx, int rt, int rs)
@@ -1067,7 +1058,6 @@ static void gen_pool32axf(CPUMIPSState *env, DisasContext *ctx, int rt, int rs)
             break;
         }
         gen_mfc0(ctx, cpu_gpr[rt], rs, (ctx->opcode >> 11) & 0x7);
-        gen_log_instr_gpr_update(ctx, rt);
         break;
     case MTC0:
     case MTC0 + 32:
@@ -2582,13 +2572,13 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
             gen_st(ctx, mips32_op, rt, rs, offset);
             break;
         case SC:
-            gen_st_cond(ctx, rt, rs, offset, MO_TESL, false, OPC_SC);
+            gen_st_cond(ctx, rt, rs, offset, MO_TESL, false);
             break;
 #if defined(TARGET_MIPS64)
         case SCD:
             check_insn(ctx, ISA_MIPS3);
             check_mips_64(ctx);
-            gen_st_cond(ctx, rt, rs, offset, MO_TEQ, false, OPC_SCD);
+            gen_st_cond(ctx, rt, rs, offset, MO_TEQ, false);
             break;
 #endif
         case LD_EVA:
@@ -2669,7 +2659,7 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
                 mips32_op = OPC_SHE;
                 goto do_st_lr;
             case SCE:
-                gen_st_cond(ctx, rt, rs, offset, MO_TESL, true, OPC_SCE);
+                gen_st_cond(ctx, rt, rs, offset, MO_TESL, true);
                 break;
             case SWE:
                 mips32_op = OPC_SWE;
@@ -3225,7 +3215,6 @@ static int decode_isa_micromips(CPUMIPSState *env, DisasContext *ctx)
 
             imm = (imm == 0x7f ? -1 : imm);
             tcg_gen_movi_tl(cpu_gpr[reg], imm);
-            gen_log_instr_gpr_update(ctx, reg);
         }
         break;
     case RES_29:

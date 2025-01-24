@@ -1062,7 +1062,6 @@ static void gen_scwp(DisasContext *ctx, uint32_t base, int16_t offset,
 static void gen_adjust_sp(DisasContext *ctx, int u)
 {
     gen_op_addr_addi(ctx, cpu_gpr[29], cpu_gpr[29], u);
-    gen_log_instr_gpr_update(ctx, 29);
 }
 
 static void gen_save(DisasContext *ctx, uint8_t rt, uint8_t count,
@@ -1116,7 +1115,6 @@ static void gen_restore(DisasContext *ctx, uint8_t rt, uint8_t count,
     tcg_temp_free(va);
 }
 
-/* nanoMIPS Branches */
 static void gen_compute_branch_nm(DisasContext *ctx, uint32_t opc,
                                   int insn_bytes,
                                   int rs, int rt, int32_t offset)
@@ -1181,12 +1179,10 @@ static void gen_compute_branch_nm(DisasContext *ctx, uint32_t opc,
             /* Always take and link */
             tcg_gen_movi_tl(cpu_gpr[31],
                             ctx->base.pc_next + insn_bytes);
-            gen_log_instr_gpr_update(ctx, 31);
             ctx->hflags |= MIPS_HFLAG_B;
             break;
         case OPC_BNE:     /* rx != rx        */
             tcg_gen_movi_tl(cpu_gpr[31], ctx->base.pc_next + 8);
-            gen_log_instr_gpr_update(ctx, 31);
             /* Skip the instruction in the delay slot */
             ctx->base.pc_next += 4;
             goto out;
@@ -1197,7 +1193,6 @@ static void gen_compute_branch_nm(DisasContext *ctx, uint32_t opc,
             if (rt > 0) {
                 tcg_gen_movi_tl(cpu_gpr[rt],
                                 ctx->base.pc_next + insn_bytes);
-                gen_log_instr_gpr_update(ctx, 31);
             }
             ctx->hflags |= MIPS_HFLAG_BR;
             break;
@@ -1218,7 +1213,6 @@ static void gen_compute_branch_nm(DisasContext *ctx, uint32_t opc,
             tcg_gen_setcondi_tl(TCG_COND_GE, bcond, t0, 0);
             tcg_gen_movi_tl(cpu_gpr[31],
                             ctx->base.pc_next + insn_bytes);
-            gen_log_instr_gpr_update(ctx, 31);
             goto not_likely;
         case OPC_BPOSGE32:
             tcg_gen_setcondi_tl(TCG_COND_GE, bcond, t0, 32);
@@ -1425,7 +1419,6 @@ static void gen_pool32a0_nanomips_insn(CPUMIPSState *env, DisasContext *ctx)
             break;
         }
         gen_mfc0(ctx, cpu_gpr[rt], rs, extract32(ctx->opcode, 11, 3));
-        gen_log_instr_gpr_update(ctx, rt);
         break;
     case NM_MTC0:
         check_cp0_enabled(ctx);
@@ -1846,7 +1839,6 @@ static void gen_pool32axf_2_nanomips_insn(DisasContext *ctx, uint32_t opc,
                     tcg_gen_or_tl(cpu_gpr[ret], cpu_gpr[ret], t0);
                 }
                 tcg_gen_ext32s_tl(cpu_gpr[ret], cpu_gpr[ret]);
-                gen_log_instr_gpr_update(ctx, ret);
             }
             break;
         case NM_MADD:
@@ -2482,7 +2474,6 @@ static void gen_compute_nanomips_pbalrsc_branch(DisasContext *ctx, int rs,
     /* link */
     if (rt != 0) {
         tcg_gen_movi_tl(cpu_gpr[rt], ctx->base.pc_next + 4);
-        gen_log_instr_gpr_update(ctx, rt);
     }
 
     /* calculate btarget */
@@ -2496,9 +2487,6 @@ static void gen_compute_nanomips_pbalrsc_branch(DisasContext *ctx, int rs,
 
     /* unconditional branch to register */
     tcg_gen_mov_tl(cpu_PC, btarget);
-#ifdef CONFIG_DEBUG_TCG
-    tcg_gen_movi_tl(_pc_is_current, 1); // PC has been updated.
-#endif
     tcg_gen_lookup_and_goto_ptr();
 
     tcg_temp_free(t0);
@@ -4262,7 +4250,7 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                 case NM_P_SC:
                     switch (ctx->opcode & 0x03) {
                     case NM_SC:
-                        gen_st_cond(ctx, rt, rs, s, MO_TESL, false, OPC_SC);
+                        gen_st_cond(ctx, rt, rs, s, MO_TESL, false);
                         break;
                     case NM_SCWP:
                         check_xnp(ctx);
@@ -4369,7 +4357,7 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                         check_xnp(ctx);
                         check_eva(ctx);
                         check_cp0_enabled(ctx);
-                        gen_st_cond(ctx, rt, rs, s, MO_TESL, true, OPC_SCE);
+                        gen_st_cond(ctx, rt, rs, s, MO_TESL, true);
                         break;
                     case NM_SCWPE:
                         check_xnp(ctx);
