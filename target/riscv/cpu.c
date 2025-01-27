@@ -1025,6 +1025,8 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
         set_misa(env, env->misa_mxl, ext);
     }
 
+    CHK_BLK_POW2(cboz_blocksize);
+
 #ifdef TARGET_CHERI
     if (cpu->cfg.ext_cheri) {
         set_feature(env, RISCV_FEATURE_CHERI);
