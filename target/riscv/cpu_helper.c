@@ -1523,7 +1523,8 @@ void riscv_cpu_do_interrupt(CPUState *cs)
             write_tval  = true;
             tval = env->badaddr;
 #ifdef TARGET_CHERI
-            mtval2 = env->last_cap_cause == -1 ? 0 : env->last_cap_cause;
+            mtval2 =
+                env->last_cap_cause == (uint8_t)-1 ? 0 : env->last_cap_cause;
             env->last_cap_cause = -1;
 #endif
             break;
