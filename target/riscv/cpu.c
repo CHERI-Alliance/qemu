@@ -1012,6 +1012,8 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
         set_misa(env, env->misa_mxl, ext);
     }
 
+    CHK_BLK_POW2(cboz_blocksize);
+
 #ifdef TARGET_CHERI
     if (env->misa_ext & RVJ) {
         /*
