@@ -526,6 +526,15 @@ void riscv_log_instr_csr_changed(CPURISCVState *env, int csrno);
 #define riscv_log_instr_csr_changed(env, csrno) ((void)0)
 #endif /* !CONFIG_TCG_LOG_INSTR */
 
+#define CHK_BLK_POW2(prop) \
+do { \
+    if ((cpu->cfg.prop == 0) || \
+            (cpu->cfg.prop & (cpu->cfg.prop - 1))) { \
+        error_setg(errp, "%s must be a power of 2.", tostring(prop)); \
+        return; \
+    } \
+} while (0)
+
 /*
  * From 5.3.6 Special Capability Registers (SCRs)
  * Where an SCR extends a RISC-V CSR, e.g. MTCC extending mtvec, any read to the
