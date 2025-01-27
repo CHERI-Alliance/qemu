@@ -1505,6 +1505,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
 #if defined(TARGET_CHERI_RISCV_V9) && !defined(TARGET_RISCV32)
         case RISCV_EXCP_LOAD_CAP_PAGE_FAULT:
         case RISCV_EXCP_STORE_AMO_CAP_PAGE_FAULT:
+
 #endif
         case RISCV_EXCP_ILLEGAL_INST:
             write_tval  = true;
