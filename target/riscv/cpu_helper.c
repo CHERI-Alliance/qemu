@@ -1669,12 +1669,11 @@ void riscv_cpu_do_interrupt(CPUState *cs)
                 env->mstatus = set_field(env->mstatus, MSTATUS_GVA, 1);
             }
 #ifdef TARGET_CHERI
-/* For guest page fault exceptions mtval and mtval2 take values indicating
- the faulting address. The logic is a little messy and will need revisiting
- when we add stval2, so for now ensure we do not overwrite a cheri
- exceptions value of mtval2. This should not impact non cheri functionality of
- this value.
-*/
+            /*  The logic here is that we are handling a non-cheri exception in
+               M mode. The only change in logic from the original RISCV
+               implentation is that we do not set the mtval2 to
+               guest_phys_fault_add in the cheri exception case.
+            */
             if (cause != RISCV_EXCP_CHERI )
 #endif
             {
