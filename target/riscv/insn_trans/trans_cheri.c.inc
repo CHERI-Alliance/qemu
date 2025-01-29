@@ -192,6 +192,10 @@ static inline bool gen_cheri_cap_cap_imm(DisasContext *ctx __attribute__((unused
 static bool trans_scbndsi(DisasContext *ctx, arg_scbndsi *a)
 {
     tcg_debug_assert(a->imm >= 0);
+    if(a->scal == 1){
+        if(a->imm <=1)
+            return false;
+    }
     TCGv_i32 dest_regnum = tcg_const_i32(a->cd);
     TCGv_i32 source_regnum = tcg_const_i32(a->cs1);
     TCGv_i32 imm_value = tcg_const_i32(a->imm);
