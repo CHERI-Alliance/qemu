@@ -246,7 +246,9 @@ static bool trans_csetboundsimm(DisasContext *ctx, arg_cincoffsetimm *a)
 
 static bool trans_scbndsi(DisasContext *ctx, arg_scbndsi *a)
 {
-    /* TODO: reserved encodings should not be reachable here */
+    if (a->scale == 1 && a->imm <= 1) {
+        return false; /* Reserved redundant encodings */
+    }
     tcg_debug_assert(a->imm >= 0);
     target_ulong imm = a->scale ? a->imm << 4 : a->imm;
     return gen_cheri_cap_cap_imm(a->cd, a->cs1, imm, &gen_helper_csetboundsexact);
