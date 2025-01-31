@@ -41,6 +41,7 @@ static inline void QEMU_NORETURN raise_cheri_exception_impl(
     CPUArchState *env, CheriCapExcCause cause, CheriCapExcType type,
     unsigned regnum, target_ulong addr, bool instavail, uintptr_t hostpc)
 {
+    env->badaddr = addr;
     env->last_cap_cause = cause;
     env->last_cap_index = regnum;
     env->last_cap_type = type;
