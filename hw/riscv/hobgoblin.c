@@ -621,6 +621,11 @@ static void hobgoblin_machine_init(MachineState *machine)
     const int smp_cpus = machine->smp.cpus;
     const memmapEntry_t *dram;
 
+    if (machine->dumpdtb) {
+        error_report("dumpdtb is not supported for this machine");
+        exit(1);
+    }
+
     hobgoblin_add_soc(s, smp_cpus);
 
     /* add memory regions */
