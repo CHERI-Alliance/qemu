@@ -690,10 +690,7 @@ static void emit_brick_entry(CPUArchState *env, cpu_log_instr_info_t *iinfo)
             break;
 #ifdef TARGET_CHERI
         case RISCV_EXCP_CHERI:
-        event.kind=PROGRAM;
-            if ((iinfo->intr_faultaddr >> 16) == 0) {
-                event.kind = FAULT;
-            }
+            event.kind = PROGRAM;
             break;
 #endif
         default:
