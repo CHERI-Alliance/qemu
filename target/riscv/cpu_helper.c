@@ -218,7 +218,9 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env, bool hs_mode_trap)
                             MSTATUS_SPP | MSTATUS_SPIE | MSTATUS_SIE |
                             MSTATUS64_UXL;
     bool current_virt = riscv_cpu_virt_enabled(env);
-
+#if defined(TARGET_CHERI_RISCV_STD)
+    mstatus_mask |= MSTATUS64_UCRG;
+#endif
     g_assert(riscv_has_ext(env, RVH));
 
     if (current_virt) {
