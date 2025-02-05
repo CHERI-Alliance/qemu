@@ -30,6 +30,7 @@ riscv_ss.add(files(
 ))
 riscv_ss.add(when: 'TARGET_CHERI', if_true: files('op_helper_cheri.c'))
 riscv_ss.add(when: ['CONFIG_TCG', 'CONFIG_TCG_LOG_INSTR'], if_true: files('op_helper_log_instr.c'))
+riscv_ss.add(when: ['CONFIG_BRICK',  'TARGET_CHERI'] , if_true: files('brick_wrapper.cxx'))
 
 riscv_softmmu_ss = ss.source_set()
 riscv_softmmu_ss.add(files(

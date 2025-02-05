@@ -553,6 +553,15 @@ static void emit_brick_stop(CPUArchState *env, target_ulong pc);
 static void emit_brick_entry(CPUArchState *env, cpu_log_instr_info_t *iinfo);
 
 int brick_fd = 0;
+
+
+void __attribute__((weak)) init_eventstream(int logfd){}
+int __attribute__((weak)) output_track_event(brick_track_event *ev){ return 0;}
+void __attribute__((weak)) track_reg_write(brick_track_reg *reg_event){}
+void __attribute__((weak)) track_cpu_state(brick_track_cpu_state *state){}
+void __attribute__((weak)) track_mem_transaction(brick_track_mem_trnsn *trnsn){}
+void __attribute__((weak)) close_eventstream(void){}
+
 static void emit_brick_start(CPUArchState *env, target_ulong pc)
 {
     if (brick_fd <= 0) {

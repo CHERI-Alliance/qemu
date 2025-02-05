@@ -31,14 +31,14 @@ C wrapper functions call to handle the calls
 #define _Static_assert(X, Y) static_assert(X, Y)
 
 #include "qemu/brick_wrapper.h"
-#ifdef TARGET_RISCV
+// currently safe to define this as the file should only be included on CHERI RISCV BRICK builds
 #define TARGET_CHERI
 #include "cpu_bits.h"
 static brick::isa::Exception::Type fromRISCV_exception_cause(int32_t cause)
 {
 
     switch (cause) {
-    case EXCP_NONE:
+    case RISCV_EXCP_NONE:
         return brick::isa::Exception::NONE; /* sentinel value */
     case RISCV_EXCP_INST_ADDR_MIS:
         return brick::isa::Exception::INSTRUCTION_ADDRESS_MISALIGNED;
@@ -86,7 +86,6 @@ static brick::isa::Exception::Type fromRISCV_exception_cause(int32_t cause)
         return brick::isa::Exception::NONE;
     }
 }
-#endif
 
 class BrickWrapper
 {
@@ -136,11 +135,7 @@ class BrickWrapper
             event->pc = ev->pc;
             if (ev->exception!=-1)
             {
-                #ifdef TARGET_RISCV
                 event->exception = fromRISCV_exception_cause(ev->exception);
-                #else
-                event->exception = brick::isa::Exception::NONE; 
-                #endif
                 switch (ev->kind)
                 {
                 case PROGRAM:
