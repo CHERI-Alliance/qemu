@@ -551,7 +551,7 @@ static const target_ulong vs_delegable_excps = DELEGABLE_EXCPS &
 static const target_ulong sstatus_v1_10_mask = SSTATUS_SIE | SSTATUS_SPIE |
     SSTATUS_UIE | SSTATUS_UPIE | SSTATUS_SPP | SSTATUS_FS | SSTATUS_XS |
     SSTATUS_SUM | SSTATUS_MXR | (target_ulong)SSTATUS64_UXL
-#if defined(TARGET_RISCV64)
+#if defined(TARGET_CHERI) && defined(TARGET_RISCV64)
     | SSTATUS64_UCRG
 #endif
     ;
@@ -629,8 +629,12 @@ static RISCVException write_mstatus(CPURISCVState *env, int csrno,
     uint64_t mask = 0;
 
     /* flush tlb on mstatus fields that affect VM */
-    if ((val ^ mstatus) & (MSTATUS_MXR | MSTATUS_MPP | MSTATUS_MPV |
-            MSTATUS_MPRV | MSTATUS_SUM | MSTATUS64_UCRG)) {
+    if ((val ^ mstatus) &
+        (MSTATUS_MXR | MSTATUS_MPP | MSTATUS_MPV | MSTATUS_MPRV | MSTATUS_SUM
+#if defined(TARGET_CHERI) && defined(TARGET_RISCV64)
+         | MSTATUS64_UCRG
+#endif
+         )) {
         tlb_flush(env_cpu(env));
     }
     mask = MSTATUS_SIE | MSTATUS_SPIE | MSTATUS_MIE | MSTATUS_MPIE |
