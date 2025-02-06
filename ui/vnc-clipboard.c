@@ -206,7 +206,9 @@ static void vnc_clipboard_notify(Notifier *notifier, void *data)
                 flags |= VNC_CLIPBOARD_TEXT;
             }
             flags |= VNC_CLIPBOARD_NOTIFY;
-            vnc_clipboard_send(vs, 1, &flags);
+            if (!vs->disconnecting) {
+                vnc_clipboard_send(vs, 1, &flags);
+            }
         }
         return;
     }
