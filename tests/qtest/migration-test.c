@@ -2464,6 +2464,26 @@ static bool kvm_dirty_ring_supported(void)
 #endif
 }
 
+static void parse_args(int *argc_p, char ***argv_p, bool *full_set)
+{
+    int argc = *argc_p;
+    char **argv = *argv_p;
+    int i, j;
+
+    j = 1;
+    for (i = 1; i < argc; i++) {
+        if (g_str_equal(argv[i], "--full")) {
+            *full_set = true;
+            continue;
+        }
+        argv[j++] = argv[i];
+        if (i >= j) {
+            argv[i] = NULL;
+        }
+    }
+    *argc_p = j;
+}
+
 int main(int argc, char **argv)
 {
     bool has_kvm;
@@ -2471,8 +2491,13 @@ int main(int argc, char **argv)
     const char *arch;
     g_autoptr(GError) err = NULL;
     int ret;
+    bool full_set = false;
+
+    /* strip the --full option if it's present */
+    parse_args(&argc, &argv, &full_set);
 
     g_test_init(&argc, &argv, NULL);
+    full_set = true; /* temporary */
 
     has_kvm = qtest_has_accel("kvm");
     has_uffd = ufd_version_check();
@@ -2506,6 +2531,10 @@ int main(int argc, char **argv)
     g_assert(tmpfs);
 
     module_call_init(MODULE_INIT_QOM);
+
+    if (!full_set) {
+        goto out;
+    }
 
     if (has_uffd) {
         qtest_add_func("/migration/postcopy/plain", test_postcopy);
@@ -2619,6 +2648,7 @@ int main(int argc, char **argv)
                        test_vcpu_dirty_limit);
     }
 
+out:
     ret = g_test_run();
 
     g_assert_cmpint(ret, ==, 0);
