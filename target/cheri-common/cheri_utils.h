@@ -301,17 +301,33 @@ static inline uint8_t cap_get_cl(__attribute__((unused)) CPUArchState *env,
                                  const cap_register_t *c)
 {
 #if CHERI_FMT_RISCV
-    RISCVCPU *cpu = env_archcpu(env);
-
-    if (cpu->cfg.lvbits > 0) {
-        return (cap_get_all_perms(c) & CAP_PERM_GLOBAL) != 0;
+    /* If levels are not used (or not supported), CL is reserved. */
+    if (env_archcpu(env)->cfg.lvbits == 0) {
+        return 1;
     }
 #endif
 
-    /* If levels are not used (or not supported), CL is reserved. */
-    return 1;
+    return (cap_get_all_perms(c) & CAP_PERM_GLOBAL) != 0;
 }
 
+
+static inline void cap_set_cl(CPUArchState *env,
+                              cap_register_t *c, uint8_t val)
+{
+#if CHERI_FMT_RISCV
+    if (env_archcpu(env)->cfg.lvbits == 0) {
+        return;
+    }
+#endif
+    assert(val <= 1);
+    target_ulong perms = cap_get_all_perms(c);
+    if (val) {
+        perms |= CAP_PERM_GLOBAL;
+    } else {
+        perms &= ~CAP_PERM_GLOBAL;
+    }
+    cap_set_perms(env, c, perms);
+}
 
 static inline bool cap_has_reserved_bits_set(const cap_register_t *c)
 {
