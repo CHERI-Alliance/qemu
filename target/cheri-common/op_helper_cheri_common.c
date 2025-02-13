@@ -2213,13 +2213,15 @@ void CHERI_HELPER_IMPL(schi(CPUArchState *env, uint32_t cd, uint32_t cs1,
 {
     cap_register_t result;
     bool m_flip = false;
+    uint8_t lvbits = 0;
 #ifdef TARGET_RISCV
     RISCVCPU *cpu = env_archcpu(env);
 
     m_flip = cpu->cfg.m_flip;
+    lvbits = cpu->cfg.lvbits;
 #endif
 
-    CAP_cc(decompress_mem)(rs2, get_capreg_cursor(env, cs1), false,
+    CAP_cc(decompress_mem__)(rs2, get_capreg_cursor(env, cs1), false, lvbits,
                            &result);
     result.cr_extra = CREG_FULLY_DECOMPRESSED;
     if (m_flip) {
