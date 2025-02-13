@@ -222,6 +222,18 @@ static inline uint8_t cap_get_cl(__attribute__((unused)) CPUArchState *env,
     return 0;
 }
 
+static inline void cap_set_cl(__attribute__((unused)) CPUArchState *env,
+                              cap_register_t *c, uint8_t val)
+{
+#if CHERI_FMT_RISCV
+    RISCVCPU *cpu = env_archcpu(env);
+
+    if (cpu->cfg.lvbits > 0) {
+        return CAP_cc(update_cl)(c, val);
+    }
+#endif
+}
+
 static inline bool cap_has_reserved_bits_set(const cap_register_t *c)
 {
     return (CAP_cc(get_reserved)(c) != 0) || (CAP_cc(get_reserved2)(c) != 0);
