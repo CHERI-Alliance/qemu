@@ -2305,6 +2305,16 @@ void CHERI_HELPER_IMPL(cbld(CPUArchState *env, uint32_t cd, uint32_t cs1,
         raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation,
                 CapExType_Data, cs2);
     }
+    else if (cap_get_cl(env, cs1p) < cap_get_cl(env, cs2p)) {
+        /*
+         * If levels are not used, both CL fields read as 0 and this check
+         * will pass.
+         * TODO: Review our choice of the exception. (Note that we default to
+         * clearing the tag...)
+         */
+        raise_cheri_exception_or_invalidate(env, CapEx_GlobalViolation,
+                CapExType_Data, cs1);
+    }
 
     /*
      * The v9 code for cbuildcap unsealed result at this point and sealed it
@@ -2338,6 +2348,9 @@ void CHERI_HELPER_IMPL(cbld(CPUArchState *env, uint32_t cd, uint32_t cs1,
             cap_set_sealed(&derived, SEALED_TYPE_UNUSED);
         }
         result.cr_tag = 1; /* Set tag to true for comparison with derived. */
+        /* Prevent cap_exactly_equal from failing due to the levels (see the
+           check above, CL fields don't have to be identical). */
+        cap_set_cl(env, &derived, cap_get_cl(env, &result));
         if (cap_exactly_equal(&result, &derived)) {
             /*
              * If this was a valid derivation sequence return that to ensure
