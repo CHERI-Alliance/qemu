@@ -207,6 +207,20 @@ static inline void cap_set_capmode(cap_register_t *c, bool enable)
 #endif
 }
 
+static inline uint8_t cap_get_cl(__attribute__((unused)) CPUArchState *env,
+                                 const cap_register_t *c)
+{
+#if CHERI_FMT_RISCV
+    RISCVCPU *cpu = env_archcpu(env);
+
+    if (cpu->cfg.lvbits > 0) {
+        return CAP_cc(get_cl)(c);
+    }
+#endif
+
+    /* If levels are not used (or not supported), CL is reserved. */
+    return 0;
+}
 
 static inline bool cap_has_reserved_bits_set(const cap_register_t *c)
 {
