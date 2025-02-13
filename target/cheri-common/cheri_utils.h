@@ -647,8 +647,17 @@ static inline void assert_valid_jump_target(const cap_register_t *target)
 
 static inline cap_register_t *null_capability(cap_register_t *cp)
 {
-    *cp = CAP_cc(make_null_derived_cap(0));
+    uint8_t lvbits = 0;
+#if CHERI_FMT_RISCV
+    /* Hardcoding CPU 0 is ok, all CPUs use the same number of levels. */
+    CPUState *cst = qemu_get_cpu(0);
+    RISCVCPU *cpu = container_of(cst, RISCVCPU, parent_obj);
+    lvbits = cpu->cfg.lvbits;
+#endif
+
+    *cp = CAP_cc(make_null_derived_cap__(0, lvbits));
     cp->cr_extra = CREG_FULLY_DECOMPRESSED;
+
     return cp;
 }
 
