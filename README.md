@@ -74,17 +74,20 @@ requires PTE entries to include PTE_CW and PTE_CRG configuration, if these are
 not present then attempts to read/write capabilities to virtual addresses will
 generate a page fault.
 
+* `cheri_levels`
+
+The number of levels for capabilities. cheri_levels=1 (the default) disables
+levels support. cheri_levels=2 enables support for two levels (local, global).
+
 Here's an example for setting the properties.
 
 ```
 $ qemu-system-riscv64cheri \
-    -cpu codasip-a730,Xcheri_purecap=on,cheri_v090=on,cheri_pte=on \
+    -cpu codasip-a730,Xcheri_purecap=on,cheri_v090=on,cheri_pte=on,cheri_levels=2 \
     -M virt -nographic -semihosting -bios ./hello
 ```
 
 ## Limitations
-
-At the moment, the Zcherilevels extension (local/global) is not supported.
 
 The code contains a CHERI implementation for the mips platform that has not
 been tested.
