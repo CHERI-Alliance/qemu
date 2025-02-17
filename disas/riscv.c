@@ -1383,7 +1383,7 @@ const rv_opcode_data opcode_data[] = {
     [rv_op_schi] = { "schi", rv_codec_r, rv_fmt_cd_cs1_rs2, NULL, 0, 0, 0 },
     [rv_op_sceq] = { "sceq", rv_codec_r, rv_fmt_rd_cs1_cs2, NULL, 0, 0, 0 },
     [rv_op_scmode] = { "scmode", rv_codec_r, rv_fmt_cd_cs1_rs2, NULL, 0, 0, 0 },
-    [rv_op_cbld] = { "cbld", rv_codec_r, rv_fmt_cd_cs1_rs2, NULL, 0, 0, 0 },
+    [rv_op_cbld] = { "cbld", rv_codec_r, rv_fmt_cd_cs1_cs2, NULL, 0, 0, 0 },
     [rv_op_scss] = { "scss", rv_codec_r, rv_fmt_rd_cs1_cs2, NULL, 0, 0, 0 },
 
     /*
