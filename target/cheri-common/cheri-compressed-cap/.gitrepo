@@ -6,7 +6,7 @@
 [subrepo]
 	remote = git@gitlab.codasip.com:cheri/software/cherilinux/cheri-compressed-cap.git
 	branch = master
-	commit = f117a25e6e96571f0709128f1959a7946be3cb63
-	parent = 7a7653191d287297b6259ce079af4c244a139078
+	commit = 0ac7aa9a349ba38fb7a122db785e20bcd27b81f8
+	parent = 081effe62c6895dd1d9a346de973f8f4e260ecee
 	cmdver = 0.4.9
 	method = rebase
