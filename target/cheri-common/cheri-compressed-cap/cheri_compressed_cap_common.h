@@ -882,8 +882,12 @@ static inline void _cc_N(decompress_raw)(_cc_addr_t pesbt, _cc_addr_t cursor, bo
 /*
  * Decompress a 128-bit capability.
  */
+static inline void _cc_N(decompress_mem__)(uint64_t pesbt, uint64_t cursor, bool tag, uint8_t lvbits, _cc_cap_t* cdp) {
+    _cc_N(decompress_raw__)(pesbt ^ _CC_N(NULL_XOR_MASK), cursor, tag, lvbits, cdp);
+}
+
 static inline void _cc_N(decompress_mem)(uint64_t pesbt, uint64_t cursor, bool tag, _cc_cap_t* cdp) {
-    _cc_N(decompress_raw__)(pesbt ^ _CC_N(NULL_XOR_MASK), cursor, tag, 0, cdp);
+    _cc_N(decompress_mem__)(pesbt, cursor, tag, 0, cdp);
 }
 
 static inline bool _cc_N(is_cap_sealed)(const _cc_cap_t* cp) {
@@ -1394,7 +1398,7 @@ static inline _cc_cap_t _cc_N(make_max_perms_cap_m_lv)(_cc_addr_t base, _cc_addr
     assert(lvbits <= 1 && "We only support local-global levels.");
     creg.cr_lvbits = lvbits;
     /* We need the most global level here, the level can only be decreased. */
-    creg.cr_pesbt |= _CC_ENCODE_FIELD(lvbits, CL);
+    creg.cr_pesbt |= _CC_ENCODE_FIELD(lvbits ? 1 << (lvbits - 1) : 0, CL);
     creg.cr_arch_perm = CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X | CAP_AP_ASR | CAP_AP_LM;
     if (lvbits > 0) {
         creg.cr_arch_perm |= CAP_AP_EL | CAP_AP_SL;
@@ -1423,9 +1427,10 @@ static inline _cc_addr_t _cc_N(get_alignment_mask)(_cc_addr_t req_length) {
     return mask;
 }
 
-static inline _cc_cap_t _cc_N(make_null_derived_cap)(_cc_addr_t addr) {
+static inline _cc_cap_t _cc_N(make_null_derived_cap__)(_cc_addr_t addr, uint8_t lvbits) {
     _cc_cap_t creg;
     memset(&creg, 0, sizeof(creg));
+    creg.cr_lvbits = lvbits;
     creg._cr_cursor = addr;
     creg._cr_top = _CC_N(MAX_TOP);
     creg.cr_pesbt = _CC_N(NULL_PESBT);
@@ -1433,6 +1438,10 @@ static inline _cc_cap_t _cc_N(make_null_derived_cap)(_cc_addr_t addr) {
     creg.cr_exp = _CC_N(NULL_EXP);
     _cc_debug_assert(_cc_N(is_representable_cap_exact)(&creg));
     return creg;
+}
+
+static inline _cc_cap_t _cc_N(make_null_derived_cap)(_cc_addr_t addr) {
+   return _cc_N(make_null_derived_cap__)(addr, 0);
 }
 
 static inline _cc_addr_t _cc_N(get_required_alignment)(_cc_addr_t req_length) {
