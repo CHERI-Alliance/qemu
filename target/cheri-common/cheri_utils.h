@@ -74,12 +74,13 @@
 #else
 /* We're using the RISC-V standard capability format. */
 #define PRINT_CAP_FMTSTR_L1 \
-    "v:%d m:%d p:%2x ct:%d b:" TARGET_FMT_lx " a:" TARGET_FMT_lx \
+    "v:%d m:%d p:%2x cl:%d ct:%d b:" TARGET_FMT_lx " a:" TARGET_FMT_lx \
     " t:" TARGET_FMT_lx
 #define PRINT_CAP_ARGS_L1(cr)                                                  \
     (cr)->cr_tag, (unsigned)cap_get_exec_mode(cr),                             \
-        (unsigned)cap_get_all_perms(cr), (unsigned)cap_get_otype_unsigned(cr), \
-        cap_get_base(cr), cap_get_cursor(cr), cap_get_top(cr)
+        (unsigned)cap_get_all_perms(cr), cap_get_level(cr),                    \
+        (unsigned)cap_get_otype_unsigned(cr), cap_get_base(cr),                \
+        cap_get_cursor(cr), cap_get_top(cr)
 
 #define COMBINED_PERMS_VALUE(unused) 0
 #define PRINT_CAP_FMTSTR_L2 "%s"
@@ -303,6 +304,18 @@ static inline uint8_t cap_get_cl(__attribute__((unused)) CPUArchState *env,
 #if CHERI_FMT_RISCV
     /* If levels are not used (or not supported), CL is reserved. */
     if (env_archcpu(env)->cfg.lvbits == 0) {
+        return 1;
+    }
+#endif
+
+    return (cap_get_all_perms(c) & CAP_PERM_GLOBAL) != 0;
+}
+
+static inline uint8_t cap_get_level(const cap_register_t *c)
+{
+#if CHERI_FMT_RISCV
+    /* If levels are not used (or not supported), CL is reserved. */
+    if (c->cr_lvbits == 0) {
         return 1;
     }
 #endif
