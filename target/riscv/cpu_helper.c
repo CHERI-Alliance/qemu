@@ -1648,8 +1648,6 @@ void riscv_cpu_do_interrupt(CPUState *cs)
 #ifdef TARGET_CHERI
         if ((cause == RISCV_EXCP_CHERI) && cpu->cfg.cheri_v090) {
             env->stval2 = mtval2;
-            env->htval2 = mtval2;
-            riscv_log_instr_csr_changed(env, CSR_HTVAL2);
             riscv_log_instr_csr_changed(env, CSR_STVAL2);
         }
 #endif 

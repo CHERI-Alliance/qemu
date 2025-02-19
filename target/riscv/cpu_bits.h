@@ -228,7 +228,6 @@
 
 #ifdef TARGET_CHERI
 #define CSR_STVAL2          0x14b
-#define CSR_HTVAL2          0x64b
 #define CSR_VSTVAL2         0x24b
 #endif
 

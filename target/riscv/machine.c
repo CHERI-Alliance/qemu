@@ -88,9 +88,6 @@ static const VMStateDescription vmstate_hyper = {
         VMSTATE_UINTTL(env.hcounteren, RISCVCPU),
         VMSTATE_UINTTL(env.htval, RISCVCPU),
         VMSTATE_UINTTL(env.htinst, RISCVCPU),
-#ifdef TARGET_CHERI
-        VMSTATE_UINTTL(env.htval2, RISCVCPU),
-#endif
         VMSTATE_UINTTL(env.hgatp, RISCVCPU),
         VMSTATE_UINT64(env.htimedelta, RISCVCPU),
 
