@@ -790,7 +790,6 @@ static void riscv_cpu_reset(DeviceState *dev)
     null_capability(&env->sscratchc);
     set_max_perms_capability(env, &env->sepcc, 0);
     // Machine mode trap handling
-    null_capability(&env->mtdc);
     null_capability(&env->mscratchc);
     set_max_perms_capability(env, &env->mtvecc, 0);
     set_max_perms_capability(env, &env->mepcc, 0);

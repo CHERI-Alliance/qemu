@@ -165,7 +165,6 @@
 #define CSR_MTVECC          0x305
 #define CSR_MSCRATCHC       0x340
 #define CSR_MEPCC           0x341
-#define CSR_MTDC            0x74c
 #endif
 
 /* Supervisor Trap Setup */

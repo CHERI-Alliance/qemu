@@ -78,7 +78,6 @@ bool is_cap_csr(int csrno)
         case CSR_SSCRATCHC:
         case CSR_SEPCC:
         case CSR_DDDC:
-        case CSR_MTDC:
         case CSR_STDC:
         case CSR_DDC:
         case CSR_MTIDC:
@@ -1931,8 +1930,6 @@ static inline cap_register_t *get_cap_csr(CPUArchState *env, uint32_t index)
         return &env->dddc;
     case CSR_JVTC:
         return &env->jvtc;
-    case CSR_MTDC:
-        return &env->mtdc;
     case CSR_STDC:
         return &env->stdc;
     case CSR_DDC:
@@ -2632,8 +2629,6 @@ static riscv_csr_cap_ops csr_cap_ops[] = {
       CSR_OP_REQUIRE_CRE | CSR_OP_IA_CONVERSION },
     { "jvtc", CSR_JVTC, read_capcsr_reg, write_cap_csr_reg,
       CSR_OP_IA_CONVERSION | CSR_OP_EXTENDED_REG },
-    { "mtdc", CSR_MTDC, read_capcsr_reg, write_cap_csr_reg,
-      CSR_OP_REQUIRE_CRE },
     { "stdc", CSR_STDC, read_capcsr_reg, write_cap_csr_reg,
       CSR_OP_REQUIRE_CRE },
     { "ddc", CSR_DDC, read_capcsr_reg, write_cap_csr_reg,
