@@ -156,7 +156,8 @@ typedef enum {
     rv_codec_css_swsp,
     rv_codec_css_sdsp,
     rv_codec_css_sqsp,
-    rv_codec_scbndsi
+    rv_codec_scbndsi,
+    rv_codec_cbo_rs1
 } rv_codec;
 
 typedef enum {
@@ -637,6 +638,15 @@ typedef enum {
     rv_op_c_sc_rv32,
     rv_op_c_lcsp_rv32,
     rv_op_c_scsp_rv32,
+
+    rv_op_cbo_clean,
+    rv_op_cbo_clean_cap,
+    rv_op_cbo_flush,
+    rv_op_cbo_flush_cap,
+    rv_op_cbo_inval,
+    rv_op_cbo_inval_cap,
+    rv_op_cbo_zero,
+    rv_op_cbo_zero_cap
 } rv_op;
 
 /* structures */
@@ -765,6 +775,8 @@ static const char rv_freg_name_sym[32][5] = {
 #define rv_fmt_cd_rs1                 "O\tC0,1"
 #define rv_fmt_rs1_offset             "O\t1,o"
 #define rv_fmt_rs2_offset             "O\t2,o"
+#define rv_fmt_cbo_rs1                "O\t1"
+#define rv_fmt_cbo_cs1                "O\tC1"
 
 /* pseudo-instruction constraints */
 
@@ -1487,7 +1499,16 @@ const rv_opcode_data opcode_data[] = {
     [rv_op_cfsd] = { "cfsd", rv_codec_s, rv_fmt_frs2_offset_cs1, NULL, 0, 0, 0 },
 
     /* 2 registers, 1 flag, 1 immediate */
-    [rv_op_scbndsi] = { "scbdsi", rv_codec_scbndsi, rv_fmt_cd_cs1_imm, NULL, 0, 0, 0 }
+    [rv_op_scbndsi] = { "scbdsi", rv_codec_scbndsi, rv_fmt_cd_cs1_imm, NULL, 0, 0, 0 },
+
+    [rv_op_cbo_clean] = { "cbo.clean", rv_codec_cbo_rs1, rv_fmt_cbo_rs1, NULL, 0, 0, 0 },
+    [rv_op_cbo_clean_cap] = { "cbo.clean", rv_codec_cbo_rs1, rv_fmt_cbo_cs1, NULL, 0, 0, 0 },
+    [rv_op_cbo_flush] = { "cbo.flush", rv_codec_cbo_rs1, rv_fmt_cbo_rs1, NULL, 0, 0, 0 },
+    [rv_op_cbo_flush_cap] = { "cbo.flush", rv_codec_cbo_rs1, rv_fmt_cbo_cs1, NULL, 0, 0, 0 },
+    [rv_op_cbo_inval] = { "cbo.inval", rv_codec_cbo_rs1, rv_fmt_cbo_rs1, NULL, 0, 0, 0 },
+    [rv_op_cbo_inval_cap] = { "cbo.inval", rv_codec_cbo_rs1, rv_fmt_cbo_cs1, NULL, 0, 0, 0 },
+    [rv_op_cbo_zero] = { "cbo.zero", rv_codec_cbo_rs1, rv_fmt_cbo_rs1, NULL, 0, 0, 0 },
+    [rv_op_cbo_zero_cap] = { "cbo.zero", rv_codec_cbo_rs1, rv_fmt_cbo_cs1, NULL, 0, 0, 0 }
 };
 
 /* CSR names */
@@ -1954,8 +1975,21 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa, int flags)
             case 2:
                 if (isa == rv64 && flags & RISCV_DIS_FLAG_CHERI_V9) {
                     op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_clc : rv_op_lc;
-                } else {
-                    op = rv_op_lq;
+                } else if (((inst >> 7) & 0b11111) == 0) {
+                    switch (((inst >> 20) & 0b111111111111)) {
+                    case 0:
+                        op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_cbo_inval_cap : rv_op_cbo_inval;
+                        break;
+                    case 1:
+                        op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_cbo_clean_cap : rv_op_cbo_clean;
+                        break;
+                    case 2:
+                        op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_cbo_flush_cap : rv_op_cbo_flush;
+                        break;
+                    case 4:
+                        op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_cbo_zero_cap : rv_op_cbo_zero;
+                        break;
+                    }
                 }
                 break;
             case 4:
@@ -3139,6 +3173,9 @@ static void decode_inst_operands(rv_decode *dec)
         dec->rs1 = operand_rs1(inst);
         dec->imm = operand_scaled(inst) ? operand_uimm20(inst) << 4
                                         : operand_uimm20(inst);
+        break;
+    case rv_codec_cbo_rs1:
+        dec->rs1 = operand_rs1(inst);
         break;
     };
 }
