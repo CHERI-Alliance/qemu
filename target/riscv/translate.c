@@ -582,11 +582,6 @@ static bool pred_rv64(DisasContext *ctx)
     return (get_xl(ctx) != MXL_RV32);
 }
 
-static bool __attribute__((unused)) pred_cheri_v090(DisasContext *ctx)
-{
-    return true;
-}
-
 static bool pred_capmode(DisasContext *ctx)
 {
 #ifdef TARGET_CHERI
