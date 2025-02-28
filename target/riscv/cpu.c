@@ -1063,13 +1063,6 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
         }
         /* When Zylevels1 is enabled we have 1 level bits (local/global). */
         cpu->cfg.lvbits = (uint8_t)cpu->cfg.ext_zylevels1;
-        /*
-         * cheri_v090 and m_flip (use legacy definition of M) are incompatible,
-         * the v0.9.0 switch takes precedence.
-         */
-        if (cpu->cfg.cheri_v090) {
-            cpu->cfg.scmode_flip = false;
-        }
 #endif
     }
     set_feature(env, RISCV_FEATURE_STID);
