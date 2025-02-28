@@ -584,14 +584,7 @@ static bool pred_rv64(DisasContext *ctx)
 
 static bool __attribute__((unused)) pred_cheri_v090(DisasContext *ctx)
 {
-#ifdef TARGET_CHERI
-    CPUState *cpu_state = ctx->cs;
-    CPURISCVState *env = cpu_state ->env_ptr;
-    RISCVCPU *cpu = env_archcpu(env);
-    return cpu->cfg.cheri_v090;
-#else
-    return false;
-#endif
+    return true;
 }
 
 static bool pred_capmode(DisasContext *ctx)

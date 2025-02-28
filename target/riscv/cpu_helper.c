@@ -297,13 +297,11 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env, bool hs_mode_trap)
         }
 
 #ifdef TARGET_CHERI
-        if (cpu->cfg.cheri_v090){
-            env->vstval2 = env->stval2;
-            env->stval2 = env->stval2_hs;
-            if (!hs_mode_trap) {
-                /* stval2 will be modified again when trapping to HS-mode */
-                riscv_log_instr_csr_changed(env, CSR_STVAL2);
-            }
+        env->vstval2 = env->stval2;
+        env->stval2 = env->stval2_hs;
+        if (!hs_mode_trap) {
+            /* stval2 will be modified again when trapping to HS-mode */
+            riscv_log_instr_csr_changed(env, CSR_STVAL2);
         }
 #endif
 
@@ -355,11 +353,9 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env, bool hs_mode_trap)
         riscv_log_instr_csr_changed(env, CSR_STVAL);
 
 #ifdef TARGET_CHERI
-        if (cpu->cfg.cheri_v090){
-            env->stval2_hs = env->stval2;
-            env->stval2 = env->vstval2;
-            riscv_log_instr_csr_changed(env, CSR_STVAL2);
-        }
+        env->stval2_hs = env->stval2;
+        env->stval2 = env->vstval2;
+        riscv_log_instr_csr_changed(env, CSR_STVAL2);
 #endif
 
         env->satp_hs = env->satp;
@@ -1536,12 +1532,8 @@ void riscv_cpu_do_interrupt(CPUState *cs)
             tcg_debug_assert(env->last_cap_cause < 5);
             tcg_debug_assert(env->last_cap_index < 64);
             tcg_debug_assert(env->last_cap_type < 3);
-            if (cpu->cfg.cheri_v090) {
-                tval = env->badaddr;
-                mtval2 = env->last_cap_cause | env->last_cap_type << 16;
-            } else {
-                tval = env->last_cap_cause | env->last_cap_type << 16;
-            }
+            tval = env->badaddr;
+            mtval2 = env->last_cap_cause | env->last_cap_type << 16;
             qemu_log_instr_or_mask_msg(
                 env, CPU_LOG_INT,
                 "Got CHERI trap %s type %s, caused by register %d\n",
@@ -1646,7 +1638,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         riscv_log_instr_csr_changed(env, CSR_HTVAL);
 
 #ifdef TARGET_CHERI
-        if ((cause == RISCV_EXCP_CHERI) && cpu->cfg.cheri_v090) {
+        if (cause == RISCV_EXCP_CHERI) {
             env->stval2 = mtval2;
             riscv_log_instr_csr_changed(env, CSR_STVAL2);
         }

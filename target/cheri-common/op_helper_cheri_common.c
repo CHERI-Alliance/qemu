@@ -965,13 +965,10 @@ void CHERI_HELPER_IMPL(acperm(CPUArchState *env, uint32_t cd, uint32_t cs1,
 {
     const cap_register_t *cbp = get_readonly_capreg(env, cs1);
     cap_register_t result = *cbp, cbp_test = *cbp;
-    uint8_t mask_sdp_shift;
-    bool cheri_v090 = true;
     uint8_t lvbits = 0;
 #ifdef TARGET_RISCV
     RISCVCPU *cpu = env_archcpu(env);
 
-    cheri_v090 = cpu->cfg.cheri_v090;
     lvbits = cpu->cfg.lvbits;
 #endif
 
@@ -1010,9 +1007,8 @@ void CHERI_HELPER_IMPL(acperm(CPUArchState *env, uint32_t cd, uint32_t cs1,
      * formats.)
      */
 
-    mask_sdp_shift = cheri_v090 ? 6 : 16;
     CAP_cc(update_sdp)(&result, cap_get_sdp(&result) &
-            ((rs2 >> mask_sdp_shift) & CAP_CC(FIELD_SDP_MASK_NOT_SHIFTED)));
+            ((rs2 >> 6) & CAP_CC(FIELD_SDP_MASK_NOT_SHIFTED)));
 
     /*
      * At this point, we cleared all AP bits in the result capability that are
@@ -1025,30 +1021,21 @@ void CHERI_HELPER_IMPL(acperm(CPUArchState *env, uint32_t cd, uint32_t cs1,
      * CAP_cc(m_ap_compress) considers as invalid.
      */
 
-    if (cheri_v090) {
-        MASK_CLR_CAP_PERM(rs2, 0, result, CAP_AP_W);
-        MASK_CLR_CAP_PERM(rs2, 1, result, CAP_AP_LM);
-        /* risc-v cheri v0.9.x supports at most 2^1 levels */
-        cheri_debug_assert(lvbits <= 1);
-        if (lvbits == 1) {
-            MASK_CLR_CAP_PERM(rs2, 2, result, CAP_AP_EL);
-            MASK_CLR_CAP_PERM(rs2, 3, result, CAP_AP_SL);
-            if (!(rs2 & (1 << 4))) {
-                CAP_cc(update_cl)(&result, 0);
-            }
+    MASK_CLR_CAP_PERM(rs2, 0, result, CAP_AP_W);
+    MASK_CLR_CAP_PERM(rs2, 1, result, CAP_AP_LM);
+    /* risc-v cheri v0.9.x supports at most 2^1 levels */
+    cheri_debug_assert(lvbits <= 1);
+    if (lvbits == 1) {
+        MASK_CLR_CAP_PERM(rs2, 2, result, CAP_AP_EL);
+        MASK_CLR_CAP_PERM(rs2, 3, result, CAP_AP_SL);
+        if (!(rs2 & (1 << 4))) {
+            CAP_cc(update_cl)(&result, 0);
         }
-        MASK_CLR_CAP_PERM(rs2, 5, result, CAP_AP_C);
-        MASK_CLR_CAP_PERM(rs2, 16, result, CAP_AP_ASR);
-        MASK_CLR_CAP_PERM(rs2, 17, result, CAP_AP_X);
-        MASK_CLR_CAP_PERM(rs2, 18, result, CAP_AP_R);
     }
-    else {
-        MASK_CLR_CAP_PERM(rs2, 0, result, CAP_AP_C);
-        MASK_CLR_CAP_PERM(rs2, 1, result, CAP_AP_W);
-        MASK_CLR_CAP_PERM(rs2, 2, result, CAP_AP_R);
-        MASK_CLR_CAP_PERM(rs2, 3, result, CAP_AP_X);
-        MASK_CLR_CAP_PERM(rs2, 4, result, CAP_AP_ASR);
-    }
+    MASK_CLR_CAP_PERM(rs2, 5, result, CAP_AP_C);
+    MASK_CLR_CAP_PERM(rs2, 16, result, CAP_AP_ASR);
+    MASK_CLR_CAP_PERM(rs2, 17, result, CAP_AP_X);
+    MASK_CLR_CAP_PERM(rs2, 18, result, CAP_AP_R);
 
     if (!cap_is_unsealed(&cbp_test)) {
         result.cr_tag = 0;
@@ -1554,8 +1541,6 @@ static void update_loaded_cap_perms(CPUArchState *env, target_ulong *pesbt,
      * permissions that exist in the capability format but not in the
      * instruction handling.
      */
-    if(!cpu->cfg.cheri_v090)
-        return;
 
     memset(&tmp, 0x0, sizeof(tmp));
     tmp.cr_lvbits = cpu->cfg.lvbits;
@@ -2063,13 +2048,10 @@ target_ulong CHERI_HELPER_IMPL(gcperm(CPUArchState *env, uint32_t cb))
     const cap_register_t *cbp = get_readonly_capreg(env, cb);
     cap_register_t cbp_test = *cbp;
     uint32_t ap_bits = 0;
-    uint8_t mask_sdp_shift;
-    bool cheri_v090 = true;
     uint8_t lvbits = 0;
 #ifdef TARGET_RISCV
     RISCVCPU *cpu = env_archcpu(env);
 
-    cheri_v090 = cpu->cfg.cheri_v090;
     lvbits = cpu->cfg.lvbits;
 #endif
 
@@ -2086,34 +2068,24 @@ target_ulong CHERI_HELPER_IMPL(gcperm(CPUArchState *env, uint32_t cb))
      * assumptions about mapping the AP bits of a capability variable
      * to the gcperm bitmask.
      */
-    if (cheri_v090) {
-        CAP_PERM_MASK_SET(&cbp_test, CAP_AP_W, ap_bits, 0);
-        CAP_PERM_MASK_SET(&cbp_test, CAP_AP_LM, ap_bits, 1);
-        /* risc-v cheri v0.9.x supports at most 2^1 levels */
-        cheri_debug_assert(lvbits <= 1);
-        if (lvbits == 1) {
-            CAP_PERM_MASK_SET(&cbp_test, CAP_AP_EL, ap_bits, 2);
-            CAP_PERM_MASK_SET(&cbp_test, CAP_AP_SL, ap_bits, 3);
-            if (CAP_cc(get_cl)(&cbp_test)) {
-                ap_bits |= (1 << 4);
-            }
+    CAP_PERM_MASK_SET(&cbp_test, CAP_AP_W, ap_bits, 0);
+    CAP_PERM_MASK_SET(&cbp_test, CAP_AP_LM, ap_bits, 1);
+    /* risc-v cheri v0.9.x supports at most 2^1 levels */
+    cheri_debug_assert(lvbits <= 1);
+    if (lvbits == 1) {
+        CAP_PERM_MASK_SET(&cbp_test, CAP_AP_EL, ap_bits, 2);
+        CAP_PERM_MASK_SET(&cbp_test, CAP_AP_SL, ap_bits, 3);
+        if (CAP_cc(get_cl)(&cbp_test)) {
+            ap_bits |= (1 << 4);
         }
-        CAP_PERM_MASK_SET(&cbp_test, CAP_AP_C, ap_bits, 5);
-        CAP_PERM_MASK_SET(&cbp_test, CAP_AP_ASR, ap_bits, 16);
-        CAP_PERM_MASK_SET(&cbp_test, CAP_AP_X, ap_bits, 17);
-        CAP_PERM_MASK_SET(&cbp_test, CAP_AP_R, ap_bits, 18);
- }
-    else {
-        CAP_PERM_MASK_SET(&cbp_test, CAP_AP_C, ap_bits, 0);
-        CAP_PERM_MASK_SET(&cbp_test, CAP_AP_W, ap_bits, 1);
-        CAP_PERM_MASK_SET(&cbp_test, CAP_AP_R, ap_bits, 2);
-        CAP_PERM_MASK_SET(&cbp_test, CAP_AP_X, ap_bits, 3);
-        CAP_PERM_MASK_SET(&cbp_test, CAP_AP_ASR, ap_bits, 4);
     }
+    CAP_PERM_MASK_SET(&cbp_test, CAP_AP_C, ap_bits, 5);
+    CAP_PERM_MASK_SET(&cbp_test, CAP_AP_ASR, ap_bits, 16);
+    CAP_PERM_MASK_SET(&cbp_test, CAP_AP_X, ap_bits, 17);
+    CAP_PERM_MASK_SET(&cbp_test, CAP_AP_R, ap_bits, 18);
 
 out:
-    mask_sdp_shift = cheri_v090 ? 6 : 16;
-    return (cap_get_sdp(&cbp_test) << mask_sdp_shift) | ap_bits;
+    return (cap_get_sdp(&cbp_test) << 6) | ap_bits;
 }
 
 target_ulong CHERI_HELPER_IMPL(gctype(CPUArchState *env, uint32_t cb))

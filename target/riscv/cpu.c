@@ -1033,30 +1033,21 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    if (cpu->cfg.cheri_v090) {
-        /*
-         * cheri_v090 and m_flip (use legacy definition of M) are incompatible,
-         * the v0.9.0 switch takes precedence.
-         */
-        cpu->cfg.m_flip = false;
+    /*
+        * cheri_v090 and m_flip (use legacy definition of M) are incompatible,
+        * the v0.9.0 switch takes precedence.
+        */
+    cpu->cfg.m_flip = false;
 
-        if (cpu->cfg.levels & (cpu->cfg.levels -1)) {
-            error_setg(errp, "Number of levels must be a power of 2.");
-            return;
-        }
-        if (cpu->cfg.levels > 2) {
-            error_setg(errp, "We support at most 2 levels (local, global).");
-            return;
-        }
-        cpu->cfg.lvbits = (uint8_t)log2(cpu->cfg.levels);
+    if (cpu->cfg.levels & (cpu->cfg.levels -1)) {
+        error_setg(errp, "Number of levels must be a power of 2.");
+        return;
     }
-    else {
-        if (cpu->cfg.levels > 1) {
-            error_setg(errp, "Zcherilevels extension requires Cheri 0.9.x.");
-            return;
-        }
-        cpu->cfg.lvbits = 0;
+    if (cpu->cfg.levels > 2) {
+        error_setg(errp, "We support at most 2 levels (local, global).");
+        return;
     }
+    cpu->cfg.lvbits = (uint8_t)log2(cpu->cfg.levels);
 #endif
 
     riscv_cpu_register_gdb_regs_for_features(cs);
@@ -1147,7 +1138,6 @@ static Property riscv_cpu_properties[] = {
      */
     DEFINE_PROP_BOOL("scmode_flip", RISCVCPU, cfg.m_flip, false),
     DEFINE_PROP_BOOL("m_flip", RISCVCPU, cfg.m_flip, false),
-    DEFINE_PROP_BOOL("cheri_v090", RISCVCPU, cfg.cheri_v090, true),
     DEFINE_PROP_BOOL("cheri_pte", RISCVCPU, cfg.cheri_pte, false),
     DEFINE_PROP_UINT8("cheri_levels", RISCVCPU, cfg.levels, 1),
 #endif

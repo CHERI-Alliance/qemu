@@ -57,15 +57,6 @@ implementation.
 This is a boolean property. If enabled, QEMU-CHERI runs in purecap mode. By
 default, `Xcheri_purecap` is off and QEMU-CHERI runs in hybrid mode.
 
-* `cheri_v090`
-
-This is a boolean property. If enabled, QEMU-CHERI runs in a mode compatible
-with the v0.9.x version of the CHERI specification. This flag defaults to on.
-It includes setting the v0.9 orientation of the M bit as well as updated
-permissions definition and new instructions.
-
-If cheri_v090 is off, qemu implements the obsolete RISC-V CHERI 0.8.x versions.
-
 * `cheri_pte`
 
 This is a boolean property which defaults to off. If enabled it will activate
@@ -83,7 +74,7 @@ Here's an example for setting the properties.
 
 ```
 $ qemu-system-riscv64cheri \
-    -cpu codasip-a730,Xcheri_purecap=on,cheri_v090=on,cheri_pte=on,cheri_levels=2 \
+    -cpu codasip-a730,Xcheri_purecap=on,cheri_pte=on,cheri_levels=2 \
     -M virt -nographic -semihosting -bios ./hello
 ```
 
