@@ -1033,12 +1033,6 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    /*
-        * cheri_v090 and m_flip (use legacy definition of M) are incompatible,
-        * the v0.9.0 switch takes precedence.
-        */
-    cpu->cfg.m_flip = false;
-
     if (cpu->cfg.levels & (cpu->cfg.levels -1)) {
         error_setg(errp, "Number of levels must be a power of 2.");
         return;
@@ -1125,19 +1119,6 @@ static Property riscv_cpu_properties[] = {
 
 #ifdef TARGET_CHERI
     DEFINE_PROP_BOOL("Xcheri_purecap", RISCVCPU, cfg.ext_cheri_purecap, false),
-    /*
-     * It seems ok if two properties modify the same component.
-     * If both properties are set on the qemu commandline, the last setting
-     * takes precedence
-     * qemu-system-riscv64cheri -cpu codasip-a730,scmode_flip=on,m_flip=off
-     * -> not flipped
-     * qemu-system-riscv64cheri -cpu codasip-a730,m_flip=off,scmode_flip=on
-     * -> flipped
-     *
-     * scmode_flip is deprecated, m_flip should be used instead.
-     */
-    DEFINE_PROP_BOOL("scmode_flip", RISCVCPU, cfg.m_flip, false),
-    DEFINE_PROP_BOOL("m_flip", RISCVCPU, cfg.m_flip, false),
     DEFINE_PROP_BOOL("cheri_pte", RISCVCPU, cfg.cheri_pte, false),
     DEFINE_PROP_UINT8("cheri_levels", RISCVCPU, cfg.levels, 1),
 #endif

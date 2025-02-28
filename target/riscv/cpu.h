@@ -464,7 +464,6 @@ struct RISCVCPU {
         bool ext_icboz;
 #ifdef TARGET_CHERI
         bool ext_cheri_purecap; 
-        bool m_flip;
         bool cheri_pte;
         /* number of levels (Zcherilevels): 0 invalid, 1 disabled (default)) */
         uint8_t levels;

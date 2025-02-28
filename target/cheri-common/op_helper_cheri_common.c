@@ -2101,12 +2101,6 @@ target_ulong CHERI_HELPER_IMPL(gcmode(CPUArchState *env, uint32_t cb))
     /* get_readonly_capreg's result is fully decompressed, see above */
     const cap_register_t *cbp = get_readonly_capreg(env, cb);
     cap_register_t ctmp = *cbp;
-    bool m_flip = false;
-#ifdef TARGET_RISCV
-    RISCVCPU *cpu = env_archcpu(env);
-
-    m_flip = cpu->cfg.m_flip;
-#endif
 
     /*
      * rd must be 0 if cs1 does not grant X permission or cs1's AP field could
@@ -2119,7 +2113,7 @@ target_ulong CHERI_HELPER_IMPL(gcmode(CPUArchState *env, uint32_t cb))
         return 0;
     }
 
-    return m_flip ? (cbp->cr_m ^ 0x1) : cbp->cr_m;
+    return cbp->cr_m;
 }
 
 target_ulong CHERI_HELPER_IMPL(gchi(CPUArchState *env, uint32_t cb))
@@ -2133,21 +2127,7 @@ target_ulong CHERI_HELPER_IMPL(gchi(CPUArchState *env, uint32_t cb))
 
     const cap_register_t *cbp = get_readonly_capreg(env, cb);
     cap_register_t result;
-    bool m_flip = false;
-#ifdef TARGET_RISCV
-    RISCVCPU *cpu = env_archcpu(env);
-
-    m_flip = cpu->cfg.m_flip;
-#endif
-
-    if (!m_flip)
-        return CAP_cc(compress_mem)(cbp);
-
-    /* We have to make a copy, cb must remain unchanged. */
-    memcpy(&result, cbp, sizeof(cap_register_t));
-    result.cr_m ^= 0x1;
-    CAP_cc(m_ap_compress)(&result);
-    return CAP_cc(compress_mem)(&result);
+    return CAP_cc(compress_mem)(cbp);
 }
 
 target_ulong CHERI_HELPER_IMPL(gcbase(CPUArchState *env, uint32_t cb))
@@ -2187,22 +2167,16 @@ void CHERI_HELPER_IMPL(schi(CPUArchState *env, uint32_t cd, uint32_t cs1,
                                 target_ulong rs2))
 {
     cap_register_t result;
-    bool m_flip = false;
     uint8_t lvbits = 0;
 #ifdef TARGET_RISCV
     RISCVCPU *cpu = env_archcpu(env);
 
-    m_flip = cpu->cfg.m_flip;
     lvbits = cpu->cfg.lvbits;
 #endif
 
     CAP_cc(decompress_mem__)(rs2, get_capreg_cursor(env, cs1), false, lvbits,
                            &result);
     result.cr_extra = CREG_FULLY_DECOMPRESSED;
-    if (m_flip) {
-        result.cr_m ^= 0x1;
-        CAP_cc(m_ap_compress)(&result);
-    }
 
     update_capreg(env, cd, &result);
 }
@@ -2451,7 +2425,7 @@ void CHERI_HELPER_IMPL(scmode(CPUArchState *env, uint32_t cd, uint32_t cs1,
     if (!fix_up_m_ap(env, &ctmp) && (csp->cr_arch_perm & CAP_AP_X)) {
 #ifdef TARGET_RISCV
         RISCVCPU *cpu = env_archcpu(env);
-        result.cr_m = cpu->cfg.m_flip ? !(rs2 & 0x01) : rs2 & 0x01;
+        result.cr_m = rs2 & 0x01;
 #else
         result.cr_m = rs2 & 0x01;
 #endif
