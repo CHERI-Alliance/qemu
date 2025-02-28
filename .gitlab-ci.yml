@@ -124,6 +124,12 @@ tag_upload:
     script:
         - *curl_upload
 
+trigger_job:
+  variables:
+    QEMU_BRANCH: $CI_COMMIT_REF_NAME
+  trigger:
+    project: cheri/software/cherilinux/qemu_tests
+
 test_qemu_standard:
     stage: test
     rules:
