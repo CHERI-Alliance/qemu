@@ -927,11 +927,11 @@ target_ulong CHERI_HELPER_IMPL(cgetlen(CPUArchState *env, uint32_t cb))
 void CHERI_HELPER_IMPL(cincoffset(CPUArchState *env, uint32_t cd, uint32_t cb,
                                   target_ulong rt))
 {
-    do_cincoffset(env, cd, cb, rt);
+    do_cincoffset(env, cd, cb, rt, GETPC());
 }
 
 void CHERI_HELPER_IMPL(csetaddr(CPUArchState *env, uint32_t cd, uint32_t cs1,
                                 target_ulong rs2))
 {
-    do_csetaddr(env, cd, cs1, rs2);
+    do_csetaddr(env, cd, cs1, rs2, GETPC());
 }

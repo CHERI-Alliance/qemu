@@ -428,6 +428,8 @@ void cheri_jump_and_link_checked(CPUArchState *env, uint32_t link_reg,
                                  target_ulong target_addr, uint32_t flags,
                                  uintptr_t _host_return_address);
 
-void do_cincoffset(CPUArchState *env, uint32_t cd, uint32_t cb, target_ulong rt);
-void do_csetaddr(CPUArchState *env, uint32_t cd, uint32_t cs1, target_ulong rs2);
+void do_cincoffset(CPUArchState *env, uint32_t cd, uint32_t cb, target_ulong rt,
+                   uintptr_t hostpc);
+void do_csetaddr(CPUArchState *env, uint32_t cd, uint32_t cs1, target_ulong rs2,
+                 uintptr_t hostpc);
 cap_register_t cap_scaddr(target_ulong addr, cap_register_t dest);

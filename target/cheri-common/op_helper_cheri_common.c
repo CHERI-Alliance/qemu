@@ -1094,9 +1094,10 @@ void CHERI_HELPER_IMPL(candperm(CPUArchState *env, uint32_t cd, uint32_t cb,
 }
 #endif
 
-void do_cincoffset(CPUArchState *env, uint32_t cd, uint32_t cb, target_ulong rt)
+void do_cincoffset(CPUArchState *env, uint32_t cd, uint32_t cb, target_ulong rt,
+                   uintptr_t hostpc)
 {
-    caddi_impl(env, cd, cb, rt, GETPC(), OOB_INFO(cadd));
+    caddi_impl(env, cd, cb, rt, hostpc, OOB_INFO(cadd));
 }
 
 void CHERI_HELPER_IMPL(candaddr(CPUArchState *env, uint32_t cd, uint32_t cb,
@@ -1109,11 +1110,11 @@ void CHERI_HELPER_IMPL(candaddr(CPUArchState *env, uint32_t cd, uint32_t cb,
                        OOB_INFO(candaddr));
 }
 
-void do_csetaddr(CPUArchState *env, uint32_t cd, uint32_t cs1, target_ulong rs2)
+void do_csetaddr(CPUArchState *env, uint32_t cd, uint32_t cs1, target_ulong rs2,
+                 uintptr_t hostpc)
 {
     try_set_cap_cursor(env, get_readonly_capreg(env, cs1), cs1, cd, rs2,
-                       /*precise_repr_check=*/true, GETPC(),
-                       OOB_INFO(csetaddr));
+                       /*precise_repr_check=*/true, hostpc, OOB_INFO(csetaddr));
 }
 
 void CHERI_HELPER_IMPL(csetoffset(CPUArchState *env, uint32_t cd, uint32_t cb,
@@ -2137,7 +2138,7 @@ void CHERI_HELPER_IMPL(
 void CHERI_HELPER_IMPL(scaddr(CPUArchState *env, uint32_t cd, uint32_t cs1,
                                 target_ulong rs2))
 {
-    do_csetaddr(env, cd, cs1, rs2);
+    do_csetaddr(env, cd, cs1, rs2, GETPC());
 }
 
 void CHERI_HELPER_IMPL(schi(CPUArchState *env, uint32_t cd, uint32_t cs1,
