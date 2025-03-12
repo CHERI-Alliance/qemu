@@ -43,12 +43,10 @@ typedef void(cheri_int_cap_helper)(TCGv, TCGv_env, TCGv_i32);
 static inline bool gen_cheri_int_cap(DisasContext *ctx, arg_rc *a,
                                      cheri_int_cap_helper *gen_func)
 {
-    TCGv_i32 source_regnum = tcg_const_i32(a->cs1);
     TCGv result = tcg_temp_new();
-    gen_func(result, cpu_env, source_regnum);
+    gen_func(result, cpu_env, tcg_constant_i32(a->cs1));
     gen_set_gpr(ctx, a->rd, result);
     tcg_temp_free(result);
-    tcg_temp_free_i32(source_regnum);
     return true;
 }
 
@@ -57,11 +55,7 @@ static inline bool gen_cheri_int_cap(DisasContext *ctx, arg_rc *a,
 typedef void(cheri_cap_cap_helper)(TCGv_env, TCGv_i32, TCGv_i32);
 static inline bool gen_cheri_cap_cap(arg_cc *a, cheri_cap_cap_helper *gen_func)
 {
-    TCGv_i32 dest_regnum = tcg_const_i32(a->cd);
-    TCGv_i32 source_regnum = tcg_const_i32(a->cs1);
-    gen_func(cpu_env, dest_regnum, source_regnum);
-    tcg_temp_free_i32(source_regnum);
-    tcg_temp_free_i32(dest_regnum);
+    gen_func(cpu_env, tcg_constant_i32(a->cd), tcg_constant_i32(a->cs1));
     return true;
 }
 #define TRANSLATE_CAP_CAP(name) DO_TRANSLATE(name, gen_cheri_cap_cap, a)
@@ -71,13 +65,11 @@ static inline QEMU_ALWAYS_INLINE bool
 gen_cheri_cap_int_plus_imm(DisasContext *ctx, int cd, int rs, target_long imm,
                            cheri_cap_int_helper *gen_func)
 {
-    TCGv_i32 dest_regnum = tcg_const_i32(cd);
     TCGv gpr_value = tcg_temp_new();
     gen_get_gpr(ctx, gpr_value, rs);
     tcg_gen_addi_tl(gpr_value, gpr_value, imm);
-    gen_func(cpu_env, dest_regnum, gpr_value);
+    gen_func(cpu_env, tcg_constant_i32(cd), gpr_value);
     tcg_temp_free(gpr_value);
-    tcg_temp_free_i32(dest_regnum);
     return true;
 }
 
@@ -99,13 +91,8 @@ typedef void(cheri_cap_cap_cap_helper)(TCGv_env, TCGv_i32, TCGv_i32, TCGv_i32);
 static inline bool gen_cheri_cap_cap_cap(arg_ccc *arg,
                                          cheri_cap_cap_cap_helper *gen_func)
 {
-    TCGv_i32 dest_regnum = tcg_const_i32(arg->cd);
-    TCGv_i32 source_regnum1 = tcg_const_i32(arg->cs1);
-    TCGv_i32 source_regnum2 = tcg_const_i32(arg->cs2);
-    gen_func(cpu_env, dest_regnum, source_regnum1, source_regnum2);
-    tcg_temp_free_i32(source_regnum2);
-    tcg_temp_free_i32(source_regnum1);
-    tcg_temp_free_i32(dest_regnum);
+    gen_func(cpu_env, tcg_constant_i32(arg->cd), tcg_constant_i32(arg->cs1),
+             tcg_constant_i32(arg->cs2));
     return true;
 }
 // We assume that all these instructions can trap (e.g. seal violation)
@@ -115,14 +102,11 @@ typedef void(cheri_cap_cap_int_helper)(TCGv_env, TCGv_i32, TCGv_i32, TCGv);
 static inline bool gen_cheri_cap_cap_int(DisasContext *ctx, arg_ccr *a,
                                          cheri_cap_cap_int_helper *gen_func)
 {
-    TCGv_i32 dest_regnum = tcg_const_i32(a->cd);
-    TCGv_i32 source_regnum = tcg_const_i32(a->cs1);
     TCGv gpr_value = tcg_temp_new();
     gen_get_gpr(ctx, gpr_value, a->rs2);
-    gen_func(cpu_env, dest_regnum, source_regnum, gpr_value);
+    gen_func(cpu_env, tcg_constant_i32(a->cd), tcg_constant_i32(a->cs1),
+             gpr_value);
     tcg_temp_free(gpr_value);
-    tcg_temp_free_i32(source_regnum);
-    tcg_temp_free_i32(dest_regnum);
     return true;
 }
 #define TRANSLATE_CAP_CAP_INT(name)                                            \
@@ -133,17 +117,13 @@ static inline bool gen_cheri_cap_loadstore(DisasContext *ctx, int srcdst,
                                            int auth, target_long imm,
                                            cheri_cap_loadstore_helper *gen_func)
 {
-    TCGv_i32 srcdest_regnum = tcg_const_i32(srcdst);
-    TCGv_i32 auth_regnum = tcg_const_i32(auth);
     TCGv addr = tcg_temp_new();
     gen_cap_get_cursor(ctx, auth, addr);
     if (imm != 0) {
         tcg_gen_addi_tl(addr, addr, imm);
     }
-    gen_func(cpu_env, srcdest_regnum, addr, auth_regnum);
+    gen_func(cpu_env, tcg_constant_i32(srcdst), addr, tcg_constant_i32(auth));
     tcg_temp_free(addr);
-    tcg_temp_free_i32(auth_regnum);
-    tcg_temp_free_i32(srcdest_regnum);
     return true;
 }
 
@@ -151,14 +131,11 @@ typedef void(cheri_int_cap_cap_helper)(TCGv, TCGv_env, TCGv_i32, TCGv_i32);
 static inline bool gen_cheri_int_cap_cap(DisasContext *ctx, arg_rcc *a,
                                          cheri_int_cap_cap_helper *gen_func)
 {
-    TCGv_i32 source_regnum1 = tcg_const_i32(a->cs1);
-    TCGv_i32 source_regnum2 = tcg_const_i32(a->cs2);
     TCGv result = tcg_temp_new();
-    gen_func(result, cpu_env, source_regnum1, source_regnum2);
+    gen_func(result, cpu_env, tcg_constant_i32(a->cs1),
+             tcg_constant_i32(a->cs2));
     gen_set_gpr(ctx, a->rd, result);
     tcg_temp_free(result);
-    tcg_temp_free_i32(source_regnum2);
-    tcg_temp_free_i32(source_regnum1);
     return true;
 }
 #define TRANSLATE_INT_CAP_CAP(name)                                            \
@@ -240,13 +217,8 @@ typedef void(cheri_cap_cap_imm_helper)(TCGv_env, TCGv_i32, TCGv_i32, TCGv);
 static inline bool gen_cheri_cap_cap_imm(int cd, int cs1, target_long imm,
                                          cheri_cap_cap_imm_helper *gen_func)
 {
-    TCGv_i32 dest_regnum = tcg_const_i32(cd);
-    TCGv_i32 source_regnum = tcg_const_i32(cs1);
-    TCGv imm_value = tcg_const_tl(imm);
-    gen_func(cpu_env, dest_regnum, source_regnum, imm_value);
-    tcg_temp_free(imm_value);
-    tcg_temp_free_i32(source_regnum);
-    tcg_temp_free_i32(dest_regnum);
+    gen_func(cpu_env, tcg_constant_i32(cd), tcg_constant_i32(cs1),
+             tcg_constant_tl(imm));
     return true;
 }
 #define TRANSLATE_CAP_CAP_IMM(name)                                            \
@@ -269,19 +241,13 @@ static void gen_cjal(DisasContext *ctx, int rd, target_ulong imm)
     /* Mask the LSB to match the RISC-V spec for JAL. */
     target_ulong next_pc = (ctx->base.pc_next + imm) & ~(target_ulong)1;
 
-    TCGv_i32 dst = tcg_const_i32(rd);
-    TCGv target_addr = tcg_const_tl(next_pc);
-    TCGv immv = tcg_const_tl(imm);
-    TCGv link_addr = tcg_const_tl(ctx->pc_succ_insn);
+    TCGv target_addr = tcg_constant_tl(next_pc);
+    TCGv link_addr = tcg_constant_tl(ctx->pc_succ_insn);
     /*
      * helper_cjal() checks for misalignment and capability bounds. It also
      * ensures that the written value is a sentry and marks PC as up-to-date.
      */
-    gen_helper_cjal(cpu_env, dst, target_addr, link_addr);
-    tcg_temp_free(link_addr);
-    tcg_temp_free(immv);
-    tcg_temp_free(target_addr);
-    tcg_temp_free_i32(dst);
+    gen_helper_cjal(cpu_env, tcg_constant_i32(rd), target_addr, link_addr);
 
     /* No bounds check needed here since we did it in helper_cjal(). */
     gen_goto_tb(ctx, 0, next_pc, false);
@@ -290,15 +256,9 @@ static void gen_cjal(DisasContext *ctx, int rd, target_ulong imm)
 
 static void gen_cjalr(DisasContext *ctx, int cd, int cs1, target_ulong imm)
 {
-    TCGv_i32 dest_regnum = tcg_const_i32(cd);
-    TCGv_i32 source_regnum = tcg_const_i32(cs1);
-    TCGv imm_value = tcg_const_tl(imm);
-    TCGv t0 = tcg_const_tl(ctx->pc_succ_insn); // Link addr + resulting $pc
-    gen_helper_cjalr(cpu_env, dest_regnum, source_regnum, imm_value, t0);
-    tcg_temp_free(imm_value);
-    tcg_temp_free(t0);
-    tcg_temp_free_i32(source_regnum);
-    tcg_temp_free_i32(dest_regnum);
+    TCGv t0 = tcg_constant_tl(ctx->pc_succ_insn); // Link addr + resulting $pc
+    gen_helper_cjalr(cpu_env, tcg_constant_i32(cd), tcg_constant_i32(cs1),
+                     tcg_constant_tl(imm), t0);
 
     tcg_gen_lookup_and_goto_ptr();
     // PC has been updated -> exit translation block
@@ -319,11 +279,8 @@ static bool trans_jalr_pcc(DisasContext *ctx, arg_jalr_pcc *a)
 
 static inline bool trans_cinvoke(DisasContext *ctx, arg_cinvoke *a)
 {
-    TCGv_i32 code_regnum = tcg_const_i32(a->rs1);
-    TCGv_i32 data_regnum = tcg_const_i32(a->rs2);
-    gen_helper_cinvoke(cpu_env, code_regnum, data_regnum);
-    tcg_temp_free_i32(code_regnum);
-    tcg_temp_free_i32(data_regnum);
+    gen_helper_cinvoke(cpu_env, tcg_constant_i32(a->rs1),
+                       tcg_constant_i32(a->rs2));
 
     tcg_gen_lookup_and_goto_ptr();
     // PC has been updated -> exit translation block
@@ -594,7 +551,7 @@ static inline bool do_trans_modesw(DisasContext *ctx, bool to_capmode)
                                lookup_symbol(ctx->base.pc_first));
         return true;
     }
-    gen_helper_modesw(cpu_env, tcg_const_i32(to_capmode));
+    gen_helper_modesw(cpu_env, tcg_constant_i32(to_capmode));
 
     /*
      * The current execution mode is checked at translation time (not at
