@@ -40,34 +40,31 @@
     }
 
 typedef void(cheri_int_cap_helper)(TCGv, TCGv_env, TCGv_i32);
-static inline bool gen_cheri_int_cap(DisasContext *ctx, int rd, int cs,
-                                 cheri_int_cap_helper *gen_func)
+static inline bool gen_cheri_int_cap(DisasContext *ctx, arg_rc *a,
+                                     cheri_int_cap_helper *gen_func)
 {
-    TCGv_i32 source_regnum = tcg_const_i32(cs);
+    TCGv_i32 source_regnum = tcg_const_i32(a->cs1);
     TCGv result = tcg_temp_new();
     gen_func(result, cpu_env, source_regnum);
-    gen_set_gpr(ctx, rd, result);
+    gen_set_gpr(ctx, a->rd, result);
     tcg_temp_free(result);
     tcg_temp_free_i32(source_regnum);
     return true;
 }
 
-#define TRANSLATE_INT_CAP(name)                                                \
-    DO_TRANSLATE(name, gen_cheri_int_cap, ctx, a->rd, a->rs1)
+#define TRANSLATE_INT_CAP(name) DO_TRANSLATE(name, gen_cheri_int_cap, ctx, a)
 
 typedef void(cheri_cap_cap_helper)(TCGv_env, TCGv_i32, TCGv_i32);
-static inline bool gen_cheri_cap_cap(int cd, int cs,
-                                     cheri_cap_cap_helper *gen_func)
+static inline bool gen_cheri_cap_cap(arg_cc *a, cheri_cap_cap_helper *gen_func)
 {
-    TCGv_i32 dest_regnum = tcg_const_i32(cd);
-    TCGv_i32 source_regnum = tcg_const_i32(cs);
+    TCGv_i32 dest_regnum = tcg_const_i32(a->cd);
+    TCGv_i32 source_regnum = tcg_const_i32(a->cs1);
     gen_func(cpu_env, dest_regnum, source_regnum);
     tcg_temp_free_i32(source_regnum);
     tcg_temp_free_i32(dest_regnum);
     return true;
 }
-#define TRANSLATE_CAP_CAP(name)                                                \
-    DO_TRANSLATE(name, gen_cheri_cap_cap, a->rd, a->rs1)
+#define TRANSLATE_CAP_CAP(name) DO_TRANSLATE(name, gen_cheri_cap_cap, a)
 
 typedef void(cheri_cap_int_helper)(TCGv_env, TCGv_i32, TCGv);
 static inline QEMU_ALWAYS_INLINE bool
@@ -84,33 +81,27 @@ gen_cheri_cap_int_plus_imm(DisasContext *ctx, int cd, int rs, target_long imm,
     return true;
 }
 
-static inline bool gen_cheri_cap_int(DisasContext *ctx, int cd, int rs,
-                                     cheri_cap_int_helper *gen_func)
-{
-    return gen_cheri_cap_int_plus_imm(ctx, cd, rs, 0, gen_func);
-}
-
 typedef void(cheri_int_int_helper)(TCGv, TCGv_env, TCGv);
-static inline bool gen_cheri_int_int(DisasContext *ctx, int rd, int rs,
+static inline bool gen_cheri_int_int(DisasContext *ctx, arg_r2 *a,
                                      cheri_int_int_helper *gen_func)
 {
     TCGv result = tcg_temp_new();
     TCGv gpr_src_value = tcg_temp_new();
-    gen_get_gpr(ctx, gpr_src_value, rs);
+    gen_get_gpr(ctx, gpr_src_value, a->rs1);
     gen_func(result, cpu_env, gpr_src_value);
-    gen_set_gpr(ctx, rd, result);
+    gen_set_gpr(ctx, a->rd, result);
     tcg_temp_free(gpr_src_value);
     tcg_temp_free(result);
     return true;
 }
 
 typedef void(cheri_cap_cap_cap_helper)(TCGv_env, TCGv_i32, TCGv_i32, TCGv_i32);
-static inline bool gen_cheri_cap_cap_cap(int cd, int cs1, int cs2,
+static inline bool gen_cheri_cap_cap_cap(arg_ccc *arg,
                                          cheri_cap_cap_cap_helper *gen_func)
 {
-    TCGv_i32 dest_regnum = tcg_const_i32(cd);
-    TCGv_i32 source_regnum1 = tcg_const_i32(cs1);
-    TCGv_i32 source_regnum2 = tcg_const_i32(cs2);
+    TCGv_i32 dest_regnum = tcg_const_i32(arg->cd);
+    TCGv_i32 source_regnum1 = tcg_const_i32(arg->cs1);
+    TCGv_i32 source_regnum2 = tcg_const_i32(arg->cs2);
     gen_func(cpu_env, dest_regnum, source_regnum1, source_regnum2);
     tcg_temp_free_i32(source_regnum2);
     tcg_temp_free_i32(source_regnum1);
@@ -118,22 +109,16 @@ static inline bool gen_cheri_cap_cap_cap(int cd, int cs1, int cs2,
     return true;
 }
 // We assume that all these instructions can trap (e.g. seal violation)
-#define TRANSLATE_CAP_CAP_CAP(name)                                            \
-    DO_TRANSLATE(name, gen_cheri_cap_cap_cap, a->rd, a->rs1, a->rs2)
+#define TRANSLATE_CAP_CAP_CAP(name) DO_TRANSLATE(name, gen_cheri_cap_cap_cap, a)
 
 typedef void(cheri_cap_cap_int_helper)(TCGv_env, TCGv_i32, TCGv_i32, TCGv);
-static inline bool
-gen_cheri_cap_cap_int_plus_imm(DisasContext *ctx, int cd, int cs1, int rs2,
-                               target_long imm,
-                               cheri_cap_cap_int_helper *gen_func)
+static inline bool gen_cheri_cap_cap_int(DisasContext *ctx, arg_ccr *a,
+                                         cheri_cap_cap_int_helper *gen_func)
 {
-    TCGv_i32 dest_regnum = tcg_const_i32(cd);
-    TCGv_i32 source_regnum = tcg_const_i32(cs1);
+    TCGv_i32 dest_regnum = tcg_const_i32(a->cd);
+    TCGv_i32 source_regnum = tcg_const_i32(a->cs1);
     TCGv gpr_value = tcg_temp_new();
-    gen_get_gpr(ctx, gpr_value, rs2);
-    if (imm != 0) {
-        tcg_gen_addi_tl(gpr_value, gpr_value, imm);
-    }
+    gen_get_gpr(ctx, gpr_value, a->rs2);
     gen_func(cpu_env, dest_regnum, source_regnum, gpr_value);
     tcg_temp_free(gpr_value);
     tcg_temp_free_i32(source_regnum);
@@ -141,8 +126,7 @@ gen_cheri_cap_cap_int_plus_imm(DisasContext *ctx, int cd, int cs1, int rs2,
     return true;
 }
 #define TRANSLATE_CAP_CAP_INT(name)                                            \
-    DO_TRANSLATE(name, gen_cheri_cap_cap_int_plus_imm, ctx, a->rd, a->rs1,     \
-                 a->rs2, 0)
+    DO_TRANSLATE(name, gen_cheri_cap_cap_int, ctx, a)
 
 typedef void(cheri_cap_loadstore_helper)(TCGv_env, TCGv_i32, TCGv, TCGv_i32);
 static inline bool gen_cheri_cap_loadstore(DisasContext *ctx, int srcdst,
@@ -164,22 +148,21 @@ static inline bool gen_cheri_cap_loadstore(DisasContext *ctx, int srcdst,
 }
 
 typedef void(cheri_int_cap_cap_helper)(TCGv, TCGv_env, TCGv_i32, TCGv_i32);
-static inline bool gen_cheri_int_cap_cap(DisasContext *ctx, int rd, int cs1,
-                                         int cs2,
+static inline bool gen_cheri_int_cap_cap(DisasContext *ctx, arg_rcc *a,
                                          cheri_int_cap_cap_helper *gen_func)
 {
-    TCGv_i32 source_regnum1 = tcg_const_i32(cs1);
-    TCGv_i32 source_regnum2 = tcg_const_i32(cs2);
+    TCGv_i32 source_regnum1 = tcg_const_i32(a->cs1);
+    TCGv_i32 source_regnum2 = tcg_const_i32(a->cs2);
     TCGv result = tcg_temp_new();
     gen_func(result, cpu_env, source_regnum1, source_regnum2);
-    gen_set_gpr(ctx, rd, result);
+    gen_set_gpr(ctx, a->rd, result);
     tcg_temp_free(result);
     tcg_temp_free_i32(source_regnum2);
     tcg_temp_free_i32(source_regnum1);
     return true;
 }
 #define TRANSLATE_INT_CAP_CAP(name)                                            \
-    DO_TRANSLATE(name, gen_cheri_int_cap_cap, ctx, a->rd, a->rs1, a->rs2)
+    DO_TRANSLATE(name, gen_cheri_int_cap_cap, ctx, a)
 
 // TODO: all of these could be implemented in TCG without calling a helper
 // Two operand (int cap)
@@ -199,11 +182,11 @@ TRANSLATE_INT_CAP(cloadtags)
 // Two operand (int int)
 static inline bool trans_crrl(DisasContext *ctx, arg_crrl *a)
 {
-    return gen_cheri_int_int(ctx, a->rd, a->rs1, &gen_helper_crap);
+    return gen_cheri_int_int(ctx, a, &gen_helper_crap);
 }
 static inline bool trans_cram(DisasContext *ctx, arg_cram *a)
 {
-    return gen_cheri_int_int(ctx, a->rd, a->rs1, &gen_helper_cram);
+    return gen_cheri_int_int(ctx, a, &gen_helper_cram);
 }
 
 // Two operand (cap cap)
@@ -221,8 +204,8 @@ TRANSLATE_CAP_CAP_CAP(cunseal)
 // Not quite (cap cap cap) but the index argument can be handled the same way
 static bool trans_cspecialrw(DisasContext *ctx, arg_cspecialrw *a)
 {
-    if (gen_cheri_cap_cap_cap(a->rd, a->rs1, a->rs2, &gen_helper_cspecialrw)) {
-        if (a->rs1 != 0 && a->rs2 == CheriSCR_DDC) {
+    if (gen_cheri_cap_cap_cap(a, &gen_helper_cspecialrw)) {
+        if (a->cs1 != 0 && a->cs2 == CheriSCR_DDC) {
             // When DDC changes we have to exit the current translation block
             // since we cache DDC properties in the flags to optimize out
             // bounds/permission checks.
@@ -305,10 +288,10 @@ static void gen_cjal(DisasContext *ctx, int rd, target_ulong imm)
     ctx->base.is_jmp = DISAS_NORETURN;
 }
 
-static void gen_cjalr(DisasContext *ctx, int rd, int rs1, target_ulong imm)
+static void gen_cjalr(DisasContext *ctx, int cd, int cs1, target_ulong imm)
 {
-    TCGv_i32 dest_regnum = tcg_const_i32(rd);
-    TCGv_i32 source_regnum = tcg_const_i32(rs1);
+    TCGv_i32 dest_regnum = tcg_const_i32(cd);
+    TCGv_i32 source_regnum = tcg_const_i32(cs1);
     TCGv imm_value = tcg_const_tl(imm);
     TCGv t0 = tcg_const_tl(ctx->pc_succ_insn); // Link addr + resulting $pc
     gen_helper_cjalr(cpu_env, dest_regnum, source_regnum, imm_value, t0);
@@ -324,7 +307,7 @@ static void gen_cjalr(DisasContext *ctx, int rd, int rs1, target_ulong imm)
 
 static bool trans_jalr_cap(DisasContext *ctx, arg_jalr_cap *a)
 {
-    gen_cjalr(ctx, a->rd, a->rs1, 0);
+    gen_cjalr(ctx, a->cd, a->cs1, 0);
     return true;
 }
 
@@ -527,7 +510,8 @@ static inline bool trans_lr_c_impl(DisasContext *ctx, arg_atomic *a,
         // Note: we ignore the Acquire/release flags since using
         // helper_exit_atomic forces exlusive execution so we get SC semantics.
         tcg_debug_assert(a->rs2 == 0);
-        gen_cheri_cap_cap(a->rd, a->rs1, helper);
+        arg_cc cc = { .cd = a->rd, .cs1 = a->rs1 };
+        gen_cheri_cap_cap(&cc, helper);
     }
     return true;
 }
@@ -560,7 +544,8 @@ static inline bool trans_sc_c_impl(DisasContext *ctx, arg_atomic *a,
     } else {
         // Note: we ignore the Acquire/release flags since using
         // helper_exit_atomic forces exclusive execution so we get SC semantics.
-        gen_cheri_int_cap_cap(ctx, a->rd, a->rs1, a->rs2, helper);
+        arg_rcc rcc = { .rd = a->rd, .cs1 = a->rs1, .cs2 = a->rs2 };
+        gen_cheri_int_cap_cap(ctx, &rcc, helper);
     }
     return true;
 }
@@ -594,7 +579,8 @@ static inline bool trans_amoswap_c(DisasContext *ctx, arg_amoswap_c *a)
     } else {
         // Note: we ignore the Acquire/release flags since using
         // helper_exit_atomic forces exlusive execution so we get SC semantics.
-        gen_cheri_cap_cap_cap(a->rd, a->rs1, a->rs2, &gen_helper_amoswap_cap);
+        arg_ccc ccc = { .cd = a->rd, .cs1 = a->rs1, .cs2 = a->rs2 };
+        gen_cheri_cap_cap_cap(&ccc, &gen_helper_amoswap_cap);
     }
     return true;
 }
