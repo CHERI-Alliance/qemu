@@ -2556,7 +2556,8 @@ qemuutil = declare_dependency(link_with: libqemuutil,
                               sources: genh + version_res)
 
 if have_system or have_user
-  decodetree = generator(find_program('scripts/decodetree.py'),
+  decodetree_py = find_program('scripts/decodetree.py')
+  decodetree = generator(decodetree_py,
                          output: 'decode-@BASENAME@.c.inc',
                          arguments: ['@INPUT@', '@EXTRA_ARGS@', '-o', '@OUTPUT@'])
   subdir('libdecnumber')
