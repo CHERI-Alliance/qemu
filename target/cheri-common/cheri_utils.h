@@ -543,10 +543,12 @@ static inline bool fix_up_m_ap(CPUArchState *env, cap_register_t *cap)
     }
 
     /* rule 13 */
-    uint16_t cmp_val = cap->cr_arch_perm &
-        (CAP_AP_C | CAP_AP_LM | CAP_AP_EL | CAP_AP_SL);
-    PERM_RULE(CAP_AP_X, (cmp_val == 0) ||
-            (cmp_val == (CAP_AP_C | CAP_AP_LM | CAP_AP_EL | CAP_AP_SL)));
+    uint16_t cmp_mask = CAP_AP_C | CAP_AP_LM;
+    if (lvbits > 0) {
+        cmp_mask |= (CAP_AP_EL | CAP_AP_SL);
+    }
+    PERM_RULE(CAP_AP_X, ((cap->cr_arch_perm & cmp_mask) == 0) ||
+            ((cap->cr_arch_perm & cmp_mask) == cmp_mask));
 #endif
 
     /* rule 14 */
