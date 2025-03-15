@@ -2406,6 +2406,9 @@ RISCVException riscv_csr_accessible(CPURISCVState *env, int csrno,
     int read_only = get_field(csrno, 0xC00) == 3;
     int csr_min_priv = csr_ops[csrno].min_priv_ver;
 
+    if (env->priv_ver < csr_min_priv) {
+        return RISCV_EXCP_ILLEGAL_INST;
+    }
     /* check privileges and return RISCV_EXCP_ILLEGAL_INST if check fails */
 #if !defined(CONFIG_USER_ONLY)
     int effective_priv = env->priv;
@@ -2483,10 +2486,6 @@ RISCVException riscv_csrrw(CPURISCVState *env, int csrno,
                                        /*regnum=*/0, 0, true, retpc);
 #endif
         return ret;
-    }
-
-    if (env->priv_ver < csr_min_priv) {
-        return RISCV_EXCP_ILLEGAL_INST;
     }
 
     /* execute combined read/write operation if it exists */
