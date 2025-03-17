@@ -53,6 +53,13 @@ void HELPER(riscv_log_instr)(CPURISCVState *env, target_ulong pc,
 {
     if (qemu_log_instr_enabled(env)) {
         qemu_log_instr_asid(env, cpu_get_asid(env, pc));
-        qemu_log_instr(env, pc, (char *)&opcode, opcode_size);
+        // usee PCC for the upper as we expect this to be valid for the current
+        // tcg block. We can also assume the tag is valid else we would not
+        // get to the instruction in the first place
+#ifdef TARGET_CHERI
+        qemu_log_instr(env, pc, env->pcc.cr_pesbt, (char *)&opcode, opcode_size);
+#else
+        qemu_log_instr(env, pc, 0, (char *)&opcode, opcode_size);
+#endif
     }
 }
