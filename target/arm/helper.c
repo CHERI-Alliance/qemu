@@ -14133,10 +14133,10 @@ void HELPER(arm_log_instr)(CPUARMState *env, uint64_t pc, uint32_t opcode,
         qemu_log_instr_asid(env, cpu_get_asid(env, pc));
         if (opcode_size == 2) {
             uint16_t opcode16 = opcode;
-            qemu_log_instr(env, pc, (char *)&opcode16, opcode_size);
+            qemu_log_instr(env, pc, 0, (char *)&opcode16, opcode_size);
         } else {
             tcg_debug_assert(opcode_size == 4);
-            qemu_log_instr(env, pc, (char *)&opcode, opcode_size);
+            qemu_log_instr(env, pc, 0, (char *)&opcode, opcode_size);
         }
     }
 }

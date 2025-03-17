@@ -121,6 +121,7 @@ typedef struct cpu_log_instr_info {
     target_ulong intr_faultaddr;
 
     target_ulong pc;
+    target_ulong upperpc;
     /* Generic instruction opcode buffer */
     int insn_size;
     char insn_bytes[TARGET_MAX_INSN_SIZE];
@@ -340,7 +341,10 @@ static void emit_text_entry(CPUArchState *env, cpu_log_instr_info_t *iinfo)
 {
     QemuLogFile *logfile;
     int i;
-
+#ifdef TARGET_CHERI
+    qemu_log("PCC[" TARGET_FMT_lx ":"TARGET_FMT_lx "]\n",
+        iinfo->upperpc, iinfo->pc);
+#endif
     /* Dump CPU-ID:ASID + address */
     qemu_log("[%d:%d] ", env_cpu(env)->cpu_index, iinfo->asid);
 
@@ -1247,12 +1251,13 @@ void qemu_log_instr_st_cap(CPUArchState *env, target_ulong addr,
 }
 #endif
 
-void qemu_log_instr(CPUArchState *env, target_ulong pc, const char *insn,
-                    uint32_t size)
+void qemu_log_instr(CPUArchState *env, target_ulong pc, target_ulong upperpc,
+                    const char *insn, uint32_t size)
 {
     cpu_log_instr_info_t *iinfo = get_cpu_log_instr_info(env);
 
     iinfo->pc = pc;
+    iinfo->upperpc = upperpc;
     iinfo->insn_size = size;
     memcpy(iinfo->insn_bytes, insn, size);
 }
