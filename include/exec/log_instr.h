@@ -274,6 +274,8 @@ void qemu_log_instr_cap(CPUArchState *env, const char *reg_name,
 void qemu_log_instr_cap_int(CPUArchState *env, const char *reg_name,
                             target_ulong value, uint32_t index, uint32_t type);
 
+void qemu_log_instr_branch(CPUArchState *env, target_ulong dest);
+
 /*
  * Log capability memory load.
  */

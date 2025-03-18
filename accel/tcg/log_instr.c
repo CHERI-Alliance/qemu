@@ -1203,6 +1203,14 @@ void qemu_log_instr_cap_int(CPUArchState *env, const char *reg_name,
     r.gpr = value;
     g_array_append_val(iinfo->regs, r);
 }
+
+
+void qemu_log_instr_branch(CPUArchState *env,target_ulong dest)
+{
+    cpu_log_instr_info_t *iinfo = get_cpu_log_instr_info(env);
+    iinfo->branch_target=dest;
+}
+
 #endif
 
 static inline void qemu_log_instr_mem_int(CPUArchState *env, target_ulong addr,
