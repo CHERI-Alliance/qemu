@@ -63,3 +63,12 @@ void HELPER(riscv_log_instr)(CPURISCVState *env, target_ulong pc,
 #endif
     }
 }
+
+void HELPER(riscv_log_branch)(CPURISCVState *env, target_ulong dest)
+{
+#ifdef TARGET_CHERI
+    if (qemu_log_instr_enabled(env)) {
+        qemu_log_instr_branch(env, dest);
+    }
+#endif
+}
