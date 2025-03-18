@@ -422,6 +422,9 @@ void cheri_jump_and_link(CPUArchState *env, const cap_register_t *target,
                        PRINT_CAP_ARGS(cheri_get_recent_pcc(env)),
                        PRINT_CAP_ARGS(target));
     }
+#ifdef TARGET_RISCV
+    helper_riscv_log_branch(env, addr);
+#endif
     update_next_pcc_for_tcg(env, &next_pcc, cjalr_flags);
 }
 
