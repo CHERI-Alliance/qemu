@@ -403,7 +403,6 @@ static void gen_jal(DisasContext *ctx, int rd, target_ulong imm)
         }
     }
     gen_set_gpr_const(ctx, rd, ctx->pc_succ_insn);
-    LOG_BRANCH(next_pc);
     gen_goto_tb(ctx, 0, ctx->base.pc_next + imm, /*bounds_check=*/true); /* must use this for safety */
     ctx->base.is_jmp = DISAS_NORETURN;
 }
