@@ -400,6 +400,8 @@ static void emit_text_entry(CPUArchState *env, cpu_log_instr_info_t *iinfo)
         log_reginfo_t *rinfo = &g_array_index(iinfo->regs, log_reginfo_t, i);
         emit_text_reg(rinfo);
     }
+    if (iinfo->branch_target)
+        qemu_log("\t ↳ " TARGET_FMT_lx "\n", iinfo->branch_target);
 
     /* Dump extra logged messages, if any */
     if (iinfo->txt_buffer->len > 0)
