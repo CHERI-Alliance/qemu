@@ -122,6 +122,7 @@ typedef struct cpu_log_instr_info {
 
     target_ulong pc;
     target_ulong upperpc;
+    target_ulong branch_target;
     /* Generic instruction opcode buffer */
     int insn_size;
     char insn_bytes[TARGET_MAX_INSN_SIZE];
