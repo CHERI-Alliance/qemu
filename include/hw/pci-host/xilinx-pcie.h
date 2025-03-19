@@ -48,11 +48,14 @@ struct XilinxPCIEHost {
 
     uint32_t bus_nr;
     uint64_t cfg_base, cfg_size;
-    uint64_t mmio_base, mmio_size;
+    uint64_t mmio_base[2], mmio_size[2];
     bool link_up;
-    qemu_irq irq;
+    qemu_irq irq, irq_msi[2];
 
-    MemoryRegion mmio, io;
+    AddressSpace address_space;
+    MemoryRegion address_space_root;
+    MemoryRegion inbound_alias, outbound_alias[2];
+    MemoryRegion mmio, io, msi_iomem;
 
     XilinxPCIERoot root;
 
@@ -60,7 +63,11 @@ struct XilinxPCIEHost {
     uint32_t intr_mask;
     XilinxPCIEInt intr_fifo[16];
     unsigned int intr_fifo_r, intr_fifo_w;
+    bool intr_fifo_mode;
+    uint32_t intr_decode, intr_decode_mask;
+    uint64_t msi_intr_decode, msi_intr_decode_mask;
     uint32_t rpscr;
+    uint64_t msi_base;
 };
 
 #endif /* HW_XILINX_PCIE_H */
