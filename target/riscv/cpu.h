@@ -246,7 +246,6 @@ struct CPURISCVState {
     /* Virtual CSRs */
 #ifdef TARGET_CHERI
     cap_register_t vstcc;
-    cap_register_t vstdc;
     cap_register_t vsscratchc;
     cap_register_t vsepcc;
 #else
@@ -887,7 +886,6 @@ static inline cap_register_t *riscv_get_scr(CPUArchState *env, uint32_t index)
     case CheriSCR_DDC: return &env->ddc;
 
     case CheriSCR_BSTCC: return &env->vstcc;
-    case CheriSCR_BSTDC: return &env->vstdc;
     case CheriSCR_BSScratchC: return &env->vsscratchc;
     case CheriSCR_BSEPCC: return &env->vsepcc;
     default: assert(false && "Should have raised an invalid inst trap!");

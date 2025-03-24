@@ -76,9 +76,6 @@ enum CheriSCR {
     CheriSCR_PCC = 0,
     CheriSCR_DDC = 1,
 
-    CheriSCR_STDC = 13,
-
-    CheriSCR_MTDC = 29,
 
     /*
      * TODO(am2419): Register indices are placeholders,

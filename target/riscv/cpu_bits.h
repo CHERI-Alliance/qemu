@@ -187,7 +187,6 @@
 #define CSR_STVECC          0x105
 #define CSR_SSCRATCHC       0x140
 #define CSR_SEPCC           0x141
-#define CSR_STDC            0x163
 #endif
 
 /* Supervisor Protection and Translation */
