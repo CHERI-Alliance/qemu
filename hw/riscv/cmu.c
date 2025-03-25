@@ -143,7 +143,7 @@ static const MemoryRegionOps cmu_ops = {
 static Property cmu_properties[] = {
     DEFINE_PROP_UINT64("ram-base", CMUDeviceState, base, 0),
     DEFINE_PROP_UINT64("ram-size", CMUDeviceState, size, 0),
-    DEFINE_PROP_UINT16("cache-line-size", CMUDeviceState, cache_line_size, 512),
+    DEFINE_PROP_UINT16("cache-line-size", CMUDeviceState, cache_line_size, 256),
     DEFINE_PROP_LINK("managed-ram", CMUDeviceState, managed,
             TYPE_MEMORY_REGION, MemoryRegion *),
     DEFINE_PROP_END_OF_LIST(),
