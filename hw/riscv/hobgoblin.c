@@ -744,7 +744,11 @@ static void hobgoblin_machine_class_init(ObjectClass *oc, void *data)
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->init = hobgoblin_machine_init;
+#if defined(TARGET_RISCV64)
     mc->default_cpu_type = TYPE_RISCV_CPU_CODASIP_A730;
+#elif defined(TARGET_RISCV32)
+     mc->default_cpu_type = TYPE_RISCV_CPU_CODASIP_L730;
+#endif
 
     /* mc->reset:   void reset(MachineState *state, ShutdownCause reason); */
     /* mc->wakeup:  void wakeup(MachineState *state); */
