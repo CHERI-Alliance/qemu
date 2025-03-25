@@ -122,6 +122,11 @@ static void cmu_write(void *opaque, hwaddr addr, uint64_t data, unsigned int siz
     if (s->regs[REG_CMU_TIEND] & CMU_TI_ACTIVE) {
         cmu_invalidate(s);
     }
+
+    /* If a cache flush operation has been attempted, mark it as complete */
+    if (s->regs[REG_CMU_TCMO] & CMU_TCMO_ACTIVE) {
+        s->regs[REG_CMU_TCMO] &= ~CMU_TCMO_ACTIVE;
+    }
 }
 
 static const MemoryRegionOps cmu_ops = {

@@ -52,11 +52,12 @@
 #define CMU_TISTART 0x28
 #define CMU_TIEND   0x30
 #define CMU_TCMO    0x20
-
+ 
 #define REG_CMU_TISTART (CMU_TISTART/sizeof(uint64_t))
 #define REG_CMU_TIEND   (CMU_TIEND/sizeof(uint64_t))
+#define REG_CMU_TCMO   (CMU_TCMO/sizeof(uint64_t))
 
-
+#define CMU_TCMO_ACTIVE 0x1
 #define CMU_TI_ACTIVE 0x1
 #if defined(TARGET_RISCV64)
 #define LOG2_CMU_CLEN 7
