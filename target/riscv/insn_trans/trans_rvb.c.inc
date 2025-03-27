@@ -349,6 +349,34 @@ static void gen_sh##SHAMT##add(TCGv ret, TCGv arg1, TCGv arg2) \
     tcg_temp_free(t);                                          \
 }
 
+
+#ifdef TARGET_CHERI
+
+#define GEN_TRANS_SHADD(SHAMT)                                                 \
+    static bool trans_sh##SHAMT##add(DisasContext *ctx, arg_sh##SHAMT##add *a) \
+    {                                                                          \
+        REQUIRE_ZBA(ctx);                                                      \
+        TCGv_i32 dest_regnum;                                                  \
+        TCGv_i32 source_regnum;                                                \
+        TCGv offset;                                                           \
+        TCGv rs1_val;                                                          \
+                                                                               \
+        dest_regnum = tcg_const_i32(a->rd);                                    \
+        source_regnum = tcg_const_i32(a->rs2);                                 \
+        offset = tcg_temp_new();                                               \
+        rs1_val = tcg_temp_new();                                              \
+        gen_get_gpr(ctx, rs1_val, a->rs1);                                     \
+        tcg_gen_shli_tl(offset, rs1_val, SHAMT);                               \
+        gen_helper_caddi(cpu_env, dest_regnum, source_regnum, offset);         \
+                                                                               \
+        tcg_temp_free(offset);                                                 \
+        tcg_temp_free(rs1_val);                                                \
+        tcg_temp_free_i32(source_regnum);                                      \
+        tcg_temp_free_i32(dest_regnum);                                        \
+                                                                               \
+        return true;                                                           \
+    }
+#else
 GEN_SHADD(1)
 GEN_SHADD(2)
 GEN_SHADD(3)
@@ -359,7 +387,7 @@ static bool trans_sh##SHAMT##add(DisasContext *ctx, arg_sh##SHAMT##add *a) \
     REQUIRE_ZBA(ctx);                                                      \
     return gen_arith(ctx, a, EXT_NONE, gen_sh##SHAMT##add);                \
 }
-
+#endif
 GEN_TRANS_SHADD(1)
 GEN_TRANS_SHADD(2)
 GEN_TRANS_SHADD(3)
