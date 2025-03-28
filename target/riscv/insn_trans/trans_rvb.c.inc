@@ -465,6 +465,38 @@ static void gen_sh##SHAMT##add_uw(TCGv ret, TCGv arg1, TCGv arg2) \
     tcg_temp_free(t);                                             \
 }
 
+#ifdef TARGET_CHERI
+#define GEN_TRANS_SHADD_UW(SHAMT)                                          \
+static bool trans_sh##SHAMT##add_uw(DisasContext *ctx,                     \
+                                    arg_sh##SHAMT##add_uw *a)              \
+{                                                                          \
+    REQUIRE_ZBA(ctx);                                                      \
+    REQUIRE_64BIT(ctx);                                                    \
+    TCGv_i32 dest_regnum;                                                  \
+    TCGv_i32 source_regnum;                                                \
+    TCGv offset;                                                           \
+    TCGv rs1_val;                                                          \
+    TCGv t;                                                                \
+                                                                           \
+    dest_regnum = tcg_const_i32(a->rd);                                    \
+    source_regnum = tcg_const_i32(a->rs2);                                 \
+    offset = tcg_temp_new();                                               \
+    rs1_val = tcg_temp_new();                                              \
+    t = tcg_temp_new();                                                    \
+    gen_get_gpr(ctx, rs1_val, a->rs1);                                     \
+    tcg_gen_ext32u_tl(t, rs1_val);                                         \
+    tcg_gen_shli_tl(offset, t, SHAMT);                                     \
+    gen_helper_caddi(cpu_env, dest_regnum, source_regnum, offset);         \
+                                                                           \
+    tcg_temp_free(offset);                                                 \
+    tcg_temp_free(rs1_val);                                                \
+    tcg_temp_free_i32(source_regnum);                                      \
+    tcg_temp_free_i32(dest_regnum);                                        \
+    tcg_temp_free(t);                                                      \
+                                                                           \
+    return true;                                                           \
+}
+#else
 GEN_SHADD_UW(1)
 GEN_SHADD_UW(2)
 GEN_SHADD_UW(3)
@@ -478,6 +510,7 @@ static bool trans_sh##SHAMT##add_uw(DisasContext *ctx,        \
     return gen_arith(ctx, a, EXT_NONE, gen_sh##SHAMT##add_uw);  \
 }
 
+#endif
 GEN_TRANS_SHADD_UW(1)
 GEN_TRANS_SHADD_UW(2)
 GEN_TRANS_SHADD_UW(3)
