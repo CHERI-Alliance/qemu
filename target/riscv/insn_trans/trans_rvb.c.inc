@@ -367,7 +367,7 @@ static void gen_sh##SHAMT##add(TCGv ret, TCGv arg1, TCGv arg2) \
         rs1_val = tcg_temp_new();                                              \
         gen_get_gpr(ctx, rs1_val, a->rs1);                                     \
         tcg_gen_shli_tl(offset, rs1_val, SHAMT);                               \
-        gen_helper_caddi(cpu_env, dest_regnum, source_regnum, offset);         \
+        gen_helper_cincoffset(cpu_env, dest_regnum, source_regnum, offset);    \
                                                                                \
         tcg_temp_free(offset);                                                 \
         tcg_temp_free(rs1_val);                                                \
@@ -486,7 +486,7 @@ static bool trans_sh##SHAMT##add_uw(DisasContext *ctx,                     \
     gen_get_gpr(ctx, rs1_val, a->rs1);                                     \
     tcg_gen_ext32u_tl(t, rs1_val);                                         \
     tcg_gen_shli_tl(offset, t, SHAMT);                                     \
-    gen_helper_caddi(cpu_env, dest_regnum, source_regnum, offset);         \
+    gen_helper_cincoffset(cpu_env, dest_regnum, source_regnum, offset);    \
                                                                            \
     tcg_temp_free(offset);                                                 \
     tcg_temp_free(rs1_val);                                                \
@@ -527,7 +527,28 @@ static bool trans_add_uw(DisasContext *ctx, arg_add_uw *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_ZBA(ctx);
+#ifdef TARGET_CHERI
+    TCGv_i32 dest_regnum;                                                  \
+    TCGv_i32 source_regnum;                                                \
+    TCGv rs1_val;                                                          \
+    TCGv t;                                                                \
+                                                                           \
+    dest_regnum = tcg_const_i32(a->rd);                                    \
+    source_regnum = tcg_const_i32(a->rs2);                                 \
+    rs1_val = tcg_temp_new();                                              \
+    t = tcg_temp_new();                                                    \
+    gen_get_gpr(ctx, rs1_val, a->rs1);                                     \
+    tcg_gen_ext32u_tl(t, rs1_val);                                         \
+    gen_helper_cincoffset(cpu_env, dest_regnum, source_regnum, t);         \
+                                                                           \
+    tcg_temp_free(rs1_val);                                                \
+    tcg_temp_free_i32(source_regnum);                                      \
+    tcg_temp_free_i32(dest_regnum);                                        \
+    tcg_temp_free(t);                                                      \
+    return true;
+#else
     return gen_arith(ctx, a, EXT_NONE, gen_add_uw);
+#endif
 }
 
 static void gen_slli_uw(TCGv dest, TCGv src, target_long shamt)
