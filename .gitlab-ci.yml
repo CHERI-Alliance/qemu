@@ -22,9 +22,36 @@
 
 include:
   - local: '/.gitlab-ci.d/qemu-project.yml'
+
 variables:
   GIT_FETCH_EXTRA_FLAGS: --quiet --tags
   GIT_DEPTH: 0
+  TARGETS:
+      x86_64-softmmu
+      riscv32-softmmu riscv64-softmmu
+      aarch64-softmmu
+      mips64-softmmu
+      riscv32cheri-softmmu riscv64cheri-softmmu
+      morello-softmmu
+      mips64cheri128-softmmu
+  CONFIGURE_ARGS:
+    --disable-gtk
+    --audio-drv-list=
+    --disable-brlapi
+    --disable-libiscsi
+    --disable-libnfs
+    --disable-rbd
+    --disable-sdl
+    --disable-snappy
+    --disable-vnc
+    --disable-vnc-jpeg
+    --disable-vnc-sasl
+    --disable-l2tpv3
+    --disable-oss
+    --disable-alsa
+    --disable-tpm
+    --disable-werror
+    --meson=git
 
 stages:
     - build
@@ -44,38 +71,22 @@ default:
 # The leading dot is intentional. We need a hidden job for defining a
 # yaml anchor.
 .configure_build: &configure_build
-    - mkdir build
+    - mkdir -p build
     - cd build
     # --prefix needs an absolute path
     # $CI_PROJECT_DIR is "The full path the repository is cloned to, and where
     # the job runs from." Depending on the runner's config, this might be a
     # relative path.
-    - ../configure
-          --target-list="x86_64-softmmu
-              riscv32-softmmu riscv64-softmmu
-              aarch64-softmmu
-              mips64-softmmu
-              riscv32cheri-softmmu riscv64cheri-softmmu
-              morello-softmmu
-              mips64cheri128-softmmu"
-          --disable-gtk
-          --audio-drv-list=""
-          --disable-brlapi
-          --disable-libiscsi
-          --disable-libnfs
-          --disable-rbd
-          --disable-sdl
-          --disable-snappy
-          --disable-vnc
-          --disable-vnc-jpeg
-          --disable-vnc-sasl
-          --disable-l2tpv3
-          --disable-oss
-          --disable-alsa
-          --disable-tpm
-          --disable-werror
-          --meson=git
-          --prefix=`realpath $CI_PROJECT_DIR`/install
+    - ../configure $CONFIGURE_ARGS --target-list="$TARGETS"
+         --prefix=`realpath $CI_PROJECT_DIR`/install
+
+.configure_debug_build: &configure_debug_build
+    - mkdir -p build
+    - cd build
+    # see the comment above for --prefix
+    - ../configure $CONFIGURE_ARGS --target-list="$TARGETS"
+          --enable-debug
+          --prefix=`realpath $CI_PROJECT_DIR`/install_debug
 
 build_qemu:
     stage: build
@@ -96,6 +107,27 @@ build_qemu:
             - install/bin/qemu-img
         expire_in: 8 hours
 
+
+build_qemu_debug:
+    stage: build
+    rules:
+        - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+        - if: $CI_PIPELINE_SOURCE == "push"
+        - if: $CI_PIPELINE_SOURCE == "schedule"
+        - if: '$CI_COMMIT_TAG != null'
+    script:
+        - *configure_debug_build
+        - ninja
+        - ninja install
+    artifacts:
+        paths:
+            - install_debug/bin/qemu-system-riscv32cheri
+            - install_debug/bin/qemu-system-riscv64cheri
+            - install_debug/bin/qemu-system-morello
+            - install_debug/bin/qemu-img
+        expire_in: 8 hours
+
+
 .curl_upload: &curl_upload
     - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN"
          --upload-file install/bin/qemu-system-riscv32cheri
@@ -105,6 +137,14 @@ build_qemu:
          $TGT_DIR/qemu-system-riscv64cheri'
     - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN"
          --upload-file install/bin/qemu-img $TGT_DIR/qemu-img'
+    - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN"
+         --upload-file install_debug/bin/qemu-system-riscv32cheri
+         $TGT_DIR/qemu-system-riscv32cheri-debug'
+    - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN"
+         --upload-file install_debug/bin/qemu-system-riscv64cheri
+         $TGT_DIR/qemu-system-riscv64cheri-debug'
+    - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN"
+         --upload-file install_debug/bin/qemu-img $TGT_DIR/qemu-img-debug'
 
 nightly_upload:
     stage: package
