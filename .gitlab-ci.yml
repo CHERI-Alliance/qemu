@@ -142,8 +142,7 @@ test_qemu_standard:
         # supports parameters for the test, ninja test doesn't.
         # -t <factor> extends the timeouts, we saw timeouts on gitlab ci/cd
         - ../meson/meson.py test -t 30
-    # When this job fails, do not fail the entire pipeline.
-    allow_failure: true
+    allow_failure: false
     artifacts:
         # By default, artifacts are created only if script succeeds.
         # We want test output also for failures.
@@ -172,7 +171,7 @@ test_morello:
               --junit-xml=morello-generated-tests.xml |
               tee morello-generated-tests.log
     # See the comments above in test_qemu_standard
-    allow_failure: true
+    allow_failure: false
     artifacts:
         when: always
         reports:
