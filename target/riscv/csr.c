@@ -1800,16 +1800,6 @@ static RISCVException write_upmbase(CPURISCVState *env, int csrno,
 #ifdef TARGET_CHERI
 /* handlers for capability csr registers */
 
-static void write_mscratchc(CPURISCVState *env, cap_register_t *src)
-{
-    env->mscratchc = *src;
-}
-
-static cap_register_t read_mscratchc(CPURISCVState *env)
-{
-    return env->mscratchc;
-}
-
 // Version of update special reg, that also implements vectored handling with
 // the mode in the low order bits fo the new value. vector handling requires
 // that the capability be able to represent addr + HICAUSE*4 == addr + 63*4
@@ -1857,17 +1847,53 @@ static void update_vec_reg(CPURISCVState *env, cap_register_t *scr,
     cheri_log_instr_changed_capreg(env, name, scr);
 }
 
-static void write_sscratchc(CPURISCVState *env, cap_register_t* src)
+static inline cap_register_t *get_cap_csr(CPUArchState *env, uint32_t index)
+{
+    switch (index) {
+    case CSR_MSCRATCHC:
+        return &env->mscratchc;
+    case CSR_MTVECC:
+        return &env->mtvecc;
+    case CSR_STVECC:
+        return &env->stvecc;
+    case CSR_MEPCC:
+        return &env->mepcc;
+    case CSR_SEPCC:
+        return &env->sepcc;
+    case CSR_SSCRATCHC:
+        return &env->sscratchc;
+    case CSR_DDC:
+        return &env->ddc;
+    default:
+        assert(false && "Should have raised an invalid inst trap!");
+    }
+}
+
+/*
+ * Reads a capability length csr register taking into account the current
+ * CHERI execution mode
+ */
+static cap_register_t read_capcsr_reg(CPURISCVState *env,
+                                      riscv_csr_cap_ops *csr_cap_info)
+{
+    cap_register_t retval = *get_cap_csr(env, csr_cap_info->reg_num);
+    return retval;
+}
+
+static void write_mscratchc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
+                            cap_register_t *src)
+{
+    env->mscratchc = *src;
+}
+
+static void write_sscratchc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
+                            cap_register_t *src)
 {
     env->sscratchc = *src;
 }
 
-static cap_register_t read_sscratchc(CPURISCVState *env)
-{
-    return env->sscratchc;
-}
-
-static void write_mtvecc(CPURISCVState *env, cap_register_t *src)
+static void write_mtvecc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
+                         cap_register_t *src)
 {
     target_ulong new_tvec = cap_get_cursor(src);
     /* The low two bits encode the mode, but only 0 and 1 are valid. */
@@ -1881,12 +1907,8 @@ static void write_mtvecc(CPURISCVState *env, cap_register_t *src)
     update_vec_reg(env, &env->mtvecc, "MTVECC", new_tvec);
 }
 
-static cap_register_t read_mtvecc(CPURISCVState *env)
-{
-    return env->mtvecc;
-}
-
-static void write_stvecc(CPURISCVState *env, cap_register_t *src)
+static void write_stvecc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
+                         cap_register_t *src)
 {
 
     target_ulong new_tvec = cap_get_cursor(src);
@@ -1901,35 +1923,34 @@ static void write_stvecc(CPURISCVState *env, cap_register_t *src)
     update_vec_reg(env, &env->stvecc, "STVECC", new_tvec);
 }
 
-static cap_register_t read_stvecc(CPURISCVState *env)
-{
-    return env->stvecc;
-}
-
-static void write_mepcc(CPURISCVState *env, cap_register_t *src)
+static void write_mepcc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
+                        cap_register_t *src)
 {
     target_ulong new_mepcc = cap_get_cursor(src) & (~0x1); // Zero bit zero
     cap_set_cursor(src, new_mepcc);
     env->mepcc = *src;
 }
 
-static cap_register_t read_mepcc(CPURISCVState *env)
+// Common read function for the mepcc and sepcc registers
+static cap_register_t read_xepcc(CPURISCVState *env,
+                                 riscv_csr_cap_ops *csr_cap_info)
 {
-    cap_register_t retval = env->mepcc;
+    cap_register_t retval = *get_cap_csr(env, csr_cap_info->reg_num);
     target_ulong val = cap_get_cursor(&retval);
-    // RISC-V privileged spec 4.1.7 Supervisor Exception Program Counter (sepc)
-    // "The low bit of sepc (sepc[0]) is always zero. [...] Whenever IALIGN=32,
-    // sepc[1] is masked on reads so that it appears to be 0."
+
+    // RISC-V privileged spec 4.1.7 Supervisor Exception Program Counter
+    // (sepc) "The low bit of sepc (sepc[0]) is always zero. [...] Whenever
+    // IALIGN=32, sepc[1] is masked on reads so that it appears to be 0."
     val &= ~(target_ulong)(riscv_has_ext(env, RVC) ? 1 : 3);
     if (val != cap_get_cursor(&retval)) {
-        warn_report("Clearing low bit(s) of MEPCC (contained an unaligned "
-                    "capability): " PRINT_CAP_FMTSTR,
+        warn_report("Clearing low bit(s) of %s (contained an unaligned "
+                    "capability): " PRINT_CAP_FMTSTR, csr_cap_info->name,
                     PRINT_CAP_ARGS(&retval));
         cap_set_cursor(&retval, val);
     }
     if (!cap_is_unsealed(&retval)) {
-        warn_report("Invalidating sealed MEPCC (contained an unaligned "
-                    "capability): " PRINT_CAP_FMTSTR,
+        warn_report("Invalidating sealed %s (contained an unaligned "
+                    "capability): " PRINT_CAP_FMTSTR, csr_cap_info->name,
                     PRINT_CAP_ARGS(&retval));
         retval.cr_tag = false;
     }
@@ -1938,44 +1959,18 @@ static cap_register_t read_mepcc(CPURISCVState *env)
     return retval;
 }
 
-static void write_sepcc(CPURISCVState *env, cap_register_t* src)
+static void write_sepcc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
+                        cap_register_t *src)
 {
     target_ulong new_sepcc = cap_get_cursor(src) & (~0x1); // Zero bit zero
     cap_set_cursor(src, new_sepcc);
     env->sepcc = *src;
 }
 
-static cap_register_t read_sepcc(CPURISCVState *env)
-{
-    cap_register_t retval = env->sepcc;
-    target_ulong val = cap_get_cursor(&retval);
-    // RISC-V privileged spec 4.1.7 Supervisor Exception Program Counter (sepc)
-    // "The low bit of sepc (sepc[0]) is always zero. [...] Whenever IALIGN=32,
-    // sepc[1] is masked on reads so that it appears to be 0."
-    val &= ~(target_ulong)(riscv_has_ext(env, RVC) ? 1 : 3);
-    if (val != cap_get_cursor(&retval)) {
-        warn_report("Clearing low bit(s) of MEPCC (contained an unaligned "
-                    "capability): " PRINT_CAP_FMTSTR,PRINT_CAP_ARGS(&retval));
-        cap_set_cursor(&retval, val);
-    }
-    if (!cap_is_unsealed(&retval)) {
-        warn_report("Invalidating sealed MEPCC (contained an unaligned "
-                    "capability): " PRINT_CAP_FMTSTR, PRINT_CAP_ARGS(&retval));
-        retval.cr_tag = false;
-    }
-
-    cap_set_cursor(&retval,val);
-    return retval;
-}
-
-static void write_ddc(CPURISCVState *env, cap_register_t *src)
+static void write_ddc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
+                      cap_register_t *src)
 {
     env->ddc = *src;
-}
-
-static cap_register_t read_ddc(CPURISCVState *env)
-{
-    return env->ddc;
 }
 
 static RISCVException read_ccsr(CPURISCVState *env, int csrno, target_ulong *val)
@@ -2027,7 +2022,6 @@ static RISCVException write_ccsr(CPURISCVState *env, int csrno, target_ulong val
 
     return RISCV_EXCP_NONE;
 }
-
 
 bool csr_needs_asr(int csrno, bool is_write)
 {
@@ -2426,13 +2420,13 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
  */
 
 riscv_csr_cap_ops csr_cap_ops[] = {
-    { "mscratchc", read_mscratchc, write_mscratchc, false },
-    { "mtvecc", read_mtvecc, write_mtvecc, false },
-    { "stvecc", read_stvecc, write_stvecc, false },
-    { "mepcc", read_mepcc, write_mepcc, false },
-    { "sepcc", read_sepcc, write_sepcc, false },
-    { "sscratchc", read_sscratchc, write_sscratchc, false },
-    { "ddc", read_ddc, write_ddc, true },
+    { "mscratchc", CSR_MSCRATCHC, read_capcsr_reg, write_mscratchc, false },
+    { "mtvecc", CSR_MTVECC, read_capcsr_reg, write_mtvecc, false },
+    { "stvecc", CSR_STVECC, read_capcsr_reg, write_stvecc, false },
+    { "mepcc", CSR_MEPCC, read_xepcc, write_mepcc, false },
+    { "sepcc", CSR_SEPCC, read_xepcc, write_sepcc, false },
+    { "sscratchc", CSR_SSCRATCHC, read_capcsr_reg, write_sscratchc, false },
+    { "ddc", CSR_DDC, read_capcsr_reg, write_ddc, true },
 };
 
 riscv_csr_cap_ops *get_csr_cap_info(int csrnum)

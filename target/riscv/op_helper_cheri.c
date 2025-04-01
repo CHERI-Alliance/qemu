@@ -203,14 +203,14 @@ void HELPER(csrrw_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
 
     rs_cap = *get_readonly_capreg(env, rs1);
     if (rd) {
-        csr_cap = csr_cap_info->read(env);
-        cap_register_t *rd_cap = get_cap_in_gpregs(&env->gpcapregs, rd);
-        *rd_cap = clip_if_xlen(env, csr_cap);
+        csr_cap = csr_cap_info->read(env, csr_cap_info);
+        cap_register_t *rd_cap = get_cap_in_gpregs(&env->gpcapregs,rd);
+        *rd_cap = clip_if_xlen(env,csr_cap);
         cheri_log_instr_changed_gp_capreg(env, rd, rd_cap);
     }
 
     cheri_log_instr_changed_capreg(env, csr_cap_info->name, &rs_cap);
-    csr_cap_info->write(env, &rs_cap);
+    csr_cap_info->write(env, csr_cap_info, &rs_cap);
 }
 
 void HELPER(csrrs_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
@@ -238,7 +238,7 @@ void HELPER(csrrs_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
         rs_cap = *get_readonly_capreg(env, rs1);
     }
 
-    csr_cap = csr_cap_info->read(env);
+    csr_cap = csr_cap_info->read(env, csr_cap_info);
     cap_register_t *dest = get_cap_in_gpregs(&env->gpcapregs, rd);
     if (rd) {
         *dest = clip_if_xlen(env, csr_cap);
@@ -248,7 +248,7 @@ void HELPER(csrrs_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
         target_ulong new_val;
         new_val = cap_get_cursor(&csr_cap) | cap_get_cursor(&rs_cap);
         update_special_register(env, &rs_cap, csr_cap_info->name, new_val);
-        csr_cap_info->write(env, &rs_cap);
+        csr_cap_info->write(env, csr_cap_info, &rs_cap);
     }
 }
 
@@ -275,7 +275,7 @@ void HELPER(csrrc_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
         rs_cap = *get_readonly_capreg(env, rs1);
     }
 
-    csr_cap = csr_cap_info->read(env);
+    csr_cap = csr_cap_info->read(env, csr_cap_info);
     cap_register_t *dest = get_cap_in_gpregs(&env->gpcapregs, rd);
     if (rd) {
         *dest = clip_if_xlen(env, csr_cap);
@@ -285,7 +285,7 @@ void HELPER(csrrc_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
         target_ulong addr;
         addr = cap_get_cursor(&csr_cap) & (~cap_get_cursor(&rs_cap));
         update_special_register(env, &rs_cap, csr_cap_info->name, addr);
-        csr_cap_info->write(env, &rs_cap);
+        csr_cap_info->write(env, csr_cap_info, &rs_cap);
     }
 }
 
@@ -309,7 +309,7 @@ void HELPER(csrrwi_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
         return;
     }
 
-    csr_cap = csr_cap_info->read(env);
+    csr_cap = csr_cap_info->read(env, csr_cap_info);
     if (rd) {
         cap_register_t *dest = get_cap_in_gpregs(&env->gpcapregs, rd);
         *dest = clip_if_xlen(env, csr_cap);
@@ -317,7 +317,7 @@ void HELPER(csrrwi_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
     }
     cap_register_t tmp_cap = csr_cap;
     update_special_register(env, &tmp_cap, csr_cap_info->name, rs1);
-    csr_cap_info->write(env, &tmp_cap);
+    csr_cap_info->write(env, csr_cap_info, &tmp_cap);
 }
 
 void HELPER(csrrsi_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
@@ -339,7 +339,7 @@ void HELPER(csrrsi_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
         return;
     }
 
-    csr_cap = csr_cap_info->read(env);
+    csr_cap = csr_cap_info->read(env, csr_cap_info);
     if (rd) {
         cap_register_t *rd_cap = get_cap_in_gpregs(&env->gpcapregs, rd);
         *rd_cap = clip_if_xlen(env, csr_cap);
@@ -350,7 +350,7 @@ void HELPER(csrrsi_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
         target_ulong new_val;
         new_val = cap_get_cursor(&csr_cap) | rs1_val;
         update_special_register(env, &csr_cap, csr_cap_info->name, new_val);
-        csr_cap_info->write(env, &csr_cap);
+        csr_cap_info->write(env, csr_cap_info, &csr_cap);
     }
 }
 
@@ -373,7 +373,7 @@ void HELPER(csrrci_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
         return;
     }
 
-    csr_cap = csr_cap_info->read(env);
+    csr_cap = csr_cap_info->read(env, csr_cap_info);
     if (rd) {
         cap_register_t *rd_cap = get_cap_in_gpregs(&env->gpcapregs, rd);
         *rd_cap = clip_if_xlen(env, csr_cap);
@@ -384,7 +384,7 @@ void HELPER(csrrci_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
         target_ulong new_val;
         new_val = cap_get_cursor(&csr_cap) & (~rs1_val);
         update_special_register(env, &csr_cap, csr_cap_info->name, new_val);
-        csr_cap_info->write(env, &csr_cap);
+        csr_cap_info->write(env, csr_cap_info, &csr_cap);
     }
 }
 
