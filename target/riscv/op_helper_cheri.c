@@ -496,7 +496,8 @@ target_ulong HELPER(gcmode)(CPUArchState *env, uint32_t cs1)
      * 1 if the mode is Integer Pointer Mode.
      */
     const cap_register_t *cs1p = get_readonly_capreg(env, cs1);
-    if (!cap_has_perms(cs1p, CAP_PERM_EXECUTE)) {
+    if (!cap_has_perms(cs1p, CAP_PERM_EXECUTE) ||
+        cap_has_invalid_perms_encoding(cs1p)) {
         return 0;
     }
     return cap_get_exec_mode(cs1p) == CHERI_EXEC_CAPMODE ? 0 : 1;
@@ -510,8 +511,8 @@ void HELPER(scmode)(CPUArchState *env, uint32_t cd, uint32_t cs1,
         result.cr_tag = 0;
     }
     /* Mode is only updated if X is present and the permissions are valid. */
-    /* TODO: check for invalid permissions (on untagged caps) */
-    if (cap_has_perms(&result, CAP_PERM_EXECUTE)) {
+    if (cap_has_perms(&result, CAP_PERM_EXECUTE) &&
+        !cap_has_invalid_perms_encoding(&result)) {
         CheriExecMode mode = imm & 1 ? CHERI_EXEC_INTMODE : CHERI_EXEC_CAPMODE;
         cap_set_exec_mode(&result, mode);
     }
