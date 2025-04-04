@@ -12,25 +12,32 @@ gen = [
 # making a copy of the decodetree() generator that has dependencies
 fake_dep = custom_target('fake-cheri-insn-dep', command: [find_program('cat'), '@INPUT@'],
                          output: 'fake-output.decode', capture: true,
-                         input: ['insn32.decode', 'insn32-cheri.decode', 'insn32-cheri-32.decode', 'insn32-cheri-64.decode'])
+                         input: ['insn32.decode', 'insn32-cheri-std.decode',
+                                 'insn32-cheri-v9.decode', 'insn32-cheri-v9-32.decode',
+                                 'insn32-cheri-v9-64.decode'])
 decodetree_w_cheri_deps = generator(
   decodetree_py,
   output: 'decode-@BASENAME@.c.inc',
   arguments: ['@INPUT@', '@EXTRA_ARGS@', '-o', '@OUTPUT@'],
   depends: fake_dep, # Workaround for bad dependency tracking
 )
-gen32_cheri = [
+gen_xcheri32 = [
   decodetree.process('insn16.decode', extra_args: ['--static-decode=decode_insn16', '--insnwidth=16']),
-  decodetree_w_cheri_deps.process('insn32.decode', extra_args: [dir / 'insn32-cheri.decode', dir / 'insn32-cheri-32.decode', '--static-decode=decode_insn32']),
+  decodetree_w_cheri_deps.process('insn32.decode', extra_args: [dir / 'insn32-cheri-v9.decode', dir / 'insn32-cheri-v9-32.decode', '--static-decode=decode_insn32']),
 ]
-gen64_cheri = [
+gen_xcheri64 = [
   decodetree.process('insn16.decode', extra_args: ['--static-decode=decode_insn16', '--insnwidth=16']),
-  decodetree_w_cheri_deps.process('insn32.decode', extra_args: [dir / 'insn32-cheri.decode', dir / 'insn32-cheri-64.decode', '--static-decode=decode_insn32']),
+  decodetree_w_cheri_deps.process('insn32.decode', extra_args: [dir / 'insn32-cheri-v9.decode', dir / 'insn32-cheri-v9-64.decode', '--static-decode=decode_insn32']),
+]
+gen_stdcheri = [
+  decodetree.process('insn16.decode', extra_args: ['--static-decode=decode_insn16', '--insnwidth=16']),
+  decodetree_w_cheri_deps.process('insn32.decode', extra_args: [dir / 'insn32-cheri-std.decode', '--static-decode=decode_insn32']),
 ]
 
 cheri_ss = ss.source_set()
-cheri_ss.add(when: ['TARGET_CHERI', 'TARGET_RISCV32'], if_true: gen32_cheri)
-cheri_ss.add(when: ['TARGET_CHERI', 'TARGET_RISCV64'], if_true: gen64_cheri)
+cheri_ss.add(when: ['TARGET_CHERI_RISCV_V9', 'TARGET_RISCV32'], if_true: gen_xcheri32)
+cheri_ss.add(when: ['TARGET_CHERI_RISCV_V9', 'TARGET_RISCV64'], if_true: gen_xcheri64)
+cheri_ss.add(when: 'TARGET_CHERI_RISCV_STD', if_true: gen_stdcheri)
 
 riscv_ss = ss.source_set()
 riscv_ss.add(when: 'TARGET_CHERI', if_false: gen)

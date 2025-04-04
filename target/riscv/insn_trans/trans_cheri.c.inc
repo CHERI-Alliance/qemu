@@ -42,12 +42,6 @@
 #define DO_TRANSLATE(name, gen_helper, ...)                                    \
     DO_TRANSLATE_HELPER(name, gen_helper, name, __VA_ARGS__)
 
-#define TRANSLATE_ILLEGAL(name)                                                \
-    static bool trans_##name(DisasContext *ctx, arg_##name *a)                 \
-    {                                                                          \
-        return false;                                                          \
-    }
-
 typedef void(cheri_int_cap_helper)(TCGv, TCGv_env, TCGv_i32);
 static inline bool gen_cheri_int_cap(DisasContext *ctx, arg_rc *a,
                                      cheri_int_cap_helper *gen_func)
@@ -158,6 +152,56 @@ static inline bool gen_cheri_int_cap_cap(DisasContext *ctx, arg_rcc *a,
     DO_TRANSLATE_HELPER(name, gen_cheri_int_cap_cap, helper, ctx, a)
 #define TRANSLATE_INT_CAP_CAP(name) TRANSLATE_INT_CAP_CAP_HELPER(name, name)
 
+typedef void(cheri_cap_cap_imm_helper)(TCGv_env, TCGv_i32, TCGv_i32, TCGv);
+static inline bool gen_cheri_cap_cap_imm(int cd, int cs1, target_long imm,
+                                         cheri_cap_cap_imm_helper *gen_func)
+{
+    gen_func(cpu_env, tcg_constant_i32(cd), tcg_constant_i32(cs1),
+             tcg_constant_tl(imm));
+    return true;
+}
+
+#define TRANSLATE_CAP_CAP_IMM(name)                                            \
+    TRANSLATE_MAYBE_TRAP(name, gen_cheri_cap_cap_imm, a->rd, a->rs1, a->imm)
+
+/// Control-flow instructions
+static void gen_cjal(DisasContext *ctx, int rd, target_ulong imm)
+{
+    /* Mask the LSB to match the RISC-V spec for JAL. */
+    target_ulong next_pc = (ctx->base.pc_next + imm) & ~(target_ulong)1;
+
+    TCGv target_addr = tcg_constant_tl(next_pc);
+    TCGv link_addr = tcg_constant_tl(ctx->pc_succ_insn);
+    /*
+     * helper_cjal() checks for misalignment and capability bounds. It also
+     * ensures that the written value is a sentry and marks PC as up-to-date.
+     */
+    gen_helper_cjal(cpu_env, tcg_constant_i32(rd), target_addr, link_addr);
+
+    /* No bounds check needed here since we did it in helper_cjal(). */
+    gen_goto_tb(ctx, 0, next_pc, false);
+    ctx->base.is_jmp = DISAS_NORETURN;
+}
+
+static void gen_cjalr(DisasContext *ctx, int cd, int cs1, target_ulong imm)
+{
+    TCGv t0 = tcg_constant_tl(ctx->pc_succ_insn); /* Link addr + resulting pc */
+    gen_helper_cjalr(cpu_env, tcg_constant_i32(cd), tcg_constant_i32(cs1),
+                     tcg_constant_tl(imm), t0);
+
+    tcg_gen_lookup_and_goto_ptr();
+    // PC has been updated -> exit translation block
+    ctx->base.is_jmp = DISAS_NORETURN;
+}
+
+static bool gen_cmv(DisasContext *ctx, arg_cc *a)
+{
+    gen_move_cap_gp_gp(ctx, a->cd, a->cs1);
+    gen_reg_modified_cap(ctx, a->cd);
+    return true;
+}
+
+#ifdef TARGET_CHERI_RISCV_V9
 // TODO: all of these could be implemented in TCG without calling a helper
 // Two operand (int cap)
 TRANSLATE_INT_CAP(cgetaddr)
@@ -178,32 +222,21 @@ static inline bool trans_crrl(DisasContext *ctx, arg_crrl *a)
 {
     return gen_cheri_int_int(ctx, a, &gen_helper_crap);
 }
-static inline bool trans_cram(DisasContext *ctx, arg_cram *a)
-{
-    return gen_cheri_int_int(ctx, a, &gen_helper_cram);
-}
 
 // Two operand (cap cap)
 TRANSLATE_CAP_CAP(ccleartag)
-static bool trans_cmove(DisasContext *ctx, arg_cmv *a)
+static bool trans_cmove(DisasContext *ctx, arg_cmove *a)
 {
-    return trans_cmv(ctx, a);
+    return gen_cmv(ctx, a);
 }
 TRANSLATE_CAP_CAP(csealentry)
 
 // Three operand (cap cap cap)
 TRANSLATE_CAP_CAP_CAP(cbuildcap)
-#ifdef TARGET_CHERI_RISCV_STD
-TRANSLATE_ILLEGAL(ccopytype)
-TRANSLATE_ILLEGAL(ccseal)
-TRANSLATE_ILLEGAL(cseal)
-TRANSLATE_ILLEGAL(cunseal)
-#else
 TRANSLATE_CAP_CAP_CAP(ccopytype)
 TRANSLATE_CAP_CAP_CAP(ccseal)
 TRANSLATE_CAP_CAP_CAP(cseal)
 TRANSLATE_CAP_CAP_CAP(cunseal)
-#endif
 
 // Not quite (cap cap cap) but the index argument can be handled the same way
 static bool trans_cspecialrw(DisasContext *ctx, arg_cspecialrw *a)
@@ -239,67 +272,10 @@ TRANSLATE_INT_CAP_CAP(ctestsubset)
 TRANSLATE_INT_CAP_CAP(cseqx)
 TRANSLATE_INT_CAP_CAP(ctoptr)
 
-// CIncOffsetImm/CSetBoundsImm:
-typedef void(cheri_cap_cap_imm_helper)(TCGv_env, TCGv_i32, TCGv_i32, TCGv);
-static inline bool gen_cheri_cap_cap_imm(int cd, int cs1, target_long imm,
-                                         cheri_cap_cap_imm_helper *gen_func)
-{
-    gen_func(cpu_env, tcg_constant_i32(cd), tcg_constant_i32(cs1),
-             tcg_constant_tl(imm));
-    return true;
-}
-#define TRANSLATE_CAP_CAP_IMM(name)                                            \
-    TRANSLATE_MAYBE_TRAP(name, gen_cheri_cap_cap_imm, a->rd, a->rs1, a->imm)
-
-static bool trans_cincoffsetimm(DisasContext *ctx, arg_cincoffsetimm *a)
-{
-    return gen_cheri_cap_cap_imm(a->rd, a->rs1, a->imm, &gen_helper_cincoffset);
-}
-
-static bool trans_csetboundsimm(DisasContext *ctx, arg_cincoffsetimm *a)
+static bool trans_csetboundsimm(DisasContext *ctx, arg_csetboundsimm *a)
 {
     tcg_debug_assert(a->imm >= 0);
-    return gen_cheri_cap_cap_imm(a->rd, a->rs1, a->imm, &gen_helper_csetbounds);
-}
-
-static bool trans_scbndsi(DisasContext *ctx, arg_scbndsi *a)
-{
-    if (a->scale == 1 && a->imm <= 1) {
-        return false; /* Reserved redundant encodings */
-    }
-    tcg_debug_assert(a->imm >= 0);
-    target_ulong imm = a->scale ? a->imm << 4 : a->imm;
-    return gen_cheri_cap_cap_imm(a->cd, a->cs1, imm, &gen_helper_csetboundsexact);
-}
-
-/// Control-flow instructions
-static void gen_cjal(DisasContext *ctx, int rd, target_ulong imm)
-{
-    /* Mask the LSB to match the RISC-V spec for JAL. */
-    target_ulong next_pc = (ctx->base.pc_next + imm) & ~(target_ulong)1;
-
-    TCGv target_addr = tcg_constant_tl(next_pc);
-    TCGv link_addr = tcg_constant_tl(ctx->pc_succ_insn);
-    /*
-     * helper_cjal() checks for misalignment and capability bounds. It also
-     * ensures that the written value is a sentry and marks PC as up-to-date.
-     */
-    gen_helper_cjal(cpu_env, tcg_constant_i32(rd), target_addr, link_addr);
-
-    /* No bounds check needed here since we did it in helper_cjal(). */
-    gen_goto_tb(ctx, 0, next_pc, false);
-    ctx->base.is_jmp = DISAS_NORETURN;
-}
-
-static void gen_cjalr(DisasContext *ctx, int cd, int cs1, target_ulong imm)
-{
-    TCGv t0 = tcg_constant_tl(ctx->pc_succ_insn); // Link addr + resulting $pc
-    gen_helper_cjalr(cpu_env, tcg_constant_i32(cd), tcg_constant_i32(cs1),
-                     tcg_constant_tl(imm), t0);
-
-    tcg_gen_lookup_and_goto_ptr();
-    // PC has been updated -> exit translation block
-    ctx->base.is_jmp = DISAS_NORETURN;
+    return gen_cheri_cap_cap_imm(a->cd, a->cs1, a->imm, &gen_helper_csetbounds);
 }
 
 static bool trans_jalr_cap(DisasContext *ctx, arg_jalr_cap *a)
@@ -314,9 +290,6 @@ static bool trans_jalr_pcc(DisasContext *ctx, arg_jalr_pcc *a)
     return true;
 }
 
-#ifdef TARGET_CHERI_RISCV_STD
-TRANSLATE_ILLEGAL(cinvoke)
-#else
 static inline bool trans_cinvoke(DisasContext *ctx, arg_cinvoke *a)
 {
     gen_helper_cinvoke(cpu_env, tcg_constant_i32(a->rs1),
@@ -328,20 +301,6 @@ static inline bool trans_cinvoke(DisasContext *ctx, arg_cinvoke *a)
     return true;
 }
 #endif
-
-// Loads
-static bool gen_ddc_load(DisasContext *ctx, int rd, int rs1, MemOp memop)
-{
-    TCGv addr = tcg_temp_new();
-    TCGv value = tcg_temp_new();
-    gen_get_gpr(ctx, addr, rs1);
-    gen_ddc_interposed_ld_tl(ctx, value, /* Update addr in-place */ NULL, addr,
-                             ctx->mem_idx, memop);
-    gen_set_gpr(ctx, rd, value);
-    tcg_temp_free(addr);
-    tcg_temp_free(value);
-    return true;
-}
 
 static inline bool gen_cap_load_mem_idx(DisasContext *ctx, int32_t rd,
                                         int32_t cs, target_long offset,
@@ -359,11 +318,24 @@ static inline bool gen_cap_load_mem_idx(DisasContext *ctx, int32_t rd,
 }
 
 static inline bool gen_cap_load(DisasContext *ctx, int32_t rd, int32_t cs,
-    target_long offset, MemOp op)
+                                target_long offset, MemOp op)
 {
     return gen_cap_load_mem_idx(ctx, rd, cs, offset, ctx->mem_idx, op);
 }
 
+#ifdef TARGET_CHERI_RISCV_V9
+static bool gen_ddc_load(DisasContext *ctx, int rd, int rs1, MemOp memop)
+{
+    TCGv addr = tcg_temp_new();
+    TCGv value = tcg_temp_new();
+    gen_get_gpr(ctx, addr, rs1);
+    gen_ddc_interposed_ld_tl(ctx, value, /* Update addr in-place */ NULL, addr,
+                             ctx->mem_idx, memop);
+    gen_set_gpr(ctx, rd, value);
+    tcg_temp_free(addr);
+    tcg_temp_free(value);
+    return true;
+}
 #define TRANSLATE_EXPLICIT_LOAD(name, op)                                      \
     static bool trans_##name##_ddc(DisasContext *ctx, arg_##name##_ddc *a)     \
     {                                                                          \
@@ -399,6 +371,7 @@ static inline bool trans_ld_c_cap(DisasContext *ctx, arg_ld_c_cap *a)
     return gen_cheri_cap_loadstore(ctx, a->rd, a->rs1, 0,
                                    &gen_helper_load_cap_via_cap);
 }
+#endif /* TARGET_CHERI_RISCV_V9 */
 
 static inline bool trans_lc(DisasContext *ctx, arg_lc *a)
 {
@@ -409,20 +382,6 @@ static inline bool trans_lc(DisasContext *ctx, arg_lc *a)
     }
     return gen_cheri_cap_loadstore(ctx, a->rd, a->rs1, /*offset=*/a->imm,
                                    &gen_helper_load_cap_via_cap);
-}
-
-// Stores
-static bool gen_ddc_store(DisasContext *ctx, int rs1, int rs2, MemOp memop)
-{
-    TCGv addr = tcg_temp_new();
-    TCGv value = tcg_temp_new();
-    gen_get_gpr(ctx, addr, rs1);
-    gen_get_gpr(ctx, value, rs2);
-    gen_ddc_interposed_st_tl(ctx, value, /* Update addr in-place */ NULL, addr,
-                             ctx->mem_idx, memop);
-    tcg_temp_free(value);
-    tcg_temp_free(addr);
-    return true;
 }
 
 /* Load Via Capability Register */
@@ -448,6 +407,20 @@ static inline bool gen_cap_store(DisasContext *ctx, int32_t addr_regnum,
 {
     gen_cap_store_mem_idx(ctx, addr_regnum, val_regnum, offset, ctx->mem_idx,
                           op);
+    return true;
+}
+
+#ifdef TARGET_CHERI_RISCV_V9
+static bool gen_ddc_store(DisasContext *ctx, int rs1, int rs2, MemOp memop)
+{
+    TCGv addr = tcg_temp_new();
+    TCGv value = tcg_temp_new();
+    gen_get_gpr(ctx, addr, rs1);
+    gen_get_gpr(ctx, value, rs2);
+    gen_ddc_interposed_st_tl(ctx, value, /* Update addr in-place */ NULL, addr,
+                             ctx->mem_idx, memop);
+    tcg_temp_free(value);
+    tcg_temp_free(addr);
     return true;
 }
 
@@ -482,6 +455,7 @@ static inline bool trans_st_c_cap(DisasContext *ctx, arg_st_c_cap *a)
     return gen_cheri_cap_loadstore(ctx, a->rs2, a->rs1, /*offset=*/0,
                                    &gen_helper_store_cap_via_cap);
 }
+#endif /* TARGET_CHERI_RISCV_V9 */
 
 static inline bool trans_sc(DisasContext *ctx, arg_sc *a)
 {
@@ -521,6 +495,7 @@ static inline bool trans_lr_c(DisasContext *ctx, arg_lr_c *a)
     return trans_lr_c_impl(ctx, a, &gen_helper_lr_c_modedep);
 }
 
+#ifdef TARGET_CHERI_RISCV_V9
 static inline bool trans_lr_c_ddc(DisasContext *ctx, arg_lr_c_ddc *a)
 {
     return trans_lr_c_impl(ctx, a, &gen_helper_lr_c_ddc);
@@ -530,6 +505,7 @@ static inline bool trans_lr_c_cap(DisasContext *ctx, arg_lr_c_cap *a)
 {
     return trans_lr_c_impl(ctx, a, &gen_helper_lr_c_cap);
 }
+#endif /* TARGET_CHERI_RISCV_V9 */
 
 static inline bool trans_sc_c_impl(DisasContext *ctx, arg_atomic *a,
                                    cheri_int_cap_cap_helper *helper)
@@ -555,6 +531,7 @@ static inline bool trans_sc_c(DisasContext *ctx, arg_sc_c *a)
     return trans_sc_c_impl(ctx, a, &gen_helper_sc_c_modedep);
 }
 
+#ifdef TARGET_CHERI_RISCV_V9
 static inline bool trans_sc_c_ddc(DisasContext *ctx, arg_sc_c_ddc *a)
 {
     a->rd = a->rs2; /* Not enough encoding space for explicit rd */
@@ -566,6 +543,7 @@ static inline bool trans_sc_c_cap(DisasContext *ctx, arg_sc_c_cap *a)
     a->rd = a->rs2; /* Not enough encoding space for explicit rd */
     return trans_sc_c_impl(ctx, a, &gen_helper_sc_c_cap);
 }
+#endif /* TARGET_CHERI_RISCV_V9 */
 
 static inline bool trans_amoswap_c(DisasContext *ctx, arg_amoswap_c *a)
 {
@@ -628,6 +606,7 @@ static inline bool trans_modesw_int(DisasContext *ctx, arg_modesw_int *a)
     return do_trans_modesw(ctx, /*to_capmode=*/false);
 }
 
+#ifdef TARGET_CHERI_RISCV_V9
 // Explicit CAP/DDC atomic ops (no unsigned versions):
 // Reuses gen_lr_impl, defined in trans_rva.c.inc
 static inline bool gen_lr_impl(DisasContext *ctx, TCGv_cap_checked_ptr addr,
@@ -691,7 +670,9 @@ TRANSLATE_SC_EXPLICIT(sc_w, MO_ALIGN | MO_SL);
 #ifdef TARGET_RISCV64
 TRANSLATE_SC_EXPLICIT(sc_d, MO_ALIGN | MO_Q);
 #endif
+#endif /* TARGET_CHERI_RISCV_V9 */
 
+#ifdef TARGET_CHERI_RISCV_STD
 /*
  * Instructions from the RISC-V CHERI standard.
  */
@@ -708,14 +689,7 @@ TRANSLATE_CAP_CAP_HELPER(sentry, csealentry)
 
 static bool trans_cmv(DisasContext *ctx, arg_cmv *a)
 {
-    gen_move_cap_gp_gp(ctx, a->cd, a->cs1);
-    gen_reg_modified_cap(ctx, a->cd);
-    return true;
-}
-
-static bool trans_caddi(DisasContext *ctx, arg_caddi *a)
-{
-    return gen_cheri_cap_cap_imm(a->cd, a->cs1, a->imm, &gen_helper_cincoffset);
+    return gen_cmv(ctx, a);
 }
 
 static bool trans_cadd(DisasContext *ctx, arg_cadd *a)
@@ -734,4 +708,27 @@ TRANSLATE_CAP_CAP_CAP_HELPER(cbld, cbuildcap)
 
 TRANSLATE_INT_CAP_CAP_HELPER(sceq, cseqx)
 TRANSLATE_INT_CAP_CAP(scss)
+
+static bool trans_scbndsi(DisasContext *ctx, arg_scbndsi *a)
+{
+    if (a->scale == 1 && a->imm <= 1) {
+        return false; /* Reserved redundant encodings */
+    }
+    tcg_debug_assert(a->imm >= 0);
+    target_ulong imm = a->scale ? a->imm << 4 : a->imm;
+    return gen_cheri_cap_cap_imm(a->cd, a->cs1, imm,
+                                 &gen_helper_csetboundsexact);
+}
+#endif
+
+// Common for V9 and standard CHERI:
+static inline bool trans_cram(DisasContext *ctx, arg_cram *a)
+{
+    return gen_cheri_int_int(ctx, a, &gen_helper_cram);
+}
+
+static bool trans_caddi(DisasContext *ctx, arg_caddi *a)
+{
+    return gen_cheri_cap_cap_imm(a->cd, a->cs1, a->imm, &gen_helper_cincoffset);
+}
 
