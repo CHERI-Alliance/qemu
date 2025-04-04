@@ -179,7 +179,10 @@ static inline bool trans_cram(DisasContext *ctx, arg_cram *a)
 
 // Two operand (cap cap)
 TRANSLATE_CAP_CAP(ccleartag)
-TRANSLATE_CAP_CAP(cmove)
+static bool trans_cmove(DisasContext *ctx, arg_cmv *a)
+{
+    return trans_cmv(ctx, a);
+}
 TRANSLATE_CAP_CAP(csealentry)
 
 // Three operand (cap cap cap)
@@ -684,8 +687,14 @@ TRANSLATE_INT_CAP_HELPER(gchi, cgethigh)
 TRANSLATE_INT_CAP_HELPER(gcbase, cgetbase)
 TRANSLATE_INT_CAP_HELPER(gclen, cgetlen)
 
-TRANSLATE_CAP_CAP_HELPER(cmv, cmove)
 TRANSLATE_CAP_CAP_HELPER(sentry, csealentry)
+
+static bool trans_cmv(DisasContext *ctx, arg_cmv *a)
+{
+    gen_move_cap_gp_gp(ctx, a->cd, a->cs1);
+    gen_reg_modified_cap(ctx, a->cd);
+    return true;
+}
 
 static bool trans_caddi(DisasContext *ctx, arg_caddi *a)
 {
