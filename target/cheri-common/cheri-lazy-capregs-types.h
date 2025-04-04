@@ -78,7 +78,11 @@ static inline const char *cap_reg_state_string(CapRegState state)
 
 // Cap registers should be padded so they are easier to move.
 #if TARGET_LONG_BITS == 32
+#ifdef TARGET_CHERI_RISCV_STD
+_Static_assert(sizeof(cap_register_t) == 32, "");
+#else
 _Static_assert(sizeof(cap_register_t) == 24, "");
+#endif
 #else
 _Static_assert(sizeof(cap_register_t) == 48, "");
 #endif

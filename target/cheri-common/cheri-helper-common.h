@@ -75,7 +75,9 @@ DEF_HELPER_3(ccleartag, void, env, i32, i32)
 DEF_HELPER_3(cmove, void, env, i32, i32)
 DEF_HELPER_3(cchecktype, void, env, i32, i32)
 DEF_HELPER_3(csealentry, void, env, i32, i32)
+#ifndef TARGET_CHERI_RISCV_STD
 DEF_HELPER_3(cinvoke, void, env, i32, i32)
+#endif
 
 // Two operands (cap int)
 DEF_HELPER_3(ccheckperm, void, env, i32, tl)
@@ -89,10 +91,12 @@ DEF_HELPER_FLAGS_2(cram, TCG_CALL_NO_RWG_SE, tl, env, tl)
 
 // Three operands (cap cap cap)
 DEF_HELPER_4(cbuildcap, void, env, i32, i32, i32)
+#ifndef TARGET_CHERI_RISCV_STD
 DEF_HELPER_4(ccopytype, void, env, i32, i32, i32)
 DEF_HELPER_4(ccseal, void, env, i32, i32, i32)
 DEF_HELPER_4(cseal, void, env, i32, i32, i32)
 DEF_HELPER_4(cunseal, void, env, i32, i32, i32)
+#endif
 
 // Three operands (cap cap int)
 DEF_HELPER_4(candaddr, void, env, i32, i32, tl)

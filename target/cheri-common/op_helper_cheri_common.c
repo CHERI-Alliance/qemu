@@ -454,6 +454,7 @@ void CHERI_HELPER_IMPL(cjalr(CPUArchState *env, uint32_t cd,
                                 cjalr_flags, GETPC());
 }
 
+#if CHERI_HAS_OTYPE_SEALING
 void CHERI_HELPER_IMPL(cinvoke(CPUArchState *env, uint32_t code_regnum,
                                uint32_t data_regnum))
 {
@@ -495,6 +496,7 @@ void CHERI_HELPER_IMPL(cinvoke(CPUArchState *env, uint32_t code_regnum,
         update_capreg(env, CINVOKE_DATA_REGNUM, &idc);
     }
 }
+#endif
 
 void CHERI_HELPER_IMPL(cmove(CPUArchState *env, uint32_t cd, uint32_t cb))
 {
@@ -712,6 +714,7 @@ void CHERI_HELPER_IMPL(cbuildcap(CPUArchState *env, uint32_t cd, uint32_t cb,
     update_capreg(env, cd, &result);
 }
 
+#if CHERI_HAS_OTYPE_SEALING
 void CHERI_HELPER_IMPL(ccopytype(CPUArchState *env, uint32_t cd, uint32_t cb,
                                  uint32_t ct))
 {
@@ -875,6 +878,7 @@ void CHERI_HELPER_IMPL(cunseal(CPUArchState *env, uint32_t cd, uint32_t cs,
     }
     update_capreg(env, cd, &result);
 }
+#endif /* CHERI_HAS_OTYPE_SEALING */
 
 /// Three operands (capability capability int)
 

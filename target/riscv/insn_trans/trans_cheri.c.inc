@@ -42,6 +42,12 @@
 #define DO_TRANSLATE(name, gen_helper, ...)                                    \
     DO_TRANSLATE_HELPER(name, gen_helper, name, __VA_ARGS__)
 
+#define TRANSLATE_ILLEGAL(name)                                                \
+    static bool trans_##name(DisasContext *ctx, arg_##name *a)                 \
+    {                                                                          \
+        return false;                                                          \
+    }
+
 typedef void(cheri_int_cap_helper)(TCGv, TCGv_env, TCGv_i32);
 static inline bool gen_cheri_int_cap(DisasContext *ctx, arg_rc *a,
                                      cheri_int_cap_helper *gen_func)
@@ -187,10 +193,17 @@ TRANSLATE_CAP_CAP(csealentry)
 
 // Three operand (cap cap cap)
 TRANSLATE_CAP_CAP_CAP(cbuildcap)
+#ifdef TARGET_CHERI_RISCV_STD
+TRANSLATE_ILLEGAL(ccopytype)
+TRANSLATE_ILLEGAL(ccseal)
+TRANSLATE_ILLEGAL(cseal)
+TRANSLATE_ILLEGAL(cunseal)
+#else
 TRANSLATE_CAP_CAP_CAP(ccopytype)
 TRANSLATE_CAP_CAP_CAP(ccseal)
 TRANSLATE_CAP_CAP_CAP(cseal)
 TRANSLATE_CAP_CAP_CAP(cunseal)
+#endif
 
 // Not quite (cap cap cap) but the index argument can be handled the same way
 static bool trans_cspecialrw(DisasContext *ctx, arg_cspecialrw *a)
@@ -301,6 +314,9 @@ static bool trans_jalr_pcc(DisasContext *ctx, arg_jalr_pcc *a)
     return true;
 }
 
+#ifdef TARGET_CHERI_RISCV_STD
+TRANSLATE_ILLEGAL(cinvoke)
+#else
 static inline bool trans_cinvoke(DisasContext *ctx, arg_cinvoke *a)
 {
     gen_helper_cinvoke(cpu_env, tcg_constant_i32(a->rs1),
@@ -311,6 +327,7 @@ static inline bool trans_cinvoke(DisasContext *ctx, arg_cinvoke *a)
     ctx->base.is_jmp = DISAS_NORETURN;
     return true;
 }
+#endif
 
 // Loads
 static bool gen_ddc_load(DisasContext *ctx, int rd, int rs1, MemOp memop)
