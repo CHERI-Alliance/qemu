@@ -644,7 +644,7 @@ void CHERI_HELPER_IMPL(cbuildcap(CPUArchState *env, uint32_t cd, uint32_t cb,
     const cap_register_t *ctp = get_readonly_capreg(env, ct);
     cap_register_t result = *ctp;
 
-#ifdef TARGET_RISCV
+#ifdef TARGET_CHERI_RISCV_STD
     /* New behaviour in the RISC-V standard (no longer reads ddc): */
     if (cb == 0) {
         /* If cs1 is the NULL register, we copy cs2 to cd and clear cd's tag. */
