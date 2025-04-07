@@ -99,6 +99,7 @@ static inline bool cap_has_capmode_flag(const cap_register_t *cap)
 {
     return cap_get_exec_mode(cap) == CHERI_EXEC_CAPMODE;
 }
+#endif
 
 static inline bool cheri_in_capmode(CPUArchState *env)
 {
@@ -117,13 +118,17 @@ static inline bool cheri_in_capmode(CPUArchState *env)
         return false;
 #endif
 
+#ifdef TARGET_AARCH64
+    /* TODO: this is a dirty hack to make brick compile */
+    return true;
+#else
     /*
      * Note: No need to synchronize the PCC.cursor value from TCG since
      * Every change to capmode will exit the current translation block.
      */
     return cap_has_capmode_flag(cheri_get_recent_pcc(env));
-}
 #endif
+}
 
 // Note: this function does not check the bounds of pcc!
 static inline bool cheri_cap_perms_valid_for_exec(const cap_register_t *pcc)
