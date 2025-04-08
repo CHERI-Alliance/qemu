@@ -9,23 +9,25 @@
 # later.  See the COPYING file in the top-level directory.
 
 
-from avocado_qemu import Test
-from avocado_qemu import BUILD_DIR
+from avocado_qemu import QemuSystemTest
+from avocado_qemu import SOURCE_DIR
 import os
 
 bindir = "scripts/riscv_cheri/elfhome/rv64_cheri/"
 
 
-class Cheri_test(Test):
+class Cheri_test(QemuSystemTest):
     """
-    :avocado: tags=arch:riscv64cheri
+    :avocado: tags=arch:riscv64cheristd
+    :avocado: tags=machine:virt
+    :avocado: tags=quick
     """
 
     def add_common_args(self):
         self.vm.add_args("-semihosting", "-machine", "virt", "-nographic")
 
     def common_test(self, elffile, timeout=30, exitcode=0):
-        qemu_img = os.path.join(BUILD_DIR, "../" + bindir + elffile)
+        qemu_img = os.path.join(SOURCE_DIR, bindir + elffile)
         self.vm.add_args("-bios", qemu_img)
         self.add_common_args()
         self.vm.launch()
