@@ -836,3 +836,25 @@ void CHERI_HELPER_IMPL(mtc2_dumpcstate(CPUArchState *env, target_ulong arg1))
                      CPU_DUMP_CODE);
     qemu_log_unlock(logfile);
 }
+
+void CHERI_HELPER_IMPL(cchecktype(CPUArchState *env, uint32_t cs, uint32_t cb))
+{
+    GET_HOST_RETPC();
+    const cap_register_t *csp = get_readonly_capreg(env, cs);
+    const cap_register_t *cbp = get_readonly_capreg(env, cb);
+    /*
+     * CCheckType: Raise exception if otypes don't match
+     */
+    if (!csp->cr_tag) {
+        raise_cheri_exception(env, CapEx_TagViolation, cs);
+    } else if (!cbp->cr_tag) {
+        raise_cheri_exception(env, CapEx_TagViolation, cb);
+    } else if (cap_is_unsealed(csp)) {
+        raise_cheri_exception(env, CapEx_SealViolation, cs);
+    } else if (cap_is_unsealed(cbp)) {
+        raise_cheri_exception(env, CapEx_SealViolation, cb);
+    } else if (cap_get_otype_unsigned(csp) != cap_get_otype_unsigned(cbp) ||
+               !cap_is_sealed_with_type(csp)) {
+        raise_cheri_exception(env, CapEx_TypeViolation, cs);
+    }
+}
