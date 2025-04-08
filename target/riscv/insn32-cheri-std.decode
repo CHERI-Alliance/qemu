@@ -95,3 +95,6 @@ scbndsi       000001 . ..... ..... 101 ..... 0010011 @is_unsigned
 # Loads and stores
 lc       ............   ..... 100 ..... 0001111 @i
 sc       ....... .....  ..... 100 ..... 0100011 @s
+
+# Atomic instructions
+amoswap_c 00001 . . ..... ..... 100 ..... 0101111 @atom_st
