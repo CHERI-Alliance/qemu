@@ -98,10 +98,10 @@ enum CheriSCR {
      * TODO(am2419): Register indices are placeholders,
      * awaiting full specification of background registers.
      */
-    CheriSCR_BSTCC = 32,
-    CheriSCR_BSTDC = 33,
-    CheriSCR_BSScratchC = 34,
-    CheriSCR_BSEPCC = 35,
+    CheriSCR_VSTCC = 32,
+    CheriSCR_VSTDC = 33,
+    CheriSCR_VSScratchC = 34,
+    CheriSCR_VSEPCC = 35,
     CheriSCR_MAX,
 };
 

@@ -114,11 +114,10 @@ struct SCRInfo {
     [CheriSCR_MEPCC] = {.r = true, .w = true, .access = M_ASR_RW, .name = "MEPCC"},
     [CheriSCR_MTIDC] = {.r = true, .w = true, .access = M_ASR_W, .name = "MTIDC"},
 
-    [CheriSCR_BSTCC] = {.r = true, .w = true, .access = H_ASR_RW, .name = "BSTCC"},
-    [CheriSCR_BSTDC] = {.r = true, .w = true, .access = H_ASR_RW, .name = "BSTCC"},
-    [CheriSCR_BSScratchC] = {.r = true, .w = true, .access = H_ASR_RW,
-                             .name = "BSTCC"},
-    [CheriSCR_BSEPCC] = {.r = true, .w = true, .access = H_ASR_RW, .name = "BSTCC"},
+    [CheriSCR_VSTCC] = {.r = true, .w = true, .access = H_ASR_RW, .name = "VSTCC"},
+    [CheriSCR_VSTDC] = {.r = true, .w = true, .access = H_ASR_RW, .name = "VSTDC"},
+    [CheriSCR_VSScratchC] = {.r = true, .w = true, .access = H_ASR_RW, .name = "VSScratchC"},
+    [CheriSCR_VSEPCC] = {.r = true, .w = true, .access = H_ASR_RW, .name = "VSEPCC"},
 };
 
 #ifdef CONFIG_TCG_LOG_INSTR

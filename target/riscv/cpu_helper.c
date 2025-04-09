@@ -243,7 +243,7 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env, bool hs_mode_trap)
 
         COPY_SPECIAL_REG(env, vstvec, vstcc, stvec, stcc);
         COPY_SPECIAL_REG(env, stvec, stcc, stvec_hs, stcc_hs);
-        LOG_SPECIAL_REG(env, CSR_VSTVEC, CheriSCR_BSTCC);
+        LOG_SPECIAL_REG(env, CSR_VSTVEC, CheriSCR_VSTCC);
         LOG_SPECIAL_REG(env, CSR_STVEC, CheriSCR_STCC);
 
         env->vsscratch = env->sscratch;
@@ -253,7 +253,7 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env, bool hs_mode_trap)
 
         COPY_SPECIAL_REG(env, vsepc, vsepcc, sepc, sepcc);
         COPY_SPECIAL_REG(env, sepc, sepcc, sepc_hs, sepcc_hs);
-        LOG_SPECIAL_REG(env, CSR_VSEPC, CheriSCR_BSEPCC);
+        LOG_SPECIAL_REG(env, CSR_VSEPC, CheriSCR_VSEPCC);
         LOG_SPECIAL_REG(env, CSR_SEPC, CheriSCR_SEPCC);
 
         env->vscause = env->scause;

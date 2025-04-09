@@ -845,10 +845,10 @@ static inline cap_register_t *riscv_get_scr(CPUArchState *env, uint32_t index)
     case CheriSCR_MEPCC: return &env->mepcc;
     case CheriSCR_MTIDC: return &env->mtidc;
 
-    case CheriSCR_BSTCC: return &env->vstcc;
-    case CheriSCR_BSTDC: return &env->vstdc;
-    case CheriSCR_BSScratchC: return &env->vsscratchc;
-    case CheriSCR_BSEPCC: return &env->vsepcc;
+    case CheriSCR_VSTCC: return &env->vstcc;
+    case CheriSCR_VSTDC: return &env->vstdc;
+    case CheriSCR_VSScratchC: return &env->vsscratchc;
+    case CheriSCR_VSEPCC: return &env->vsepcc;
     default: assert(false && "Should have raised an invalid inst trap!");
     }
 }
