@@ -180,9 +180,10 @@ static inline target_long cap_get_otype_signext(const cap_register_t *c)
         assert(!c->cr_tag && "Capabilities with otype > max cannot be tagged!");
         return result;
     }
-#ifdef TARGET_AARCH64
+#if defined(TARGET_AARCH64) || defined(TARGET_CHERI_RISCV_STD)
     /*
-     * Morello does not sign extend like the rest of CHERI.
+     * Morello and the RISC-V standard encodings do not sign extend like the
+     * ISAv9 version of CHERI.
      */
     return result;
 #else
