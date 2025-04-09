@@ -3558,7 +3558,7 @@ static void do_nonatomic_op_i64(TCGv_i64 ret, TCGv_cap_checked_ptr checked_addr,
 
 #ifdef TARGET_CHERI
     if (tcg_op_use_locking()) {
-        TCGv_i32 tcop = tcg_const_i32(memop);
+        TCGv_i32 tcop = tcg_const_i32(make_memop_idx(memop, idx));
         gen_helper_cheri_invalidate_lock_tags_start_or_dummy(
             cpu_env, checked_addr, tcop);
         tcg_temp_free_i32(tcop);
