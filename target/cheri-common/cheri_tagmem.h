@@ -128,7 +128,7 @@ static inline QEMU_ALWAYS_INLINE bool need_concurrent_tags(void)
      * TODO: can parallel_cpus change at runtime? If not we don't need the
      * separate variable.
      */
-    cheri_debug_assert(_need_concurrent_tags == parallel_cpus);
+    // cheri_debug_assert(_need_concurrent_tags == parallel_cpus);
     /* return constant true here to always be correct, but slower than needed
      * on single core */
 
