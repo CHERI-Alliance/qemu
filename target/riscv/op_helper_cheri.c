@@ -173,19 +173,15 @@ static RISCVException check_csr_cap_permissions(CPURISCVState *env, int csrno,
     return RISCV_EXCP_NONE;
 }
 
-/*Copy a capability to a register, clipping it to an integer if we are not
-in capmode. Returns the resulting value*/
-static inline cap_register_t
+/* Copy a capability to a register, or update address if we are not capmode.*/
+static inline void
 write_capmode_reg(CPUArchState *env, cap_register_t cap, uint32_t regnum)
 {
-    cap_register_t *target = get_cap_in_gpregs(&env->gpcapregs, regnum);
     if (!cheri_in_capmode(env)) {
         update_capreg_to_intval(env, regnum, cap_get_cursor(&cap));
     } else {
-        *target = cap;
-        cheri_log_instr_changed_gp_capreg(env, regnum, target);
+        update_capreg(env, regnum, &cap);
     }
-    return *target;
 }
 
 void HELPER(csrrw_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
