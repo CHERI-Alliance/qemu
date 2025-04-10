@@ -1993,13 +1993,13 @@ target_ulong CHERI_HELPER_IMPL(cloadtags(CPUArchState *env, uint32_t cb))
         cbp, sizealign, raise_unaligned_load_exception);
 
     target_ulong result = cheri_tag_get_many(env, addr, cb, NULL, GETPC());
-#if defined(TARGET_RISCV) && defined(CONFIG_RVFI_DII)
-    /* For RVFI tracing, sail reports the valu of th last capability read. */
-    target_ulong unused1, unused2;
-    (void)load_cap_from_memory_raw(env, &unused1, &unused2, cb, cbp,
-                                   addr + sizealign - CHERI_CAP_SIZE,
-                                   _host_return_address, NULL);
-#endif
+// #if defined(TARGET_RISCV) && defined(CONFIG_RVFI_DII)
+//     /* For RVFI tracing, sail reports the valu of th last capability read. */
+//     target_ulong unused1, unused2;
+//     (void)load_cap_from_memory_raw(env, &unused1, &unused2, cb, cbp,
+//                                    addr + sizealign - CHERI_CAP_SIZE,
+//                                    _host_return_address, NULL);
+// #endif
     return result;
 }
 
