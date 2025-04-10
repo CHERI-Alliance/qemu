@@ -214,75 +214,63 @@ void HELPER(csrrw_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
                         cheri_in_capmode(env));
 }
 
-void HELPER(csrrs_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
-                       uint32_t rs1)
+static inline void do_csr_set_clear(CPUArchState *env, uint32_t csr,
+                                    uint32_t rd, bool is_clear,
+                                    target_ulong operand, bool perform_write,
+                                    uintptr_t hostpc)
 {
-    RISCVException ret;
     riscv_csr_cap_ops *csr_cap_info = get_csr_cap_info(csr);
-    cap_register_t csr_cap;
 
     assert(csr_cap_info);
-
-    ret = check_csr_cap_permissions(env, csr, rs1 != 0, csr_cap_info);
+    RISCVException ret = check_csr_cap_permissions(env, csr, perform_write, csr_cap_info);
     if (ret != RISCV_EXCP_NONE) {
-        riscv_raise_exception(env, ret, GETPC());
+        riscv_raise_exception(env, ret, hostpc);
     }
-
-    if (!cheri_have_access_sysregs(env) && csr_needs_asr(csr, rs1 != 0)) {
+    if (!cheri_have_access_sysregs(env) && csr_needs_asr(csr, perform_write)) {
         raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
-                                   CHERI_EXC_REGNUM_PCC, 0, true, GETPC());
+                                   CHERI_EXC_REGNUM_PCC, 0,
+                                   true, hostpc);
     }
+    /*
+     * CSRR{S,C}* Always perform a read operation even for rd==0
+     * https://riscv.github.io/riscv-isa-manual/snapshot/unprivileged/#csrinsts
+     */
+    cap_register_t csr_cap = csr_cap_info->read(env, csr_cap_info);
 
-    csr_cap = csr_cap_info->read(env, csr_cap_info);
-    if (rs1) {
-        cap_register_t rs_cap = *get_readonly_capreg(env, rs1);
-        target_ulong new_val = cap_get_cursor(&csr_cap) | cap_get_cursor(&rs_cap);
-        csr_cap_info->write(env, csr_cap_info, rs_cap, new_val, false);
+    if (perform_write) {
+        target_ulong new_addr = cap_get_cursor(&csr_cap);
+        if (is_clear) {
+            new_addr &= ~operand;
+        } else {
+            new_addr |= operand;
+        }
+        csr_cap_info->write(env, csr_cap_info, csr_cap, new_addr, false);
     }
     if (rd) {
         if (csr_cap_info->flags & CSR_OP_EXTENDED_REG) {
+            /* Extended register -> reads return CLEN only in capmode */
             write_capmode_reg(env, csr_cap, rd);
         } else {
-            cap_register_t *dest = get_cap_in_gpregs(&env->gpcapregs, rd);
-            *dest = csr_cap;
-            cheri_log_instr_changed_gp_capreg(env, rd, dest);
+            /* Newly added CLEN register -> all reads return CLEN */
+            update_capreg(env, rd, &csr_cap);
         }
     }
+}
+
+void HELPER(csrrs_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
+                       uint32_t rs1)
+{
+    target_ulong operand = get_capreg_cursor(env, rs1);
+    do_csr_set_clear(env, csr, rd, /*is_clear=*/false, operand,
+                     /*perform_write=*/rs1 != 0, GETPC());
 }
 
 void HELPER(csrrc_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
                        uint32_t rs1)
 {
-    RISCVException ret;
-    riscv_csr_cap_ops *csr_cap_info = get_csr_cap_info(csr);
-    cap_register_t csr_cap;
-
-    assert(csr_cap_info);
-    ret = check_csr_cap_permissions(env, csr, rs1 != 0, csr_cap_info);
-    if (ret != RISCV_EXCP_NONE) {
-        riscv_raise_exception(env, ret, GETPC());
-    }
-    if (!cheri_have_access_sysregs(env) && csr_needs_asr(csr, rs1 != 0)) {
-        raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
-                                   CHERI_EXC_REGNUM_PCC, 0, true, GETPC());
-    }
-
-    csr_cap = csr_cap_info->read(env, csr_cap_info);
-
-    if (rs1) {
-        cap_register_t rs_cap = *get_readonly_capreg(env, rs1);
-        target_ulong addr = cap_get_cursor(&csr_cap) & ( ~cap_get_cursor(&rs_cap) );
-        csr_cap_info->write(env, csr_cap_info, rs_cap, addr, false);
-    }
-    if (rd) {
-        if (csr_cap_info->flags & CSR_OP_EXTENDED_REG) {
-            write_capmode_reg(env, csr_cap, rd);
-        } else {
-            cap_register_t *dest = get_cap_in_gpregs(&env->gpcapregs, rd);
-            *dest = csr_cap;
-            cheri_log_instr_changed_gp_capreg(env, rd, dest);
-        }
-    }
+    target_ulong operand = get_capreg_cursor(env, rs1);
+    do_csr_set_clear(env, csr, rd, /*is_clear=*/true, operand,
+                     /*perform_write=*/rs1 != 0, GETPC());
 }
 
 void HELPER(csrrwi_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
@@ -319,75 +307,17 @@ void HELPER(csrrwi_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
 }
 
 void HELPER(csrrsi_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
-                        uint32_t rs1_val)
+                        uint32_t uimm)
 {
-    RISCVException ret;
-    riscv_csr_cap_ops *csr_cap_info = get_csr_cap_info(csr);
-    cap_register_t csr_cap;
-
-    assert(csr_cap_info);
-
-    ret = check_csr_cap_permissions(env, csr, rs1_val != 0, csr_cap_info);
-    if (ret != RISCV_EXCP_NONE) {
-        riscv_raise_exception(env, ret, GETPC());
-    }
-    if (!cheri_have_access_sysregs(env) && csr_needs_asr(csr, rs1_val != 0)) {
-        raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
-                                   CHERI_EXC_REGNUM_PCC, 0, true, GETPC());
-    }
-
-    csr_cap = csr_cap_info->read(env, csr_cap_info);
-
-    if (rs1_val) {
-        target_ulong new_val;
-        new_val = cap_get_cursor(&csr_cap ) | rs1_val;
-        csr_cap_info->write(env, csr_cap_info, csr_cap, new_val, false);
-    }
-    if (rd) {
-        if (csr_cap_info->flags & CSR_OP_EXTENDED_REG) {
-            write_capmode_reg(env, csr_cap, rd);
-        } else {
-            cap_register_t *dest = get_cap_in_gpregs(&env->gpcapregs, rd);
-            *dest = csr_cap;
-            cheri_log_instr_changed_gp_capreg(env, rd, dest);
-        }
-    }
+    do_csr_set_clear(env, csr, rd, /*is_clear=*/false, uimm,
+                     /*perform_write=*/uimm != 0, GETPC());
 }
 
 void HELPER(csrrci_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
-                        uint32_t rs1_val)
+                        uint32_t uimm)
 {
-    RISCVException ret;
-    riscv_csr_cap_ops *csr_cap_info = get_csr_cap_info(csr);
-    cap_register_t csr_cap;
-
-    assert(csr_cap_info);
-
-    ret = check_csr_cap_permissions(env, csr, rs1_val != 0, csr_cap_info);
-    if (ret != RISCV_EXCP_NONE) {
-        riscv_raise_exception(env, ret, GETPC());
-    }
-    if (!cheri_have_access_sysregs(env) && csr_needs_asr(csr, rs1_val != 0)) {
-        raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
-                                   CHERI_EXC_REGNUM_PCC, 0, true, GETPC());
-    }
-
-    csr_cap = csr_cap_info->read(env, csr_cap_info);
-
-    if (rs1_val) {
-        target_ulong new_val;
-        new_val = cap_get_cursor(&csr_cap) & (~rs1_val);
-        csr_cap_info->write(env, csr_cap_info, csr_cap, new_val, false);
-    }
-    if (rd) {
-        if (csr_cap_info->flags & CSR_OP_EXTENDED_REG) {
-            write_capmode_reg(env, csr_cap, rd);
-        } else {
-            cap_register_t *dest = get_cap_in_gpregs(&env->gpcapregs, rd);
-            *dest = csr_cap;
-            cheri_log_instr_changed_gp_capreg(env, rd, dest);
-        }
-    }
+    do_csr_set_clear(env, csr, rd, /*is_clear=*/true, uimm,
+                     /*perform_write=*/uimm != 0, GETPC());
 }
 
 void HELPER(cspecialrw)(CPUArchState *env, uint32_t cd, uint32_t cs,
