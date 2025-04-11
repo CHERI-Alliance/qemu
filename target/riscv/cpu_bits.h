@@ -276,6 +276,16 @@
 /* CHERI default data capability */
 #define CSR_DDC             0x416
 
+/* CHERI thread ID registers*/
+#define CSR_MTID            0x780
+#define CSR_MTIDC           CSR_MTID
+#define CSR_STID            0x580
+#define CSR_STIDC           CSR_STID
+#define CSR_VSTID           0xa80
+#define CSR_VSTIDC          CSR_VSTID
+#define CSR_UTID            0x480
+#define CSR_UTIDC           CSR_UTID
+
 #endif
 
 /* Performance Counters */
