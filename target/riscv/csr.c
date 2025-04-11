@@ -1858,12 +1858,10 @@ static inline bool csr_needs_asr(CPURISCVState *env, int csrno) {
  * csrrc  <->  riscv_csrrw(env, csrno, ret_value, 0, value);
  */
 
-RISCVException riscv_csrrw(CPURISCVState *env, int csrno, target_ulong *ret_value,
-                           target_ulong new_value, target_ulong write_mask,
-                           uintptr_t retpc)
+RISCVException riscv_csr_accessible(CPURISCVState *env, int csrno,
+                                    bool is_write)
 {
     RISCVException ret;
-    target_ulong old_value;
     RISCVCPU *cpu = env_archcpu(env);
     int read_only = get_field(csrno, 0xC00) == 3;
 
@@ -1871,8 +1869,7 @@ RISCVException riscv_csrrw(CPURISCVState *env, int csrno, target_ulong *ret_valu
 #if !defined(CONFIG_USER_ONLY)
     int effective_priv = env->priv;
 
-    if (riscv_has_ext(env, RVH) &&
-        env->priv == PRV_S &&
+    if (riscv_has_ext(env, RVH) && env->priv == PRV_S &&
         !riscv_cpu_virt_enabled(env)) {
         /*
          * We are in S mode without virtualisation, therefore we are in HS Mode.
@@ -1886,7 +1883,7 @@ RISCVException riscv_csrrw(CPURISCVState *env, int csrno, target_ulong *ret_valu
         return RISCV_EXCP_ILLEGAL_INST;
     }
 #endif
-    if (write_mask && read_only) {
+    if (is_write && read_only) {
         return RISCV_EXCP_ILLEGAL_INST;
     }
 
@@ -1894,31 +1891,59 @@ RISCVException riscv_csrrw(CPURISCVState *env, int csrno, target_ulong *ret_valu
     if (!cpu->cfg.ext_icsr) {
         return RISCV_EXCP_ILLEGAL_INST;
     }
-
     /* check predicate */
     if (!csr_ops[csrno].predicate) {
-        return RISCV_EXCP_ILLEGAL_INST;
-    }
-    ret = csr_ops[csrno].predicate(env, csrno);
-    if (ret != RISCV_EXCP_NONE) {
-        return ret;
-    }
-
-    // When CHERI is enabled, only certain CSRs can be accessed without the
-    // Access_System_Registers permission in PCC.
-    // TODO: could merge this with predicate callback?
 #ifdef TARGET_CHERI
-    // See Table 5.2 (CSR Whitelist) in ISAv7
+        /* CHERI-extended or added CSRs might not be in the predicates table */
+        /* TODO: merge the two tables */
+        if (get_csr_cap_info(csrno) == NULL) {
+            return RISCV_EXCP_ILLEGAL_INST;
+        }
+#else
+        return RISCV_EXCP_ILLEGAL_INST;
+#endif
+    } else {
+        ret = csr_ops[csrno].predicate(env, csrno);
+        if (ret != RISCV_EXCP_NONE) {
+            return ret;
+        }
+    }
+    /*
+     * When CHERI is enabled, only certain CSRs can be accessed without the
+     * Access_System_Registers permission in PCC.
+     * See Table 5.2 (CSR Whitelist) in ISAv7
+     * TODO: could merge this with predicate callback?
+     */
+#ifdef TARGET_CHERI
     if (!cheri_have_access_sysregs(env) && csr_needs_asr(env, csrno)) {
 #if !defined(CONFIG_USER_ONLY)
         if (env->debugger) {
             return RISCV_EXCP_INST_ACCESS_FAULT;
         }
-        raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
-                                   /*regnum=*/0, 0, true, retpc);
+        return RISCV_EXCP_CHERI;
 #endif
     }
 #endif // TARGET_CHERI
+    return RISCV_EXCP_NONE;
+}
+
+RISCVException riscv_csrrw(CPURISCVState *env, int csrno,
+                           target_ulong *ret_value, target_ulong new_value,
+                           target_ulong write_mask, uintptr_t retpc)
+{
+    RISCVException ret;
+    target_ulong old_value;
+
+    /* check privileges and return RISCV_EXCP_ILLEGAL_INST if check fails */
+    ret = riscv_csr_accessible(env, csrno, write_mask);
+    if (ret != RISCV_EXCP_NONE) {
+#ifdef TARGET_CHERI
+        if (ret == RISCV_EXCP_CHERI)
+            raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
+                                       /*regnum=*/0, 0, true, retpc);
+#endif
+        return ret;
+    }
 
     /* execute combined read/write operation if it exists */
     if (csr_ops[csrno].op) {

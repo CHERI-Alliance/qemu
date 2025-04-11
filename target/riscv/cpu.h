@@ -771,7 +771,8 @@ static inline const char *cpu_get_mode_name(qemu_log_instr_cpu_mode_t mode)
 }
 #endif
 
-
+RISCVException riscv_csr_accessible(CPURISCVState *env, int csrno,
+                                    bool is_write);
 RISCVException riscv_csrrw(CPURISCVState *env, int csrno, target_ulong *ret_value,
                            target_ulong new_value, target_ulong write_mask,
                            uintptr_t retpc);
