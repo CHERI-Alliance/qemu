@@ -162,9 +162,9 @@
 
 #ifdef TARGET_CHERI
 /* Machine trap setup,scratch and handling capabilities*/
-#define CSR_MTVECC          0x305
-#define CSR_MSCRATCHC       0x340
-#define CSR_MEPCC           0x341
+#define CSR_MTVECC          CSR_MTVEC
+#define CSR_MSCRATCHC       CSR_MSCRATCH
+#define CSR_MEPCC           CSR_MEPC
 #endif
 
 /* Supervisor Trap Setup */
@@ -184,9 +184,9 @@
 
 #ifdef TARGET_CHERI
 /* Supervisor trap setup, scratch and handling */
-#define CSR_STVECC          0x105
-#define CSR_SSCRATCHC       0x140
-#define CSR_SEPCC           0x141
+#define CSR_STVECC          CSR_STVEC
+#define CSR_SSCRATCHC       CSR_SSCRATCH
+#define CSR_SEPCC           CSR_SEPC
 #endif
 
 /* Supervisor Protection and Translation */
@@ -267,9 +267,9 @@
  * internal mechanisms for stopping a vm or setting breakpoints), so there is
  * no internal storage or access mechanism for these registers.
  */
-#define CSR_DPCC            0x7b1
-#define CSR_DSCRATCH0C      0x7b2
-#define CSR_DSCRATCH1C      0x7b3
+#define CSR_DPCC            CSR_DPC
+#define CSR_DSCRATCH0C      CSR_DSCRATCH0
+#define CSR_DSCRATCH1C      CSR_DSCRATCH1
 #define CSR_DDDC            0x7bc
 #define CSR_DINFC           0x7bd
 
