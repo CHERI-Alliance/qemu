@@ -3204,10 +3204,7 @@ void tcg_gen_qemu_st_i64_with_checked_addr_cond_invalidate(
     gen_rvfi_dii_set_field_zext_addr(MEM, mem_addr, addr);
     gen_rvfi_dii_set_field(MEM, mem_wdata[0], val);
 
-    TCGv_i32 tcoi = tcg_const_i32(make_memop_idx(memop, idx));
-#if defined(CONFIG_TCG_LOG_INSTR) || defined(TARGET_CHERI)
-    tcoi = tcg_const_i32(make_memop_idx(memop, idx));
-#endif
+    TCGv_i32  tcoi = tcg_const_i32(make_memop_idx(memop, idx));
 #ifdef TARGET_CHERI
     if (tcg_op_use_locking() && take_lock) {
         gen_helper_cheri_invalidate_lock_tags_start(cpu_env, addr, tcoi);
