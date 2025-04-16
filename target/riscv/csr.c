@@ -963,7 +963,7 @@ static RISCVException write_vsie(CPURISCVState *env, int csrno,
     return write_mie(env, CSR_MIE, newval);
 }
 
-static int write_sie(CPURISCVState *env, int csrno, target_ulong val)
+static RISCVException write_sie(CPURISCVState *env, int csrno, target_ulong val)
 {
     if (riscv_cpu_virt_enabled(env)) {
         write_vsie(env, CSR_VSIE, val);
