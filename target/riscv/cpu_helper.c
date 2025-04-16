@@ -1655,6 +1655,24 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         target_ulong mtvec = GET_SPECIAL_REG_ADDR(env, mtvec, mtvecc);
         target_ulong new_pc = (mtvec >> 2 << 2) +
             ((async && (mtvec & 3) == 1) ? cause * 4 : 0);
+
+        /*
+         * This checks that the exception handler is at the same address that
+         * caused the exception and the exception is related to reading an
+         * instruction. We know up front that going into the handler will
+         * trigger the same exception again.
+         */
+        if ((cause == RISCV_EXCP_INST_ACCESS_FAULT ||
+             cause == RISCV_EXCP_ILLEGAL_INST) &&
+#ifdef TARGET_CHERI
+            cap_exactly_equal(&env->pcc, &env->mtvecc)) {
+#else
+            (env->pc == new_pc)) {
+#endif
+            error_report("*** infinite exception loop detected ***");
+            exit(EXIT_FAILURE);
+        }
+
         riscv_update_pc_for_exc_handler(env, &env->mtvecc, new_pc);
         riscv_cpu_set_mode(env, PRV_M);
     }
