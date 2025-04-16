@@ -1626,15 +1626,11 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         s = set_field(s, MSTATUS_MPP, env->priv);
         s = set_field(s, MSTATUS_MIE, 0);
         env->mstatus = s;
-        riscv_log_instr_csr_changed(env, CSR_MSTATUS);
         env->mcause = cause | ~(((target_ulong)-1) >> async);
-        riscv_log_instr_csr_changed(env, CSR_MCAUSE);
 
         COPY_SPECIAL_REG(env, mepc, mepcc, pc, pcc);
-        riscv_log_instr_csr_changed(env, CSR_MEPC);
 
         env->mtval = tval;
-        riscv_log_instr_csr_changed(env, CSR_MTVAL);
         env->mtval2 = mtval2;
 #ifdef TARGET_CHERI_RISCV_STD_093
         /*
@@ -1655,6 +1651,31 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         target_ulong mtvec = GET_SPECIAL_REG_ADDR(env, mtvec, mtvecc);
         target_ulong new_pc = (mtvec >> 2 << 2) +
             ((async && (mtvec & 3) == 1) ? cause * 4 : 0);
+
+        /*
+         * This checks that the exception handler is at the same address that
+         * caused the exception and the exception is related to reading an
+         * instruction. We know up front that going into the handler will
+         * cause trigger the same exception again.
+         */
+        if (
+#ifdef TARGET_CHERI
+                cap_exactly_equal(&env->pcc, &env->mtvecc)
+#else
+                (env->pc == new_pc)
+#endif
+                && (cause == RISCV_EXCP_INST_ACCESS_FAULT ||
+                    cause == RISCV_EXCP_ILLEGAL_INST)) {
+            error_report_once("*** endless exception loop ***\n");
+            /* TODO: Should we do a clean shutdown and terminate qemu? */
+        } else {
+            riscv_log_instr_csr_changed(env, CSR_MSTATUS);
+            riscv_log_instr_csr_changed(env, CSR_MCAUSE);
+            riscv_log_instr_csr_changed(env, CSR_MEPC);
+            riscv_log_instr_csr_changed(env, CSR_MTVAL);
+            riscv_log_instr_csr_changed(env, CSR_MTVAL2);
+        }
+
         riscv_update_pc_for_exc_handler(env, &env->mtvecc, new_pc);
         riscv_cpu_set_mode(env, PRV_M);
     }
