@@ -220,6 +220,12 @@
 #define CSR_VSIP            0x244
 #define CSR_VSATP           0x280
 
+#ifdef TARGET_CHERI
+#define CSR_VSTVECC         CSR_VSTVEC
+#define CSR_VSSCRATCHC      CSR_VSSCRATCH
+#define CSR_VSEPCC          CSR_VSEPC
+#endif
+
 #define CSR_MENVCFG         0x30a
 #define CSR_SENVCFG         0x10a
 

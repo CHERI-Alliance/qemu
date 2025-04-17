@@ -1353,14 +1353,14 @@ static RISCVException write_vsstatus(CPURISCVState *env, int csrno,
 
 static int read_vstvec(CPURISCVState *env, int csrno, target_ulong *val)
 {
-    *val = GET_SPECIAL_REG_ARCH(env, vstvec, vstcc);
+    *val = GET_SPECIAL_REG_ARCH(env, vstvec, vstvecc);
     return RISCV_EXCP_NONE;
 }
 
 static RISCVException write_vstvec(CPURISCVState *env, int csrno,
                                    target_ulong val)
 {
-    SET_SPECIAL_REG(env, vstvec, vstcc, val);
+    SET_SPECIAL_REG(env, vstvec, vstvecc, val);
     return RISCV_EXCP_NONE;
 }
 
@@ -1891,6 +1891,12 @@ static inline cap_register_t *get_cap_csr(CPUArchState *env, uint32_t index)
         return &env->utidc;
     case CSR_VSTIDC:
         return &env->vstidc;
+    case CSR_VSSCRATCHC:
+        return &env->vsscratchc;
+    case CSR_VSEPCC:
+        return &env->vsepcc;
+    case CSR_VSTVECC:
+        return &env->vstvecc;
     default:
         assert(false && "Should have raised an invalid inst trap!");
     }
@@ -2600,6 +2606,12 @@ static riscv_csr_cap_ops csr_cap_ops[] = {
       CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
     { "vstidc", CSR_VSTIDC, read_capcsr_reg, write_cap_csr_reg,
       CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
+    { "vsepcc", CSR_VSEPCC, read_xepcc, write_xepcc,
+      CSR_OP_IA_CONVERSION | CSR_OP_EXTENDED_REG },
+    { "vsscratchc", CSR_VSSCRATCHC, read_capcsr_reg, write_cap_csr_reg,
+      CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
+    { "vstvecc", CSR_VSTVECC, read_capcsr_reg, write_xtvecc,
+      CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG },
 };
 
 riscv_csr_cap_ops *get_csr_cap_info(uint32_t csrnum)

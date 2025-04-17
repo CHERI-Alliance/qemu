@@ -241,7 +241,7 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env, bool hs_mode_trap)
         riscv_log_instr_csr_changed(env, CSR_VSSTATUS);
         /* mstatus may be modified again by do_interrupt */
 
-        COPY_SPECIAL_REG(env, vstvec, vstcc, stvec, stvecc);
+        COPY_SPECIAL_REG(env, vstvec, vstvecc, stvec, stvecc);
         COPY_SPECIAL_REG(env, stvec, stvecc, stvec_hs, stcc_hs);
         LOG_SPECIAL_REG(env, CSR_VSTVEC, CheriSCR_VSTCC);
         LOG_SPECIAL_REG(env, CSR_STVEC, CheriSCR_STCC);
@@ -300,7 +300,7 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env, bool hs_mode_trap)
         env->mstatus |= env->vsstatus;
 
         COPY_SPECIAL_REG(env, stvec_hs, stcc_hs, stvec, stvecc);
-        COPY_SPECIAL_REG(env, stvec, stvecc, vstvec, vstcc);
+        COPY_SPECIAL_REG(env, stvec, stvecc, vstvec, vstvecc);
         LOG_SPECIAL_REG(env, CSR_STVEC, CheriSCR_STCC);
 
         COPY_SPECIAL_REG(env, sscratch_hs, sscratchc_hs, sscratch, sscratchc);

@@ -237,7 +237,7 @@ struct CPURISCVState {
 
     /* Virtual CSRs */
 #ifdef TARGET_CHERI
-    cap_register_t vstcc;
+    cap_register_t vstvecc;
     cap_register_t vstdc;
     cap_register_t vsscratchc;
     cap_register_t vsepcc;
@@ -865,7 +865,7 @@ static inline cap_register_t *riscv_get_scr(CPUArchState *env, uint32_t index)
     case CheriSCR_MEPCC: return &env->mepcc;
     case CheriSCR_MTIDC: return &env->mtidc;
 
-    case CheriSCR_VSTCC: return &env->vstcc;
+    case CheriSCR_VSTCC: return &env->vstvecc;
     case CheriSCR_VSTDC: return &env->vstdc;
     case CheriSCR_VSScratchC: return &env->vsscratchc;
     case CheriSCR_VSEPCC: return &env->vsepcc;
