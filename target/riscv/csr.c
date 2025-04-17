@@ -34,6 +34,16 @@ void riscv_log_instr_csr_changed(CPURISCVState *env, int csrno)
     target_ulong value;
 
     if (qemu_log_instr_enabled(env)) {
+#ifdef TARGET_CHERI
+        /* Handle extended/added capability registers as well */
+        riscv_csr_cap_ops *cap_ops = get_csr_cap_info(csrno);
+        if (cap_ops) {
+            cap_register_t cap_value = cap_ops->read(env, cap_ops);
+            qemu_log_instr_cap(env, cap_ops->name, &cap_value);
+            return;
+        }
+#endif
+
         if (csr_ops[csrno].read)
             csr_ops[csrno].read(env, csrno, &value);
         else if (csr_ops[csrno].op)

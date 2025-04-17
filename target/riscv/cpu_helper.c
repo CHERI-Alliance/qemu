@@ -44,18 +44,6 @@
     } while (false)
 #endif
 
-#ifdef CONFIG_TCG_LOG_INSTR
-#ifdef TARGET_CHERI
-#define LOG_SPECIAL_REG(env, csrno, scrno)      \
-    riscv_log_instr_scr_changed(env, scrno)
-#else
-#define LOG_SPECIAL_REG(env, csrno, scrno)      \
-    riscv_log_instr_csr_changed(env, csrno);
-#endif
-#else /* !CONFIG_TCG_LOG_INSTR */
-#define LOG_SPECIAL_REG(env, csrno, scrno) ((void)0)
-#endif /* !CONFIG_TCG_LOG_INSTR */
-
 int riscv_cpu_mmu_index(CPURISCVState *env, bool ifetch)
 {
 #ifdef CONFIG_USER_ONLY
@@ -243,8 +231,8 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env, bool hs_mode_trap)
 
         COPY_SPECIAL_REG(env, vstvec, vstvecc, stvec, stvecc);
         COPY_SPECIAL_REG(env, stvec, stvecc, stvec_hs, stcc_hs);
-        LOG_SPECIAL_REG(env, CSR_VSTVEC, CheriSCR_VSTCC);
-        LOG_SPECIAL_REG(env, CSR_STVEC, CheriSCR_STCC);
+        riscv_log_instr_csr_changed(env, CSR_VSTVEC);
+        riscv_log_instr_csr_changed(env, CSR_STVEC);
 
         COPY_SPECIAL_REG(env, vsscratch, vsscratchc, sscratch, sscratchc);
         COPY_SPECIAL_REG(env, sscratch, sscratchc, sscratch_hs, sscratchc_hs);
@@ -254,8 +242,8 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env, bool hs_mode_trap)
 
         COPY_SPECIAL_REG(env, vsepc, vsepcc, sepc, sepcc);
         COPY_SPECIAL_REG(env, sepc, sepcc, sepc_hs, sepcc_hs);
-        LOG_SPECIAL_REG(env, CSR_VSEPC, CheriSCR_VSEPCC);
-        LOG_SPECIAL_REG(env, CSR_SEPC, CheriSCR_SEPCC);
+        riscv_log_instr_csr_changed(env, CSR_VSEPC);
+        riscv_log_instr_csr_changed(env, CSR_SEPC);
 
         env->vscause = env->scause;
         env->scause = env->scause_hs;
@@ -301,7 +289,7 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env, bool hs_mode_trap)
 
         COPY_SPECIAL_REG(env, stvec_hs, stcc_hs, stvec, stvecc);
         COPY_SPECIAL_REG(env, stvec, stvecc, vstvec, vstvecc);
-        LOG_SPECIAL_REG(env, CSR_STVEC, CheriSCR_STCC);
+        riscv_log_instr_csr_changed(env, CSR_STVEC);
 
         COPY_SPECIAL_REG(env, sscratch_hs, sscratchc_hs, sscratch, sscratchc);
         COPY_SPECIAL_REG(env, sscratch, sscratchc, vsscratch, vsscratchc);
@@ -310,7 +298,7 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env, bool hs_mode_trap)
 
         COPY_SPECIAL_REG(env, sepc_hs, sepcc_hs, sepc, sepcc);
         COPY_SPECIAL_REG(env, sepc, sepcc, vsepc, vsepcc);
-        LOG_SPECIAL_REG(env, CSR_SEPC, CheriSCR_SEPCC);
+        riscv_log_instr_csr_changed(env, CSR_SEPC);
 
         env->scause_hs = env->scause;
         env->scause = env->vscause;
@@ -1505,7 +1493,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         riscv_log_instr_csr_changed(env, CSR_SCAUSE);
 
         COPY_SPECIAL_REG(env, sepc, sepcc, pc, pcc);
-        LOG_SPECIAL_REG(env, CSR_SEPC, CheriSCR_SEPCC);
+        riscv_log_instr_csr_changed(env, CSR_SEPC);
 
         env->stval = tval;
         riscv_log_instr_csr_changed(env, CSR_STVAL);
@@ -1545,7 +1533,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         riscv_log_instr_csr_changed(env, CSR_MCAUSE);
 
         COPY_SPECIAL_REG(env, mepc, mepcc, pc, pcc);
-        LOG_SPECIAL_REG(env, CSR_MEPC, CheriSCR_MEPCC);
+        riscv_log_instr_csr_changed(env, CSR_MEPC);
 
         env->mtval = tval;
         riscv_log_instr_csr_changed(env, CSR_MTVAL);
