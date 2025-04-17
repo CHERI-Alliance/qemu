@@ -150,32 +150,37 @@ static void check_csr_cap_permissions(CPURISCVState *env, uint32_t csrno,
 }
 
 /* Copy a capability to a register, or update address if we are not capmode.*/
-static inline void
-write_capmode_reg(CPUArchState *env, cap_register_t cap, uint32_t regnum)
+static inline void writeback_csrrw(CPUArchState *env, cap_register_t cap,
+                                   uint32_t cd, riscv_csr_cap_ops *csr_cap_info)
 {
-    if (!cheri_in_capmode(env)) {
-        update_capreg_to_intval(env, regnum, cap_get_cursor(&cap));
+    tcg_debug_assert(cd != 0);
+    if (csr_cap_info->flags & CSR_OP_EXTENDED_REG) {
+        /* Extended register -> reads return CLEN only in capmode */
+        if (!cheri_in_capmode(env)) {
+            update_capreg_to_intval(env, cd, cap_get_cursor(&cap));
+        } else {
+            update_capreg(env, cd, &cap);
+        }
     } else {
-        update_capreg(env, regnum, &cap);
+        /* Newly added CLEN register -> all reads return CLEN */
+        update_capreg(env, cd, &cap);
     }
 }
 
 void HELPER(csrrw_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
                        uint32_t rs1)
 {
-    cap_register_t rs_cap;
     riscv_csr_cap_ops *csr_cap_info = get_csr_cap_info(csr);
-    cap_register_t csr_cap;
-
     assert(csr_cap_info);
 
     check_csr_cap_permissions(env, csr, true, csr_cap_info, GETPC());
-    rs_cap = *get_readonly_capreg(env, rs1);
+    /* Read rs1 first since it could be clobbered by writeback_csrrw */
+    cap_register_t rs_cap = *get_readonly_capreg(env, rs1);
     if (rd) {
-        csr_cap = csr_cap_info->read(env, csr_cap_info);
-        write_capmode_reg(env, csr_cap, rd);
+        cap_register_t csr_cap = csr_cap_info->read(env, csr_cap_info);
+        writeback_csrrw(env, csr_cap, rd, csr_cap_info);
     }
-
+    /* CSRRW always performs the write operation even for rs1=zero. */
     csr_cap_info->write(env, csr_cap_info, rs_cap, cap_get_cursor(&rs_cap),
                         cheri_in_capmode(env));
 }
@@ -205,13 +210,7 @@ static inline void do_csr_set_clear(CPUArchState *env, uint32_t csr,
         csr_cap_info->write(env, csr_cap_info, csr_cap, new_addr, false);
     }
     if (rd) {
-        if (csr_cap_info->flags & CSR_OP_EXTENDED_REG) {
-            /* Extended register -> reads return CLEN only in capmode */
-            write_capmode_reg(env, csr_cap, rd);
-        } else {
-            /* Newly added CLEN register -> all reads return CLEN */
-            update_capreg(env, rd, &csr_cap);
-        }
+        writeback_csrrw(env, csr_cap, rd, csr_cap_info);
     }
 }
 
@@ -232,26 +231,21 @@ void HELPER(csrrc_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
 }
 
 void HELPER(csrrwi_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
-                        uint32_t rs1)
+                        uint32_t uimm)
 {
     riscv_csr_cap_ops *csr_cap_info = get_csr_cap_info(csr);
-    cap_register_t csr_cap;
-
     assert(csr_cap_info);
 
     check_csr_cap_permissions(env, csr, true, csr_cap_info, GETPC());
-
-    csr_cap = csr_cap_info->read(env, csr_cap_info);
-
-    csr_cap_info->write(env, csr_cap_info, csr_cap, rs1, false);
+    /*
+     * NOTE: according to spec read should not be visible for rd=0, but we
+     * have to read it anyway to update the address.
+     */
+    cap_register_t csr_cap = csr_cap_info->read(env, csr_cap_info);
+    /* CSRRWI always performs XLEN write operation even for rs1=zero. */
+    csr_cap_info->write(env, csr_cap_info, csr_cap, uimm, false);
     if (rd) {
-        if (csr_cap_info->flags & CSR_OP_EXTENDED_REG) {
-            write_capmode_reg(env, csr_cap, rd);
-        } else {
-            cap_register_t *dest = get_cap_in_gpregs(&env->gpcapregs, rd);
-            *dest = csr_cap;
-            cheri_log_instr_changed_gp_capreg(env, rd, dest);
-        }
+        writeback_csrrw(env, csr_cap, rd, csr_cap_info);
     }
 }
 
