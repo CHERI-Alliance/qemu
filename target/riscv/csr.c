@@ -1876,7 +1876,7 @@ static RISCVException write_utid(CPURISCVState *env, int csrno,
 #ifdef TARGET_CHERI
 /* handlers for capability csr registers */
 
-static inline cap_register_t *get_cap_csr(CPUArchState *env, uint32_t index)
+cap_register_t *get_cap_csr(CPUArchState *env, uint32_t index)
 {
     switch (index) {
     case CSR_MSCRATCHC:
@@ -1907,6 +1907,16 @@ static inline cap_register_t *get_cap_csr(CPUArchState *env, uint32_t index)
         return &env->vsepcc;
     case CSR_VSTVECC:
         return &env->vstvecc;
+#ifdef TARGET_CHERI_RISCV_V9
+    case CSR_MTDC:
+        return &env->mtdc;
+    case CSR_STDC:
+        return &env->stdc;
+    case CSR_VSTDC:
+        return &env->vstdc;
+    case CSR_PCC:
+        return &env->pcc;
+#endif
     default:
         assert(false && "Should have raised an invalid inst trap!");
     }
@@ -2189,7 +2199,7 @@ static RISCVException write_ccsr(CPURISCVState *env, int csrno, target_ulong val
     return RISCV_EXCP_NONE;
 }
 
-bool csr_needs_asr(int csrno, bool is_write)
+bool csr_needs_asr(uint32_t csrno, bool is_write)
 {
     /*
      * Based on CSR number and write mask determineif the CSR is privileged
@@ -2199,6 +2209,15 @@ bool csr_needs_asr(int csrno, bool is_write)
      * ASR in all privileged levels and require ASR for all writes.
      */
     switch (csrno) {
+#ifdef TARGET_CHERI_RISCV_V9
+    /* Special cases for the placeholder csr numbers for v9 compat */
+    case CSR_PCC:
+        return false;
+    case CSR_MTDC:
+    case CSR_STDC:
+    case CSR_VSTDC:
+        return true;
+#endif
     case CSR_STIDC:
     case CSR_MTIDC:
     case CSR_UTIDC:
@@ -2622,6 +2641,16 @@ static riscv_csr_cap_ops csr_cap_ops[] = {
       CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
     { "vstvecc", CSR_VSTVECC, read_capcsr_reg, write_xtvecc,
       CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG },
+#ifdef TARGET_CHERI_RISCV_V9
+    /* For backwards compatibility add the *tdc registers */
+    { "mtdc", CSR_MTDC, read_capcsr_reg, write_cap_csr_reg,
+      CSR_OP_REQUIRE_CRE },
+    { "stdc", CSR_STDC, read_capcsr_reg, write_cap_csr_reg,
+      CSR_OP_REQUIRE_CRE },
+    { "vstdc", CSR_VSTDC, read_capcsr_reg, write_cap_csr_reg,
+      CSR_OP_REQUIRE_CRE },
+    { "pcc", CSR_PCC, read_capcsr_reg, /*write=*/NULL, CSR_OP_REQUIRE_CRE },
+#endif
 };
 
 riscv_csr_cap_ops *get_csr_cap_info(uint32_t csrnum)

@@ -102,7 +102,6 @@ enum CheriSCR {
     CheriSCR_VSTDC = 33,
     CheriSCR_VSScratchC = 34,
     CheriSCR_VSEPCC = 35,
-    CheriSCR_MAX,
 };
 
 #define CHERI_EXC_REGNUM_PCC (32 + CheriSCR_PCC)

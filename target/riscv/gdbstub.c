@@ -230,25 +230,29 @@ static int riscv_gen_dynamic_csr_xml(CPUState *cs, int base_reg)
 
 #if defined(TARGET_CHERI)
 static struct SCR {
-    int index;
+    uint32_t csrno;
     const char *name;
     bool code;
 } scrs[] = {
-    { .index = CheriSCR_STCC, .name = "stcc", .code = true },
-    { .index = CheriSCR_STDC, .name = "stdc"},
-    { .index = CheriSCR_SScratchC, .name = "sscratchc"},
-    { .index = CheriSCR_SEPCC, .name = "sepcc", .code = true },
+    { .csrno = CSR_STVECC, .name = "stcc", .code = true },
+#ifdef TARGET_CHERI_RISCV_V9
+    { .csrno = CSR_STDC, .name = "stdc" },
+#endif
+    { .csrno = CSR_SSCRATCHC, .name = "sscratchc" },
+    { .csrno = CSR_SEPCC, .name = "sepcc", .code = true },
 
-    { .index = CheriSCR_MTCC, .name = "mtcc", .code = true },
-    { .index = CheriSCR_MTDC, .name = "mtdc"},
-    { .index = CheriSCR_MScratchC, .name = "mscratchc"},
-    { .index = CheriSCR_MEPCC, .name = "mepcc", .code = true },
+    { .csrno = CSR_MTVECC, .name = "mtcc", .code = true },
+#ifdef TARGET_CHERI_RISCV_V9
+    { .csrno = CSR_MTDC, .name = "mtdc" },
+#endif
+    { .csrno = CSR_MSCRATCHC, .name = "mscratchc" },
+    { .csrno = CSR_MEPCC, .name = "mepcc", .code = true },
 };
 
 static int riscv_gdb_get_scr(CPURISCVState *env, GByteArray *buf, int n)
 {
     if (n < ARRAY_SIZE(scrs)) {
-        cap_register_t *scr = riscv_get_scr(env, scrs[n].index);
+        cap_register_t *scr = get_cap_csr(env, scrs[n].csrno);
         return gdb_get_capreg(buf, scr);
     }
     return 0;

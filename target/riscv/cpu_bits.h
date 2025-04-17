@@ -296,6 +296,14 @@
 #define CSR_UTID            0x480
 #define CSR_UTIDC           CSR_UTID
 
+#ifdef TARGET_CHERI_RISCV_V9
+/* Fake CSR numbers for the legacy *TDC registers */
+#define CSR_MTDC  0xBFF /* last M-mode custom read-write index */
+#define CSR_STDC  0x9FF /* last S-mode custom read-write index */
+#define CSR_VSTDC 0xAFF /* last VS-mode custom read-write index */
+#define CSR_PCC   0xCFF /* last unprivileged custom read-only index */
+#endif
+
 #endif
 
 /* Non CHERI Zstidc defines for the zstidc registers */

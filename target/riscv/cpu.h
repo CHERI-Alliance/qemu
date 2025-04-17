@@ -201,7 +201,6 @@ struct CPURISCVState {
 #endif
 
 #ifdef TARGET_CHERI
-    cap_register_t stdc;      // SCR 13 Supervisor trap data cap. (STDC)
     cap_register_t stvecc;    // SCR 12 Supervisor trap code cap. (STCC)
     cap_register_t sscratchc; // SCR 14 Supervisor scratch cap. (SScratchC)
     cap_register_t sepcc;     // SCR 15 Supervisor exception PC cap. (SEPCC)
@@ -213,7 +212,6 @@ struct CPURISCVState {
     target_ulong scause;
 
 #ifdef TARGET_CHERI
-    cap_register_t mtdc;      // SCR 29 Machine trap data cap. (MTDC)
     cap_register_t mtvecc;    // SCR 28 Machine trap code cap. (MTCC)
     cap_register_t mscratchc; // SCR 30 Machine scratch cap. (MScratchC)
     cap_register_t mepcc;     // SCR 31 Machine exception PC cap. (MEPCC)
@@ -238,7 +236,6 @@ struct CPURISCVState {
     /* Virtual CSRs */
 #ifdef TARGET_CHERI
     cap_register_t vstvecc;
-    cap_register_t vstdc;
     cap_register_t vsscratchc;
     cap_register_t vsepcc;
 #else
@@ -280,7 +277,6 @@ struct CPURISCVState {
     target_ulong scounteren;
     target_ulong mcounteren;
 
-
 #ifdef TARGET_CHERI
     /* zstid registers */
     cap_register_t mtidc;
@@ -295,6 +291,13 @@ struct CPURISCVState {
     target_ulong utid;
     target_ulong vstid;
     target_ulong stid_hs;
+#endif
+
+#ifdef TARGET_CHERI_RISCV_V9
+    /* V9-only special capability registers */
+    cap_register_t mtdc;  /* Machine trap data cap */
+    cap_register_t stdc;  /* Supervisor trap data cap */
+    cap_register_t vstdc; /* Virtual Supervisor trap data cap */
 #endif
 
     /* temporary htif regs */
@@ -486,10 +489,6 @@ extern const char * const cheri_gp_regnames[];
 #ifdef CONFIG_TCG_LOG_INSTR
 void riscv_log_instr_csr_changed(CPURISCVState *env, int csrno);
 
-#ifdef TARGET_CHERI
-void riscv_log_instr_scr_changed(CPURISCVState *env, int scrno);
-#endif
-
 #define log_changed_special_reg(env, name, newval) do { \
         if (qemu_log_instr_enabled(env))                \
             qemu_log_instr_reg(env, name, newval);      \
@@ -497,7 +496,6 @@ void riscv_log_instr_scr_changed(CPURISCVState *env, int scrno);
 #else /* !CONFIG_TCG_LOG_INSTR */
 #define log_changed_special_reg(env, name, newval) ((void)0)
 #define riscv_log_instr_csr_changed(env, csrno) ((void)0)
-#define riscv_log_instr_scr_changed(env, scrno) ((void)0)
 #endif /* !CONFIG_TCG_LOG_INSTR */
 
 /*
@@ -685,7 +683,7 @@ void QEMU_NORETURN riscv_raise_exception(CPURISCVState *env,
 
 target_ulong riscv_cpu_get_fflags(CPURISCVState *env);
 void riscv_cpu_set_fflags(CPURISCVState *env, target_ulong);
-bool csr_needs_asr(int csrno, bool write);
+bool csr_needs_asr(uint32_t csrno, bool write);
 
 #define TB_FLAGS_PRIV_MMU_MASK                3
 #define TB_FLAGS_PRIV_HYP_ACCESS_MASK   (1 << 2)
@@ -844,36 +842,6 @@ extern riscv_csr_operations csr_ops[CSR_TABLE_SIZE];
 void riscv_get_csr_ops(int csrno, riscv_csr_operations *ops);
 void riscv_set_csr_ops(int csrno, riscv_csr_operations *ops);
 
-#ifdef TARGET_CHERI
-static inline cap_register_t *riscv_get_scr(CPUArchState *env, uint32_t index)
-{
-    switch (index) {
-    case CheriSCR_PCC: return &env->pcc;
-    case CheriSCR_DDC: return &env->ddc;
-
-    case CheriSCR_UTIDC: return &env->utidc;
-
-    case CheriSCR_STCC: return &env->stvecc;
-    case CheriSCR_STDC: return &env->stdc;
-    case CheriSCR_SScratchC: return &env->sscratchc;
-    case CheriSCR_SEPCC: return &env->sepcc;
-    case CheriSCR_STIDC: return &env->stidc;
-
-    case CheriSCR_MTCC: return &env->mtvecc;
-    case CheriSCR_MTDC: return &env->mtdc;
-    case CheriSCR_MScratchC: return &env->mscratchc;
-    case CheriSCR_MEPCC: return &env->mepcc;
-    case CheriSCR_MTIDC: return &env->mtidc;
-
-    case CheriSCR_VSTCC: return &env->vstvecc;
-    case CheriSCR_VSTDC: return &env->vstdc;
-    case CheriSCR_VSScratchC: return &env->vsscratchc;
-    case CheriSCR_VSEPCC: return &env->vsepcc;
-    default: assert(false && "Should have raised an invalid inst trap!");
-    }
-}
-#endif
-
 void riscv_cpu_register_gdb_regs_for_features(CPUState *cs);
 
 #ifdef TARGET_CHERI
@@ -899,6 +867,7 @@ struct _csr_cap_ops {
     uint8_t flags;
 };
 riscv_csr_cap_ops *get_csr_cap_info(uint32_t csrnum);
+cap_register_t *get_cap_csr(CPUArchState *env, uint32_t index);
 
 /* Do the CRE bits allow cheri access in the current CPU mode? */
 static inline bool riscv_cpu_mode_cre(CPURISCVState *env)

@@ -47,89 +47,6 @@
 #error TARGET_CHERI must be set
 #endif
 
-enum SCRAccessMode {
-    SCR_Invalid = 0,
-    ASR_R_Flag = 1,
-    ASR_W_Flag = 2,
-    ASR_RW_Flag = ASR_W_Flag | ASR_R_Flag,
-    U_Always = (PRV_U + 1) << 2,
-    U_ASR_W = U_Always | ASR_W_Flag,
-    U_ASR_RW = U_ASR_W | ASR_R_Flag,
-    S_Always = (PRV_S + 1) << 2,
-    S_ASR_W = S_Always | ASR_W_Flag,
-    S_ASR_RW = S_ASR_W | ASR_R_Flag,
-    H_Always = (PRV_H + 1) << 2,
-    H_ASR_W = H_Always | ASR_W_Flag,
-    H_ASR_RW = H_ASR_W | ASR_R_Flag,
-    M_Always = (PRV_M + 1) << 2,
-    M_ASR_W = M_Always | ASR_W_Flag,
-    M_ASR_RW = M_ASR_W | ASR_R_Flag,
-};
-
-static inline int scr_min_priv(enum SCRAccessMode mode)
-{
-    return ((int)mode >> 2) - 1;
-}
-
-static inline int scr_needs_asr_r(enum SCRAccessMode mode)
-{
-    return (mode & ASR_R_Flag) == ASR_R_Flag;
-}
-
-static inline int scr_needs_asr_w(enum SCRAccessMode mode)
-{
-    return (mode & ASR_W_Flag) == ASR_W_Flag;
-}
-
-struct SCRInfo {
-    bool r;
-    bool w;
-    enum SCRAccessMode access; /* Default = Invalid */
-    const char *name;
-    //#define PRV_U 0
-    //#define PRV_S 1
-    //#define PRV_H 2 /* Reserved */
-    //#define PRV_M 3
-} scr_info[CheriSCR_MAX] = {
-    [CheriSCR_PCC] = {.r = true, .w = false, .access = U_Always, .name = "PCC"},
-    [CheriSCR_DDC] = {.r = true, .w = true, .access = U_Always, .name = "DDC"},
-
-    [CheriSCR_UTIDC] = {.r = true, .w = true, .access = U_ASR_W, .name = "UTIDC"},
-
-    [CheriSCR_STCC] = {.r = true, .w = true, .access = S_ASR_RW, .name = "STCC"},
-    [CheriSCR_STDC] = {.r = true, .w = true, .access = S_ASR_RW, .name = "STDC"},
-    [CheriSCR_SScratchC] = {.r = true,
-                            .w = true,
-                            .access = S_ASR_RW,
-                            .name = "SScratchC"},
-    [CheriSCR_SEPCC] = {.r = true, .w = true, .access = S_ASR_RW, .name = "SEPCC"},
-    [CheriSCR_STIDC] = {.r = true, .w = true, .access = S_ASR_W, .name = "STIDC"},
-
-    [CheriSCR_MTCC] = {.r = true, .w = true, .access = M_ASR_RW, .name = "MTCC"},
-    [CheriSCR_MTDC] = {.r = true, .w = true, .access = M_ASR_RW, .name = "MTDC"},
-    [CheriSCR_MScratchC] = {.r = true,
-                            .w = true,
-                            .access = M_ASR_RW,
-                            .name = "MScratchC"},
-    [CheriSCR_MEPCC] = {.r = true, .w = true, .access = M_ASR_RW, .name = "MEPCC"},
-    [CheriSCR_MTIDC] = {.r = true, .w = true, .access = M_ASR_W, .name = "MTIDC"},
-
-    [CheriSCR_VSTCC] = {.r = true, .w = true, .access = H_ASR_RW, .name = "VSTCC"},
-    [CheriSCR_VSTDC] = {.r = true, .w = true, .access = H_ASR_RW, .name = "VSTDC"},
-    [CheriSCR_VSScratchC] = {.r = true, .w = true, .access = H_ASR_RW, .name = "VSScratchC"},
-    [CheriSCR_VSEPCC] = {.r = true, .w = true, .access = H_ASR_RW, .name = "VSEPCC"},
-};
-
-#ifdef CONFIG_TCG_LOG_INSTR
-void riscv_log_instr_scr_changed(CPURISCVState *env, int scrno)
-{
-    if (qemu_log_instr_enabled(env)) {
-        qemu_log_instr_cap(env, scr_info[scrno].name,
-                           riscv_get_scr(env, scrno));
-    }
-}
-#endif
-
 /* Raises an exception if the CSR access is not permitted. */
 static void check_csr_cap_permissions(CPURISCVState *env, uint32_t csrno,
                                       bool write_access,
@@ -263,6 +180,48 @@ void HELPER(csrrci_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
                      /*perform_write=*/uimm != 0, GETPC());
 }
 
+#ifdef TARGET_CHERI_RISCV_V9
+static uint32_t csr_for_cspecialrw(enum CheriSCR scr)
+{
+    switch (scr) {
+    case CheriSCR_PCC:
+        return CSR_PCC;
+    case CheriSCR_DDC:
+        return CSR_DDC;
+    case CheriSCR_STCC:
+        return CSR_STVECC;
+    case CheriSCR_MTCC:
+        return CSR_MTVECC;
+    case CheriSCR_VSTCC:
+        return CSR_VSTVEC;
+    case CheriSCR_SEPCC:
+        return CSR_SEPCC;
+    case CheriSCR_MEPCC:
+        return CSR_MEPCC;
+    case CheriSCR_VSEPCC:
+        return CSR_VSEPCC;
+    case CheriSCR_SScratchC:
+        return CSR_SSCRATCHC;
+    case CheriSCR_MScratchC:
+        return CSR_MSCRATCHC;
+    case CheriSCR_VSScratchC:
+        return CSR_VSSCRATCHC;
+    case CheriSCR_STDC:
+        return CSR_STDC;
+    case CheriSCR_MTDC:
+        return CSR_MTDC;
+    case CheriSCR_VSTDC:
+        return CSR_VSTDC;
+    case CheriSCR_UTIDC:
+        return CSR_UTIDC;
+    case CheriSCR_STIDC:
+        return CSR_STIDC;
+    case CheriSCR_MTIDC:
+        return CSR_MTIDC;
+    }
+    assert(false);
+}
+
 void HELPER(cspecialrw)(CPUArchState *env, uint32_t cd, uint32_t cs,
                         uint32_t index)
 {
@@ -271,92 +230,24 @@ void HELPER(cspecialrw)(CPUArchState *env, uint32_t cd, uint32_t cs,
     cpu_restore_state(env_cpu(env), _host_return_address, false);
 
     assert(index <= 31 && "Bug in translator?");
-    enum SCRAccessMode mode = scr_info[index].access;
+    uint32_t csrno = csr_for_cspecialrw(index);
+    riscv_csr_cap_ops *ops = get_csr_cap_info(csrno);
+    assert(ops != NULL);
     bool is_write = cs != 0;
     bool is_read = cd != 0;
-    if (mode == SCR_Invalid || (is_write && !scr_info[index].w)) {
-        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST,
-                              _host_return_address);
-    }
-    bool can_access_sysregs = cheri_have_access_sysregs(env);
-    if (((is_write && scr_needs_asr_w(mode)) ||
-         (is_read && scr_needs_asr_r(mode))) &&
-        !can_access_sysregs) {
-        raise_cheri_exception(env, CapEx_AccessSystemRegsViolation, 32 + index);
-    }
-    if (scr_min_priv(mode) > env->priv) {
-        raise_cheri_exception(env, CapEx_AccessSystemRegsViolation, 32 + index);
-    }
-    cap_register_t *scr = riscv_get_scr(env, index);
+    check_csr_cap_permissions(env, csrno, is_write, ops, GETPC());
+
     // Make a copy of the write value in case cd == cs
     cap_register_t new_val = *get_readonly_capreg(env, cs);
     if (is_read) {
-        assert(scr_info[index].r && "Bug? Should be readable");
-        // For xEPCC we clear the low address bit(s) when reading to match xEPC.
-        // See helper_sret/helper_mret for more context.
-        switch(index) {
-        case CheriSCR_SEPCC:
-        case CheriSCR_MEPCC: {
-            cap_register_t legalized = *scr;
-            target_ulong addr = cap_get_cursor(&legalized);
-            addr &= ~(target_ulong)(riscv_has_ext(env, RVC) ? 1 : 3);
-            if (addr != cap_get_cursor(scr)) {
-                warn_report("Clearing low bit(s) of %s (contained an unaligned "
-                            "capability): " PRINT_CAP_FMTSTR,
-                            scr_info[index].name, PRINT_CAP_ARGS(scr));
-                legalized._cr_cursor = addr;
-                if (!cap_is_unsealed(scr)) {
-                    warn_report("Invalidating sealed %s (contained an unaligned "
-                                "capability): " PRINT_CAP_FMTSTR,
-                                scr_info[index].name, PRINT_CAP_ARGS(scr));
-                    legalized.cr_tag = false;
-                }
-            }
-            update_capreg(env, cd, &legalized);
-            break;
-        }
-        default:
-            update_capreg(env, cd, scr);
-            break;
-        }
+        cap_register_t csr_cap = ops->read(env, ops);
+        writeback_csrrw(env, csr_cap, cd, ops);
     }
     if (is_write) {
-        assert(scr_info[index].w && "Bug? Should be writable");
-#ifdef CONFIG_TCG_LOG_INSTR
-        if (qemu_log_instr_enabled(env)) {
-            qemu_log_instr_extra(env, "  %s <- " PRINT_CAP_FMTSTR "\n",
-                scr_info[index].name, PRINT_CAP_ARGS(&new_val));
-        }
-#endif
-        switch (index) {
-        case CheriSCR_STCC:
-        case CheriSCR_MTCC: {
-            target_ulong new_tvec = SCR_TO_PROGRAM_COUNTER(env, &new_val);
-            target_ulong new_mode = new_tvec & 3;
-            /* The low two bits encode the mode, but only 0 and 1 are valid. */
-            if (new_mode > 1) {
-                /* Invalid mode, keep the old one. */
-                new_tvec &= ~(target_ulong)3;
-                new_tvec |= SCR_TO_PROGRAM_COUNTER(env, scr) & 3;
-            }
-            *scr = new_val;
-            SCR_SET_PROGRAM_COUNTER(env, scr, scr_info[index].name, new_tvec);
-            break;
-        }
-        case CheriSCR_DDC:
-            if (!new_val.cr_tag) {
-                qemu_log_instr_or_mask_msg(
-                    env, CPU_LOG_INT,
-                    "Note: Installed untagged DDC at " TARGET_FMT_lx "\n",
-                    cpu_get_recent_pc(env));
-            }
-            /* fallthrough */
-        default:
-            *scr = new_val;
-            cheri_log_instr_changed_capreg(env, scr_info[index].name, scr);
-        }
+        ops->write(env, ops, new_val, cap_get_cursor(&new_val), /*clen=*/true);
     }
 }
+#endif /* TARGET_CHERI_RISCV_V9 */
 
 #ifdef DO_CHERI_STATISTICS
 static DEFINE_CHERI_STAT(auipcc);
