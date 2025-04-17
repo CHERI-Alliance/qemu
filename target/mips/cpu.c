@@ -284,21 +284,21 @@ static void mips_cpu_reset(DeviceState *dev)
      * is set to zero (or boot vector address for PCC).
      */
     reset_capregs(env);
-    set_max_perms_capability(&env->active_tc.PCC, env->exception_base);
+    set_max_perms_capability(env, &env->active_tc.PCC, env->exception_base);
     // TODO: make DDC and KCC unconditionally only be in the special reg file
-    set_max_perms_capability(&env->active_tc.CHWR.DDC, 0);
+    set_max_perms_capability(env, &env->active_tc.CHWR.DDC, 0);
     // TODO: should kdc be NULL or full priv?
     null_capability(&env->active_tc.CHWR.UserTlsCap);
     null_capability(&env->active_tc.CHWR.PrivTlsCap);
     null_capability(&env->active_tc.CHWR.KR1C);
     null_capability(&env->active_tc.CHWR.KR2C);
-    set_max_perms_capability(&env->active_tc.CHWR.KCC, 0);
+    set_max_perms_capability(env, &env->active_tc.CHWR.KCC, 0);
     null_capability(&env->active_tc.CHWR.KDC); // KDC can be NULL
     // Note: EPCC also needs to be set to be a full address-space capability
     // so that a MIPS eret without a prior trap works as expected:
-    set_max_perms_capability(&env->active_tc.CHWR.EPCC, 0);
+    set_max_perms_capability(env, &env->active_tc.CHWR.EPCC, 0);
     // Same for ErrorEPCC since it is needed if Status.ERL is set
-    set_max_perms_capability(&env->active_tc.CHWR.ErrorEPCC, 0);
+    set_max_perms_capability(env, &env->active_tc.CHWR.ErrorEPCC, 0);
 
     // Fake capability register to allow cjr branch delay slots to work
     null_capability(&env->active_tc.CapBranchTarget);

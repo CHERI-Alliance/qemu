@@ -394,10 +394,27 @@ static inline cap_register_t *cap_mark_unrepresentable(target_ulong addr,
     return cr;
 }
 
-static inline void set_max_perms_capability(cap_register_t *crp,
+/*
+ * attribute unused marks a potentially unused paramter. We keep it to squelch
+ * compiler warnings for architectures other than risc-v.
+ */
+static inline void set_max_perms_capability(G_GNUC_UNUSED CPUArchState *env,
+                                            cap_register_t *crp,
                                             target_ulong cursor)
 {
+#if defined(TARGET_CHERI_RISCV_STD)
+    /*
+     * If hybrid mode is supported, the infinite capability has to set integer
+     * pointer mode (M = 1).
+     */
+    CAP_CC(Mode) m = riscv_feature(env, RISCV_FEATURE_CHERI_HYBRID)
+                         ? CAP_CC(MODE_INT)
+                         : CAP_CC(MODE_CAP);
+    *crp = CAP_cc(make_max_perms_cap_ext)(0, cursor, CAP_MAX_TOP, m, 0);
+#else
     *crp = CAP_cc(make_max_perms_cap)(0, cursor, CAP_MAX_TOP);
+
+#endif
     crp->cr_extra = CREG_FULLY_DECOMPRESSED;
 }
 

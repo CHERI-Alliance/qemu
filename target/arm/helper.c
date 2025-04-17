@@ -59,7 +59,7 @@ static void raw_read_cap(CPUARMState *env, const ARMCPRegInfo *ri,
                          cap_register_t *cap_out)
 {
     if (ri->type & ARM_CP_CONST) {
-        set_max_perms_capability(cap_out, ri->resetvalue);
+        set_max_perms_capability(env, cap_out, ri->resetvalue);
         return;
     }
     assert(ri->fieldoffset);
@@ -8675,7 +8675,7 @@ void register_cp_regs_for_features(ARMCPU *cpu)
     // HCR controls a lot of these LETODO: Also have to pay attention to
     // restricted for RDDC and RSP.
     cap_register_t max_cap;
-    set_max_perms_capability(&max_cap, 0);
+    set_max_perms_capability(env, &max_cap, 0);
     /* clang-format off */
     ARMCPRegInfo cheri_regs[] = {
         // We swap the relevent DDC into this register, so it is always
