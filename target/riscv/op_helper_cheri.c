@@ -130,20 +130,23 @@ void riscv_log_instr_scr_changed(CPURISCVState *env, int scrno)
 }
 #endif
 
-/*
- * Return RISCV_EXCP_NONE if we are allowed to access the given csr. If not,
- * return the corresponding exception.
- */
-static RISCVException check_csr_cap_permissions(CPURISCVState *env, int csrno,
-                                                bool write_access,
-                                                riscv_csr_cap_ops *csr_cap_info)
+/* Raises an exception if the CSR access is not permitted. */
+static void check_csr_cap_permissions(CPURISCVState *env, uint32_t csrno,
+                                      bool write_access,
+                                      riscv_csr_cap_ops *csr_cap_info,
+                                      uintptr_t hostpc)
 {
-
-    if ((csr_cap_info->flags & CSR_OP_REQUIRE_CRE) &&
+    RISCVException exc = riscv_csr_accessible(env, csrno, write_access);
+    if (exc != RISCV_EXCP_NONE && (csr_cap_info->flags & CSR_OP_REQUIRE_CRE) &&
         !riscv_cpu_mode_cre(env)) {
-        return RISCV_EXCP_ILLEGAL_INST;
+        exc = RISCV_EXCP_ILLEGAL_INST;
     }
-    return riscv_csr_accessible(env, csrno, write_access);
+    if (exc == RISCV_EXCP_CHERI) {
+        raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
+                                   CHERI_EXC_REGNUM_PCC, 0, true, hostpc);
+    } else if (exc != RISCV_EXCP_NONE) {
+        riscv_raise_exception(env, exc, hostpc);
+    }
 }
 
 /* Copy a capability to a register, or update address if we are not capmode.*/
@@ -161,22 +164,12 @@ void HELPER(csrrw_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
                        uint32_t rs1)
 {
     cap_register_t rs_cap;
-    RISCVException ret;
     riscv_csr_cap_ops *csr_cap_info = get_csr_cap_info(csr);
     cap_register_t csr_cap;
 
     assert(csr_cap_info);
 
-    ret = check_csr_cap_permissions(env, csr, true, csr_cap_info);
-    if (ret != RISCV_EXCP_NONE) {
-        riscv_raise_exception(env, ret, GETPC());
-    }
-
-    if (!cheri_have_access_sysregs(env) && csr_needs_asr(csr, 1)) {
-        raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
-                                   CHERI_EXC_REGNUM_PCC, 0, true, GETPC());
-    }
-
+    check_csr_cap_permissions(env, csr, true, csr_cap_info, GETPC());
     rs_cap = *get_readonly_capreg(env, rs1);
     if (rd) {
         csr_cap = csr_cap_info->read(env, csr_cap_info);
@@ -195,15 +188,7 @@ static inline void do_csr_set_clear(CPUArchState *env, uint32_t csr,
     riscv_csr_cap_ops *csr_cap_info = get_csr_cap_info(csr);
 
     assert(csr_cap_info);
-    RISCVException ret = check_csr_cap_permissions(env, csr, perform_write, csr_cap_info);
-    if (ret != RISCV_EXCP_NONE) {
-        riscv_raise_exception(env, ret, hostpc);
-    }
-    if (!cheri_have_access_sysregs(env) && csr_needs_asr(csr, perform_write)) {
-        raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
-                                   CHERI_EXC_REGNUM_PCC, 0,
-                                   true, hostpc);
-    }
+    check_csr_cap_permissions(env, csr, perform_write, csr_cap_info, GETPC());
     /*
      * CSRR{S,C}* Always perform a read operation even for rd==0
      * https://riscv.github.io/riscv-isa-manual/snapshot/unprivileged/#csrinsts
@@ -249,21 +234,12 @@ void HELPER(csrrc_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
 void HELPER(csrrwi_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
                         uint32_t rs1)
 {
-    RISCVException ret;
     riscv_csr_cap_ops *csr_cap_info = get_csr_cap_info(csr);
     cap_register_t csr_cap;
 
     assert(csr_cap_info);
 
-    ret = check_csr_cap_permissions(env, csr, true, csr_cap_info);
-
-    if (ret != RISCV_EXCP_NONE) {
-        riscv_raise_exception(env, ret, GETPC());
-    }
-    if (!cheri_have_access_sysregs(env) && csr_needs_asr(csr, 1)) {
-        raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
-                                   CHERI_EXC_REGNUM_PCC, 0, true, GETPC());
-    }
+    check_csr_cap_permissions(env, csr, true, csr_cap_info, GETPC());
 
     csr_cap = csr_cap_info->read(env, csr_cap_info);
 
