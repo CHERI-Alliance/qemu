@@ -1638,7 +1638,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         riscv_log_instr_csr_changed(env, CSR_HTVAL);
 
 #ifdef TARGET_CHERI
-        if (cause == RISCV_EXCP_CHERI) {
+        if (cause == RISCV_EXCP_CHERI || write_tval) {
             env->stval2 = mtval2;
             riscv_log_instr_csr_changed(env, CSR_STVAL2);
         }
