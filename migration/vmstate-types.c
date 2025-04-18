@@ -334,140 +334,60 @@ const VMStateInfo vmstate_info_uint64 = {
 
 #include "../target/cheri-common/cheri-compressed-cap/cheri_compressed_cap.h"
 
-static int get_cap64_register(QEMUFile *f, void *pv, size_t size,
-                              const VMStateField *field)
-{
-    assert(field->size >= sizeof(cc64_cap_t));
-    cc64_cap_t *v = pv;
-    uint32_t cursor;
-    uint32_t pesbt;
-    uint8_t extra;
-    uint8_t tag;
+/* Macro to define get/put functions and VMStateInfo for capability registers */
+#define DEFINE_CAP_VMSTATE(suffix, int_bits)                                   \
+    static int get_cap##suffix##_register(QEMUFile *f, void *pv, size_t size,  \
+                                          const VMStateField *field)           \
+    {                                                                          \
+        typedef cc##suffix##_cap_t cap_type;                                   \
+        assert(field->size >= sizeof(cap_type));                               \
+        cap_type *v = pv;                                                      \
+        uint##int_bits##_t cursor;                                             \
+        uint##int_bits##_t pesbt;                                              \
+        uint8_t extra;                                                         \
+        uint8_t tag;                                                           \
+                                                                               \
+        qemu_get_be##int_bits##s(f, &cursor);                                  \
+        qemu_get_be##int_bits##s(f, &pesbt);                                   \
+        qemu_get_8s(f, &extra);                                                \
+        qemu_get_8s(f, &tag);                                                  \
+                                                                               \
+        cc##suffix##_decompress_mem(pesbt, cursor, tag, v);                    \
+        v->cr_extra = extra;                                                   \
+                                                                               \
+        return 0;                                                              \
+    }                                                                          \
+                                                                               \
+    static int put_cap##suffix##_register(QEMUFile *f, void *pv, size_t size,  \
+                                          const VMStateField *field,           \
+                                          JSONWriter *vmdesc)                  \
+    {                                                                          \
+        typedef cc##suffix##_cap_t cap_type;                                   \
+        assert(field->size >= sizeof(cap_type));                               \
+        cap_type *v = pv;                                                      \
+        uint##int_bits##_t cursor = v->_cr_cursor;                             \
+        uint##int_bits##_t pesbt = cc##suffix##_compress_mem(v);               \
+        uint8_t extra = v->cr_extra;                                           \
+        uint8_t tag = v->cr_tag;                                               \
+                                                                               \
+        qemu_put_be##int_bits##s(f, &cursor);                                  \
+        qemu_put_be##int_bits##s(f, &pesbt);                                   \
+        qemu_put_8s(f, &extra);                                                \
+        qemu_put_8s(f, &tag);                                                  \
+                                                                               \
+        return 0;                                                              \
+    }                                                                          \
+                                                                               \
+    const VMStateInfo vmstate_info_cap##suffix##_register = {                  \
+        .name = "cap" #suffix "_register",                                     \
+        .get = get_cap##suffix##_register,                                     \
+        .put = put_cap##suffix##_register,                                     \
+    };
 
-    qemu_get_be32s(f, &cursor);
-    qemu_get_be32s(f, &pesbt);
-    qemu_get_8s(f, &extra);
-    qemu_get_8s(f, &tag);
-
-    cc64_decompress_mem(pesbt, cursor, tag, v);
-    v->cr_extra = extra;
-
-    return 0;
-}
-
-static int put_cap64_register(QEMUFile *f, void *pv, size_t size,
-                            const VMStateField *field, JSONWriter *vmdesc)
-{
-    assert(field->size >= sizeof(cc64_cap_t));
-    cc64_cap_t *v = pv;
-    uint32_t cursor = v->_cr_cursor;
-    uint32_t pesbt = cc64_compress_mem(v);
-    uint8_t extra = v->cr_extra;
-    uint8_t tag = v->cr_tag;
-
-    qemu_put_be32s(f, &cursor);
-    qemu_put_be32s(f, &pesbt);
-    qemu_put_8s(f, &extra);
-    qemu_put_8s(f, &tag);
-
-    return 0;
-}
-
-const VMStateInfo vmstate_info_cap64_register = {
-    .name = "cap64_register",
-    .get = get_cap64_register,
-    .put = put_cap64_register,
-};
-
-static int get_cap128_register(QEMUFile *f, void *pv, size_t size,
-                              const VMStateField *field)
-{
-    assert(field->size >= sizeof(cc128_cap_t));
-    cc128_cap_t *v = pv;
-    uint64_t cursor;
-    uint64_t pesbt;
-    uint8_t extra;
-    uint8_t tag;
-
-    qemu_get_be64s(f, &cursor);
-    qemu_get_be64s(f, &pesbt);
-    qemu_get_8s(f, &extra);
-    qemu_get_8s(f, &tag);
-
-    cc128_decompress_mem(pesbt, cursor, tag, v);
-    v->cr_extra = extra;
-
-    return 0;
-}
-
-static int put_cap128_register(QEMUFile *f, void *pv, size_t size,
-                            const VMStateField *field, JSONWriter *vmdesc)
-{
-    assert(field->size >= sizeof(cc128_cap_t));
-    cc128_cap_t *v = pv;
-    uint64_t cursor = v->_cr_cursor;
-    uint64_t pesbt = cc128_compress_mem(v);
-    uint8_t extra = v->cr_extra;
-    uint8_t tag = v->cr_tag;
-
-    qemu_put_be64s(f, &cursor);
-    qemu_put_be64s(f, &pesbt);
-    qemu_put_8s(f, &extra);
-    qemu_put_8s(f, &tag);
-
-    return 0;
-}
-
-const VMStateInfo vmstate_info_cap128_register = {
-    .name = "cap128_register",
-    .get = get_cap128_register,
-    .put = put_cap128_register,
-};
-
-static int get_cap128m_register(QEMUFile *f, void *pv, size_t size,
-                              const VMStateField *field)
-{
-    assert(field->size >= sizeof(cc128m_cap_t));
-    cc128m_cap_t *v = pv;
-    uint64_t cursor;
-    uint64_t pesbt;
-    uint8_t extra;
-    uint8_t tag;
-
-    qemu_get_be64s(f, &cursor);
-    qemu_get_be64s(f, &pesbt);
-    qemu_get_8s(f, &extra);
-    qemu_get_8s(f, &tag);
-
-    cc128m_decompress_mem(pesbt, cursor, tag, v);
-    v->cr_extra = extra;
-
-    return 0;
-}
-
-static int put_cap128m_register(QEMUFile *f, void *pv, size_t size,
-                            const VMStateField *field, JSONWriter *vmdesc)
-{
-    assert(field->size >= sizeof(cc128m_cap_t));
-    cc128m_cap_t *v = pv;
-    uint64_t cursor = v->_cr_cursor;
-    uint64_t pesbt = cc128m_compress_mem(v);
-    uint8_t extra = v->cr_extra;
-    uint8_t tag = v->cr_tag;
-
-    qemu_put_be64s(f, &cursor);
-    qemu_put_be64s(f, &pesbt);
-    qemu_put_8s(f, &extra);
-    qemu_put_8s(f, &tag);
-
-    return 0;
-}
-
-const VMStateInfo vmstate_info_cap128m_register = {
-    .name = "cap128m_register",
-    .get = get_cap128m_register,
-    .put = put_cap128m_register,
-};
+/* Instantiate the macro for each capability type */
+DEFINE_CAP_VMSTATE(64, 32)
+DEFINE_CAP_VMSTATE(128, 64)
+DEFINE_CAP_VMSTATE(128m, 64)
 
 static int get_nullptr(QEMUFile *f, void *pv, size_t size,
                        const VMStateField *field)
