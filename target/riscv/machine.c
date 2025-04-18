@@ -114,10 +114,6 @@ static const VMStateDescription vmstate_hyper = {
     }
 };
 
-#ifdef TARGET_CHERI
-#pragma message("TODO: VMSTATE_CAP_ARRAY")
-#endif
-
 static bool vector_needed(void *opaque)
 {
     RISCVCPU *cpu = opaque;
@@ -198,7 +194,9 @@ const VMStateDescription vmstate_riscv_cpu = {
     .version_id = 3,
     .minimum_version_id = 3,
     .fields = (VMStateField[]) {
-#ifndef TARGET_CHERI
+#ifdef TARGET_CHERI
+        VMSTATE_ALIGN_CAP_ARRAY(env.gpcapregs.decompressed, RISCVCPU, 32),
+#else
         VMSTATE_UINTTL_ARRAY(env.gpr, RISCVCPU, 32),
 #endif
         VMSTATE_UINT64_ARRAY(env.fpr, RISCVCPU, 32),

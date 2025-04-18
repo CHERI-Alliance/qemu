@@ -75,8 +75,7 @@
 #define VMSTATE_ALIGN_CAP_ARRAY(_f, _s, _n)                           \
     VMSTATE_ALIGN_CAP_ARRAY_V(_f, _s, _n, 0)
 
-/* TODO: Use VMSTATE_CAP? */
-#define VMSTATE_UINTTL_OR_CAP(_f, _cf, _s) VMSTATE_UINTTL(_cf._cr_cursor, _s)
+#define VMSTATE_UINTTL_OR_CAP(_f, _cf, _s) VMSTATE_CAP(_cf, _s)
 #else
 #define VMSTATE_UINTTL_OR_CAP(_f, _cf, _s) VMSTATE_UINTTL(_f, _s)
 #endif
