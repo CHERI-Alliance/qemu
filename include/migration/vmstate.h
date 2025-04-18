@@ -215,8 +215,10 @@ extern const VMStateInfo vmstate_info_uint32;
 extern const VMStateInfo vmstate_info_uint64;
 
 extern const VMStateInfo vmstate_info_cap64_register;
+extern const VMStateInfo vmstate_info_cap64r_register;
 extern const VMStateInfo vmstate_info_cap128_register;
 extern const VMStateInfo vmstate_info_cap128m_register;
+extern const VMStateInfo vmstate_info_cap128r_register;
 
 /** Put this in the stream when migrating a null pointer.*/
 #define VMS_NULLPTR_MARKER (0x30U) /* '0' */
@@ -893,10 +895,14 @@ extern const VMStateInfo vmstate_info_qlist;
 
 #define VMSTATE_CAP64_V(_f, _s, _v)                                   \
     VMSTATE_SINGLE(_f, _s, _v, vmstate_info_cap64_register, cc64_cap_t)
+#define VMSTATE_CAP64R_V(_f, _s, _v)                                   \
+    VMSTATE_SINGLE(_f, _s, _v, vmstate_info_cap64r_register, cc64r_cap_t)
 #define VMSTATE_CAP128_V(_f, _s, _v)                                  \
     VMSTATE_SINGLE(_f, _s, _v, vmstate_info_cap128_register, cc128_cap_t)
 #define VMSTATE_CAP128M_V(_f, _s, _v)                                 \
     VMSTATE_SINGLE(_f, _s, _v, vmstate_info_cap128m_register, cc128m_cap_t)
+#define VMSTATE_CAP128R_V(_f, _s, _v)                                 \
+    VMSTATE_SINGLE(_f, _s, _v, vmstate_info_cap128r_register, cc128r_cap_t)
 
 #ifdef CONFIG_LINUX
 
@@ -934,10 +940,14 @@ extern const VMStateInfo vmstate_info_qlist;
 
 #define VMSTATE_CAP64(_f, _s)                                         \
     VMSTATE_CAP64_V(_f, _s, 0)
+#define VMSTATE_CAP64R(_f, _s)                                         \
+    VMSTATE_CAP64R_V(_f, _s, 0)
 #define VMSTATE_CAP128(_f, _s)                                        \
     VMSTATE_CAP128_V(_f, _s, 0)
 #define VMSTATE_CAP128M(_f, _s)                                       \
     VMSTATE_CAP128M_V(_f, _s, 0)
+#define VMSTATE_CAP128R(_f, _s)                                       \
+    VMSTATE_CAP128R_V(_f, _s, 0)
 
 #ifdef CONFIG_LINUX
 
@@ -1103,6 +1113,12 @@ extern const VMStateInfo vmstate_info_qlist;
 #define VMSTATE_CAP64_ARRAY(_f, _s, _n)                               \
     VMSTATE_CAP64_ARRAY_V(_f, _s, _n, 0)
 
+#define VMSTATE_CAP64R_ARRAY_V(_f, _s, _n, _v)                         \
+    VMSTATE_ARRAY(_f, _s, _n, _v, vmstate_info_cap64r_register, cc64r_cap_t)
+
+#define VMSTATE_CAP64R_ARRAY(_f, _s, _n)                               \
+    VMSTATE_CAP64R_ARRAY_V(_f, _s, _n, 0)
+
 #define VMSTATE_CAP128_ARRAY_V(_f, _s, _n, _v)                        \
     VMSTATE_ARRAY(_f, _s, _n, _v, vmstate_info_cap128_register, cc128_cap_t)
 
@@ -1115,12 +1131,26 @@ extern const VMStateInfo vmstate_info_qlist;
 #define VMSTATE_CAP128M_ARRAY(_f, _s, _n)                             \
     VMSTATE_CAP128M_ARRAY_V(_f, _s, _n, 0)
 
+#define VMSTATE_CAP128R_ARRAY_V(_f, _s, _n, _v)                       \
+    VMSTATE_ARRAY(_f, _s, _n, _v, vmstate_info_cap128r_register, cc128r_cap_t)
+
+#define VMSTATE_CAP128R_ARRAY(_f, _s, _n)                             \
+    VMSTATE_CAP128R_ARRAY_V(_f, _s, _n, 0)
+
+
 #define VMSTATE_ALIGN_CAP64_ARRAY_V(_f, _s, _n, _v)                   \
     VMSTATE_ARRAY(_f, _s, _n, _v, vmstate_info_cap64_register,        \
                   cc64_aligned_cap_t)
 
 #define VMSTATE_ALIGN_CAP64_ARRAY(_f, _s, _n)                         \
     VMSTATE_ALIGN_CAP64_ARRAY_V(_f, _s, _n, 0)
+
+#define VMSTATE_ALIGN_CAP64R_ARRAY_V(_f, _s, _n, _v)                   \
+    VMSTATE_ARRAY(_f, _s, _n, _v, vmstate_info_cap64r_register,        \
+                  cc64r_aligned_cap_t)
+
+#define VMSTATE_ALIGN_CAP64R_ARRAY(_f, _s, _n)                         \
+    VMSTATE_ALIGN_CAP64R_ARRAY_V(_f, _s, _n, 0)
 
 #define VMSTATE_ALIGN_CAP128_ARRAY_V(_f, _s, _n, _v)                  \
     VMSTATE_ARRAY(_f, _s, _n, _v, vmstate_info_cap128_register,       \
@@ -1135,6 +1165,13 @@ extern const VMStateInfo vmstate_info_qlist;
 
 #define VMSTATE_ALIGN_CAP128M_ARRAY(_f, _s, _n)                       \
     VMSTATE_ALIGN_CAP128M_ARRAY_V(_f, _s, _n, 0)
+
+#define VMSTATE_ALIGN_CAP128R_ARRAY_V(_f, _s, _n, _v)                 \
+    VMSTATE_ARRAY(_f, _s, _n, _v, vmstate_info_cap128r_register,      \
+                  cc128r_aligned_cap_t)
+
+#define VMSTATE_ALIGN_CAP128R_ARRAY(_f, _s, _n)                       \
+    VMSTATE_ALIGN_CAP128R_ARRAY_V(_f, _s, _n, 0)
 
 #define VMSTATE_UINT64_SUB_ARRAY(_f, _s, _start, _num)                \
     VMSTATE_SUB_ARRAY(_f, _s, _start, _num, 0, vmstate_info_uint64, uint64_t)
