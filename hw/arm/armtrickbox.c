@@ -38,6 +38,7 @@
 #include "hw/arm/armtrickbox.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
+#include "qemu/error-report.h"
 #include "hw/qdev-properties.h"
 #include "qemu/qemu-print.h"
 
@@ -57,7 +58,7 @@ static const char *const levels[] = { "ERROR:", "WARN:", "INFO:" };
 
 #define TRICKBOX_LOG(lvl, fmt, ...)                                            \
     if (TRICKBOX_LOG_LEVEL >= (lvl))                                           \
-        printf("TRICKBOX: %s" fmt, levels[lvl], ##__VA_ARGS__)
+        fprintf(stderr, "TRICKBOX: %s" fmt, levels[lvl], ##__VA_ARGS__)
 
 /*
  * List of registers to handle just by getting/setting a field in
