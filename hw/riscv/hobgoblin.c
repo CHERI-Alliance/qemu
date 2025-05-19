@@ -585,12 +585,12 @@ static void hobgoblin_add_nvemu(HobgoblinState *s)
     sysbus_mmio_map(ss, 0, memmap[HOBGOBLIN_NVEMU].base);
 }
 
-/* Codasip Timer at 100 MHz */
 static void hobgoblin_add_timer(HobgoblinState *s)
 {
     SysBusDevice *ss;
 
-    s->timer = qdev_new("codasip,timer");
+    s->timer = qdev_new("xlnx.xps-timer");
+    qdev_prop_set_uint32(s->timer, "one-timer-only", 1);
     qdev_prop_set_uint32(s->timer, "clock-frequency", 100 * 1000000);
     ss = SYS_BUS_DEVICE(s->timer);
     sysbus_realize_and_unref(ss, &error_fatal);
