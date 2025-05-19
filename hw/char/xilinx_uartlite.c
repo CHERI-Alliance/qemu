@@ -83,7 +83,8 @@ static void uart_update_status(XilinxUARTLite *s)
     uint32_t r;
 
     r = s->regs[R_STATUS];
-    r &= ~7;
+    r &= STATUS_ERRORS;
+    r |= s->regs[R_CTRL] & STATUS_IE;
     r |= 1 << 2; /* Tx fifo is always empty. We are fast :) */
     r |= (s->rx_fifo_len == sizeof (s->rx_fifo)) << 1;
     r |= (!!s->rx_fifo_len);
@@ -107,8 +108,15 @@ uart_read(void *opaque, hwaddr addr, unsigned int size)
             r = s->rx_fifo[(s->rx_fifo_pos - s->rx_fifo_len) & 7];
             if (s->rx_fifo_len)
                 s->rx_fifo_len--;
+            else
+                qemu_log_mask(LOG_GUEST_ERROR, "%s: read from empty FIFO\n",
+                              __func__);
             uart_update_status(s);
             qemu_chr_fe_accept_input(&s->chr);
+            break;
+
+        case R_CTRL:
+        case R_TX:
             break;
 
         case R_STATUS:
@@ -117,8 +125,6 @@ uart_read(void *opaque, hwaddr addr, unsigned int size)
             break;
 
         default:
-            if (addr < ARRAY_SIZE(s->regs))
-                r = s->regs[addr];
             DUART(qemu_log("%s addr=%x v=%x\n", __func__, addr, r));
             break;
     }
@@ -158,10 +164,11 @@ uart_write(void *opaque, hwaddr addr,
             uart_raise_irq(s);
             break;
 
+        case R_RX:
+            break;
+
         default:
             DUART(printf("%s addr=%x v=%x\n", __func__, addr, value));
-            if (addr < ARRAY_SIZE(s->regs))
-                s->regs[addr] = value;
             break;
     }
     uart_update_status(s);
