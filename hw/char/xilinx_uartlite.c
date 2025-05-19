@@ -48,6 +48,7 @@
 #define STATUS_OVERRUN    0x20
 #define STATUS_FRAME      0x40
 #define STATUS_PARITY     0x80
+#define STATUS_ERRORS     (STATUS_OVERRUN | STATUS_FRAME | STATUS_PARITY)
 
 #define CONTROL_RST_TX    0x01
 #define CONTROL_RST_RX    0x02
@@ -108,6 +109,11 @@ uart_read(void *opaque, hwaddr addr, unsigned int size)
                 s->rx_fifo_len--;
             uart_update_status(s);
             qemu_chr_fe_accept_input(&s->chr);
+            break;
+
+        case R_STATUS:
+            r = s->regs[addr];
+            s->regs[R_STATUS] &= ~STATUS_ERRORS;
             break;
 
         default:
@@ -183,6 +189,7 @@ static void uart_rx(void *opaque, const uint8_t *buf, int size)
     /* Got a byte.  */
     if (s->rx_fifo_len >= 8) {
         printf("WARNING: UART dropped char.\n");
+        s->regs[R_STATUS] |= STATUS_OVERRUN;
         return;
     }
     s->rx_fifo[s->rx_fifo_pos] = *buf;
