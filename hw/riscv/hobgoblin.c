@@ -43,6 +43,7 @@
 #include "hw/riscv/hobgoblin.h"
 #include "hw/riscv/boot.h"
 #include "hw/char/serial.h"
+#include "hw/char/xilinx_uartlite.h"
 #include "hw/misc/codasip_trng.h"
 #include "chardev/char.h"
 #include "sysemu/device_tree.h"
@@ -86,6 +87,7 @@ static const memmapEntry_t memmap[] = {
      * NS16550A UART emulation.
      */
     [HOBGOBLIN_UART0] =    { 0x60101000,     0x1000 },
+    [HOBGOBLIN_UART1] =    { 0x60110000,     0x1000 },
     [HOBGOBLIN_SPI] =      { 0x60210000,     0x1000 },
     [HOBGOBLIN_GPIO0] =    { 0x60300000,    0x10000 },
     [HOBGOBLIN_GPIO1] =    { 0x60310000,    0x10000 },
@@ -393,6 +395,16 @@ static void hobgoblin_add_uart(HobgoblinState *s,
                    chardev, DEVICE_LITTLE_ENDIAN);
 }
 
+static void hobgoblin_add_uartlite(HobgoblinState *s,
+                                   MemoryRegion *system_memory)
+{
+    const memmapEntry_t *mem_uart = &memmap[HOBGOBLIN_UART1];
+    Chardev *chardev = serial_hd(1);
+    qemu_irq irq = hobgoblin_make_plic_irq(s, HOBGOBLIN_UART1_IRQ);
+
+    xilinx_uartlite_create(mem_uart->base, irq, chardev);
+}
+
 static void hobgoblin_gpio_1_3_event(void *opaque, int n, int level)
 {
     /* gpio pin active high triggers reset */
@@ -650,6 +662,8 @@ static void hobgoblin_machine_init(MachineState *machine)
     }
 #endif
     hobgoblin_add_uart(s, system_memory);
+    if (hc->board_type == BOARD_TYPE_VCU118)
+        hobgoblin_add_uartlite(s, system_memory);
     hobgoblin_add_gpio(s);
     hobgoblin_add_spi(s);
     hobgoblin_add_sd(s);
