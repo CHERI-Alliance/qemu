@@ -70,15 +70,11 @@ struct XilinxUARTLite {
     uint32_t regs[R_MAX];
 };
 
-static void uart_update_irq(XilinxUARTLite *s)
+static void uart_raise_irq(XilinxUARTLite *s)
 {
-    unsigned int irq;
-
-    if (s->rx_fifo_len)
-        s->regs[R_STATUS] |= STATUS_IE;
-
-    irq = (s->regs[R_STATUS] & STATUS_IE) && (s->regs[R_CTRL] & CONTROL_IE);
-    qemu_set_irq(s->irq, irq);
+    if (s->regs[R_CTRL] & CONTROL_IE) {
+        qemu_irq_pulse(s->irq);
+    }
 }
 
 static void uart_update_status(XilinxUARTLite *s)
@@ -111,7 +107,6 @@ uart_read(void *opaque, hwaddr addr, unsigned int size)
             if (s->rx_fifo_len)
                 s->rx_fifo_len--;
             uart_update_status(s);
-            uart_update_irq(s);
             qemu_chr_fe_accept_input(&s->chr);
             break;
 
@@ -154,8 +149,7 @@ uart_write(void *opaque, hwaddr addr,
             qemu_chr_fe_write_all(&s->chr, &ch, 1);
             s->regs[addr] = value;
 
-            /* hax.  */
-            s->regs[R_STATUS] |= STATUS_IE;
+            uart_raise_irq(s);
             break;
 
         default:
@@ -165,7 +159,6 @@ uart_write(void *opaque, hwaddr addr,
             break;
     }
     uart_update_status(s);
-    uart_update_irq(s);
 }
 
 static const MemoryRegionOps uart_ops = {
@@ -198,7 +191,8 @@ static void uart_rx(void *opaque, const uint8_t *buf, int size)
     s->rx_fifo_len++;
 
     uart_update_status(s);
-    uart_update_irq(s);
+    if (s->rx_fifo_len == 1)
+        uart_raise_irq(s);
 }
 
 static int uart_can_rx(void *opaque)
