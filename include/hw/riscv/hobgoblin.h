@@ -95,6 +95,7 @@ enum {
     HOBGOBLIN_FMC_AXI_ETH,
     HOBGOBLIN_FMC_AXI_DMA,
     HOBGOBLIN_UART0,
+    HOBGOBLIN_UART1,
     HOBGOBLIN_SPI,
     HOBGOBLIN_GPIO0,
     HOBGOBLIN_GPIO1,
@@ -112,6 +113,7 @@ enum {
 enum {
     /* Interrupt 0 is reserved */
     HOBGOBLIN_UART0_IRQ    = 1,
+    HOBGOBLIN_UART1_IRQ    = 2,
     HOBGOBLIN_SPI_IRQ      = 4,
     HOBGOBLIN_GPIO0_IRQ    = 7,
     HOBGOBLIN_GPIO1_IRQ    = 8,
