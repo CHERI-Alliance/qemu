@@ -1164,9 +1164,7 @@ static RISCVException write_satp(CPURISCVState *env, int csrno,
         if (env->priv == PRV_S && get_field(env->mstatus, MSTATUS_TVM)) {
             return RISCV_EXCP_ILLEGAL_INST;
         } else {
-            if (asid) {
-                tlb_flush(env_cpu(env));
-            }
+            tlb_flush(env_cpu(env));
             env->satp = val;
         }
     }
