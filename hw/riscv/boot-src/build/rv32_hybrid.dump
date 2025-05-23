@@ -1,0 +1,32 @@
+
+build/rv32_hybrid.elf:	file format elf32-littleriscv
+
+Sections:
+Idx Name              Size     VMA      Type
+  0                   00000000 00000000 
+  1 .init             00000030 80000000 TEXT
+  2 .text             00000000 80000030 TEXT
+  3 .riscv.attributes 00000029 00000000 
+  4 .comment          00000013 00000000 
+  5 .symtab           00000060 00000000 
+  6 .shstrtab         00000042 00000000 
+  7 .strtab           0000002e 00000000 
+
+Disassembly of section .init:
+
+80000000 <_start>:
+80000000: 97 02 00 00  	auipc	t0, 0
+80000004: 13 86 82 02  	addi	a2, t0, 40
+80000008: 73 25 40 f1  	csrr	a0, mhartid
+8000000c: 83 a5 02 02  	lw	a1, 32(t0)
+80000010: 83 a3 82 01  	lw	t2, 24(t0)
+80000014: 67 80 02 00  	jr	t0
+
+80000018 <start_addr>:
+		...
+
+80000020 <fdt_laddr>:
+		...
+
+80000028 <fw_dyn>:
+		...
