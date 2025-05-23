@@ -1,0 +1,34 @@
+
+build/rv64_purecap.elf:	file format elf64-littleriscv
+
+Sections:
+Idx Name              Size     VMA              Type
+  0                   00000000 0000000000000000 
+  1 .init             00000038 0000000080000000 TEXT
+  2 .text             00000000 0000000080000038 TEXT
+  3 .riscv.attributes 00000058 0000000000000000 
+  4 .comment          00000013 0000000000000000 
+  5 .symtab           000000a8 0000000000000000 
+  6 .shstrtab         00000042 0000000000000000 
+  7 .strtab           0000003c 0000000000000000 
+
+Disassembly of section .init:
+
+0000000080000000 <_start>:
+80000000: 97 02 00 00  	auipc	ct0, 0
+80000004: 1b a6 02 03  	caddi	ca2, ct0, 48
+80000008: 73 25 40 f1  	csrr	a0, mhartid
+8000000c: 83 b5 82 02  	ld	a1, 40(ct0)
+80000010: b3 95 b2 0c  	scaddr	ca1, ct0, a1
+80000014: 83 b3 02 02  	ld	t2, 32(ct0)
+80000018: b3 92 72 0c  	scaddr	ct0, ct0, t2
+8000001c: 67 80 02 00  	jr	ct0
+
+0000000080000020 <start_addr>:
+		...
+
+0000000080000028 <fdt_laddr>:
+		...
+
+0000000080000030 <fw_dyn>:
+		...
