@@ -305,8 +305,8 @@ void riscv_setup_rom_reset_vec(MachineState *machine, RISCVHartArrayState *harts
         };
 
         if (riscv_is_32bit(harts)) {
-            reset_vec[3] = 0x0202a583;   /*     lw     a1, 40(t0) */
-            reset_vec[5] = 0x0182a283;   /*     lw     t0, 32(t0) */
+            reset_vec[3] = 0x0282a583;   /*     lw     a1, 40(t0) */
+            reset_vec[5] = 0x0202a383;   /*     lw     t0, 32(t0) */
         }
 
         /* copy in the reset vector in little_endian byte order */
