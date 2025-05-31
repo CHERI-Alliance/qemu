@@ -85,6 +85,8 @@ static inline ARMFaultType cheri_cause_to_arm_fault(CheriCapExcCause cause)
     }
 }
 
+extern bool cheri_debugger_on_trap;
+
 static inline void QEMU_NORETURN raise_cheri_exception_impl_if_wnr(
     CPUArchState *env, CheriCapExcCause cause, unsigned regnum,
     target_ulong addr, bool instavail, uintptr_t hostpc, bool instruction_fetch,
@@ -111,6 +113,14 @@ static inline void QEMU_NORETURN raise_cheri_exception_impl_if_wnr(
               : syn_data_abort_no_iss(current_el == target_el, 0, 0, cm, 0,
                                       (is_write || cm) ? 1 : 0, fsc);
 
+    // Allow drop into debugger on first CHERI trap:
+    // FIXME: allow c command to work by adding another boolean flag to skip
+    // this breakpoint when GDB asks to continue
+    if (cheri_debugger_on_trap) {
+        env_cpu(env)->exception_index = EXCP_DEBUG;
+        cpu_loop_exit(env_cpu(env));
+        assert(0 && "unreachable");
+    }
     if (hostpc) {
         // AARCH's cpu_restore_state will reset syndrome, so don't use
         // raise_exception_ra here.
