@@ -183,6 +183,14 @@ static inline void update_target_for_jump(CPUARMState *env,
     if (!(cjalr_flags & CJALR_CAN_BRANCH_RESTRICTED) &&
         cap_has_perms(_cheri_get_pcc_unchecked(env), CAP_PERM_EXECUTIVE) &&
         !cap_has_perms(target, CAP_PERM_EXECUTIVE)) {
+        qemu_log_mask_and_addr(CPU_LOG_INSTR | LOG_GUEST_ERROR,
+                               cpu_get_recent_pc(env),
+                               "Invalidating jump target due to missing "
+                               "executive permission.\n  Current PCC: "
+                               PRINT_CAP_FMTSTR "\n  Target cap: "
+                               PRINT_CAP_FMTSTR "\n",
+                               PRINT_CAP_ARGS(cheri_get_recent_pcc(env)),
+                               PRINT_CAP_ARGS(target));
         target->cr_tag = 0;
     }
 }
@@ -192,6 +200,13 @@ static inline void update_next_pcc_for_tcg(CPUARMState *env,
                                            uint32_t cjalr_flags)
 {
     if (!cap_is_unsealed(target)) {
+        qemu_log_mask_and_addr(CPU_LOG_INSTR | LOG_GUEST_ERROR,
+                               cpu_get_recent_pc(env),
+                               "Invalidating jump target since it is sealed."
+                               "\n  Current PCC: " PRINT_CAP_FMTSTR
+                               "\n  Target cap: " PRINT_CAP_FMTSTR  "\n",
+                               PRINT_CAP_ARGS(cheri_get_recent_pcc(env)),
+                               PRINT_CAP_ARGS(target));
         target->cr_tag = 0;
     }
 

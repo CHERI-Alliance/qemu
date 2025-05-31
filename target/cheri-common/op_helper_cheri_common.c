@@ -365,6 +365,13 @@ void cheri_jump_and_link(CPUArchState *env, const cap_register_t *target,
         assert(cap_get_cursor(&next_pcc) == addr &&
                "Should have raised an exception");
     } else if (cjalr_flags & CJALR_MUST_BE_SENTRY) {
+        qemu_log_mask_and_addr(CPU_LOG_INSTR | LOG_GUEST_ERROR,
+                       cpu_get_recent_pc(env),
+                       "Requested jump to sentry but got invalid cap."
+                       "\n  Current PCC: " PRINT_CAP_FMTSTR
+                       "\n  Target cap: " PRINT_CAP_FMTSTR  "\n",
+                       PRINT_CAP_ARGS(cheri_get_recent_pcc(env)),
+                       PRINT_CAP_ARGS(target));
         next_pcc.cr_tag = 0;
     } else {
         /*
@@ -401,6 +408,15 @@ void cheri_jump_and_link(CPUArchState *env, const cap_register_t *target,
             cap_make_sealed_entry(&result);
         }
         update_capreg(env, link_reg, &result);
+    }
+    if (!next_pcc.cr_tag) {
+        qemu_log_mask_and_addr(CPU_LOG_INSTR | LOG_GUEST_ERROR,
+                       cpu_get_recent_pc(env),
+                       "Jumping to untagged capability."
+                       "\n  Current PCC: " PRINT_CAP_FMTSTR
+                       "\n  Target cap: " PRINT_CAP_FMTSTR  "\n",
+                       PRINT_CAP_ARGS(cheri_get_recent_pcc(env)),
+                       PRINT_CAP_ARGS(target));
     }
     update_next_pcc_for_tcg(env, &next_pcc, cjalr_flags);
 }
