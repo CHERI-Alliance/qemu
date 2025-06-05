@@ -110,8 +110,8 @@ static const memmapEntry_t profpga_dram_memmap[] = {
 };
 
 static const memmapEntry_t vcu118_dram_memmap[] = {
-    { 0x080000000, 0x800000000, "riscv.hobgoblin.ram0", MEM_RAM_CHERI},
-    { 0x100000000, 0x800000000, "riscv.hobgoblin.ram1", MEM_RAM_CHERI},
+    { 0x0080000000, 0x0080000000, "riscv.hobgoblin.ram0", MEM_RAM_CHERI},
+    { 0x0100000000, 0x0080000000, "riscv.hobgoblin.ram1", MEM_RAM_CHERI},
 };
 
 /* sifive_plic_create() parameters */
