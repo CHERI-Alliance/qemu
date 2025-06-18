@@ -2289,6 +2289,7 @@ void CHERI_HELPER_IMPL(cbld(CPUArchState *env, uint32_t cd, uint32_t cs1,
         /* We checked above that
            cs2p->cr_arch_perm & cs1p->cr_arch_perm) == cs2p->cr_arch_perm */
         derived.cr_arch_perm = cs2p->cr_arch_perm;
+        derived.cr_m = cs2p->cr_m;
         CAP_cc(m_ap_compress)(&derived);
 
         /* We checked above that
