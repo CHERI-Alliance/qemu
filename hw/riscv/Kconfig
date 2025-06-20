@@ -101,3 +101,4 @@ config HOBGOBLIN
     select SSI_SD
     select CMU
     select HOBGOBLIN_NVEMU
+    select PCI_EXPRESS_XILINX
