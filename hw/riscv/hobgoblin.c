@@ -45,6 +45,7 @@
 #include "hw/char/serial.h"
 #include "hw/char/xilinx_uartlite.h"
 #include "hw/misc/codasip_trng.h"
+#include "hw/pci-host/xilinx-pcie.h"
 #include "chardev/char.h"
 #include "sysemu/device_tree.h"
 #include "sysemu/sysemu.h"
@@ -221,9 +222,11 @@ uint8_t irqmap[2][HOBGOBLIN_IRQ_END] = {
 #define HIRQ(_hs_, _idx_) (irqmap[V1][_idx_])
 #define MAPVERSION(_hs_) (V1)
 
+#define V1_VIRTIO_TRANSPORTS 4
+#define V2_VIRTIO_TRANSPORTS 8
 
 /* sifive_plic_create() parameters */
-#define HOBGOBLIN_PLIC_NUM_SOURCES      32
+#define HOBGOBLIN_PLIC_NUM_SOURCES      64
 #define HOBGOBLIN_PLIC_NUM_PRIORITIES   7
 #define HOBGOBLIN_PLIC_PRIORITY_BASE    0x0000
 #define HOBGOBLIN_PLIC_PENDING_BASE     0x1000
@@ -361,10 +364,11 @@ static void hobgoblin_add_interrupt_controller(HobgoblinState *s,
     const memmapEntry_t *mem_plic = &memmap[HOBGOBLIN_PLIC];
     const memmapEntry_t *mem_clint = &memmap[HOBGOBLIN_CLINT];
     const int hartid_base = 0; /* Hart IDs start at 0 */
+    HobgoblinClass *hc = HOBGOBLIN_MACHINE_GET_CLASS(s);
     char *plic_hart_config;
 
     /* PLIC */
-    assert(HOBGOBLIN_PLIC_NUM_SOURCES >= HIRQ(s, HOBGOBLIN_MAX_IRQ));
+    assert(HOBGOBLIN_PLIC_NUM_SOURCES > HIRQ(s, HOBGOBLIN_MAX_IRQ));
     plic_hart_config = riscv_plic_hart_config_string(num_harts);
     DeviceState *plic = sifive_plic_create(
         mem_plic->base,
@@ -764,13 +768,62 @@ static void hobgoblin_add_virtio(HobgoblinState *s)
 {
     const memmapEntry_t *memmap = address_maps[MAPVERSION(s)];
     const memmapEntry_t *mem_virtio = &memmap[HOBGOBLIN_VIRTIO];
+    HobgoblinClass *hc = HOBGOBLIN_MACHINE_GET_CLASS(s);
+    
+    int virtio_transports = (MAPVERSION(s) == V2 && hc->board_type == BOARD_TYPE_VCU118) ?
+                            V2_VIRTIO_TRANSPORTS : V1_VIRTIO_TRANSPORTS;
 
-    for (int i = 0; i < NUM_VIRTIO_TRANSPORTS; i++) {
+    for (int i = 0; i < virtio_transports; i++) {
         hwaddr offset = 0x200 * i;
         assert(offset < mem_virtio->size);
         hwaddr base = mem_virtio->base + offset;
         qemu_irq irq = hobgoblin_make_plic_irq(s, HIRQ(s, HOBGOBLIN_VIRTIO0_IRQ) + i);
         sysbus_create_simple("virtio-mmio", base, irq);
+    }
+}
+
+static void hobgoblin_add_xilinx_pcie(HobgoblinState *s, MemoryRegion *sys_mem,
+    uint32_t bus_nr, int cfg_memmap, int mmio_memmap[], int mmio_num,
+    int irq, int irq_msi[2], bool link_up)
+{
+    DeviceState *dev;
+    MemoryRegion *region;
+    const memmapEntry_t *memmap = address_maps[MAPVERSION(s)];
+
+    dev = qdev_new(TYPE_XILINX_PCIE_HOST);
+
+    qdev_prop_set_uint32(dev, "bus_nr", bus_nr);
+    qdev_prop_set_uint64(dev, "cfg_base", memmap[cfg_memmap].base);
+    qdev_prop_set_uint64(dev, "cfg_size", memmap[cfg_memmap].size);
+    qdev_prop_set_uint64(dev, "mmio_base", memmap[mmio_memmap[0]].base);
+    qdev_prop_set_uint64(dev, "mmio_size", memmap[mmio_memmap[0]].size);
+#if 1
+    if (mmio_num > 1) {
+        qdev_prop_set_uint64(dev, "mmio1_base", memmap[mmio_memmap[1]].base);
+        qdev_prop_set_uint64(dev, "mmio1_size", memmap[mmio_memmap[1]].size);
+    }
+#endif
+    qdev_prop_set_bit(dev, "intr_fifo_mode", false);
+    qdev_prop_set_bit(dev, "link_up", link_up);
+
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+
+    region = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
+    memory_region_add_subregion_overlap(sys_mem,
+        memmap[cfg_memmap].base, region, 0);
+
+#if 0
+    region = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 1);
+    memory_region_add_subregion_overlap(sys_mem,
+        0, region, 0);
+#endif
+
+    qdev_connect_gpio_out_named(dev, "interrupt_out", 0,
+        hobgoblin_make_plic_irq(s, irq));
+
+    for (int i=0; i<2; i++) {
+        qdev_connect_gpio_out_named(dev, "interrupt_out_msi", i,
+            hobgoblin_make_plic_irq(s, irq_msi[i]));
     }
 }
 
@@ -839,6 +892,22 @@ static void hobgoblin_machine_init(MachineState *machine)
     hobgoblin_add_nvemu(s);
     hobgoblin_add_timer(s);
     hobgoblin_add_virtio(s);
+
+    if (hc->board_type == BOARD_TYPE_VCU118 && MAPVERSION(s) == V2) {
+        hobgoblin_add_xilinx_pcie(s, system_memory, 0,
+            HOBGOBLIN_PCIE0,
+            (int[]){HOBGOBLIN_PCIE0_MMIO0, HOBGOBLIN_PCIE0_MMIO1}, 2,
+            HIRQ(s, HOBGOBLIN2_PCIE0_IRQ),
+            (int[]){HIRQ(s, HOBGOBLIN2_PCIE0_MSI0_IRQ), HIRQ(s, HOBGOBLIN2_PCIE0_MSI1_IRQ)},
+            true);
+        hobgoblin_add_xilinx_pcie(s, system_memory, 1,
+            HOBGOBLIN_PCIE1,
+            (int[]){HOBGOBLIN_PCIE1_MMIO0, HOBGOBLIN_PCIE1_MMIO1}, 2,
+            HIRQ(s, HOBGOBLIN2_PCIE1_IRQ),
+            (int[]){HIRQ(s, HOBGOBLIN2_PCIE1_MSI0_IRQ), HIRQ(s, HOBGOBLIN2_PCIE1_MSI1_IRQ)},
+            true);
+    }
+
 
     /* load images into memory to boot the platform */
     int ret = hobgoblin_load_images(s, dram);
