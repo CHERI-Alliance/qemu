@@ -356,7 +356,7 @@ static void hobgoblin_add_interrupt_controller(HobgoblinState *s,
     char *plic_hart_config;
 
     /* PLIC */
-    assert(HOBGOBLIN_PLIC_NUM_SOURCES >= irqmap[V1][HOBGOBLIN_MAX_IRQ]);
+    assert(HOBGOBLIN_PLIC_NUM_SOURCES >= HIRQ(s, HOBGOBLIN_MAX_IRQ));
     plic_hart_config = riscv_plic_hart_config_string(num_harts);
     DeviceState *plic = sifive_plic_create(
         mem_plic->base,
@@ -492,7 +492,7 @@ static void hobgoblin_add_uart(HobgoblinState *s,
     Chardev *chardev = serial_hd(0);
     assert(chardev);
 
-    qemu_irq irq = hobgoblin_make_plic_irq(s, irqmap[V1][HOBGOBLIN_UART0_IRQ]);
+    qemu_irq irq = hobgoblin_make_plic_irq(s, HIRQ(s, HOBGOBLIN_UART0_IRQ));
 
     serial_mm_init(system_memory, mem_uart->base, 2, irq, 115200,
                    chardev, DEVICE_LITTLE_ENDIAN);
@@ -503,7 +503,7 @@ static void hobgoblin_add_uartlite(HobgoblinState *s,
 {
     const memmapEntry_t *mem_uart = &memmap[HOBGOBLIN_UART1];
     Chardev *chardev = serial_hd(1);
-    qemu_irq irq = hobgoblin_make_plic_irq(s, irqmap[V1][HOBGOBLIN_UART1_IRQ]);
+    qemu_irq irq = hobgoblin_make_plic_irq(s, HIRQ(s, HOBGOBLIN_UART1_IRQ));
 
     xilinx_uartlite_create(mem_uart->base, irq, chardev);
 }
@@ -525,7 +525,7 @@ static void hobgoblin_add_gpio(HobgoblinState *s)
         sysbus_realize_and_unref(bus_gpio, &error_fatal);
         sysbus_mmio_map(bus_gpio, 0, memmap[HOBGOBLIN_GPIO0 + i].base);
         /* connect PLIC interrupt */
-        hobgoblin_connect_plic_irq(s, bus_gpio, 0, irqmap[V1][HOBGOBLIN_GPIO0_IRQ] + i);
+        hobgoblin_connect_plic_irq(s, bus_gpio, 0, HIRQ(s, HOBGOBLIN_GPIO0_IRQ) + i);
         /* publish GPIO device */
         s->gpio[i] = gpio;
     }
@@ -546,7 +546,7 @@ static void hobgoblin_add_spi(HobgoblinState *s)
     sysbus_realize_and_unref(bus_spi, &error_fatal);
     sysbus_mmio_map(bus_spi, 0, mem_spi->base);
     /* connect PLIC interrupt */
-    hobgoblin_connect_plic_irq(s, bus_spi, 0, irqmap[V1][HOBGOBLIN_SPI_IRQ]);
+    hobgoblin_connect_plic_irq(s, bus_spi, 0, HIRQ(s, HOBGOBLIN_SPI_IRQ));
 
     /* publish SPI device */
     s->spi = spi;
@@ -599,7 +599,7 @@ static void hobgoblin_add_ethernetlite(HobgoblinState *s)
     sysbus_realize_and_unref(bus_eth, &error_fatal);
     sysbus_mmio_map(bus_eth, 0, mem_eth->base);
     /* connect PLIC interrupt */
-    hobgoblin_connect_plic_irq(s, bus_eth, 0, irqmap[V1][HOBGOBLIN_ETH_IRQ]);
+    hobgoblin_connect_plic_irq(s, bus_eth, 0, HIRQ(s, HOBGOBLIN_ETH_IRQ));
 
     /* publish ETH device */
     s->eth[0] = eth;
@@ -711,7 +711,7 @@ static void hobgoblin_add_timer(HobgoblinState *s)
     sysbus_realize_and_unref(ss, &error_fatal);
     sysbus_mmio_map(ss, 0, memmap[HOBGOBLIN_TIMER].base);
     sysbus_connect_irq(ss, 0,
-                       qdev_get_gpio_in(DEVICE(s->plic), irqmap[V1][HOBGOBLIN_TIMER_IRQ]));
+                       qdev_get_gpio_in(DEVICE(s->plic), HIRQ(s, HOBGOBLIN_TIMER_IRQ)));
 }
 
 static void hobgoblin_add_virtio(HobgoblinState *s)
@@ -722,7 +722,7 @@ static void hobgoblin_add_virtio(HobgoblinState *s)
         hwaddr offset = 0x200 * i;
         assert(offset < mem_virtio->size);
         hwaddr base = mem_virtio->base + offset;
-        qemu_irq irq = hobgoblin_make_plic_irq(s, irqmap[V1][HOBGOBLIN_VIRTIO0_IRQ] + i);
+        qemu_irq irq = hobgoblin_make_plic_irq(s, HIRQ(s, HOBGOBLIN_VIRTIO0_IRQ) + i);
         sysbus_create_simple("virtio-mmio", base, irq);
     }
 }
@@ -773,8 +773,8 @@ static void hobgoblin_machine_init(MachineState *machine)
     if (hc->board_type == BOARD_TYPE_VCU118)
         hobgoblin_add_axi_ethernet(s, 1, 1,
             HOBGOBLIN_FMC_AXI_ETH, HOBGOBLIN_FMC_AXI_DMA,
-            irqmap[V1][HOBGOBLIN_FMC_ETH_IRQ],
-            irqmap[V1][HOBGOBLIN_FMC_AXIDMA_IRQ0], irqmap[V1][HOBGOBLIN_FMC_AXIDMA_IRQ1]);
+            HIRQ(s, HOBGOBLIN_FMC_ETH_IRQ),
+            HIRQ(s, HOBGOBLIN_FMC_AXIDMA_IRQ0), HIRQ(s, HOBGOBLIN_FMC_AXIDMA_IRQ1));
     switch (s->eth_type) {
     case ETH_TYPE_ETHERNETLITE:
         hobgoblin_add_ethernetlite(s);
@@ -783,8 +783,8 @@ static void hobgoblin_machine_init(MachineState *machine)
         hobgoblin_add_axi_ethernet(s, 0,
             (hc->board_type == BOARD_TYPE_VCU118) ? 3 : 1,
             HOBGOBLIN_AXI_ETH, HOBGOBLIN_AXI_DMA,
-            irqmap[V1][HOBGOBLIN_ETH_IRQ],
-            irqmap[V1][HOBGOBLIN_AXIDMA_IRQ0], irqmap[V1][HOBGOBLIN_AXIDMA_IRQ1]);
+            HIRQ(s, HOBGOBLIN_ETH_IRQ),
+            HIRQ(s, HOBGOBLIN_AXIDMA_IRQ0), HIRQ(s, HOBGOBLIN_AXIDMA_IRQ1));
         break;
     }
     hobgoblin_add_trng(s);
