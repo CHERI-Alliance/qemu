@@ -70,7 +70,7 @@ static const memmapEntry_t memmap[] = {
     [HOBGOBLIN_SRAM] =     { 0x20000000, 0x00100000,
         "riscv.hobgoblin.sram", MEM_RAM_CHERI },
     [HOBGOBLIN_PLIC] =     { 0x40000000,  0x4000000 },
-    [HOBGOBLIN_ID_REG] =   { 0x60000000,      0x200,
+    [HOBGOBLIN_ID_REG] =   { 0x60000000,      0x1000,
         "id_register", MEM_ROM },
     [HOBGOBLIN_CLINT] =    { 0x60014000,     0xc000 },
     [HOBGOBLIN_ETHLITE] =  { 0x60020000,     0x2000 },
