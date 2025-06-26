@@ -62,7 +62,7 @@
 #define TYPE_XILINX_AXI_ETHERNET "xlnx.axi-ethernet"
 #define TYPE_XILINX_AXI_DMA "xlnx.axi-dma"
 
-static const memmapEntry_t memmap[] = {
+static const memmapEntry_t v1_memmap[] = {
     [HOBGOBLIN_MROM] =     {     0x1000,      0x100,
         "riscv.hobgoblin.mrom", MEM_ROM },
     [HOBGOBLIN_BOOT_ROM] = { 0x10000000, 0x00020000,
@@ -100,6 +100,56 @@ static const memmapEntry_t memmap[] = {
     /* Each virtio transport channel uses 512 byte */
     [HOBGOBLIN_VIRTIO] =   { 0x70000000,    0x10000 },
 };
+__attribute__((unused)) static const memmapEntry_t v2_memmap[] = {
+    [HOBGOBLIN_MROM] = { 0x1000, 0x100, "riscv.hobgoblin.mrom",
+                         MEM_ROM }, // Not listed in v1 map
+    [HOBGOBLIN_BOOT_ROM] = { 0x28000000, 0x00020000, "riscv.hobgoblin.boot.rom",
+                             MEM_ROM }, // Possibly the same location but
+                                        // renambed PLATFORM ID Rom
+    [HOBGOBLIN_SRAM] = { 0x20000000, 0x00100000, "riscv.hobgoblin.sram",
+                         MEM_RAM_CHERI }, // Same location
+    [HOBGOBLIN_PLIC] = { 0x18000000, 0x00400000 },
+    [HOBGOBLIN_ID_REG] = { 0x10000000, 0x1000, "id_register", MEM_ROM },
+    [HOBGOBLIN_CLINT] = { 0x10804000, 0x00010000 },   // moved...
+    [HOBGOBLIN_ETHLITE] = { 0x10020000, 0x00010000 }, // moved
+    [HOBGOBLIN_FMC_AXI_DMA] = { 0x10030000, 0x10000 },
+    [HOBGOBLIN_FMC_AXI_ETH] = { 0x10040000, 0x40000 },
+    [HOBGOBLIN_AXI_DMA] = { 0x100a0000, 0x10000 },
+    [HOBGOBLIN_AXI_ETH] = { 0x100c0000, 0x40000 },
+    /*
+     * The Hobgoblin FPGA uses a Xilinx AXI UART 16550 v2.0, which is at
+     * 0x60100000 and uses 8 KiB in the address space. However, the lower 4
+     * KiB do not contain any registers, they start at offset 4 KiB. To keep
+     * things simple, we leave out the lower 4 KiB and just declare the
+     * upper 4 KiB here. The acessible register are fully compatible with
+     * QEMU's existing NS16550A UART emulation.
+     */
+    [HOBGOBLIN_UART0] = { 0x10101000, 0x1000 },
+    [HOBGOBLIN_UART1] = { 0x10110000, 0x1000 },
+    [HOBGOBLIN_SPI] = { 0x10210000, 0x1000 },
+    [HOBGOBLIN_GPIO0] = { 0x10300000, 0x10000 }, // listed as GPIO io
+    [HOBGOBLIN_GPIO1] = { 0x10310000, 0x10000 }, // listed as GPIO auxialliary
+    [HOBGOBLIN_TRNG] = { 0x10510000, 0x1000 },
+    [HOBGOBLIN_NVEMU] = { 0x10560000, 0x1000 },
+    [HOBGOBLIN_TIMER] = { 0x10600000,
+                          0x1000 }, // this has shrunk, is it a problem?
+    [HOBGOBLIN_INTL_CMU] = { 0x10680000, 0x10000 },
+    [HOBGOBLIN_CMU_DDR0] = { 0x10690000, 0x10000 },
+    [HOBGOBLIN_CMU_DDR1] = { 0x106a0000, 0x10000 },
+    /* Each virtio transport channel uses 512 byte */
+    [HOBGOBLIN_VIRTIO] = { 0x1c000000,
+                           0x10000 }, // may need to check this as it will not
+                                      // be part of map and likely needs
+                                      // checking to not overlay
+    [HOBGOBLIN_PCIE0] =         {0x40000000,  0x10000000},// ecam 256M
+    [HOBGOBLIN_PCIE0_MMIO0] =   {0x50000000,  0x10000000}, // Window 256M
+    [HOBGOBLIN_PCIE1] =         {0x60000000,  0x10000000}, // ecam 256M
+    [HOBGOBLIN_PCIE1_MMIO0] =   {0x70000000,  0x10000000}, // Window 256M
+    [HOBGOBLIN_PCIE0_MMIO1] =   {0x1000000000,    0x100000000}, // Prefetch window 4G
+    [HOBGOBLIN_PCIE1_MMIO1] =   {0x1100000000,    0x100000000}, // prefetch window 4G
+};
+
+static const memmapEntry_t *memmap = v1_memmap;
 
 static const memmapEntry_t genesys2_dram_memmap[] = {
     { 0x80000000, 0x40000000, "riscv.hobgoblin.ram", MEM_RAM_CHERI},
