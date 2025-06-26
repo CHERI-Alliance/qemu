@@ -431,13 +431,37 @@ static void hobgoblin_add_id_register(HobgoblinState *s,
         [BOARD_TYPE_VCU118] = 0x3,
     };
     HobgoblinClass *hc = HOBGOBLIN_MACHINE_GET_CLASS(s);
+
+#if defined(TARGET_RISCV64)
+#if defined(TARGET_CHERI)
+    char core_prefix='X';
+    uint32_t core_type = 5;
+#else
+    char core_prefix='A';
+    uint32_t core_type = 1;
+#endif
+#elif defined(TARGET_RISCV32)
+#if TARGET_CHERI
+    char core_prefix='V';
+    uint32_t core_type = 7;
+#else
+    char core_prefix='L';
+    uint32_t core_type = 3;
+#endif
+#endif
+    // on hobgoblinv1 memory map we just had core_type=1
+    //
+    if (MAPVERSION(s) == V1)
+    {
+        core_type = 1;
+    }
     uint32_t id_register[] = {
         /* (0x0000) Platform ID register version */
         1 << 8 | 1,
         /* (0x0004) Platform version */
         platform_types[hc->board_type] << 16 | 1 << 8 | 0,
         /* (0x0008) Core type */
-        0x1, /* A730 */
+        core_type,
         /* (0x000C) Core frequency in MHz */
         50,
         /* (0x0010) Ethernet type */
@@ -452,11 +476,15 @@ static void hobgoblin_add_id_register(HobgoblinState *s,
         (1 << 0) | /* TRNG (True Random Number Generator) */
         (0 << 1) | /* TPU (Trace Prodection Unit) */
         (1 << 2),  /* NVE (Non Volatile flash Emulator) */
+         [0x28/4] = 0x03000200,
         /* (0x0100-0x0110) Platform SHA<0:4> */
         [0x0100/4] = 0, 0, 0, 0, 0,
         /* (0x0120-0x012c) Core artifact<0:3> */
         [0x0120/4] = 0, 0, 0, 0,
+        [0x200/4] = ('U' << 24) | ('M' << 16) | ('E' << 8) | 'Q',
+        [0x300/4] = ('0' << 24) | ('3' << 16) | ('7' << 8) | core_prefix,
     };
+
     const uint8_t platform_hash[20] = QEMU_GIT_HASH;
 
     for (i=0; i<5; i++) {
