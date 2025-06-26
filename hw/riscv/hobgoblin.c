@@ -212,6 +212,11 @@ uint8_t irqmap[2][HOBGOBLIN_IRQ_END] = {
     }
 };
 
+// define a couple of helpers for the mmap and irqmap
+#define HIRQ(_hs_, _idx_) (irqmap[V1][_idx_])
+#define MAPVERSION(_hs_) (V1)
+
+
 /* sifive_plic_create() parameters */
 #define HOBGOBLIN_PLIC_NUM_SOURCES      32
 #define HOBGOBLIN_PLIC_NUM_PRIORITIES   7
