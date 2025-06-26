@@ -504,13 +504,12 @@ static void hobgoblin_add_id_register(HobgoblinState *s,
 }
 
 static void __attribute__((unused))
-hobgoblin_add_cmu(DeviceState **d, const memmapEntry_t *io, const MemoryRegion *ram)
+hobgoblin_add_cmu(HobgoblinState *s, DeviceState **d, const memmapEntry_t *io, const MemoryRegion *ram)
 {
     SysBusDevice *bus_cmu;
-
     *d = qdev_new(TYPE_CMU_DEVICE);
     bus_cmu = SYS_BUS_DEVICE(*d);
-
+    qdev_prop_set_uint32(*d, "reg-map-version", MAPVERSION(s));
     qdev_prop_set_uint64(*d, "ram-base", ram->addr);
     /*
      * int128_get64 assert()s that the upper 64bits are zero. ram->size comes
@@ -518,7 +517,6 @@ hobgoblin_add_cmu(DeviceState **d, const memmapEntry_t *io, const MemoryRegion *
      */
     qdev_prop_set_uint64(*d, "ram-size", int128_get64(ram->size));
     object_property_set_link(OBJECT(*d), "managed-ram", OBJECT(ram), &error_fatal);
-
     sysbus_realize_and_unref(bus_cmu, &error_fatal);
     sysbus_mmio_map(bus_cmu, 0, io->base);
 }
@@ -768,7 +766,7 @@ static void hobgoblin_add_virtio(HobgoblinState *s)
     const memmapEntry_t *memmap = address_maps[MAPVERSION(s)];
     const memmapEntry_t *mem_virtio = &memmap[HOBGOBLIN_VIRTIO];
     HobgoblinClass *hc = HOBGOBLIN_MACHINE_GET_CLASS(s);
-    
+
     int virtio_transports = (MAPVERSION(s) == V2 && hc->board_type == BOARD_TYPE_VCU118) ?
                             V2_VIRTIO_TRANSPORTS : V1_VIRTIO_TRANSPORTS;
 
@@ -859,9 +857,12 @@ static void hobgoblin_machine_init(MachineState *machine)
     /* add peripherals (requires having an interrupt controller) */
     hobgoblin_add_id_register(s, system_memory);
 #ifdef TARGET_CHERI
-    hobgoblin_add_cmu(&s->internal_cmu, &memmap[HOBGOBLIN_INTL_CMU], sram);
+    //Hobgoblin V2 has no CMU on SRAM
+    if (MAPVERSION(s) == V1) {
+        hobgoblin_add_cmu(s, &s->internal_cmu, &memmap[HOBGOBLIN_INTL_CMU], sram);
+    }
     for (int i = 0; i < hc->dram_banks; i++) {
-        hobgoblin_add_cmu(&s->ddr_cmu[i], &memmap[HOBGOBLIN_CMU_DDR0+i], ddr[i]);
+        hobgoblin_add_cmu(s, &s->ddr_cmu[i], &memmap[HOBGOBLIN_CMU_DDR0+i], ddr[i]);
     }
 #endif
     hobgoblin_add_uart(s, system_memory);
@@ -980,7 +981,7 @@ static void hobgoblin_machine_class_init(ObjectClass *oc, void *data)
 #if defined(TARGET_RISCV64)
     mc->default_cpu_type = TYPE_RISCV_CPU_CODASIP_A730;
 #elif defined(TARGET_RISCV32)
-     mc->default_cpu_type = TYPE_RISCV_CPU_CODASIP_L730;
+    mc->default_cpu_type = TYPE_RISCV_CPU_CODASIP_L730;
 #endif
 
     /* mc->reset:   void reset(MachineState *state, ShutdownCause reason); */

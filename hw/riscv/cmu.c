@@ -64,12 +64,12 @@ static void cmu_invalidate(CMUDeviceState *s)
     */
 
     if (__builtin_sub_overflow(
-                (s->regs[REG_CMU_TISTART] & ~((1 << LOG2_CMU_CLEN) - 1)),
+                (s->regs[REG_CMU_TISTART(s->reg_map_ver)] & ~((1 << LOG2_CMU_CLEN) - 1)),
                 s->base, &start_addr)) {
         return;
     }
     if (__builtin_sub_overflow(
-                (s->regs[REG_CMU_TIEND] & ~((1 << LOG2_CMU_CLEN) - 1)),
+                (s->regs[REG_CMU_TIEND(s->reg_map_ver)] & ~((1 << LOG2_CMU_CLEN) - 1)),
                 s->base, &end_addr)) {
         return;
     }
@@ -92,7 +92,7 @@ static void cmu_invalidate(CMUDeviceState *s)
     }
 
     // clear the activate bit.
-    s->regs[REG_CMU_TIEND] = s->regs[REG_CMU_TIEND] & ~CMU_TI_ACTIVE;
+    s->regs[REG_CMU_TIEND(s->reg_map_ver)] = s->regs[REG_CMU_TIEND(s->reg_map_ver)] & ~CMU_TI_ACTIVE;
 }
 
 static void cmu_write(void *opaque, hwaddr addr, uint64_t data, unsigned int size)
@@ -119,13 +119,13 @@ static void cmu_write(void *opaque, hwaddr addr, uint64_t data, unsigned int siz
 
     // after writing have a look at activate bit and trigger an invalidate if
     // required.
-    if (s->regs[REG_CMU_TIEND] & CMU_TI_ACTIVE) {
+    if (s->regs[REG_CMU_TIEND(s->reg_map_ver)] & CMU_TI_ACTIVE) {
         cmu_invalidate(s);
     }
 
     /* If a cache flush operation has been attempted, mark it as complete */
-    if (s->regs[REG_CMU_TCMO] & CMU_TCMO_ACTIVE) {
-        s->regs[REG_CMU_TCMO] &= ~CMU_TCMO_ACTIVE;
+    if (s->regs[REG_CMU_TCMO(s->reg_map_ver)] & CMU_TCMO_ACTIVE) {
+        s->regs[REG_CMU_TCMO(s->reg_map_ver)] &= ~CMU_TCMO_ACTIVE;
     }
 }
 
@@ -140,7 +140,14 @@ static const MemoryRegionOps cmu_ops = {
 
 };
 
+typedef enum{
+    V1=0,
+    V2=1,
+    VERSION_MAX=2
+} REG_VERSION;
+
 static Property cmu_properties[] = {
+    DEFINE_PROP_UINT32("reg-map-version", CMUDeviceState, reg_map_ver, 0),
     DEFINE_PROP_UINT64("ram-base", CMUDeviceState, base, 0),
     DEFINE_PROP_UINT64("ram-size", CMUDeviceState, size, 0),
     DEFINE_PROP_UINT16("cache-line-size", CMUDeviceState, cache_line_size, 256),
@@ -158,8 +165,19 @@ static void cmu_realize(DeviceState *dev, Error **errp)
     memory_region_init_io(&s->iomem, OBJECT(dev), &cmu_ops, s, TYPE_CMU_DEVICE,
                           CMU_REGION_SIZE);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
-
-    s->regs[0] = CMU_FT_CONST_DEFAULT;
+    switch (s->reg_map_ver) {
+    case V1:
+        s->regs[0] = CMU_V1_FT_CONST_DEFAULT;
+        break;
+    case V2:
+        s->regs[0] = CMU_VENDOR_N_CBASE_ID_DEFAULT;
+        s->regs[1] = CMU_CONFIG_N_VERSION_ID_DEFAULT;
+        s->regs[2] = CMU_V2_FT_CONST_DEFAULT;
+        break;
+    default:
+        error_setg(errp, "invalid reg-map-version %d", s->reg_map_ver);
+        return;
+    }  
 
     cl_log2 = (uint64_t)round(log2(s->cache_line_size));
     if (cl_log2 < 3) {
