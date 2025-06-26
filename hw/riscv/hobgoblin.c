@@ -100,7 +100,8 @@ static const memmapEntry_t v1_memmap[] = {
     /* Each virtio transport channel uses 512 byte */
     [HOBGOBLIN_VIRTIO] =   { 0x70000000,    0x10000 },
 };
-__attribute__((unused)) static const memmapEntry_t v2_memmap[] = {
+
+static const memmapEntry_t v2_memmap[] = {
     [HOBGOBLIN_MROM] = { 0x1000, 0x100, "riscv.hobgoblin.mrom",
                          MEM_ROM }, // Not listed in v1 map
     [HOBGOBLIN_BOOT_ROM] = { 0x28000000, 0x00020000, "riscv.hobgoblin.boot.rom",
@@ -155,7 +156,11 @@ typedef enum{
     VERSION_MAX=2
 } HOBGOBLIN_VERSION;
 
-static const memmapEntry_t *memmap = v1_memmap;
+static const memmapEntry_t *address_maps[VERSION_MAX] = {
+    v1_memmap,
+    v2_memmap
+};
+
 
 static const memmapEntry_t genesys2_dram_memmap[] = {
     { 0x80000000, 0x40000000, "riscv.hobgoblin.ram", MEM_RAM_CHERI},
@@ -237,6 +242,8 @@ static int hobgoblin_load_images(HobgoblinState *s, const memmapEntry_t *dram)
     uint64_t kernel_entry = 0;
     uint64_t fdt_load_addr = 0;
     target_ulong firmware_end_addr;
+
+    const memmapEntry_t *memmap = address_maps[MAPVERSION(s)];
 
     if (s->boot_from_rom) {
         /* Load the FSBL into ROM and set the ZSBL to point to it */
@@ -350,6 +357,7 @@ static MemoryRegion *hobgoblin_add_memory_area(MemoryRegion *system_memory,
 static void hobgoblin_add_interrupt_controller(HobgoblinState *s,
                                                const int num_harts)
 {
+    const memmapEntry_t *memmap = address_maps[MAPVERSION(s)];
     const memmapEntry_t *mem_plic = &memmap[HOBGOBLIN_PLIC];
     const memmapEntry_t *mem_clint = &memmap[HOBGOBLIN_CLINT];
     const int hartid_base = 0; /* Hart IDs start at 0 */
@@ -411,6 +419,7 @@ static void hobgoblin_add_id_register(HobgoblinState *s,
                                       MemoryRegion *system_memory)
 {
     int i;
+    const memmapEntry_t *memmap = address_maps[MAPVERSION(s)];
     const memmapEntry_t *mem_id = &memmap[HOBGOBLIN_ID_REG];
     const uint32_t ethernet_types[] = {
         [ETH_TYPE_ETHERNETLITE] = 0x0,
@@ -486,6 +495,7 @@ hobgoblin_add_cmu(DeviceState **d, const memmapEntry_t *io, const MemoryRegion *
 static void hobgoblin_add_uart(HobgoblinState *s,
                                MemoryRegion *system_memory)
 {
+    const memmapEntry_t *memmap = address_maps[MAPVERSION(s)];
     const memmapEntry_t *mem_uart = &memmap[HOBGOBLIN_UART0];
 
     /* there must be an actual QEMU uart device */
@@ -501,6 +511,7 @@ static void hobgoblin_add_uart(HobgoblinState *s,
 static void hobgoblin_add_uartlite(HobgoblinState *s,
                                    MemoryRegion *system_memory)
 {
+    const memmapEntry_t *memmap = address_maps[MAPVERSION(s)];
     const memmapEntry_t *mem_uart = &memmap[HOBGOBLIN_UART1];
     Chardev *chardev = serial_hd(1);
     qemu_irq irq = hobgoblin_make_plic_irq(s, HIRQ(s, HOBGOBLIN_UART1_IRQ));
@@ -518,6 +529,7 @@ static void hobgoblin_gpio_1_3_event(void *opaque, int n, int level)
 
 static void hobgoblin_add_gpio(HobgoblinState *s)
 {
+    const memmapEntry_t *memmap = address_maps[MAPVERSION(s)];
     for (int i = 0; i < 2; i++) {
         /* create GPIO */
         DeviceState *gpio = qdev_new(TYPE_XLNX_AXI_GPIO);
@@ -538,6 +550,7 @@ static void hobgoblin_add_gpio(HobgoblinState *s)
 
 static void hobgoblin_add_spi(HobgoblinState *s)
 {
+    const memmapEntry_t *memmap = address_maps[MAPVERSION(s)];
     const memmapEntry_t *mem_spi = &memmap[HOBGOBLIN_SPI];
 
     /* create SPI device */
@@ -585,6 +598,7 @@ static void hobgoblin_add_sd(HobgoblinState *s)
 
 static void hobgoblin_add_ethernetlite(HobgoblinState *s)
 {
+    const memmapEntry_t *memmap = address_maps[MAPVERSION(s)];
     const memmapEntry_t *mem_eth = &memmap[HOBGOBLIN_ETHLITE];
 
     NICInfo *nd = &nd_table[0];
@@ -610,6 +624,7 @@ static void hobgoblin_add_axi_ethernet(HobgoblinState *s, int eth_num,
     int eth_memmap, int dma_memmap,
     int eth_irq, int dma_irq0, int dma_irq1)
 {
+    const memmapEntry_t *memmap = address_maps[MAPVERSION(s)];
     const memmapEntry_t *mem_eth = &memmap[eth_memmap];
     const memmapEntry_t *mem_dma = &memmap[dma_memmap];
     NICInfo *nd = &nd_table[eth_num];
@@ -671,6 +686,7 @@ static void hobgoblin_add_axi_ethernet(HobgoblinState *s, int eth_num,
 static void hobgoblin_add_trng(HobgoblinState *s)
 {
     SysBusDevice *ss;
+    const memmapEntry_t *memmap = address_maps[MAPVERSION(s)];
 
     s->trng = qdev_new(TYPE_CODASIP_TRNG);
     ss = SYS_BUS_DEVICE(s->trng);
@@ -682,6 +698,7 @@ static void hobgoblin_add_nvemu(HobgoblinState *s)
 {
     SysBusDevice *ss;
     Error *e = NULL;
+    const memmapEntry_t *memmap = address_maps[MAPVERSION(s)];
 
     s->nvemu = qdev_new(TYPE_HOB_NVEMU);
     ss = SYS_BUS_DEVICE(s->nvemu);
@@ -703,6 +720,7 @@ static void hobgoblin_add_nvemu(HobgoblinState *s)
 static void hobgoblin_add_timer(HobgoblinState *s)
 {
     SysBusDevice *ss;
+    const memmapEntry_t *memmap = address_maps[MAPVERSION(s)];
 
     s->timer = qdev_new("xlnx.xps-timer");
     qdev_prop_set_uint32(s->timer, "one-timer-only", 1);
@@ -716,6 +734,7 @@ static void hobgoblin_add_timer(HobgoblinState *s)
 
 static void hobgoblin_add_virtio(HobgoblinState *s)
 {
+    const memmapEntry_t *memmap = address_maps[MAPVERSION(s)];
     const memmapEntry_t *mem_virtio = &memmap[HOBGOBLIN_VIRTIO];
 
     for (int i = 0; i < NUM_VIRTIO_TRANSPORTS; i++) {
@@ -733,6 +752,7 @@ static void hobgoblin_machine_init(MachineState *machine)
     HobgoblinClass *hc = HOBGOBLIN_MACHINE_GET_CLASS(s);
     MemoryRegion *system_memory = get_system_memory();
     MemoryRegion __attribute__((unused)) *sram, *ddr[MAX_DRAM];
+    const memmapEntry_t *memmap = address_maps[MAPVERSION(s)];
     const int smp_cpus = machine->smp.cpus;
     const memmapEntry_t *dram;
 
