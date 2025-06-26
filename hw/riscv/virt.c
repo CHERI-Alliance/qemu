@@ -891,8 +891,8 @@ static void virt_machine_init(MachineState *machine)
         firmware_end_addr = riscv_find_and_load_firmware(
             machine,
 #if defined(TARGET_CHERI)
-            /* Use a purecap BBL as the BIOS for CHERI. */
-            "bbl-riscv32cheri-virt-fw_jump.bin",
+            /* Use a purecap opensbi as the BIOS for CHERI. */
+            "opensbi-riscv32cheri-virt-fw_jump.bin",
 #else
             RISCV32_BIOS_BIN,
 #endif
@@ -901,8 +901,8 @@ static void virt_machine_init(MachineState *machine)
         firmware_end_addr = riscv_find_and_load_firmware(
             machine,
 #if defined(TARGET_CHERI)
-            /* Use a purecap BBL as the BIOS for CHERI. */
-            "bbl-riscv64cheri-virt-fw_jump.bin",
+            /* Use a purecap opensbi as the BIOS for CHERI. */
+            "opensbi-riscv64cheri-virt-fw_jump.bin",
 #else
             RISCV64_BIOS_BIN,
 #endif
