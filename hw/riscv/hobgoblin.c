@@ -219,8 +219,8 @@ uint8_t irqmap[2][HOBGOBLIN_IRQ_END] = {
 };
 
 // define a couple of helpers for the mmap and irqmap
-#define HIRQ(_hs_, _idx_) (irqmap[V1][_idx_])
-#define MAPVERSION(_hs_) (V1)
+#define HIRQ(_hs_, _idx_) (irqmap[HOBGOBLIN_MACHINE_GET_CLASS(_hs_)->irq_map_version][_idx_])
+#define MAPVERSION(_hs_) (HOBGOBLIN_MACHINE_GET_CLASS(_hs_)->map_version)
 
 #define V1_VIRTIO_TRANSPORTS 4
 #define V2_VIRTIO_TRANSPORTS 8
@@ -1006,6 +1006,8 @@ struct HobgoblinInitData {
     unsigned int cpus;
     const memmapEntry_t *dram;
     int dram_banks;
+    int map_version;
+    int irq_map_version;
 };
 
 static void hobgoblin_concrete_machine_class_init(ObjectClass *oc, void *data)
@@ -1021,10 +1023,12 @@ static void hobgoblin_concrete_machine_class_init(ObjectClass *oc, void *data)
     hc->board_type = hid->board_type;
     hc->dram = hid->dram;
     hc->dram_banks = hid->dram_banks;
+    hc->map_version = hid->map_version;
+    hc->irq_map_version = hid->irq_map_version;
 }
 
-#define HOBGOBLIN_MACHINE(_type, _desc, _cpus, _dram) {         \
-    .name          = TYPE_HOBGOBLIN_ ## _type ## _MACHINE,      \
+#define HOBGOBLIN_MACHINE(_type, _desc, _cpus, _dram, _map, _irq_map) {         \
+    .name          = TYPE_HOBGOBLIN_ ## _type ## _map ## _MACHINE,      \
     .parent        = TYPE_HOBGOBLIN_MACHINE,                    \
     .class_init    = hobgoblin_concrete_machine_class_init,      \
     .class_data    = &((struct HobgoblinInitData) {             \
@@ -1033,6 +1037,8 @@ static void hobgoblin_concrete_machine_class_init(ObjectClass *oc, void *data)
         .cpus = _cpus,                                          \
         .dram = _dram,                                          \
         .dram_banks = ARRAY_SIZE(_dram),                        \
+        .map_version = _map,                                    \
+        .irq_map_version = _irq_map,                            \
     })                                                          \
 }
 
@@ -1047,14 +1053,14 @@ static const TypeInfo hobgoblin_machines_typeinfo[] = {
         .class_init    = hobgoblin_machine_class_init,
     },
     HOBGOBLIN_MACHINE(GENESYS2,
-                      "RISC-V Hobgoblin (Genesys2) board",
-                      1, genesys2_dram_memmap),
+                      "RISC-V Hobgoblin_v1 (Genesys2) board",
+                      1, genesys2_dram_memmap, V1, V1),
     HOBGOBLIN_MACHINE(PROFPGA,
-                      "RISC-V Hobgoblin (proFPGA) board",
-                      4, profpga_dram_memmap),
+                      "RISC-V Hobgoblin_v1 (proFPGA) board",
+                      4, profpga_dram_memmap, V1, V1),
     HOBGOBLIN_MACHINE(VCU118,
-                      "RISC-V Hobgoblin (VCU118) board",
-                      4, vcu118_dram_memmap),
+                      "RISC-V Hobgoblin_v1 (VCU118) board",
+                      4, vcu118_dram_memmap, V1, V1),
 };
 
 DEFINE_TYPES(hobgoblin_machines_typeinfo)

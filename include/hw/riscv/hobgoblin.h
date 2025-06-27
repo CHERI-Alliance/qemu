@@ -24,9 +24,9 @@
 #include "hw/sysbus.h"
 
 #define TYPE_HOBGOBLIN_MACHINE          MACHINE_TYPE_NAME("hobgoblin")
-#define TYPE_HOBGOBLIN_GENESYS2_MACHINE MACHINE_TYPE_NAME("hobgoblin-genesys2")
-#define TYPE_HOBGOBLIN_PROFPGA_MACHINE  MACHINE_TYPE_NAME("hobgoblin-profpga")
-#define TYPE_HOBGOBLIN_VCU118_MACHINE   MACHINE_TYPE_NAME("hobgoblin-vcu118")
+#define TYPE_HOBGOBLIN_GENESYS2V1_MACHINE MACHINE_TYPE_NAME("hobgoblin-genesys2")
+#define TYPE_HOBGOBLIN_PROFPGAV1_MACHINE  MACHINE_TYPE_NAME("hobgoblin-profpga")
+#define TYPE_HOBGOBLIN_VCU118V1_MACHINE   MACHINE_TYPE_NAME("hobgoblin-vcu118")
 
 #define MAX_DRAM 2
 
@@ -59,6 +59,8 @@ struct HobgoblinClass {
     enum board_type board_type;
     const memmapEntry_t *dram;
     int dram_banks;
+    int map_version;
+    int irq_map_version;
 };
 
 struct HobgoblinState {
