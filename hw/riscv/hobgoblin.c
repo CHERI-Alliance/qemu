@@ -364,7 +364,6 @@ static void hobgoblin_add_interrupt_controller(HobgoblinState *s,
     const memmapEntry_t *mem_plic = &memmap[HOBGOBLIN_PLIC];
     const memmapEntry_t *mem_clint = &memmap[HOBGOBLIN_CLINT];
     const int hartid_base = 0; /* Hart IDs start at 0 */
-    HobgoblinClass *hc = HOBGOBLIN_MACHINE_GET_CLASS(s);
     char *plic_hart_config;
 
     /* PLIC */
@@ -445,7 +444,7 @@ static void hobgoblin_add_id_register(HobgoblinState *s,
     uint32_t core_type = 1;
 #endif
 #elif defined(TARGET_RISCV32)
-#if TARGET_CHERI
+#if defined(TARGET_CHERI)
     char core_prefix='V';
     uint32_t core_type = 7;
 #else
