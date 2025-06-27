@@ -1061,6 +1061,15 @@ static const TypeInfo hobgoblin_machines_typeinfo[] = {
     HOBGOBLIN_MACHINE(VCU118,
                       "RISC-V Hobgoblin_v1 (VCU118) board",
                       4, vcu118_dram_memmap, V1, V1),
+    HOBGOBLIN_MACHINE(GENESYS2,
+                      "RISC-V Hobgoblin_v2 (Genesys2) board",
+                      1, genesys2_dram_memmap, V2, V2),
+    HOBGOBLIN_MACHINE(PROFPGA,
+                      "RISC-V Hobgoblin_v2 (proFPGA) board",
+                      4, profpga_dram_memmap, V2, V2),
+    HOBGOBLIN_MACHINE(VCU118,
+                      "RISC-V Hobgoblin_v2 (VCU118) board",
+                      4, vcu118_dram_memmap, V2, V2),
 };
 
 DEFINE_TYPES(hobgoblin_machines_typeinfo)
