@@ -652,7 +652,7 @@ void *cheri_tagmem_for_addr(CPUArchState *env, target_ulong vaddr,
 #endif
     CheriTagBlock *tagblk = cheri_tag_block(tag, ram);
 
-    if (tag_write && !tagblk) {
+    if ((!tagblk) && (tag_write || need_concurrent_tags())){
         cheri_tag_new_tagblk(ram, tag);
         CPUState *cpu = env_cpu(env);
         /*
