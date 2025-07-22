@@ -130,8 +130,6 @@ DEF_HELPER_3(cheri_invalidate_tags, void, env, cap_checked_ptr, memop_idx)
 DEF_HELPER_4(cheri_invalidate_tags_condition, void, env, cap_checked_ptr,
              memop_idx, i32)
 
-DEF_HELPER_3(cheri_invalidate_lock_tags_start, void, env, cap_checked_ptr,
-             memop_idx)
 DEF_HELPER_3(cheri_invalidate_lock_tags_start_or_dummy, void, env,
              cap_checked_ptr, memop_idx)
 DEF_HELPER_3(cheri_invalidate_lock_tags_end, void, env, cap_checked_ptr,
