@@ -880,7 +880,10 @@ static void *cheri_tag_invalidate_one(CPUArchState *env, target_ulong vaddr,
     // for the start of the page so we can simply add the index for the
     // page offset.
     target_ulong tag_offset = page_vaddr_to_tag_offset(vaddr);
-    if (qemu_log_instr_enabled(env)) {
+    // only perform this logging when not in concurrent mode
+    // else it will result in an unsafe tag read
+    // we should refactor the tagmem_clear_tag to return the old tag value
+    if (qemu_log_instr_enabled(env) && !need_concurrent_tags()) {
         bool old_value = tagmem_get_tag(tagmem, tag_offset, NULL);
         qemu_log_instr_extra(
             env,
