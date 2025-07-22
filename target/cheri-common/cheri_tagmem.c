@@ -1198,9 +1198,16 @@ void cheri_tag_free_lock(tag_lock_t lock)
 #define DUMMY_LOCK_BITS 16
 
 lock_tag dummy_tag_table[1 << DUMMY_LOCK_BITS];
-
+/*
+ * As the address we are passed is virtual but our locks need to be on physical
+ * addresses only use the low order bits i.e. page offset for the hash
+ * This will ensure that accesses to the physical address will use the same hash
+ * It will also increase the likilihood of false sharing but will still be
+ * safe
+ */
 static target_ulong hash_vaddr(target_ulong vaddr)
 {
+    vaddr &= ~TARGET_PAGE_MASK;
     size_t shft = sizeof(target_ulong);
     while (shft > DUMMY_LOCK_BITS) {
         shft /= 2;
