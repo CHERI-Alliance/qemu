@@ -238,19 +238,8 @@ void CHERI_HELPER_IMPL(cheri_invalidate_tags_condition(
  * On an exception
  */
 
-void CHERI_HELPER_IMPL(cheri_invalidate_lock_tags_start(CPUArchState *env,
-                                                        target_ulong vaddr,
-                                                        MemOpIdx oi))
-{
-    tag_writer_lock_t low = NULL;
-    tag_writer_lock_t high = NULL;
-    cheri_lock_for_tag_invalidate(env, vaddr, memop_size(get_memop(oi)),
-                                  GETPC(), get_mmuidx(oi), &low, &high);
-    cheri_tag_writer_push_free_on_exception(env, low);
-    cheri_tag_writer_push_free_on_exception(env, high);
-}
-
-/* If using the lock to protect a standard atomic, then we always need a lock */
+/* If using the lock to protect a standard atomic, then we always need a lock
+ * if we are accessing mmio we need a dummy lock*/
 void CHERI_HELPER_IMPL(cheri_invalidate_lock_tags_start_or_dummy(
     CPUArchState *env, target_ulong vaddr, MemOpIdx oi))
 {
