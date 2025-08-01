@@ -217,7 +217,8 @@ static void arm_trickbox_write(void *opaque, hwaddr addr, uint64_t val,
         tube_write(tb, addr, val, size);
         break;
     default:
-        TRICKBOX_LOG(LOG_ERROR, "Unexpected write at %lx\n", register_addr);
+        TRICKBOX_LOG(LOG_ERROR, "Unexpected write at " TARGET_FMT_plx "\n",
+                     register_addr);
         /* TODO: Once most functionality is implemented, make this just a log */
         assert(0);
     }
@@ -242,7 +243,8 @@ static uint64_t arm_trickbox_read(void *opaque, hwaddr addr, unsigned size)
     case ARM_TRICKBOX_REGISTER_Tube:
         return 0;
     default:
-        TRICKBOX_LOG(LOG_ERROR, "Unexpected read at %lx\n", register_addr);
+        TRICKBOX_LOG(LOG_ERROR, "Unexpected read at 0x" TARGET_FMT_plx "\n",
+                     register_addr);
         /* TODO: Once most functionality is implemented, make this a log. */
         assert(0);
     }
