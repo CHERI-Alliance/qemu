@@ -553,7 +553,7 @@ static int get_physical_address_pmp(CPURISCVState *env, int *prot,
 static void pte_print(target_ulong pte, int level)
 {
     qemu_log_mask(
-        CPU_LOG_MMU, "PTE - " TARGET_FMT_plx " %s%s%s%s%s%s%s%s%s%s %d\n", pte,
+        CPU_LOG_MMU, "PTE - " TARGET_FMT_lx " %s%s%s%s%s%s%s%s%s%s %d\n", pte,
 #if TARGET_CHERI && !defined(TARGET_RISCV32)
         pte & PTE_CRG ? "CRG" : "", pte & PTE_CW ? "CW" : "",
 #else
