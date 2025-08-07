@@ -1042,6 +1042,20 @@ static void hobgoblin_concrete_machine_class_init(ObjectClass *oc, void *data)
     })                                                          \
 }
 
+#define HOBGOBLIN_MACHINE_NAMED(_name, _type, _desc, _cpus, _dram, _map, _irq_map) {         \
+    .name          = _name,                                       \
+    .parent        = TYPE_HOBGOBLIN_MACHINE,                    \
+    .class_init    = hobgoblin_concrete_machine_class_init,      \
+    .class_data    = &((struct HobgoblinInitData) {             \
+        .board_type = BOARD_TYPE_ ## _type,                     \
+        .desc = _desc,                                          \
+        .cpus = _cpus,                                          \
+        .dram = _dram,                                          \
+        .dram_banks = ARRAY_SIZE(_dram),                        \
+        .map_version = _map,                                    \
+        .irq_map_version = _irq_map,                            \
+    })                                                          \
+}
 static const TypeInfo hobgoblin_machines_typeinfo[] = {
     {
         .name          = TYPE_HOBGOBLIN_MACHINE,
@@ -1070,6 +1084,9 @@ static const TypeInfo hobgoblin_machines_typeinfo[] = {
     HOBGOBLIN_MACHINE(VCU118,
                       "RISC-V Hobgoblin_v2 (VCU118) board",
                       4, vcu118_dram_memmap, V2, V2),
+    HOBGOBLIN_MACHINE_NAMED(TYPE_HOBGOBLIN_CODASIP_PRIME_MACHINE, VCU118,
+                            "Codasip Prime FPGA platform", 4,
+                            vcu118_dram_memmap, V2, V2),
 };
 
 DEFINE_TYPES(hobgoblin_machines_typeinfo)
