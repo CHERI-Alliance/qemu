@@ -868,6 +868,9 @@ cap_register_t *get_cap_csr(CPUArchState *env, uint32_t index);
 /* Do the CRE bits allow cheri access in the current CPU mode? */
 static inline bool riscv_cpu_mode_cre(CPURISCVState *env)
 {
+#ifdef TARGET_CHERI_RISCV_V9
+    return env_archcpu(env)->cfg.ext_cheri;
+#else
     if (env->mseccfg & MSECCFG_CRE) {
         /* CRE bits allow cheri in M mode */
         if (env->priv == PRV_M)
@@ -892,6 +895,7 @@ static inline bool riscv_cpu_mode_cre(CPURISCVState *env)
      */
 
     return false;
+#endif
 }
 #endif
 

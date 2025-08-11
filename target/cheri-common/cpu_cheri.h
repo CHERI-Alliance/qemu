@@ -102,7 +102,7 @@ static inline bool cap_has_capmode_flag(const cap_register_t *cap)
 
 static inline bool cheri_in_capmode(CPUArchState *env)
 {
-#ifdef TARGET_CHERI_RISCV_STD
+#ifdef TARGET_RISCV
     /*
      * For standard RISC-V Capability pointer mode requires that both CRE for
      * the current cpu mode and the M bit be set.
