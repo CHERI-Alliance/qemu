@@ -445,7 +445,7 @@ struct RISCVCPU {
         bool ext_counters;
         bool ext_ifencei;
         bool ext_icsr;
-#ifdef TARGET_CHERI
+#ifdef TARGET_CHERI_RISCV_V9
         bool ext_cheri;
         bool ext_cheri_v9; /* Temporary flag to support new semantics. */
 #endif

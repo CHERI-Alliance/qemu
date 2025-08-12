@@ -740,10 +740,12 @@ static void riscv_cpu_reset(DeviceState *dev)
     env->mepc = 0;
     env->sepc = 0;
 #else
+#ifdef TARGET_CHERI_RISCV_V9
     if (!cpu->cfg.ext_cheri) {
         error_report("CHERI extension can't be disabled yet!");
         exit(EXIT_FAILURE);
     }
+#endif
     env->mseccfg = 0;
     env->menvcfg = 0;
     env->senvcfg = 0;
@@ -974,10 +976,12 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
         }
 
 #ifdef TARGET_CHERI
+#ifdef TARGET_CHERI_RISCV_V9
         if (cpu->cfg.ext_cheri) {
             // Non-standard extensions present
             ext |= RV('X');
         }
+#endif
         set_feature(env, RISCV_FEATURE_STID);
 #endif
 
@@ -1067,7 +1071,7 @@ static Property riscv_cpu_properties[] = {
     DEFINE_PROP_BOOL("x-h", RISCVCPU, cfg.ext_h, false),
     DEFINE_PROP_BOOL("x-j", RISCVCPU, cfg.ext_j, false),
     DEFINE_PROP_BOOL("x-v", RISCVCPU, cfg.ext_v, false),
-#ifdef TARGET_CHERI
+#ifdef TARGET_CHERI_RISCV_V9
     DEFINE_PROP_BOOL("Xcheri", RISCVCPU, cfg.ext_cheri, true),
     DEFINE_PROP_BOOL("Xcheri_v9", RISCVCPU, cfg.ext_cheri_v9, true),
 #endif

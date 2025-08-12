@@ -186,7 +186,7 @@ static RISCVException any32(CPURISCVState *env, int csrno)
 
 }
 
-#ifdef TARGET_CHERI
+#ifdef TARGET_CHERI_RISCV_V9
 static RISCVException umode(CPURISCVState *env, int csrno)
 {
     if (riscv_has_ext(env, RVU)) {
@@ -2149,6 +2149,7 @@ static cap_register_t read_xepcc(CPURISCVState *env,
     return retval;
 }
 
+#ifdef TARGET_CHERI_RISCV_V9
 static RISCVException read_ccsr(CPURISCVState *env, int csrno, target_ulong *val)
 {
     // We report the same values for all modes and don't perform dirty tracking
@@ -2198,6 +2199,7 @@ static RISCVException write_ccsr(CPURISCVState *env, int csrno, target_ulong val
 
     return RISCV_EXCP_NONE;
 }
+#endif
 
 bool csr_needs_asr(uint32_t csrno, bool is_write)
 {
@@ -2542,7 +2544,7 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_MTVAL2] =              CSR_OP_RW(hmode, mtval2),
     [CSR_MTINST] =              CSR_OP_RW(hmode, mtinst),
 
-#ifdef TARGET_CHERI
+#ifdef TARGET_CHERI_RISCV_V9
     // CHERI CSRs: For now we always report enabled and dirty and don't support
     // turning off CHERI.  sccsr contains global capability load generation bits
     // that can be written, but the other two are constant.
