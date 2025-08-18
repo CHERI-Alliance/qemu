@@ -48,6 +48,12 @@
     }                                            \
 } while (0)
 
+#define REQUIRE_ZISH4(ctx) do {                  \
+    if (!RISCV_CPU(ctx->cs)->cfg.ext_zish4) {    \
+        return false;                            \
+    }                                            \
+} while (0)
+
 static void gen_clz(TCGv ret, TCGv arg1)
 {
     tcg_gen_clzi_tl(ret, arg1, TARGET_LONG_BITS);
@@ -362,6 +368,10 @@ static void gen_sh##SHAMT##add(TCGv ret, TCGv arg1, TCGv arg2) \
     static bool trans_sh##SHAMT##add(DisasContext *ctx, arg_sh##SHAMT##add *a) \
     {                                                                          \
         REQUIRE_ZBA(ctx);                                                      \
+        if (SHAMT == 4){                                                       \
+            REQUIRE_ZISH4(ctx);                                                \
+            REQUIRE_64BIT(ctx);                                                \
+        }                                                                      \
         TCGv_i32 dest_regnum;                                                  \
         TCGv_i32 source_regnum;                                                \
         TCGv offset;                                                           \
@@ -386,17 +396,23 @@ static void gen_sh##SHAMT##add(TCGv ret, TCGv arg1, TCGv arg2) \
 GEN_SHADD(1)
 GEN_SHADD(2)
 GEN_SHADD(3)
+GEN_SHADD(4)
 
 #define GEN_TRANS_SHADD(SHAMT)                                             \
 static bool trans_sh##SHAMT##add(DisasContext *ctx, arg_sh##SHAMT##add *a) \
 {                                                                          \
     REQUIRE_ZBA(ctx);                                                      \
+    if (SHAMT == 4){                                                       \
+        REQUIRE_ZISH4(ctx);                                                \
+        REQUIRE_64BIT(ctx);                                                \
+    }                                                                      \
     return gen_arith(ctx, a, EXT_NONE, gen_sh##SHAMT##add);                \
 }
 #endif
 GEN_TRANS_SHADD(1)
 GEN_TRANS_SHADD(2)
 GEN_TRANS_SHADD(3)
+GEN_TRANS_SHADD(4)
 
 static bool trans_zext_h_32(DisasContext *ctx, arg_zext_h_32 *a)
 {
@@ -478,6 +494,9 @@ static bool trans_sh##SHAMT##add_uw(DisasContext *ctx,                     \
 {                                                                          \
     REQUIRE_ZBA(ctx);                                                      \
     REQUIRE_64BIT(ctx);                                                    \
+    if ( SHAMT == 4){                                                      \
+        REQUIRE_ZISH4(ctx);                                                \
+    }                                                                      \
     TCGv_i32 dest_regnum;                                                  \
     TCGv_i32 source_regnum;                                                \
     TCGv offset;                                                           \
@@ -506,6 +525,7 @@ static bool trans_sh##SHAMT##add_uw(DisasContext *ctx,                     \
 GEN_SHADD_UW(1)
 GEN_SHADD_UW(2)
 GEN_SHADD_UW(3)
+GEN_SHADD_UW(4)
 
 #define GEN_TRANS_SHADD_UW(SHAMT)                             \
 static bool trans_sh##SHAMT##add_uw(DisasContext *ctx,        \
@@ -513,13 +533,17 @@ static bool trans_sh##SHAMT##add_uw(DisasContext *ctx,        \
 {                                                             \
     REQUIRE_64BIT(ctx);                                       \
     REQUIRE_ZBA(ctx);                                         \
-    return gen_arith(ctx, a, EXT_NONE, gen_sh##SHAMT##add_uw);  \
+    if (SHAMT == 4){                                          \
+        REQUIRE_ZISH4(ctx);                                   \
+    }                                                         \
+    return gen_arith(ctx, a, EXT_NONE, gen_sh##SHAMT##add_uw);\
 }
 
 #endif
 GEN_TRANS_SHADD_UW(1)
 GEN_TRANS_SHADD_UW(2)
 GEN_TRANS_SHADD_UW(3)
+GEN_TRANS_SHADD_UW(4)
 
 static void gen_add_uw(TCGv ret, TCGv arg1, TCGv arg2)
 {
