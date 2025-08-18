@@ -482,6 +482,7 @@ typedef struct {
     bool cheri_pte;
 #endif
 #endif
+    bool ext_zish4;
     char *priv_spec;
     char *user_spec;
     char *bext_spec;

@@ -1159,6 +1159,13 @@ static Property riscv_cpu_properties[] = {
     DEFINE_PROP_BOOL("mmu", RISCVCPU, cfg.mmu, true),
     DEFINE_PROP_BOOL("pmp", RISCVCPU, cfg.pmp, true),
 
+#ifdef TARGET_CHERI
+    /* As zish4add is defined as part of the cheri spec, we enable
+     it by default on cheri targets but not on others */
+    DEFINE_PROP_BOOL("zish4add", RISCVCPU, cfg.ext_zish4, true),
+#else
+    DEFINE_PROP_BOOL("zish4add", RISCVCPU, cfg.ext_zish4, false),
+#endif
     DEFINE_PROP_STRING("priv_spec", RISCVCPU, cfg.priv_spec),
 
     DEFINE_PROP_BOOL("zicbom", RISCVCPU, cfg.ext_icbom, true),
@@ -1345,6 +1352,7 @@ static void riscv_isa_string_ext(RISCVCPU *cpu, char **isa_str, int max_str_len)
         ISA_EDATA_ENTRY(zihintpause, ext_zihintpause),
         {"zcheripte", cpu->cfg.cheri_pte },
         {"zcherilevels", cpu->cfg.lvbits > 0 },
+        ISA_EDATA_ENTRY(zish4add, ext_zish4),
 #endif
     };
 
