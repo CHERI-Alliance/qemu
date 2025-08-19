@@ -123,6 +123,7 @@ typedef struct DisasContext {
     bool pm_enabled;
     TCGv pm_mask;
     TCGv pm_base;
+    RISCVCPUConfig *cfg_ptr;
 } DisasContext;
 
 #ifdef CONFIG_DEBUG_TCG
@@ -1014,6 +1015,7 @@ static void riscv_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->pm_base = pm_base[priv];
 
     ctx->zero = tcg_constant_tl(0);
+    ctx->cfg_ptr = &cpu->cfg;
 }
 
 static void riscv_tr_tb_start(DisasContextBase *db, CPUState *cpu)

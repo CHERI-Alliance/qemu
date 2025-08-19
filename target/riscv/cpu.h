@@ -425,6 +425,58 @@ struct RISCVCPUClass {
     DeviceReset parent_reset;
 };
 
+/* CPU Configuration */
+typedef struct {
+    bool ext_i;
+    bool ext_e;
+    bool ext_g;
+    bool ext_m;
+    bool ext_a;
+    bool ext_f;
+    bool ext_d;
+    bool ext_c;
+    bool ext_s;
+    bool ext_u;
+    bool ext_h;
+    bool ext_j;
+    bool ext_v;
+    bool ext_zba;
+    bool ext_zbb;
+    bool ext_zbc;
+    bool ext_zbs;
+    bool ext_counters;
+    bool ext_ifencei;
+    bool ext_icsr;
+    bool ext_icbom;
+    bool ext_icboz;
+#ifdef TARGET_CHERI
+#ifdef TARGET_CHERI_RISCV_V9
+    bool ext_cheri;
+    bool ext_cheri_v9; /* Temporary flag to support new semantics. */
+#elif defined(TARGET_CHERI_RISCV_STD)
+    bool ext_cheri;
+    bool ext_zyhybrid;
+    bool ext_zylevels1;
+    /* number of levels (Zcherilevels): 0 invalid, 1 disabled (default)) */
+    uint8_t _compat_cheri_levels; /* To keep existing scripts working */
+    uint8_t lvbits; /* Only 0 and 1 (Zylevels1) are currently supported. */
+    bool cheri_pte;
+#endif
+#endif
+    char *priv_spec;
+    char *user_spec;
+    char *bext_spec;
+    char *vext_spec;
+    uint16_t vlen;
+    uint16_t elen;
+    uint16_t cbom_blocksize;
+    uint16_t cboz_blocksize;
+    bool mmu;
+    bool pmp;
+    bool epmp;
+    uint64_t resetvec;
+} RISCVCPUConfig;
+
 /**
  * RISCVCPU:
  * @env: #CPURISCVState
@@ -442,58 +494,7 @@ struct RISCVCPU {
 #ifdef TARGET_CHERI
     char *dyn_scr_xml;
 #endif
-
-    /* Configuration Settings */
-    struct {
-        bool ext_i;
-        bool ext_e;
-        bool ext_g;
-        bool ext_m;
-        bool ext_a;
-        bool ext_f;
-        bool ext_d;
-        bool ext_c;
-        bool ext_s;
-        bool ext_u;
-        bool ext_h;
-        bool ext_j;
-        bool ext_v;
-        bool ext_zba;
-        bool ext_zbb;
-        bool ext_zbc;
-        bool ext_zbs;
-        bool ext_counters;
-        bool ext_ifencei;
-        bool ext_icsr;
-        bool ext_icbom;
-        bool ext_icboz;
-#ifdef TARGET_CHERI
-#ifdef TARGET_CHERI_RISCV_V9
-        bool ext_cheri;
-        bool ext_cheri_v9; /* Temporary flag to support new semantics. */
-#elif defined(TARGET_CHERI_RISCV_STD)
-        bool ext_cheri;
-        bool ext_zyhybrid;
-        bool ext_zylevels1;
-        /* number of levels (Zcherilevels): 0 invalid, 1 disabled (default)) */
-        uint8_t _compat_cheri_levels; /* To keep existing scripts working */
-        uint8_t lvbits; /* Only 0 and 1 (Zylevels1) are currently supported. */
-        bool cheri_pte;
-#endif
-#endif
-        char *priv_spec;
-        char *user_spec;
-        char *bext_spec;
-        char *vext_spec;
-        uint16_t vlen;
-        uint16_t elen;
-        uint16_t cbom_blocksize;
-        uint16_t cboz_blocksize;
-        bool mmu;
-        bool pmp;
-        bool epmp;
-        uint64_t resetvec;
-    } cfg;
+    RISCVCPUConfig cfg;
 };
 
 static inline int riscv_has_ext(CPURISCVState *env, target_ulong ext)
