@@ -326,7 +326,7 @@ static RISCVException read_fcsr(CPURISCVState *env, int csrno,
 {
     *val = (riscv_cpu_get_fflags(env) << FSR_AEXC_SHIFT)
         | (env->frm << FSR_RD_SHIFT);
-    if (vs(env, csrno) >= 0) {
+    if (vs(env, csrno) == RISCV_EXCP_NONE) {
         *val |= (env->vxrm << FSR_VXRM_SHIFT)
                 | (env->vxsat << FSR_VXSAT_SHIFT);
     }
@@ -343,7 +343,7 @@ static RISCVException write_fcsr(CPURISCVState *env, int csrno,
                             LRI_CSR_ACCESS);
 #endif
     env->frm = (val & FSR_RD) >> FSR_RD_SHIFT;
-    if (vs(env, csrno) >= 0) {
+    if (vs(env, csrno) == RISCV_EXCP_NONE) {
         env->vxrm = (val & FSR_VXRM) >> FSR_VXRM_SHIFT;
         env->vxsat = (val & FSR_VXSAT) >> FSR_VXSAT_SHIFT;
     }
