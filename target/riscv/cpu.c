@@ -233,6 +233,7 @@ static void rv64_codasip_a730_cpu_init(Object *obj)
     qdev_prop_set_bit(DEVICE(obj), "x-zba", true);
     qdev_prop_set_bit(DEVICE(obj), "x-zbb", true);
     qdev_prop_set_bit(DEVICE(obj), "x-zbs", true);
+    qdev_prop_set_bit(DEVICE(obj), "Zfhmin", true);
 
     /*
      * QEMU 6.x has no support for limiting the virtual addressing modes
@@ -1309,6 +1310,8 @@ static void riscv_isa_string_ext(RISCVCPU *cpu, char **isa_str, int max_str_len)
         ISA_EDATA_ENTRY(zbb, ext_zbb),
         ISA_EDATA_ENTRY(zbc, ext_zbc),
         ISA_EDATA_ENTRY(zbs, ext_zbs),
+        ISA_EDATA_ENTRY(zfh, ext_zfh),
+        ISA_EDATA_ENTRY(zfhmin, ext_zfhmin),
         ISA_EDATA_ENTRY(zicbom, ext_icbom),
         ISA_EDATA_ENTRY(zicboz, ext_icboz),
 #ifdef TARGET_CHERI_RISCV_STD
