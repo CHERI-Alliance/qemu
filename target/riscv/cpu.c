@@ -237,6 +237,8 @@ static void rv64_codasip_a730_cpu_init(Object *obj)
     qdev_prop_set_bit(DEVICE(obj), "svnapot", true);
     qdev_prop_set_bit(DEVICE(obj), "svpbmt", true);
     qdev_prop_set_bit(DEVICE(obj), "svinval", true);
+    qdev_prop_set_bit(DEVICE(obj), "x-zbc", true);
+    qdev_prop_set_bit(DEVICE(obj), "zish4add", true);
 
     qdev_prop_set_bit(DEVICE(obj), "zca", true);
     qdev_prop_set_bit(DEVICE(obj), "zcb", true);
