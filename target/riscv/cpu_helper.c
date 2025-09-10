@@ -261,6 +261,15 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env, bool hs_mode_trap)
             riscv_log_instr_csr_changed(env, CSR_STVAL);
         }
 
+#ifdef TARGET_CHERI_RISCV_STD_093
+        env->vstval2 = env->stval2;
+        env->stval2 = env->stval2_hs;
+        if (!hs_mode_trap) {
+            /* stval2 will be modified again when trapping to HS-mode */
+            riscv_log_instr_csr_changed(env, CSR_STVAL2);
+        }
+#endif
+
         env->vsatp = env->satp;
         env->satp = env->satp_hs;
         riscv_log_instr_csr_changed(env, CSR_VSATP);
@@ -307,6 +316,12 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env, bool hs_mode_trap)
         env->stval_hs = env->stval;
         env->stval = env->vstval;
         riscv_log_instr_csr_changed(env, CSR_STVAL);
+
+#ifdef TARGET_CHERI_RISCV_STD_093
+        env->stval2_hs = env->stval2;
+        env->stval2 = env->vstval2;
+        riscv_log_instr_csr_changed(env, CSR_STVAL2);
+#endif
 
         env->satp_hs = env->satp;
         env->satp = env->vsatp;
@@ -1361,6 +1376,9 @@ void riscv_cpu_do_interrupt(CPUState *cs)
     target_ulong tval = 0;
     target_ulong htval = 0;
     target_ulong mtval2 = 0;
+#ifdef TARGET_CHERI_RISCV_STD_093
+    target_ulong cheri_exc_info = 0;
+#endif
 
     if  (cause == RISCV_EXCP_SEMIHOST) {
         if (env->priv >= PRV_S) {
@@ -1397,12 +1415,22 @@ void riscv_cpu_do_interrupt(CPUState *cs)
 #ifdef TARGET_CHERI
         case RISCV_EXCP_CHERI:
             write_tval  = true;
+            qemu_log_instr_or_mask_msg(
+                env, CPU_LOG_INT, "Got CHERI trap %s, caused by register %d\n",
+                cheri_cause_str(env->last_cap_cause), env->last_cap_index);
             tcg_debug_assert(env->last_cap_cause < 32);
             tcg_debug_assert(env->last_cap_index < 64);
+#ifdef TARGET_CHERI_RISCV_STD_093
+            tcg_debug_assert(env->last_cap_type <= CapEx093_Type_Last);
+            /* Remap cap causes to the 0.9.3 values. */
+            cheri_exc_info = cheri093_cap_cause(env->last_cap_cause);
+            tcg_debug_assert(cheri_exc_info <= CapEx093_Last);
+            tval = env->badaddr;
+            cheri_exc_info |= env->last_cap_type << 16;
+            env->last_cap_type = CapEx093_Type_None;
+#else
             tval = env->last_cap_cause | env->last_cap_index << 5;
-            qemu_log_instr_or_mask_msg(env, CPU_LOG_INT,
-                "Got CHERI trap %s caused by register %d\n",
-                cheri_cause_str(env->last_cap_cause), env->last_cap_index);
+#endif
             env->last_cap_cause = -1;
             env->last_cap_index = -1;
             break;
@@ -1500,6 +1528,13 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         env->htval = htval;
         riscv_log_instr_csr_changed(env, CSR_HTVAL);
 
+#ifdef TARGET_CHERI_RISCV_STD_093
+        if (cause == RISCV_EXCP_CHERI) {
+            env->stval2 = cheri_exc_info;
+            riscv_log_instr_csr_changed(env, CSR_STVAL2);
+        }
+#endif
+
         target_ulong stvec = GET_SPECIAL_REG_ADDR(env, stvec, stvecc);
         target_ulong new_pc = (stvec >> 2 << 2) +
             ((async && (stvec & 3) == 1) ? cause * 4 : 0);
@@ -1538,6 +1573,15 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         env->mtval = tval;
         riscv_log_instr_csr_changed(env, CSR_MTVAL);
         env->mtval2 = mtval2;
+#ifdef TARGET_CHERI_RISCV_STD_093
+        /*
+         * We do not set the mtval2 to guest_phys_fault_add in the
+         * cheri exception case and report cause/type instead.
+         */
+        if (cause == RISCV_EXCP_CHERI) {
+            env->mtval2 = cheri_exc_info;
+        }
+#endif
         riscv_log_instr_csr_changed(env, CSR_MTVAL2);
 
         target_ulong mtvec = GET_SPECIAL_REG_ADDR(env, mtvec, mtvecc);

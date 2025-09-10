@@ -427,10 +427,30 @@ int gdb_get_general_purpose_capreg(GByteArray *buf, CPUArchState *env,
     raise_cheri_exception_impl_if_wnr(env, cause, reg, addr, true,             \
                                       _host_return_address, false, is_write)
 #else
+#ifdef TARGET_CHERI_RISCV_STD_093
+#define raise_cheri_exception_if(env, cause, addr, reg)                        \
+    raise_cheri_exception_with_093_type(env, cause, CapEx093_Type_InstrAccess, \
+                                        reg, addr, /*instavail=*/true,         \
+                                        /*pc=*/0)
+#else
 #define raise_cheri_exception_if(env, cause, addr, reg)                        \
     raise_cheri_exception_impl(env, cause, reg, addr, true, /*pc=*/0)
+#endif
 #define raise_cheri_exception_addr_wnr(env, cause, reg, addr, is_write)        \
     raise_cheri_exception_addr(env, cause, reg, addr)
+#endif
+
+#ifdef TARGET_CHERI_RISCV_STD_093
+#define raise_cheri_exception_branch_impl(env, cause, reg, addr, retpc)        \
+    raise_cheri_exception_with_093_type(env, cause, CapEx093_Type_Branch, reg, \
+                                        addr, /*instavail=*/true, retpc)
+#define raise_cheri_exception_branch(env, cause, reg)                          \
+    raise_cheri_exception_branch_impl(env, cause, reg, 0, _host_return_address)
+#else
+#define raise_cheri_exception_branch(env, cause, reg)                          \
+    raise_cheri_exception(env, cause, reg)
+#define raise_cheri_exception_branch_impl(env, cause, reg, addr, retpc)        \
+    raise_cheri_exception_impl(env, cause, reg, addr, true, retpc)
 #endif
 
 static inline void cap_set_cursor(cap_register_t *cap, uint64_t new_addr)

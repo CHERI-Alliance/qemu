@@ -37,19 +37,42 @@
 
 extern bool cheri_debugger_on_trap;
 
-static inline void QEMU_NORETURN raise_cheri_exception_impl(
-    CPUArchState *env, CheriCapExcCause cause, unsigned regnum,
+/*
+ * TODO: Remove this function once we no longer need to support the 0.9.3
+ * version of the CHERI specification.
+ */
+static inline void QEMU_NORETURN raise_cheri_exception_with_093_type(
+    CPUArchState *env, CheriCapExcCause cause, uint8_t type093, unsigned regnum,
     target_ulong addr, bool instavail, uintptr_t hostpc)
 {
     env->badaddr = addr;
     env->last_cap_cause = cause;
     env->last_cap_index = regnum;
+#ifdef TARGET_CHERI_RISCV_STD_093
+    /* Report the TYPE field */
+    assert(env->last_cap_type == CapEx093_Type_None);
+    env->last_cap_type = type093;
+#endif
     // Allow drop into debugger on first CHERI trap:
     // FIXME: allow c command to work by adding another boolean flag to skip
     // this breakpoint when GDB asks to continue
     if (cheri_debugger_on_trap)
         riscv_raise_exception(env, EXCP_DEBUG, hostpc);
     riscv_raise_exception(env, RISCV_EXCP_CHERI, hostpc);
+}
+
+static inline void QEMU_NORETURN raise_cheri_exception_impl(
+    CPUArchState *env, CheriCapExcCause cause, unsigned regnum,
+    target_ulong addr, bool instavail, uintptr_t hostpc)
+{
+    uint8_t type093 = 0;
+#ifdef TARGET_CHERI_RISCV_STD_093
+    type093 = cause == CapEx_AccessSystemRegsViolation
+                  ? CapEx093_Type_InstrAccess
+                  : CapEx093_Type_Data;
+#endif
+    raise_cheri_exception_with_093_type(env, cause, type093, regnum, addr,
+                                        instavail, hostpc);
 }
 
 static inline void QEMU_NORETURN raise_load_tag_exception(
@@ -100,12 +123,12 @@ static inline bool validate_jump_target(CPUArchState *env,
     target_ulong base = cap_get_base(cap);
     unsigned min_insn_size = riscv_has_ext(env, RVC) ? 2 : 4;
     if (!cap_is_in_bounds(cap, addr, min_insn_size)) {
-        raise_cheri_exception_impl(env, CapEx_LengthViolation, regnum, addr,
-                                   true, retpc);
+        raise_cheri_exception_branch_impl(env, CapEx_LengthViolation, regnum,
+                                          addr, retpc);
     }
     if (!QEMU_IS_ALIGNED(base, min_insn_size)) {
-        raise_cheri_exception_impl(env, CapEx_UnalignedBase, regnum, addr, true,
-                                   retpc);
+        raise_cheri_exception_branch_impl(env, CapEx_UnalignedBase, regnum,
+                                          addr, retpc);
     }
     // XXX: Sail only checks bit 1 why not also bit zero? Is it because that is
     // ignored?

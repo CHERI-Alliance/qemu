@@ -95,6 +95,26 @@ typedef enum {
     CapEx093_Last = CapEx093_BoundsViolation,
     CapEx093_None = 0xff,
 } Cheri093CapExcCause;
+
+static inline Cheri093CapExcCause cheri093_cap_cause(CheriCapExcCause cause)
+{
+    switch (cause) {
+    case CapEx_None:
+        return CapEx093_None;
+    case CapEx_TagViolation:
+        return CapEx093_TagViolation;
+    case CapEx_LengthViolation:
+        return CapEx093_BoundsViolation;
+    case CapEx_SealViolation:
+    case CapEx_TypeViolation:
+        return CapEx093_SealViolation;
+    case CapEx_UnalignedBase:
+        return CapEx093_InvalidAddressViolation;
+    default:
+        /* All other exceptions map to a permissions violation */
+        return CapEx093_PermissionViolation;
+    }
+}
 #endif
 
 enum CheriSCR {
