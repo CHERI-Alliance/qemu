@@ -197,7 +197,7 @@ void helper_cbo_zero_cap(CPURISCVState *env, uint32_t addr_reg)
 {
     uintptr_t _host_return_address = GETPC();
     RISCVCPU *cpu = env_archcpu(env);
-    target_long address;
+    target_ulong address;
     uint16_t cbozlen;
     uint32_t auth_reg; /* register number of the authorizing capability */
     const cap_register_t *auth_cap;
@@ -310,6 +310,59 @@ void helper_cbo_clean_flush(CPURISCVState *env, target_ulong address)
 
     /* We don't emulate the cache-hierarchy, so we're done. */
 }
+#ifdef TARGET_CHERI
+void helper_cbo_clean_flush_cap(CPURISCVState *env, uint32_t addr_reg)
+{
+    uintptr_t _host_return_address = GETPC();
+    RISCVCPU *cpu = env_archcpu(env);
+    target_ulong address;
+    uint16_t cbomlen;
+    uint32_t auth_reg; /* register number of the authorizing capability */
+    const cap_register_t *auth_cap;
+    uint32_t perms_req = CAP_PERM_STORE | CAP_PERM_LOAD;
+    check_zicbo_envcfg(env, MENVCFG_CBCFE, _host_return_address);
+
+    auth_reg = cheri_in_capmode(env) ? addr_reg : CHERI_EXC_REGNUM_DDC;
+    auth_cap = get_capreg_or_special(env, auth_reg);
+    if (!auth_cap->cr_tag) {
+        raise_cheri_exception(env, CapEx_TagViolation,
+                              auth_reg);
+    } else if (!cap_is_unsealed(auth_cap)) {
+        raise_cheri_exception(env, CapEx_SealViolation,
+                              auth_reg);
+    }
+    if (!cap_has_perms(auth_cap, perms_req)) {
+        raise_cheri_exception(env, CapEx_PermitStoreViolation,
+                              auth_reg);
+    }
+    if (cap_has_invalid_perms_encoding(env, auth_cap)) {
+        raise_cheri_exception(env, CapEx_UserDefViolation, auth_reg);
+    }
+
+    /*
+     * qemu does not convert an invalid address into a different invalid
+     * address to save space. We can skip the "Invalid address violation"
+     * check.
+     */
+
+    /* get_capreg_cursor works in cap and int ptr mode. */
+    address = get_capreg_cursor(env, addr_reg);
+    cbomlen = cpu->cfg.cbom_blocksize;
+    /* Mask off low-bits to align-down to the cache-block. */
+    address &= ~(cbomlen - 1);
+
+    /* Check if any of the bytes are outside the bounds */
+    if ((cap_get_top_full(auth_cap) < address) ||
+        (cap_get_base(auth_cap) > (address + cbomlen))) {
+        /* The spec requires "bounds violation", this is the same number as
+           CapEx_LengthViolation. */
+        raise_cheri_exception(env, CapEx_LengthViolation,
+                              addr_reg);
+    }
+    check_zicbom_access(env, address, _host_return_address);
+}
+#endif
+
 
 void helper_cbo_inval(CPURISCVState *env, target_ulong address)
 {
@@ -320,6 +373,61 @@ void helper_cbo_inval(CPURISCVState *env, target_ulong address)
     /* We don't emulate the cache-hierarchy, so we're done. */
 }
 
+#ifdef TARGET_CHERI
+void helper_cbo_inval_cap(CPURISCVState *env, uint32_t addr_reg)
+{
+    uintptr_t _host_return_address = GETPC();
+    RISCVCPU *cpu = env_archcpu(env);
+    target_ulong address;
+    uint16_t cbomlen;
+    uint32_t auth_reg; /* register number of the authorizing capability */
+    const cap_register_t *auth_cap;
+    uint32_t perms_req = CAP_PERM_STORE | CAP_PERM_LOAD | CAP_ACCESS_SYS_REGS;
+    
+    // Spec says that the checks occur regardless of the CBIE bit!
+    // check_zicbo_envcfg(env, MENVCFG_CBIE, _host_return_address);
+
+    auth_reg = cheri_in_capmode(env) ? addr_reg : CHERI_EXC_REGNUM_DDC;
+    auth_cap = get_capreg_or_special(env, auth_reg);
+    if (!auth_cap->cr_tag) {
+        raise_cheri_exception(env, CapEx_TagViolation,
+                              auth_reg);
+    } else if (!cap_is_unsealed(auth_cap)) {
+        raise_cheri_exception(env, CapEx_SealViolation,
+                              auth_reg);
+    }
+    if (!cap_has_perms(auth_cap, perms_req)) {
+        raise_cheri_exception(env, CapEx_PermitStoreViolation,
+                              auth_reg);
+    }
+
+    if (cap_has_invalid_perms_encoding(env, auth_cap)) {
+        raise_cheri_exception(env, CapEx_UserDefViolation, auth_reg);
+    }
+
+    /*
+     * qemu does not convert an invalid address into a different invalid
+     * address to save space. We can skip the "Invalid address violation"
+     * check.
+     */
+
+    /* get_capreg_cursor works in cap and int ptr mode. */
+    address = get_capreg_cursor(env, addr_reg);
+    cbomlen = cpu->cfg.cbom_blocksize;
+    /* Mask off low-bits to align-down to the cache-block. */
+    address &= ~(cbomlen - 1);
+
+    /* Check if any of the bytes are outside the bounds */
+    if ((cap_get_top_full(auth_cap) < address) ||
+        (cap_get_base(auth_cap) > (address + cbomlen))) {
+        /* The spec requires "bounds violation", this is the same number as
+           CapEx_LengthViolation. */
+        raise_cheri_exception(env, CapEx_LengthViolation,
+                              addr_reg);
+    }
+    check_zicbom_access(env, address, _host_return_address);
+}
+#endif
 #ifndef CONFIG_USER_ONLY
 
 target_ulong helper_sret(CPURISCVState *env, target_ulong cpu_pc_deb)
