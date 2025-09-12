@@ -886,7 +886,9 @@ static char *custom_riscv_isa_string(RISCVCPU *cpu, bool is_32_bit)
         { &cpu->cfg.ext_v, "v" }
     };
 
-    ext_map_t multi_exts[] = {{ &cpu->cfg.ext_zca, "_zca" },
+    ext_map_t multi_exts[] = { { &cpu->cfg.ext_icbom, "_zicbom" },
+                               { &cpu->cfg.ext_icboz, "_zicboz" },
+                               { &cpu->cfg.ext_zca, "_zca" },
                                { &cpu->cfg.ext_zcb, "_zcb" },
                                { &cpu->cfg.ext_zcd, "_zcd" },
                                { &cpu->cfg.ext_zcf, "_zcf" },
