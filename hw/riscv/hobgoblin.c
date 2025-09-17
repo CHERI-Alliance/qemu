@@ -36,6 +36,7 @@
 #include "hw/ssi/ssi.h"
 #include "target/riscv/cpu.h"
 #include "hw/riscv/cmu.h"
+#include "hw/riscv/numa.h"
 #include "hw/riscv/riscv_hart.h"
 #include "hw/intc/riscv_aclint.h"
 #include "hw/intc/sifive_plic.h"
@@ -824,6 +825,965 @@ static void hobgoblin_add_xilinx_pcie(HobgoblinState *s, MemoryRegion *sys_mem,
     }
 }
 
+static void create_fdt_aliases(HobgoblinState *s, const memmapEntry_t *memmap)
+{
+    char *name;
+    char *ethernet0_alias, *ethernet1_alias, *serial0_alias, *spi0_alias;
+    MachineState *mc = MACHINE(s);
+
+    name = g_strdup_printf("/aliases");
+    qemu_fdt_add_subnode(mc->fdt, name);
+
+    ethernet0_alias =
+        g_strdup_printf("/soc@0/ethernet@%lx", memmap[HOBGOBLIN_AXI_ETH].base);
+    qemu_fdt_setprop_string(mc->fdt, name, "ethernet0", ethernet0_alias);
+
+    ethernet1_alias = g_strdup_printf("/soc@0/ethernet@%lx",
+                                      memmap[HOBGOBLIN_FMC_AXI_ETH].base);
+    qemu_fdt_setprop_string(mc->fdt, name, "ethernet1", ethernet1_alias);
+
+    serial0_alias =
+        g_strdup_printf("/soc@0/serial@%lx", memmap[HOBGOBLIN_UART0].base -
+                                                 memmap[HOBGOBLIN_UART0].size);
+    qemu_fdt_setprop_string(mc->fdt, name, "serial0", serial0_alias);
+
+    spi0_alias = g_strdup_printf("/soc@0/spi@%lx", memmap[HOBGOBLIN_SPI].base);
+    qemu_fdt_setprop_string(mc->fdt, name, "spi0", spi0_alias);
+
+    g_free(name);
+    g_free(ethernet0_alias);
+    g_free(ethernet1_alias);
+    g_free(serial0_alias);
+    g_free(spi0_alias);
+}
+
+static char *custom_riscv_isa_string(RISCVCPU *cpu, bool is_32_bit)
+{
+    typedef struct {
+        bool *flag;
+        const char *ext;
+    } ext_map_t;
+
+    ext_map_t base_exts[] = {
+        { &cpu->cfg.ext_i, "i" }, { &cpu->cfg.ext_m, "m" },
+        { &cpu->cfg.ext_a, "a" }, { &cpu->cfg.ext_f, "f" },
+        { &cpu->cfg.ext_d, "d" }, { &cpu->cfg.ext_c, "c" },
+        { &cpu->cfg.ext_h, "h" }, { &cpu->cfg.ext_j, "j" },
+        { &cpu->cfg.ext_v, "v" }
+    };
+
+    ext_map_t multi_exts[] = {};
+
+    GString *result = (is_32_bit) ? g_string_new("rv32") : g_string_new("rv64");
+
+    for (int i = 0; i < ARRAY_SIZE(base_exts); i++) {
+        if (*base_exts[i].flag)
+            g_string_append(result, base_exts[i].ext);
+    }
+
+    for (int i = 0; i < ARRAY_SIZE(multi_exts); i++) {
+        if (*multi_exts[i].flag)
+            g_string_append(result, multi_exts[i].ext);
+    }
+
+    uint64_t features = cpu->env.features;
+    if ((features & (1ULL << RISCV_FEATURE_CHERI))) {
+        g_string_append(result, "_zcheripurecap");
+    }
+    if ((features & (1ULL << RISCV_FEATURE_CHERI_HYBRID))) {
+        g_string_append(result, "_zcherihybrid");
+    }
+
+    return g_string_free(result, FALSE);
+}
+
+static char *format_extensions(const char *ext_str, size_t *len)
+{
+    GString *result = g_string_new("");
+    const char *p = ext_str;
+    const char *underscore = strchr(ext_str, '_');
+
+    if (underscore) {
+        while (p < underscore) {
+            if (result->len > 0)
+                g_string_append_c(result, '\0');
+            g_string_append_c(result, *p++);
+        }
+        char **parts = g_strsplit(underscore + 1, "_", -1);
+        for (int i = 0; parts[i]; i++) {
+            if (result->len > 0)
+                g_string_append_c(result, '\0');
+            g_string_append(result, parts[i]);
+        }
+        g_strfreev(parts);
+    } else {
+        while (*p) {
+            if (result->len > 0)
+                g_string_append_c(result, '\0');
+            g_string_append_c(result, *p++);
+        }
+    }
+
+    g_string_append_c(result, '\0');
+    *len = result->len;
+    return g_string_free(result, FALSE);
+}
+
+static void create_fdt_socket_cpus(HobgoblinState *s, int socket,
+                                   char *clust_name, bool is_32_bit,
+                                   uint32_t *intc_phandles)
+{
+    int cpu;
+    MachineState *mc = MACHINE(s);
+    char *name, *cpu_name, *intc_name, *formatted_ext;
+    size_t ext_len;
+
+    for (cpu = 0; cpu < mc->smp.cores; cpu++) {
+
+        cpu_name = g_strdup_printf("/cpus/cpu@%d", s->soc.hartid_base + cpu);
+        qemu_fdt_add_subnode(mc->fdt, cpu_name);
+        qemu_fdt_setprop_string(mc->fdt, cpu_name, "mmu-type",
+                                (is_32_bit) ? "riscv,sv32" : "riscv,sv39");
+        name = custom_riscv_isa_string(&s->soc.harts[cpu], is_32_bit);
+        qemu_fdt_setprop_string(mc->fdt, cpu_name, "riscv,isa", name);
+
+        qemu_fdt_setprop_string(mc->fdt, cpu_name, "riscv,isa-base",
+                                g_strndup(name, 5));
+
+        formatted_ext = format_extensions(name + 4, &ext_len);
+        qemu_fdt_setprop(mc->fdt, cpu_name, "riscv,isa-extensions",
+                         formatted_ext, ext_len);
+
+        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "riscv,cbom-block-size", 0x40);
+        // qemu_fdt_setprop_cell(mc->fdt, cpu_name, "riscv,cbop-block-size",
+        // 0x40);
+        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "riscv,cboz-block-size", 0x40);
+
+        qemu_fdt_setprop_string(mc->fdt, cpu_name, "compatible", "riscv");
+        qemu_fdt_setprop_string(mc->fdt, cpu_name, "status", "okay");
+        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "reg",
+                              s->soc.hartid_base + cpu);
+        qemu_fdt_setprop_string(mc->fdt, cpu_name, "device_type", "cpu");
+
+        intc_name = g_strdup_printf("%s/interrupt-controller", cpu_name);
+        qemu_fdt_add_subnode(mc->fdt, intc_name);
+        qemu_fdt_setprop_cell(mc->fdt, intc_name, "phandle",
+                              intc_phandles[cpu]);
+        qemu_fdt_setprop_string(mc->fdt, intc_name, "compatible",
+                                "riscv,cpu-intc");
+        qemu_fdt_setprop(mc->fdt, intc_name, "interrupt-controller", NULL, 0);
+        qemu_fdt_setprop_cell(mc->fdt, intc_name, "#interrupt-cells", 1);
+        qemu_fdt_setprop_cell(mc->fdt, intc_name, "#address-cells", 0);
+        qemu_fdt_setprop_string(mc->fdt, intc_name, "status", "okay");
+
+        g_free(intc_name);
+        g_free(cpu_name);
+        g_free(name);
+        g_free(formatted_ext);
+    }
+}
+
+static void create_fdt_socket_memory(HobgoblinState *s,
+                                     const memmapEntry_t *memmap, int socket)
+{
+    MachineState *mc = MACHINE(s);
+    HobgoblinClass *hc = HOBGOBLIN_MACHINE_GET_CLASS(s);
+
+    uint64_t dram0_base = hc->dram[0].base;
+    uint64_t dram1_base = hc->dram[1].base;
+
+    char *name = g_strdup_printf("/memory@%lx", (long)dram0_base);
+    qemu_fdt_add_subnode(mc->fdt, name);
+    qemu_fdt_setprop_cells(mc->fdt, name, "reg", dram0_base >> 32, dram0_base,
+                           dram1_base >> 32, dram1_base);
+    qemu_fdt_setprop_string(mc->fdt, name, "device_type", "memory");
+    riscv_socket_fdt_write_id(mc, mc->fdt, name, socket);
+    g_free(name);
+}
+
+static void create_fdt_socket_reserved_memory(HobgoblinState *s,
+                                              const memmapEntry_t *memmap,
+                                              int socket)
+{
+    MachineState *mc = MACHINE(s);
+
+    uint64_t cmu0_addr = 0x17f000000ULL;
+    uint64_t cmu1_addr = 0x0ff000000ULL;
+    uint64_t cmu_size = 0x001000000ULL;
+
+    char *name = g_strdup_printf("/reserved-memory");
+    qemu_fdt_add_subnode(mc->fdt, name);
+    qemu_fdt_setprop_cell(mc->fdt, name, "#address-cells", 2);
+    qemu_fdt_setprop_cell(mc->fdt, name, "#size-cells", 2);
+    qemu_fdt_setprop(mc->fdt, name, "ranges", NULL, 0);
+    g_free(name);
+
+    name = g_strdup_printf("/reserved-memory/cmu@%" PRIx64, cmu0_addr);
+    qemu_fdt_add_subnode(mc->fdt, name);
+    qemu_fdt_setprop(mc->fdt, name, "no-map", NULL, 0);
+    qemu_fdt_setprop_cells(mc->fdt, name, "reg", cmu0_addr >> 32, cmu0_addr,
+                           cmu_size >> 32, cmu_size);
+    g_free(name);
+
+    name = g_strdup_printf("/reserved-memory/cmu@%" PRIx64, cmu1_addr);
+    qemu_fdt_add_subnode(mc->fdt, name);
+    qemu_fdt_setprop(mc->fdt, name, "no-map", NULL, 0);
+    qemu_fdt_setprop_cells(mc->fdt, name, "reg", cmu1_addr >> 32, cmu1_addr,
+                           cmu_size >> 32, cmu_size);
+    g_free(name);
+}
+
+static void create_fdt_sockets(HobgoblinState *s, const memmapEntry_t *memmap,
+                               bool is_32_bit, uint32_t *irq_mmio_phandle,
+                               uint32_t *irq_pcie_phandle,
+                               uint32_t *intc_phandles)
+{
+    int socket;
+    char *clust_name;
+    MachineState *mc = MACHINE(s);
+
+    qemu_fdt_add_subnode(mc->fdt, "/cpus");
+    qemu_fdt_setprop_cell(mc->fdt, "/cpus", "timebase-frequency",
+                          CLINT_TIMEBASE_FREQ);
+    qemu_fdt_setprop_cell(mc->fdt, "/cpus", "#size-cells", 0);
+    qemu_fdt_setprop_cell(mc->fdt, "/cpus", "#address-cells", 1);
+
+    for (socket = 0; socket >= 0; socket--) {
+        clust_name = g_strdup_printf("/cpus");
+
+        create_fdt_socket_cpus(s, socket, clust_name, is_32_bit, intc_phandles);
+
+        create_fdt_socket_memory(s, memmap, socket);
+        create_fdt_socket_reserved_memory(s, memmap, socket);
+
+        g_free(clust_name);
+    }
+}
+
+static void create_fdt_clock(HobgoblinState *s, const memmapEntry_t *memmap,
+                             uint32_t clock_phandle)
+{
+    char *name;
+    MachineState *mc = MACHINE(s);
+    name = g_strdup_printf("/clock");
+    qemu_fdt_add_subnode(mc->fdt, name);
+    qemu_fdt_setprop_cell(mc->fdt, name, "#clock-cells", 0);
+    qemu_fdt_setprop_cell(mc->fdt, name, "clock-frequency",
+                          CLINT_TIMEBASE_FREQ);
+    qemu_fdt_setprop_string(mc->fdt, name, "compatible", "fixed-clock");
+    qemu_fdt_setprop_cell(mc->fdt, name, "phandle", clock_phandle);
+
+    g_free(name);
+}
+
+static void create_fdt_virtio(HobgoblinState *s, const memmapEntry_t *memmap,
+                              uint32_t irq_virtio_phandle)
+{
+    int i;
+    char *name;
+    MachineState *mc = MACHINE(s);
+    const memmapEntry_t *mem_virtio = &memmap[HOBGOBLIN_VIRTIO];
+    HobgoblinClass *hc = HOBGOBLIN_MACHINE_GET_CLASS(s);
+
+    int virtio_transports =
+        (MAPVERSION(s) == V2 && hc->board_type == BOARD_TYPE_VCU118)
+            ? V2_VIRTIO_TRANSPORTS
+            : V1_VIRTIO_TRANSPORTS;
+
+    for (i = 0; i < virtio_transports; i++) {
+        hwaddr offset = 0x200 * i;
+        hwaddr base = mem_virtio->base + offset;
+
+        name = g_strdup_printf("/soc@0/virtio@%lx", (long)base);
+        qemu_fdt_add_subnode(mc->fdt, name);
+        qemu_fdt_setprop_string(mc->fdt, name, "compatible", "virtio,mmio");
+
+        qemu_fdt_setprop_cells(mc->fdt, name, "reg", base, 0x200);
+        qemu_fdt_setprop_cells(mc->fdt, name, "interrupts-extended",
+                               irq_virtio_phandle,
+                               HIRQ(s, HOBGOBLIN_VIRTIO0_IRQ) + i);
+
+        g_free(name);
+    }
+}
+
+static void create_pcie_node(HobgoblinState *s, const memmapEntry_t *memmap,
+                             uint32_t irq_mmio_phandle, int memmap_index,
+                             int irq_index, uint32_t phandle)
+{
+    char *name;
+    const memmapEntry_t *entry = &memmap[memmap_index];
+    MachineState *mc = MACHINE(s);
+
+    name = g_strdup_printf("/soc%s@0/pcie@%lx",
+                           riscv_is_32bit(&s->soc) ? "32" : "64", entry->base);
+    qemu_fdt_add_subnode(mc->fdt, name);
+
+    qemu_fdt_setprop_cell(mc->fdt, name, "#address-cells", 3);
+    qemu_fdt_setprop_cell(mc->fdt, name, "#interrupt-cells", 1);
+    qemu_fdt_setprop_cell(mc->fdt, name, "#size-cells", 2);
+    qemu_fdt_setprop_cells(mc->fdt, name, "bus-range", 0, 0xff);
+
+    qemu_fdt_setprop_string(mc->fdt, name, "compatible",
+                            "xlnx,axi-pcie-host-1.00.a");
+    qemu_fdt_setprop_string(mc->fdt, name, "device_type", "pci");
+
+    // Interrupt map: maps PCI interrupts INTA-INTD to the interrupt controller
+    uint32_t interrupt_map[] = {
+        cpu_to_be32(0x00), cpu_to_be32(0x00),    cpu_to_be32(0x00),
+        cpu_to_be32(0x01), cpu_to_be32(phandle), cpu_to_be32(0x01),
+        cpu_to_be32(0x00), cpu_to_be32(0x00),    cpu_to_be32(0x00),
+        cpu_to_be32(0x02), cpu_to_be32(phandle), cpu_to_be32(0x02),
+        cpu_to_be32(0x00), cpu_to_be32(0x00),    cpu_to_be32(0x00),
+        cpu_to_be32(0x03), cpu_to_be32(phandle), cpu_to_be32(0x03),
+        cpu_to_be32(0x00), cpu_to_be32(0x00),    cpu_to_be32(0x00),
+        cpu_to_be32(0x04), cpu_to_be32(phandle), cpu_to_be32(0x04)
+    };
+    qemu_fdt_setprop(mc->fdt, name, "interrupt-map", interrupt_map,
+                     sizeof(interrupt_map));
+
+    uint32_t interrupt_map_mask[] = { cpu_to_be32(0x00), cpu_to_be32(0x00),
+                                      cpu_to_be32(0x00), cpu_to_be32(0x07) };
+    qemu_fdt_setprop(mc->fdt, name, "interrupt-map-mask", interrupt_map_mask,
+                     sizeof(interrupt_map_mask));
+
+    uint32_t interrupts_extended[] = {
+        cpu_to_be32(irq_mmio_phandle), cpu_to_be32(irqmap[1][irq_index]),
+        cpu_to_be32(irq_mmio_phandle), cpu_to_be32(irqmap[1][irq_index + 1]),
+        cpu_to_be32(irq_mmio_phandle), cpu_to_be32(irqmap[1][irq_index + 2])
+    };
+    qemu_fdt_setprop(mc->fdt, name, "interrupts-extended", interrupts_extended,
+                     sizeof(interrupts_extended));
+
+    uint64_t mem_base = entry->base + 0x10000000;
+    uint32_t ranges[] = { cpu_to_be32(0x2000000),   cpu_to_be32(0x00),
+                          cpu_to_be32(mem_base),    cpu_to_be32(0x00),
+                          cpu_to_be32(mem_base),    cpu_to_be32(0x00),
+                          cpu_to_be32(0x10000000),  cpu_to_be32(0x43000000),
+                          cpu_to_be32(phandle + 7), cpu_to_be32(0x00),
+                          cpu_to_be32(phandle + 7), cpu_to_be32(0x00),
+                          cpu_to_be32(0x01),        cpu_to_be32(0x00) };
+    qemu_fdt_setprop(mc->fdt, name, "ranges", ranges, sizeof(ranges));
+
+    qemu_fdt_setprop_cells(mc->fdt, name, "reg", 0, entry->base, 0,
+                           entry->size);
+
+    qemu_fdt_setprop(mc->fdt, name, "xlnx,msi-decode", NULL, 0);
+
+    char *ic_name = g_strdup_printf("%s/interrupt-controller", name);
+    qemu_fdt_add_subnode(mc->fdt, ic_name);
+    qemu_fdt_setprop_cell(mc->fdt, ic_name, "#address-cells", 0);
+    qemu_fdt_setprop_cell(mc->fdt, ic_name, "#interrupt-cells", 1);
+    qemu_fdt_setprop(mc->fdt, ic_name, "interrupt-controller", NULL, 0);
+    qemu_fdt_setprop_cell(mc->fdt, ic_name, "phandle", phandle);
+
+    g_free(ic_name);
+    g_free(name);
+}
+
+static void create_fdt_pcie(HobgoblinState *s, const memmapEntry_t *memmap,
+                            uint32_t irq_mmio_phandle, uint32_t pcie0_phandle,
+                            uint32_t pcie1_phandle)
+{
+    MachineState *mc = MACHINE(s);
+    char *soc_name =
+        g_strdup_printf("/soc%s@0", riscv_is_32bit(&s->soc) ? "32" : "64");
+
+    qemu_fdt_add_subnode(mc->fdt, soc_name);
+    qemu_fdt_setprop_cell(mc->fdt, soc_name, "#address-cells", 0x02);
+    qemu_fdt_setprop_cell(mc->fdt, soc_name, "#size-cells", 0x02);
+    qemu_fdt_setprop_string(mc->fdt, soc_name, "compatible", "simple-bus");
+    qemu_fdt_setprop_cells(mc->fdt, soc_name, "ranges", 0, 0, 0, 0, 64, 0);
+
+    create_pcie_node(s, memmap, irq_mmio_phandle, HOBGOBLIN_PCIE0,
+                     HOBGOBLIN2_PCIE0_IRQ, pcie0_phandle);
+    create_pcie_node(s, memmap, irq_mmio_phandle, HOBGOBLIN_PCIE1,
+                     HOBGOBLIN2_PCIE1_IRQ, pcie1_phandle);
+
+    g_free(soc_name);
+}
+
+static void create_fdt_plic(HobgoblinState *s, const memmapEntry_t *memmap,
+                            uint32_t irq_mmio_phandle, uint32_t *intc_phandles)
+{
+    MachineState *mc = MACHINE(s);
+    char *name = g_strdup_printf("/soc@0/interrupt-controller@%lx",
+                                 memmap[HOBGOBLIN_PLIC].base);
+    uint32_t *plic_cells = g_new0(uint32_t, s->soc.num_harts * 4);
+
+    qemu_fdt_add_subnode(mc->fdt, name);
+    qemu_fdt_setprop(mc->fdt, name, "interrupt-controller", NULL, 0);
+    qemu_fdt_setprop_cell(mc->fdt, name, "#address-cells", 0);
+    qemu_fdt_setprop_cell(mc->fdt, name, "#interrupt-cells", 1);
+    qemu_fdt_setprop_cell(mc->fdt, name, "riscv,ndev", 63);
+    qemu_fdt_setprop_cell(mc->fdt, name, "phandle", irq_mmio_phandle);
+    qemu_fdt_setprop_cells(mc->fdt, name, "reg", memmap[HOBGOBLIN_PLIC].base,
+                           memmap[HOBGOBLIN_PLIC].size);
+
+    // Build interrupts-extended array: each hart gets M-mode and S-mode
+    // external interrupts
+    for (int cpu = 0; cpu < s->soc.num_harts; cpu++) {
+        plic_cells[cpu * 4 + 0] = cpu_to_be32(intc_phandles[cpu]);
+        plic_cells[cpu * 4 + 1] = cpu_to_be32(IRQ_M_EXT);
+        plic_cells[cpu * 4 + 2] = cpu_to_be32(intc_phandles[cpu]);
+        plic_cells[cpu * 4 + 3] = cpu_to_be32(IRQ_S_EXT);
+    }
+    qemu_fdt_setprop(mc->fdt, name, "interrupts-extended", plic_cells,
+                     s->soc.num_harts * 4 * sizeof(uint32_t));
+
+    const char compatible_strings[] =
+        "codasip,plic\0sifive,plic-1.0.0\0riscv,plic0\0";
+    qemu_fdt_setprop(mc->fdt, name, "compatible", compatible_strings,
+                     sizeof(compatible_strings) - 1);
+
+    g_free(plic_cells);
+    g_free(name);
+}
+
+static void create_fdt_axi(HobgoblinState *s, const memmapEntry_t *memmap,
+                           uint32_t irq_mmio_phandle, uint32_t fmc_axi_phandle,
+                           uint32_t axi_phandle)
+{
+    char *name;
+    MachineState *mc = MACHINE(s);
+
+    name = g_strdup_printf("/soc@0/axistream_dma@%lx",
+                           memmap[HOBGOBLIN_FMC_AXI_DMA].base);
+    qemu_fdt_add_subnode(mc->fdt, name);
+    qemu_fdt_setprop_string(mc->fdt, name, "compatible", "xlnx,eth-dma");
+    qemu_fdt_setprop_cells(mc->fdt, name, "reg",
+                           memmap[HOBGOBLIN_FMC_AXI_DMA].base,
+                           memmap[HOBGOBLIN_FMC_AXI_DMA].size);
+
+    uint32_t interrupts_extended_fmc[] = {
+        cpu_to_be32(irq_mmio_phandle),
+        cpu_to_be32(irqmap[1][HOBGOBLIN_FMC_AXIDMA_IRQ0]),
+        cpu_to_be32(irq_mmio_phandle),
+        cpu_to_be32(irqmap[1][HOBGOBLIN_FMC_AXIDMA_IRQ1])
+    };
+    qemu_fdt_setprop(mc->fdt, name, "interrupts-extended",
+                     interrupts_extended_fmc, sizeof(interrupts_extended_fmc));
+
+    qemu_fdt_setprop_cell(mc->fdt, name, "phandle", fmc_axi_phandle);
+
+    g_free(name);
+
+    name = g_strdup_printf("/soc@0/axistream_dma@%lx",
+                           memmap[HOBGOBLIN_AXI_DMA].base);
+    qemu_fdt_add_subnode(mc->fdt, name);
+    qemu_fdt_setprop_string(mc->fdt, name, "compatible", "xlnx,eth-dma");
+    qemu_fdt_setprop_cells(mc->fdt, name, "reg", memmap[HOBGOBLIN_AXI_DMA].base,
+                           memmap[HOBGOBLIN_AXI_DMA].size);
+
+    uint32_t interrupts_extended_axi[] = {
+        cpu_to_be32(irq_mmio_phandle),
+        cpu_to_be32(irqmap[1][HOBGOBLIN_AXIDMA_IRQ0]),
+        cpu_to_be32(irq_mmio_phandle),
+        cpu_to_be32(irqmap[1][HOBGOBLIN_AXIDMA_IRQ1])
+    };
+    qemu_fdt_setprop(mc->fdt, name, "interrupts-extended",
+                     interrupts_extended_axi, sizeof(interrupts_extended_axi));
+
+    qemu_fdt_setprop_cell(mc->fdt, name, "phandle", axi_phandle);
+
+    g_free(name);
+}
+
+static void create_fdt_trng(HobgoblinState *s, const memmapEntry_t *memmap)
+{
+    char *name;
+    MachineState *mc = MACHINE(s);
+    name = g_strdup_printf("/soc@0/trng@%lx", memmap[HOBGOBLIN_TRNG].base);
+
+    qemu_fdt_add_subnode(mc->fdt, name);
+    qemu_fdt_setprop_string(mc->fdt, name, "compatible", "codasip,codasip-rng");
+    qemu_fdt_setprop_cells(mc->fdt, name, "reg", memmap[HOBGOBLIN_TRNG].base,
+                           memmap[HOBGOBLIN_TRNG].size);
+
+    g_free(name);
+}
+
+static void create_fdt_timer(HobgoblinState *s, const memmapEntry_t *memmap,
+                             uint32_t irq_mmio_phandle, uint32_t *intc_phandles)
+{
+    MachineState *mc = MACHINE(s);
+    char *name;
+
+    // CLINT timer node
+    name = g_strdup_printf("/soc@0/timer@%lx", memmap[HOBGOBLIN_CLINT].base);
+    qemu_fdt_add_subnode(mc->fdt, name);
+
+    const char clint_compatible[] =
+        "codasip,clint\0sifive,clint0\0riscv,clint0\0";
+    qemu_fdt_setprop(mc->fdt, name, "compatible", clint_compatible,
+                     sizeof(clint_compatible) - 1);
+
+    uint32_t *clint_interrupts = g_new0(uint32_t, s->soc.num_harts * 4);
+    for (int hart = 0; hart < s->soc.num_harts; hart++) {
+        clint_interrupts[hart * 4 + 0] = cpu_to_be32(intc_phandles[hart]);
+        clint_interrupts[hart * 4 + 1] = cpu_to_be32(3);
+        clint_interrupts[hart * 4 + 2] = cpu_to_be32(intc_phandles[hart]);
+        clint_interrupts[hart * 4 + 3] = cpu_to_be32(7);
+    }
+    qemu_fdt_setprop(mc->fdt, name, "interrupts-extended", clint_interrupts,
+                     s->soc.num_harts * 4 * sizeof(uint32_t));
+    qemu_fdt_setprop_cells(mc->fdt, name, "reg", memmap[HOBGOBLIN_CLINT].base,
+                           memmap[HOBGOBLIN_CLINT].size);
+
+    g_free(clint_interrupts);
+    g_free(name);
+
+    // AXI timer node
+    name = g_strdup_printf("/soc@0/timer@%lx", memmap[HOBGOBLIN_TIMER].base);
+    qemu_fdt_add_subnode(mc->fdt, name);
+    qemu_fdt_setprop_cell(
+        mc->fdt, name, "clock-frequency",
+        object_property_get_uint(OBJECT(s->timer), "clock-frequency", NULL));
+    qemu_fdt_setprop_cells(mc->fdt, name, "reg", memmap[HOBGOBLIN_TIMER].base,
+                           memmap[HOBGOBLIN_TIMER].size);
+
+    const char timer_types[] = "xlnx,axi-timer-2.0\0xlnx,xps-timer-1.00.a\0";
+    qemu_fdt_setprop(mc->fdt, name, "compatible", timer_types,
+                     sizeof(timer_types) - 1);
+
+    uint32_t interrupts_extended[] = { cpu_to_be32(irq_mmio_phandle),
+                                       cpu_to_be32(
+                                           irqmap[0][HOBGOBLIN_TIMER_IRQ]) };
+    qemu_fdt_setprop(mc->fdt, name, "interrupts-extended", interrupts_extended,
+                     sizeof(interrupts_extended));
+
+    qemu_fdt_setprop_cell(
+        mc->fdt, name, "xlnx,one-timer-only",
+        object_property_get_uint(OBJECT(s->timer), "one-timer-only", NULL));
+    qemu_fdt_setprop_cell(mc->fdt, name, "xlnx,count-width", 32);
+
+    g_free(name);
+}
+
+static void create_fdt_spi(HobgoblinState *s, const memmapEntry_t *memmap,
+                           uint32_t irq_mmio_phandle, uint32_t gpio_phandle)
+{
+    char *name, *mmc_name;
+    MachineState *mc = MACHINE(s);
+
+    name = g_strdup_printf("/soc@0/spi@%lx", memmap[HOBGOBLIN_SPI].base);
+    qemu_fdt_add_subnode(mc->fdt, name);
+    qemu_fdt_setprop_cell(mc->fdt, name, "#address-cells", 1);
+    qemu_fdt_setprop_cell(mc->fdt, name, "#size-cells", 0);
+
+    qemu_fdt_setprop_cell(
+        mc->fdt, name, "clock-frequency",
+        object_property_get_uint(OBJECT(s->timer), "clock-frequency", NULL));
+    qemu_fdt_setprop_string(mc->fdt, name, "compatible", "xlnx,xps-spi-2.00.a");
+    qemu_fdt_setprop_cell(mc->fdt, name, "fifo-size", 0x100);
+    qemu_fdt_setprop_cell(
+        mc->fdt, name, "xlnx,num-ss-bits",
+        object_property_get_uint(OBJECT(s->spi), "num-ss-bits", NULL));
+    qemu_fdt_setprop_cell(mc->fdt, name, "xlnx,num-transfer-bits", 0x08);
+
+    uint32_t interrupts_extended[] = {
+        cpu_to_be32(irq_mmio_phandle),
+        cpu_to_be32(irqmap[0][HOBGOBLIN_SPI_IRQ]),
+    };
+    qemu_fdt_setprop(mc->fdt, name, "interrupts-extended", interrupts_extended,
+                     sizeof(interrupts_extended));
+    qemu_fdt_setprop_cells(mc->fdt, name, "reg", memmap[HOBGOBLIN_SPI].base,
+                           memmap[HOBGOBLIN_SPI].size);
+
+    // Create MMC child node
+    mmc_name = g_strdup_printf("%s/mmc@0", name);
+    qemu_fdt_add_subnode(mc->fdt, mmc_name);
+    qemu_fdt_setprop_string(mc->fdt, mmc_name, "compatible", "mmc-spi-slot");
+    qemu_fdt_setprop(mc->fdt, mmc_name, "disable-wp", NULL,
+                     0); // Boolean property
+    qemu_fdt_setprop_cell(mc->fdt, mmc_name, "reg", 0);
+    qemu_fdt_setprop_cell(mc->fdt, mmc_name, "spi-max-frequency", 20000000);
+
+    uint32_t gpios[] = { cpu_to_be32(gpio_phandle), // GPIO controller phandle
+                         cpu_to_be32(0), cpu_to_be32(1) };
+    qemu_fdt_setprop(mc->fdt, mmc_name, "gpios", gpios, sizeof(gpios));
+
+    uint32_t voltage_ranges[] = { cpu_to_be32(0xce4), cpu_to_be32(0xce4) };
+    qemu_fdt_setprop(mc->fdt, mmc_name, "voltage-ranges", voltage_ranges,
+                     sizeof(voltage_ranges));
+
+    g_free(mmc_name);
+    g_free(name);
+}
+
+static void create_fdt_uart(HobgoblinState *s, const memmapEntry_t *memmap,
+                            uint32_t irq_mmio_phandle)
+{
+    char *name;
+    MachineState *mc = MACHINE(s);
+
+    name =
+        g_strdup_printf("/soc@0/serial@%lx", memmap[HOBGOBLIN_UART0].base -
+                                                 memmap[HOBGOBLIN_UART0].size);
+    qemu_fdt_add_subnode(mc->fdt, name);
+    qemu_fdt_setprop_cell(
+        mc->fdt, name, "clock-frequency",
+        object_property_get_uint(OBJECT(s->timer), "clock-frequency", NULL));
+    qemu_fdt_setprop_string(mc->fdt, name, "compatible", "ns16550a");
+    qemu_fdt_setprop_cell(mc->fdt, name, "current-speed", 115200);
+    uint32_t interrupts_extended0[] = {
+        cpu_to_be32(irq_mmio_phandle),
+        cpu_to_be32(irqmap[0][HOBGOBLIN_UART0_IRQ]),
+    };
+    qemu_fdt_setprop(mc->fdt, name, "interrupts-extended", interrupts_extended0,
+                     sizeof(interrupts_extended0));
+    qemu_fdt_setprop_cells(mc->fdt, name, "reg",
+                           memmap[HOBGOBLIN_UART0].base -
+                               memmap[HOBGOBLIN_UART0].size,
+                           memmap[HOBGOBLIN_UART0].size + 32);
+    qemu_fdt_setprop_cell(mc->fdt, name, "reg-offset",
+                          memmap[HOBGOBLIN_UART0].size);
+    qemu_fdt_setprop_cell(mc->fdt, name, "reg-shift", 2);
+    g_free(name);
+
+    name = g_strdup_printf("/soc@0/serial@%lx", memmap[HOBGOBLIN_UART1].base);
+    qemu_fdt_add_subnode(mc->fdt, name);
+    qemu_fdt_setprop_string(mc->fdt, name, "compatible",
+                            "xlnx,xps-uartlite-1.00.a");
+    qemu_fdt_setprop_cell(mc->fdt, name, "current-speed", 115200);
+    uint32_t interrupts_extended1[] = {
+        cpu_to_be32(irq_mmio_phandle),
+        cpu_to_be32(irqmap[0][HOBGOBLIN_UART1_IRQ]),
+    };
+    qemu_fdt_setprop(mc->fdt, name, "interrupts-extended", interrupts_extended1,
+                     sizeof(interrupts_extended1));
+    qemu_fdt_setprop_cells(mc->fdt, name, "reg", memmap[HOBGOBLIN_UART1].base,
+                           0x10);
+    qemu_fdt_setprop_cell(mc->fdt, name, "xlnx,data-bits", 8);
+    qemu_fdt_setprop_cell(mc->fdt, name, "xlnx,use-parity", 0);
+    g_free(name);
+}
+
+static void add_fdt_ethernet_node(
+    HobgoblinState *s, const memmapEntry_t *memmap, uint32_t irq_mmio_phandle,
+    int eth_idx, uint32_t axistream_connected, uint32_t eth_irq,
+    uint32_t phy_phandle, const char *phy_mode, uint32_t phy_reg,
+    uint32_t phy_irq, uint32_t clock_phandle, bool has_ti_quirks)
+{
+    char *name, *mdio_name, *phy_name;
+    MachineState *mc = MACHINE(s);
+
+    name = g_strdup_printf("/soc@0/ethernet@%lx", memmap[eth_idx].base);
+    qemu_fdt_add_subnode(mc->fdt, name);
+
+    qemu_fdt_setprop_cell(mc->fdt, name, "axistream-connected",
+                          axistream_connected);
+    qemu_fdt_setprop_string(mc->fdt, name, "clock-names", "s_axi_lite_clk");
+    qemu_fdt_setprop_cell(mc->fdt, name, "clocks", clock_phandle);
+    qemu_fdt_setprop_string(mc->fdt, name, "compatible",
+                            "xlnx,axi-ethernet-1.00.a");
+
+    uint32_t interrupts_extended[] = {
+        cpu_to_be32(irq_mmio_phandle),
+        cpu_to_be32(eth_irq),
+    };
+    qemu_fdt_setprop(mc->fdt, name, "interrupts-extended", interrupts_extended,
+                     sizeof(interrupts_extended));
+
+    uint8_t mac_addr[6] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+    qemu_fdt_setprop(mc->fdt, name, "local-mac-address", mac_addr,
+                     sizeof(mac_addr));
+
+    qemu_fdt_setprop_cell(mc->fdt, name, "phy-handle", phy_phandle);
+    qemu_fdt_setprop_string(mc->fdt, name, "phy-mode", phy_mode);
+    qemu_fdt_setprop_cells(mc->fdt, name, "reg", memmap[eth_idx].base,
+                           memmap[eth_idx].size);
+
+    qemu_fdt_setprop_cell(mc->fdt, name, "xlnx,rxcsum", 0x02);
+    qemu_fdt_setprop_cell(mc->fdt, name, "xlnx,rxmem", 0x4000);
+    qemu_fdt_setprop_cell(mc->fdt, name, "xlnx,txcsum", 0x02);
+
+    mdio_name = g_strdup_printf("%s/mdio", name);
+    qemu_fdt_add_subnode(mc->fdt, mdio_name);
+    qemu_fdt_setprop_cell(mc->fdt, mdio_name, "#address-cells", 0x01);
+    qemu_fdt_setprop_cell(mc->fdt, mdio_name, "#size-cells", 0x00);
+
+    phy_name = g_strdup_printf("%s/ethernet-phy@%x", mdio_name, phy_reg);
+    qemu_fdt_add_subnode(mc->fdt, phy_name);
+    qemu_fdt_setprop_string(mc->fdt, phy_name, "device_type", "ethernet-phy");
+
+    uint32_t phy_interrupts_extended[] = {
+        cpu_to_be32(irq_mmio_phandle),
+        cpu_to_be32(phy_irq),
+    };
+    qemu_fdt_setprop(mc->fdt, phy_name, "interrupts-extended",
+                     phy_interrupts_extended, sizeof(phy_interrupts_extended));
+
+    qemu_fdt_setprop_cell(mc->fdt, phy_name, "phandle", phy_phandle);
+    qemu_fdt_setprop_cell(mc->fdt, phy_name, "reg", phy_reg);
+
+    if (strcmp(phy_mode, "rgmii-rxid") == 0) {
+        qemu_fdt_setprop_cell(mc->fdt, phy_name, "rx-internal-delay-ps", 0x7d0);
+    }
+
+    if (has_ti_quirks) {
+        qemu_fdt_setprop(mc->fdt, phy_name, "ti,dp83867-rxctrl-strap-quirk",
+                         NULL, 0);
+        qemu_fdt_setprop(mc->fdt, phy_name, "ti,sgmii-ref-clock-output-enable",
+                         NULL, 0);
+    }
+
+    g_free(name);
+    g_free(mdio_name);
+    g_free(phy_name);
+}
+
+static void create_fdt_ethernet(HobgoblinState *s, const memmapEntry_t *memmap,
+                                uint32_t irq_mmio_phandle,
+                                uint32_t fmc_axi_phandle,
+                                uint32_t fmc_phy_phandle, uint32_t axi_phandle,
+                                uint32_t axi_phy_phandle,
+                                uint32_t clock_phandle)
+{
+    // Add ethernet (RGMII interface)
+    add_fdt_ethernet_node(s, memmap, irq_mmio_phandle,
+                          HOBGOBLIN_FMC_AXI_ETH,        // memmap index
+                          fmc_axi_phandle,              // axistream-connected
+                          irqmap[0][HOBGOBLIN_ETH_IRQ], // ethernet interrupt
+                          fmc_phy_phandle,              // phy phandle
+                          "rgmii-rxid",                 // phy-mode
+                          0x01,                         // phy reg address
+                          0x12,                         // phy interrupt
+                          clock_phandle,                // clock phandle
+                          false);                       // no TI quirks
+
+    // Add ethernet(SGMII interface)
+    add_fdt_ethernet_node(
+        s, memmap, irq_mmio_phandle,
+        HOBGOBLIN_AXI_ETH,                // memmap index
+        axi_phandle,                      // axistream-connected
+        irqmap[0][HOBGOBLIN_FMC_ETH_IRQ], // ethernet interrupt
+        axi_phy_phandle,                  // phy phandle
+        "sgmii",                          // phy-mode
+        0x03,                             // phy reg address
+        0x0d,                             // phy interrupt
+        clock_phandle,                    // clock phandle
+        true);                            // has TI quirks
+}
+
+static void create_gpio_node(MachineState *mc, const memmapEntry_t *memmap,
+                             uint32_t irq_mmio_phandle, int memmap_index,
+                             int irq_index, uint32_t phandle,
+                             uint32_t tri_default, const char *line_name,
+                             int gpio_hog)
+{
+    char *name;
+    const memmapEntry_t *entry = &memmap[memmap_index];
+
+    name = g_strdup_printf("/soc@0/gpio@%lx", entry->base);
+    qemu_fdt_add_subnode(mc->fdt, name);
+
+    qemu_fdt_setprop_cell(mc->fdt, name, "#address-cells", 0);
+    qemu_fdt_setprop_cell(mc->fdt, name, "#gpio-cells", 2);
+    qemu_fdt_setprop_cell(mc->fdt, name, "#interrupt-cells", 2);
+
+    qemu_fdt_setprop_string(mc->fdt, name, "compatible",
+                            "xlnx,xps-gpio-1.00.a");
+    qemu_fdt_setprop(mc->fdt, name, "gpio-controller", NULL, 0);
+    qemu_fdt_setprop(mc->fdt, name, "interrupt-controller", NULL, 0);
+
+    uint32_t interrupts_extended[] = { cpu_to_be32(irq_mmio_phandle),
+                                       cpu_to_be32(irqmap[0][irq_index]) };
+    qemu_fdt_setprop(mc->fdt, name, "interrupts-extended", interrupts_extended,
+                     sizeof(interrupts_extended));
+    qemu_fdt_setprop_cell(mc->fdt, name, "phandle", phandle);
+
+    qemu_fdt_setprop_cells(mc->fdt, name, "reg", entry->base, entry->size);
+
+    qemu_fdt_setprop_cell(mc->fdt, name, "xlnx,all-inputs", 0);
+    qemu_fdt_setprop_cell(mc->fdt, name, "xlnx,all-outputs", 0);
+    qemu_fdt_setprop_cell(mc->fdt, name, "xlnx,dout-default", 0);
+    qemu_fdt_setprop_cell(mc->fdt, name, "xlnx,gpio-width", 32);
+    qemu_fdt_setprop_cell(mc->fdt, name, "xlnx,interrupt-present", 1);
+    qemu_fdt_setprop_cell(mc->fdt, name, "xlnx,is-dual", 0);
+    qemu_fdt_setprop_cell(mc->fdt, name, "xlnx,tri-default", tri_default);
+
+    if (gpio_hog) {
+        char *hog_name = g_strdup_printf("%s/sdcard_hog", name);
+        qemu_fdt_add_subnode(mc->fdt, hog_name);
+        qemu_fdt_setprop(mc->fdt, hog_name, "gpio-hog", NULL, 0);
+        uint32_t gpios[] = { cpu_to_be32(0x02), cpu_to_be32(0x00) };
+        qemu_fdt_setprop(mc->fdt, hog_name, "gpios", gpios, sizeof(gpios));
+        qemu_fdt_setprop_string(mc->fdt, hog_name, "line-name", line_name);
+        qemu_fdt_setprop(mc->fdt, hog_name, "output-high", NULL, 0);
+        g_free(hog_name);
+    }
+
+    g_free(name);
+}
+
+static void create_gpio_key_node(MachineState *mc, const char *parent_path,
+                                 const char *key_name, uint32_t gpio_phandle,
+                                 uint32_t gpio_pin, const char *label,
+                                 uint32_t linux_code)
+{
+    char *name = g_strdup_printf("%s/%s", parent_path, key_name);
+    qemu_fdt_add_subnode(mc->fdt, name);
+
+    uint32_t gpios[] = { cpu_to_be32(gpio_phandle), cpu_to_be32(gpio_pin),
+                         cpu_to_be32(0x00) };
+    qemu_fdt_setprop(mc->fdt, name, "gpios", gpios, sizeof(gpios));
+    qemu_fdt_setprop_string(mc->fdt, name, "label", label);
+    qemu_fdt_setprop_cell(mc->fdt, name, "linux,code", linux_code);
+
+    g_free(name);
+}
+
+static void create_gpio_led_node(MachineState *mc, const char *parent_path,
+                                 uint32_t gpio_phandle, int led_number,
+                                 const char *trigger)
+{
+    char *name = g_strdup_printf("%s/led-%d", parent_path, led_number);
+    char *label = g_strdup_printf("LD%d", led_number);
+
+    qemu_fdt_add_subnode(mc->fdt, name);
+
+    uint32_t gpios[] = { cpu_to_be32(gpio_phandle), cpu_to_be32(led_number),
+                         cpu_to_be32(0x00) };
+    qemu_fdt_setprop(mc->fdt, name, "gpios", gpios, sizeof(gpios));
+    qemu_fdt_setprop_string(mc->fdt, name, "label", label);
+
+    if (trigger) {
+        qemu_fdt_setprop_string(mc->fdt, name, "linux,default-trigger",
+                                trigger);
+    }
+
+    g_free(name);
+    g_free(label);
+}
+
+static void create_fdt_gpio(HobgoblinState *s, const memmapEntry_t *memmap,
+                            uint32_t irq_mmio_phandle, uint32_t gpio0_phandle,
+                            uint32_t gpio1_phandle)
+{
+    MachineState *mc = MACHINE(s);
+    const char *gpio_keys_path = "/gpio-keys";
+    const char *gpio_restart_path = "/gpio-restart";
+    const char *leds_path = "/leds";
+
+    create_gpio_node(mc, memmap, irq_mmio_phandle, HOBGOBLIN_GPIO0,
+                     HOBGOBLIN_GPIO0_IRQ, gpio0_phandle, 0xfe, NULL, 0);
+
+    create_gpio_node(mc, memmap, irq_mmio_phandle, HOBGOBLIN_GPIO1,
+                     HOBGOBLIN_GPIO1_IRQ, gpio1_phandle, 0x01,
+                     "sdcard-fast-gpio", 1);
+
+    qemu_fdt_add_subnode(mc->fdt, gpio_keys_path);
+    qemu_fdt_setprop_string(mc->fdt, gpio_keys_path, "compatible", "gpio-keys");
+
+    create_gpio_key_node(mc, gpio_keys_path, "key-down", gpio0_phandle, 0x11,
+                         "BTND", 0x6c);
+    create_gpio_key_node(mc, gpio_keys_path, "key-enter", gpio0_phandle, 0x10,
+                         "BTNC", 0x1c);
+    create_gpio_key_node(mc, gpio_keys_path, "key-left", gpio0_phandle, 0x12,
+                         "BTNL", 0x69);
+    create_gpio_key_node(mc, gpio_keys_path, "key-right", gpio0_phandle, 0x13,
+                         "BTNR", 0x6a);
+    create_gpio_key_node(mc, gpio_keys_path, "key-up", gpio0_phandle, 0x14,
+                         "BTNU", 0x67);
+
+    qemu_fdt_add_subnode(mc->fdt, gpio_restart_path);
+    qemu_fdt_setprop_string(mc->fdt, gpio_restart_path, "compatible",
+                            "gpio-restart");
+    uint32_t restart_gpios[] = { cpu_to_be32(gpio1_phandle), cpu_to_be32(0x03),
+                                 cpu_to_be32(0x00) };
+    qemu_fdt_setprop(mc->fdt, gpio_restart_path, "gpios", restart_gpios,
+                     sizeof(restart_gpios));
+
+    qemu_fdt_add_subnode(mc->fdt, leds_path);
+    qemu_fdt_setprop_string(mc->fdt, leds_path, "compatible", "gpio-leds");
+
+    for (int i = 0; i < 8; i++) {
+        const char *trigger = (i == 0) ? "heartbeat" : (i == 1) ? "mmc0" : NULL;
+        create_gpio_led_node(mc, leds_path, gpio0_phandle, i, trigger);
+    }
+}
+
+static void create_fdt(HobgoblinState *s, const memmapEntry_t *memmap,
+                       uint64_t mem_size, const char *cmdline, bool is_32_bit)
+{
+    MachineState *mc = MACHINE(s);
+
+    if (mc->dtb) {
+        mc->fdt = load_device_tree(mc->dtb, &s->fdt_size);
+        if (!mc->fdt) {
+            error_report("load_device_tree() failed");
+            exit(1);
+        }
+    } else {
+        mc->fdt = create_device_tree(&s->fdt_size);
+        if (!mc->fdt) {
+            error_report("create_device_tree() failed");
+            exit(1);
+        }
+
+        uint32_t phandle = 0;
+        uint32_t *intc_phandles = g_new0(uint32_t, s->soc.num_harts);
+
+        for (int i = 0; i < s->soc.num_harts; i++) {
+            intc_phandles[i] = ++phandle;
+        }
+
+        uint32_t irq_pcie_phandle = phandle++;
+        uint32_t irq_mmio_phandle = phandle++;
+        uint32_t gpio1_phandle = phandle++;
+        uint32_t clock_phandle = phandle++;
+        uint32_t axi_phy_phandle = phandle++;
+        uint32_t axi_phandle = phandle++;
+        uint32_t fmc_phy_phandle = phandle++;
+        uint32_t fmc_axi_phandle = phandle++;
+        uint32_t pcie0_phandle = phandle++;
+        uint32_t pcie1_phandle = phandle++;
+        uint32_t gpio0_phandle = phandle++;
+
+        qemu_fdt_setprop_string(mc->fdt, "/", "model", "hobgoblin,qemu");
+        qemu_fdt_setprop_string(mc->fdt, "/", "compatible", "codasip,a730");
+        qemu_fdt_setprop_cell(mc->fdt, "/", "#size-cells", 0x2);
+        qemu_fdt_setprop_cell(mc->fdt, "/", "#address-cells", 0x2);
+
+        qemu_fdt_add_subnode(mc->fdt, "/soc@0");
+        qemu_fdt_setprop_cell(mc->fdt, "/soc@0", "#address-cells", 0x01);
+        qemu_fdt_setprop_cell(mc->fdt, "/soc@0", "#size-cells", 0x01);
+        qemu_fdt_setprop_string(mc->fdt, "/soc@0", "compatible", "simple-bus");
+        qemu_fdt_setprop_cells(mc->fdt, "/soc@0", "ranges", 0x00, 0x00, 0x00,
+                               0x80000000);
+        qemu_fdt_setprop(mc->fdt, "/soc@0", "dma-noncoherent", NULL, 0);
+
+        qemu_fdt_add_subnode(mc->fdt, "/chosen");
+        qemu_fdt_setprop_string(mc->fdt, "/chosen", "bootargs",
+                                "earlycon console=ttyS0,115200n8");
+        qemu_fdt_setprop_string(mc->fdt, "/chosen", "stdout-path",
+                                "serial0:115200n8");
+
+        create_fdt_aliases(s, memmap);
+        create_fdt_sockets(s, memmap, is_32_bit, &irq_mmio_phandle,
+                           &irq_pcie_phandle, intc_phandles);
+        create_fdt_virtio(s, memmap, irq_mmio_phandle);
+        create_fdt_pcie(s, memmap, irq_mmio_phandle, pcie0_phandle,
+                        pcie1_phandle);
+        create_fdt_plic(s, memmap, irq_mmio_phandle, intc_phandles);
+        create_fdt_axi(s, memmap, irq_mmio_phandle, fmc_axi_phandle,
+                       axi_phandle);
+        create_fdt_clock(s, memmap, clock_phandle);
+        create_fdt_trng(s, memmap);
+        create_fdt_timer(s, memmap, irq_mmio_phandle, intc_phandles);
+        create_fdt_spi(s, memmap, irq_mmio_phandle, gpio0_phandle);
+        create_fdt_uart(s, memmap, irq_mmio_phandle);
+        create_fdt_ethernet(s, memmap, irq_mmio_phandle, fmc_axi_phandle,
+                            fmc_phy_phandle, axi_phandle, axi_phy_phandle,
+                            clock_phandle);
+        create_fdt_gpio(s, memmap, irq_mmio_phandle, gpio0_phandle,
+                        gpio1_phandle);
+
+        g_free(intc_phandles);
+    }
+}
+
 static void hobgoblin_machine_init(MachineState *machine)
 {
     HobgoblinState *s = HOBGOBLIN_MACHINE(machine);
@@ -833,11 +1793,6 @@ static void hobgoblin_machine_init(MachineState *machine)
     const memmapEntry_t *memmap = address_maps[MAPVERSION(s)];
     const int smp_cpus = machine->smp.cpus;
     const memmapEntry_t *dram;
-
-    if (machine->dumpdtb) {
-        error_report("dumpdtb is not supported for this machine");
-        exit(1);
-    }
 
     hobgoblin_add_soc(s, smp_cpus);
 
@@ -908,6 +1863,9 @@ static void hobgoblin_machine_init(MachineState *machine)
             true);
     }
 
+    /* create device tree */
+    create_fdt(s, memmap, machine->ram_size, machine->kernel_cmdline,
+               riscv_is_32bit(&s->soc));
 
     /* load images into memory to boot the platform */
     int ret = hobgoblin_load_images(s, dram);
