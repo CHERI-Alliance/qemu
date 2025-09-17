@@ -84,6 +84,8 @@ struct HobgoblinState {
     DeviceState *timer;
     DeviceState *internal_cmu;
     DeviceState *ddr_cmu[MAX_DRAM];
+
+    int fdt_size;
 };
 
 OBJECT_DECLARE_TYPE(HobgoblinState, HobgoblinClass, HOBGOBLIN_MACHINE)
@@ -144,5 +146,10 @@ enum {
     HOBGOBLIN2_PCIE0_MSI1_IRQ,
     HOBGOBLIN_IRQ_END,
 };
+
+#define FDT_PCI_ADDR_CELLS    3
+#define FDT_PCI_INT_CELLS     1
+#define FDT_PLIC_ADDR_CELLS   0
+#define FDT_PLIC_INT_CELLS    1
 
 #endif /* HW_RISCV_HOBGOBLIN_H */
