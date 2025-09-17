@@ -1,0 +1,9 @@
+                                                                >          model = "hobgoblin,qemu";
+                                ethernet-phy@0 {                |                                  ethernet-phy@3 {
+                interrupt-controller@40000000 {                 |                  interrupt-controller@18000000 {
+                        reg = <0x18000000 0x4000000>;           |                          reg = <0x18000000 0x400000>;
+                                gpios = <0x03 0x00 0x01>;       |                                  gpios = <0x0b 0x00 0x01>;
+                timer@60014000 {                                |                  timer@10804000 {
+                        reg = <0x10804000 0xc000>;              |                          reg = <0x10804000 0x10000>;
+                        interrupts-extended = <0x02 0x3d>;      |                          interrupts-extended = <0x02 0x3e>;
+                        interrupts-extended = <0x02 0x3e>;      |                          interrupts-extended = <0x02 0x3f>;

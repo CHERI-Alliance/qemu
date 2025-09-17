@@ -1,0 +1,215 @@
+/dts-v1/;
+
+/ {
+	#address-cells = <0x02>;
+	#size-cells = <0x02>;
+	compatible = "riscv-virtio";
+	model = "riscv-virtio,qemu";
+
+	aliases {
+		serial0 = "/soc/serial@10000000";
+	};
+
+	chosen {
+		rng-seed = <0x826f5c51 0xad013bc3 0xb39f808f 0xe47e1a4 0xf311d7a2 0x6ee79df 0xd8ff0167 0xa9e66768>;
+		stdout-path = "/soc/serial@10000000";
+	};
+
+	cpus {
+		#address-cells = <0x01>;
+		#size-cells = <0x00>;
+		timebase-frequency = <0x989680>;
+
+		cpu-map {
+
+			cluster0 {
+
+				core0 {
+					cpu = <0x01>;
+				};
+			};
+		};
+
+		cpu@0 {
+			compatible = "riscv";
+			device_type = "cpu";
+			mmu-type = "riscv,sv57";
+			phandle = <0x01>;
+			reg = <0x00>;
+			riscv,cbom-block-size = <0x40>;
+			riscv,cbop-block-size = <0x40>;
+			riscv,cboz-block-size = <0x40>;
+			riscv,isa = "rv64imafdch_zic64b_zicbom_zicbop_zicboz_ziccamoa_ziccif_zicclsm_ziccrse_zicntr_zicsr_zifencei_zihintntl_zihintpause_zihpm_zmmul_za64rs_zaamo_zalrsc_zawrs_zfa_zca_zcd_zba_zbb_zbc_zbs_sdtrig_shcounterenw_shgatpa_shtvala_shvsatpa_shvstvala_shvstvecd_ssccptr_sscounterenw_ssstrict_sstc_sstvala_sstvecd_ssu64xl_svadu_svvptc";
+			riscv,isa-base = "rv64i";
+			riscv,isa-extensions = "i\0m\0a\0f\0d\0c\0h\0zic64b\0zicbom\0zicbop\0zicboz\0ziccamoa\0ziccif\0zicclsm\0ziccrse\0zicntr\0zicsr\0zifencei\0zihintntl\0zihintpause\0zihpm\0zmmul\0za64rs\0zaamo\0zalrsc\0zawrs\0zfa\0zca\0zcd\0zba\0zbb\0zbc\0zbs\0sdtrig\0shcounterenw\0shgatpa\0shtvala\0shvsatpa\0shvstvala\0shvstvecd\0ssccptr\0sscounterenw\0ssstrict\0sstc\0sstvala\0sstvecd\0ssu64xl\0svadu\0svvptc";
+			status = "okay";
+
+			interrupt-controller {
+				#interrupt-cells = <0x01>;
+				compatible = "riscv,cpu-intc";
+				interrupt-controller;
+				phandle = <0x02>;
+			};
+		};
+	};
+
+	flash@20000000 {
+		bank-width = <0x04>;
+		compatible = "cfi-flash";
+		reg = <0x00 0x20000000 0x00 0x2000000 0x00 0x22000000 0x00 0x2000000>;
+	};
+
+	fw-cfg@10100000 {
+		compatible = "qemu,fw-cfg-mmio";
+		dma-coherent;
+		reg = <0x00 0x10100000 0x00 0x18>;
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x00 0x80000000 0x00 0x8000000>;
+	};
+
+	platform-bus@4000000 {
+		#address-cells = <0x01>;
+		#size-cells = <0x01>;
+		compatible = "qemu,platform\0simple-bus";
+		interrupt-parent = <0x03>;
+		ranges = <0x00 0x00 0x4000000 0x2000000>;
+	};
+
+	pmu {
+		compatible = "riscv,pmu";
+		riscv,event-to-mhpmcounters = <0x01 0x01 0x7fff9 0x02 0x02 0x7fffc 0x10019 0x10019 0x7fff8 0x1001b 0x1001b 0x7fff8 0x10021 0x10021 0x7fff8>;
+	};
+
+	poweroff {
+		compatible = "syscon-poweroff";
+		offset = <0x00>;
+		regmap = <0x04>;
+		value = <0x5555>;
+	};
+
+	reboot {
+		compatible = "syscon-reboot";
+		offset = <0x00>;
+		regmap = <0x04>;
+		value = <0x7777>;
+	};
+
+	soc {
+		#address-cells = <0x02>;
+		#size-cells = <0x02>;
+		compatible = "simple-bus";
+		ranges;
+
+		clint@2000000 {
+			compatible = "sifive,clint0\0riscv,clint0";
+			interrupts-extended = <0x02 0x03 0x02 0x07>;
+			reg = <0x00 0x2000000 0x00 0x10000>;
+		};
+
+		pci@30000000 {
+			#address-cells = <0x03>;
+			#interrupt-cells = <0x01>;
+			#size-cells = <0x02>;
+			bus-range = <0x00 0xff>;
+			compatible = "pci-host-ecam-generic";
+			device_type = "pci";
+			dma-coherent;
+			interrupt-map = <0x00 0x00 0x00 0x01 0x03 0x20 0x00 0x00 0x00 0x02 0x03 0x21 0x00 0x00 0x00 0x03 0x03 0x22 0x00 0x00 0x00 0x04 0x03 0x23 0x800 0x00 0x00 0x01 0x03 0x21 0x800 0x00 0x00 0x02 0x03 0x22 0x800 0x00 0x00 0x03 0x03 0x23 0x800 0x00 0x00 0x04 0x03 0x20 0x1000 0x00 0x00 0x01 0x03 0x22 0x1000 0x00 0x00 0x02 0x03 0x23 0x1000 0x00 0x00 0x03 0x03 0x20 0x1000 0x00 0x00 0x04 0x03 0x21 0x1800 0x00 0x00 0x01 0x03 0x23 0x1800 0x00 0x00 0x02 0x03 0x20 0x1800 0x00 0x00 0x03 0x03 0x21 0x1800 0x00 0x00 0x04 0x03 0x22>;
+			interrupt-map-mask = <0x1800 0x00 0x00 0x07>;
+			linux,pci-domain = <0x00>;
+			ranges = <0x1000000 0x00 0x00 0x00 0x3000000 0x00 0x10000 0x2000000 0x00 0x40000000 0x00 0x40000000 0x00 0x40000000 0x3000000 0x04 0x00 0x04 0x00 0x04 0x00>;
+			reg = <0x00 0x30000000 0x00 0x10000000>;
+		};
+
+		plic@c000000 {
+			#address-cells = <0x00>;
+			#interrupt-cells = <0x01>;
+			compatible = "sifive,plic-1.0.0\0riscv,plic0";
+			interrupt-controller;
+			interrupts-extended = <0x02 0x0b 0x02 0x09>;
+			phandle = <0x03>;
+			reg = <0x00 0xc000000 0x00 0x600000>;
+			riscv,ndev = <0x5f>;
+		};
+
+		rtc@101000 {
+			compatible = "google,goldfish-rtc";
+			interrupt-parent = <0x03>;
+			interrupts = <0x0b>;
+			reg = <0x00 0x101000 0x00 0x1000>;
+		};
+
+		serial@10000000 {
+			clock-frequency = <0x384000>;
+			compatible = "ns16550a";
+			interrupt-parent = <0x03>;
+			interrupts = <0x0a>;
+			reg = <0x00 0x10000000 0x00 0x100>;
+		};
+
+		test@100000 {
+			compatible = "sifive,test1\0sifive,test0\0syscon";
+			phandle = <0x04>;
+			reg = <0x00 0x100000 0x00 0x1000>;
+		};
+
+		virtio_mmio@10001000 {
+			compatible = "virtio,mmio";
+			interrupt-parent = <0x03>;
+			interrupts = <0x01>;
+			reg = <0x00 0x10001000 0x00 0x1000>;
+		};
+
+		virtio_mmio@10002000 {
+			compatible = "virtio,mmio";
+			interrupt-parent = <0x03>;
+			interrupts = <0x02>;
+			reg = <0x00 0x10002000 0x00 0x1000>;
+		};
+
+		virtio_mmio@10003000 {
+			compatible = "virtio,mmio";
+			interrupt-parent = <0x03>;
+			interrupts = <0x03>;
+			reg = <0x00 0x10003000 0x00 0x1000>;
+		};
+
+		virtio_mmio@10004000 {
+			compatible = "virtio,mmio";
+			interrupt-parent = <0x03>;
+			interrupts = <0x04>;
+			reg = <0x00 0x10004000 0x00 0x1000>;
+		};
+
+		virtio_mmio@10005000 {
+			compatible = "virtio,mmio";
+			interrupt-parent = <0x03>;
+			interrupts = <0x05>;
+			reg = <0x00 0x10005000 0x00 0x1000>;
+		};
+
+		virtio_mmio@10006000 {
+			compatible = "virtio,mmio";
+			interrupt-parent = <0x03>;
+			interrupts = <0x06>;
+			reg = <0x00 0x10006000 0x00 0x1000>;
+		};
+
+		virtio_mmio@10007000 {
+			compatible = "virtio,mmio";
+			interrupt-parent = <0x03>;
+			interrupts = <0x07>;
+			reg = <0x00 0x10007000 0x00 0x1000>;
+		};
+
+		virtio_mmio@10008000 {
+			compatible = "virtio,mmio";
+			interrupt-parent = <0x03>;
+			interrupts = <0x08>;
+			reg = <0x00 0x10008000 0x00 0x1000>;
+		};
+	};
+};

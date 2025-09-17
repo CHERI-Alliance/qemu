@@ -1,0 +1,35 @@
+                                                                >          model = "hobgoblin,qemu";
+                        riscv,isa = "rv64imafdc_svpbmt_zicbom_z |                          riscv,isa = "rv64imafdc_svpbmt_zcheripu
+                        riscv,isa-extensions = "i\0m\0a\0f\0d\0 |                          riscv,isa-extensions = "i\0m\0a\0f\0d\0
+                        riscv,isa = "rv64imafdc_svpbmt_zicbom_z |                          riscv,isa = "rv64imafdc_svpbmt_zcheripu
+                        riscv,isa-extensions = "i\0m\0a\0f\0d\0 |                          riscv,isa-extensions = "i\0m\0a\0f\0d\0
+                        riscv,isa = "rv64imafdc_svpbmt_zicbom_z |                          riscv,isa = "rv64imafdc_svpbmt_zcheripu
+                        riscv,isa-extensions = "i\0m\0a\0f\0d\0 |                          riscv,isa-extensions = "i\0m\0a\0f\0d\0
+                        riscv,isa = "rv64imafdc_svpbmt_zicbom_z |                          riscv,isa = "rv64imafdc_svpbmt_zcheripu
+                        riscv,isa-extensions = "i\0m\0a\0f\0d\0 |                          riscv,isa-extensions = "i\0m\0a\0f\0d\0
+                                                                >          reserved-memory {
+                                                                >                  #address-cells = <0x02>;
+                                                                >                  #size-cells = <0x02>;
+                                                                >                  ranges;
+                                                                >
+                                                                >                  cmu@170000000 {
+                                                                >                          no-map;
+                                                                >                          reg = <0x01 0x7f000000 0x00 0x1000000>;
+                                                                >                  };
+                                                                >
+                                                                >                  cmu@f0000000 {
+                                                                >                          no-map;
+                                                                >                          reg = <0x00 0xff000000 0x00 0x1000000>;
+                                                                >                  };
+                                                                >          };
+                                                                >
+                        ranges = <0x2000000 0x00 0x50000000 0x0 |                          ranges = <0x2000000 0x00 0x50000000 0x0
+                        ranges = <0x2000000 0x00 0x70000000 0x0 |                          ranges = <0x2000000 0x00 0x70000000 0x0
+                                ethernet-phy@0 {                |                                  ethernet-phy@3 {
+                interrupt-controller@40000000 {                 |                  interrupt-controller@18000000 {
+                        reg = <0x18000000 0x4000000>;           |                          reg = <0x18000000 0x400000>;
+                                gpios = <0x06 0x00 0x01>;       |                                  gpios = <0x0e 0x00 0x01>;
+                timer@60014000 {                                |                  timer@10804000 {
+                        reg = <0x10804000 0xc000>;              |                          reg = <0x10804000 0x10000>;
+                        interrupts-extended = <0x05 0x3d>;      |                          interrupts-extended = <0x05 0x3e>;
+                        interrupts-extended = <0x05 0x3e>;      |                          interrupts-extended = <0x05 0x3f>;
