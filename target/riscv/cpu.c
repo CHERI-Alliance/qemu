@@ -1337,14 +1337,14 @@ static void riscv_isa_string_ext(RISCVCPU *cpu, char **isa_str, int max_str_len)
      *    extensions by an underscore.
      */
     struct isa_ext_data isa_edata_arr[] = {
-        ISA_EDATA_ENTRY(zca, ext_zca),
-        ISA_EDATA_ENTRY(zcb, ext_zcb),
-        ISA_EDATA_ENTRY(zcd, ext_zcd),
-        ISA_EDATA_ENTRY(zcf, ext_zcf),
         ISA_EDATA_ENTRY(zba, ext_zba),
         ISA_EDATA_ENTRY(zbb, ext_zbb),
         ISA_EDATA_ENTRY(zbc, ext_zbc),
         ISA_EDATA_ENTRY(zbs, ext_zbs),
+        ISA_EDATA_ENTRY(zca, ext_zca),
+        ISA_EDATA_ENTRY(zcb, ext_zcb),
+        ISA_EDATA_ENTRY(zcd, ext_zcd),
+        ISA_EDATA_ENTRY(zcf, ext_zcf),
         ISA_EDATA_ENTRY(zfh, ext_zfh),
         ISA_EDATA_ENTRY(zfhmin, ext_zfhmin),
         ISA_EDATA_ENTRY(zicbom, ext_icbom),
