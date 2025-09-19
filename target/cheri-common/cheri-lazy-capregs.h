@@ -45,6 +45,9 @@
 #include "qemu/log.h"
 #include "exec/log_instr.h"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+
 static inline QEMU_ALWAYS_INLINE CapRegState
 get_capreg_state(const GPCapRegs *gpcrs, unsigned reg)
 {
@@ -60,6 +63,7 @@ get_capreg_state(const GPCapRegs *gpcrs, unsigned reg)
                        CREG_STATE_MASK);
     return (CapRegState)gpcrs->decompressed[reg].cap.cr_extra;
 }
+#pragma GCC diagnostic pop
 
 static inline void sanity_check_capreg(GPCapRegs *gpcrs, unsigned regnum)
 {

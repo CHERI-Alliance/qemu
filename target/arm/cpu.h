@@ -245,7 +245,8 @@ typedef uint64_t AARCH_REG_TYPE;
 #define N_BANK_WITH_RESTRICTED 4
 #endif
 
-extern const char * const arm32_regnames[16];
+#define ARM32_NUM_REGS 16
+extern const char * const arm32_regnames[ARM32_NUM_REGS];
 #ifdef TARGET_AARCH64
 extern const char * const arm64_regnames[32];
 #endif
@@ -3628,7 +3629,14 @@ static inline target_ulong arm_get_xreg(CPUARMState *env, int regnum)
 #ifdef TARGET_CHERI
     return get_capreg_cursor(env, regnum);
 #else
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+    /*
+     * Index may be being applied to xregs or regs. We trust the caller to
+     * behave here...
+     */
     return (is_a64(env) ? env->xregs[regnum] : env->regs[regnum]);
+#pragma GCC diagnostic pop
 #endif
 }
 
@@ -3647,9 +3655,13 @@ static inline void arm_set_xreg(CPUARMState *env, int regnum,
         return;
     }
 #endif
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+    assert(regnum < ARM32_NUM_REGS);
     env->regs[regnum] = value;
     qemu_log_instr_reg(env, arm32_regnames[regnum], value, regnum,
                        LRI_GPR_ACCESS);
+#pragma GCC diagnostic pop
 #endif
 }
 

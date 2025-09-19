@@ -107,7 +107,11 @@ typedef struct GPCapRegs {
 
 static inline cap_register_t *get_cap_in_gpregs(GPCapRegs *gpcrs, size_t index)
 {
-    return &gpcrs->decompressed[index].cap;
+    if (index < NUM_LAZY_CAP_REGS) {
+        return &gpcrs->decompressed[index].cap;
+    }
+    error_report("Attempt to use out of lazy cap reg regiser %lu", index);
+    exit(1);
 }
 
 /*
