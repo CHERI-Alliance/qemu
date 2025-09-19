@@ -246,7 +246,7 @@ static int riscv_gen_dynamic_csr_xml(CPUState *cs, int base_reg)
     return CSR_TABLE_SIZE;
 }
 
-#if defined(TARGET_CHERI)
+#if defined(TARGET_CHERI) && defined(TARGET_RISCV_V9)
 static struct SCR {
     uint32_t csrno;
     const char *name;
@@ -346,7 +346,7 @@ void riscv_cpu_register_gdb_regs_for_features(CPUState *cs)
     gdb_register_coprocessor(cs, riscv_gdb_get_csr, riscv_gdb_set_csr,
                              riscv_gen_dynamic_csr_xml(cs, cs->gdb_num_regs),
                              "riscv-csr.xml", 0);
-#ifdef TARGET_CHERI_RISCV_V9
+#if defined(TARGET_CHERI) && defined(TARGET_RISCV_V9)
     gdb_register_coprocessor(cs, riscv_gdb_get_scr, riscv_gdb_set_scr,
                              riscv_gen_dynamic_scr_xml(cs, cs->gdb_num_regs),
                              "riscv-scr.xml", 0);

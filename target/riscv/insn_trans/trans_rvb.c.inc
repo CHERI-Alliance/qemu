@@ -521,6 +521,7 @@ static bool trans_sh##SHAMT##add_uw(DisasContext *ctx,                     \
                                                                            \
     return true;                                                           \
 }
+
 #else
 GEN_SHADD_UW(1)
 GEN_SHADD_UW(2)
@@ -539,12 +540,6 @@ static bool trans_sh##SHAMT##add_uw(DisasContext *ctx,        \
     return gen_arith(ctx, a, EXT_NONE, gen_sh##SHAMT##add_uw);\
 }
 
-#endif
-GEN_TRANS_SHADD_UW(1)
-GEN_TRANS_SHADD_UW(2)
-GEN_TRANS_SHADD_UW(3)
-GEN_TRANS_SHADD_UW(4)
-
 static void gen_add_uw(TCGv ret, TCGv arg1, TCGv arg2)
 {
     TCGv t = tcg_temp_new();
@@ -552,6 +547,12 @@ static void gen_add_uw(TCGv ret, TCGv arg1, TCGv arg2)
     tcg_gen_add_tl(ret, t, arg2);
     tcg_temp_free(t);
 }
+
+#endif
+GEN_TRANS_SHADD_UW(1)
+GEN_TRANS_SHADD_UW(2)
+GEN_TRANS_SHADD_UW(3)
+GEN_TRANS_SHADD_UW(4)
 
 static bool trans_add_uw(DisasContext *ctx, arg_add_uw *a)
 {
