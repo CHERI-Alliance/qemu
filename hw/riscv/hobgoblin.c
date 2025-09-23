@@ -858,8 +858,7 @@ static void create_fdt_aliases(HobgoblinState *s, const memmapEntry_t *memmap)
     qemu_fdt_setprop_string(mc->fdt, name, "ethernet1", ethernet1_alias);
 
     serial0_alias =
-        g_strdup_printf("/soc@0/serial@%lx", memmap[HOBGOBLIN_UART0].base -
-                                                 memmap[HOBGOBLIN_UART0].size);
+        g_strdup_printf("/soc@0/serial@%lx", memmap[HOBGOBLIN_UART0].base);
     qemu_fdt_setprop_string(mc->fdt, name, "serial0", serial0_alias);
 
     spi0_alias = g_strdup_printf("/soc@0/spi@%lx", memmap[HOBGOBLIN_SPI].base);
@@ -1474,8 +1473,7 @@ static void create_fdt_uart(HobgoblinState *s, const memmapEntry_t *memmap,
     MachineState *mc = MACHINE(s);
 
     name =
-        g_strdup_printf("/soc@0/serial@%lx", memmap[HOBGOBLIN_UART0].base -
-                                                 memmap[HOBGOBLIN_UART0].size);
+        g_strdup_printf("/soc@0/serial@%lx", memmap[HOBGOBLIN_UART0].base);
     qemu_fdt_add_subnode(mc->fdt, name);
     qemu_fdt_setprop_cell(
         mc->fdt, name, "clock-frequency",
@@ -1489,11 +1487,8 @@ static void create_fdt_uart(HobgoblinState *s, const memmapEntry_t *memmap,
     qemu_fdt_setprop(mc->fdt, name, "interrupts-extended", interrupts_extended0,
                      sizeof(interrupts_extended0));
     qemu_fdt_setprop_cells(mc->fdt, name, "reg",
-                           memmap[HOBGOBLIN_UART0].base -
-                               memmap[HOBGOBLIN_UART0].size,
-                           memmap[HOBGOBLIN_UART0].size + 32);
-    qemu_fdt_setprop_cell(mc->fdt, name, "reg-offset",
-                          memmap[HOBGOBLIN_UART0].size);
+                           memmap[HOBGOBLIN_UART0].base,
+                           memmap[HOBGOBLIN_UART0].size);
     qemu_fdt_setprop_cell(mc->fdt, name, "reg-shift", 2);
     g_free(name);
 
