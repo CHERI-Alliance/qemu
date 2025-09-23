@@ -1241,6 +1241,7 @@ static void create_fdt_pcie(HobgoblinState *s, const memmapEntry_t *memmap,
     qemu_fdt_setprop_cell(mc->fdt, soc_name, "#size-cells", 0x02);
     qemu_fdt_setprop_string(mc->fdt, soc_name, "compatible", "simple-bus");
     qemu_fdt_setprop_cells(mc->fdt, soc_name, "ranges", 0, 0, 0, 0, 64, 0);
+    qemu_fdt_setprop(mc->fdt, soc_name, "dma-noncoherent", NULL, 0);
 
     create_pcie_node(s, memmap, irq_mmio_phandle, HOBGOBLIN_PCIE0,
                      HOBGOBLIN2_PCIE0_IRQ, pcie0_phandle);
