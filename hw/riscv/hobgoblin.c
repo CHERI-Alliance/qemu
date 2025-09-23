@@ -1156,6 +1156,7 @@ static void create_fdt_virtio(HobgoblinState *s, const memmapEntry_t *memmap,
 
 static void create_pcie_node(HobgoblinState *s, const memmapEntry_t *memmap,
                              uint32_t irq_mmio_phandle, int memmap_index,
+                             int memmap_mmio0_index, int memmap_mmio1_index,
                              int irq_index, uint32_t phandle)
 {
     char *name;
@@ -1202,14 +1203,19 @@ static void create_pcie_node(HobgoblinState *s, const memmapEntry_t *memmap,
     qemu_fdt_setprop(mc->fdt, name, "interrupts-extended", interrupts_extended,
                      sizeof(interrupts_extended));
 
-    uint64_t mem_base = entry->base + 0x10000000;
-    uint32_t ranges[] = { cpu_to_be32(0x2000000),   cpu_to_be32(0x00),
-                          cpu_to_be32(mem_base),    cpu_to_be32(0x00),
-                          cpu_to_be32(mem_base),    cpu_to_be32(0x00),
-                          cpu_to_be32(0x10000000),  cpu_to_be32(0x43000000),
-                          cpu_to_be32(phandle + 7), cpu_to_be32(0x00),
-                          cpu_to_be32(phandle + 7), cpu_to_be32(0x00),
-                          cpu_to_be32(0x01),        cpu_to_be32(0x00) };
+    const memmapEntry_t *mmio0 = &memmap[memmap_mmio0_index];
+    const memmapEntry_t *mmio1 = &memmap[memmap_mmio1_index];
+    uint32_t ranges[] = {
+        cpu_to_be32(0x2000000),  // properties
+        cpu_to_be32(mmio0->base >> 32), cpu_to_be32(mmio0->base),
+        cpu_to_be32(mmio0->base >> 32), cpu_to_be32(mmio0->base),
+        cpu_to_be32(mmio0->size >> 32), cpu_to_be32(mmio0->size),
+
+        cpu_to_be32(0x43000000), // properties
+        cpu_to_be32(mmio1->base >> 32), cpu_to_be32(mmio1->base),
+        cpu_to_be32(mmio1->base >> 32), cpu_to_be32(mmio1->base),
+        cpu_to_be32(mmio1->size >> 32), cpu_to_be32(mmio1->size),
+    };
     qemu_fdt_setprop(mc->fdt, name, "ranges", ranges, sizeof(ranges));
 
     qemu_fdt_setprop_cells(mc->fdt, name, "reg", 0, entry->base, 0,
@@ -1244,8 +1250,10 @@ static void create_fdt_pcie(HobgoblinState *s, const memmapEntry_t *memmap,
     qemu_fdt_setprop(mc->fdt, soc_name, "dma-noncoherent", NULL, 0);
 
     create_pcie_node(s, memmap, irq_mmio_phandle, HOBGOBLIN_PCIE0,
+                     HOBGOBLIN_PCIE0_MMIO0, HOBGOBLIN_PCIE0_MMIO1,
                      HOBGOBLIN2_PCIE0_IRQ, pcie0_phandle);
     create_pcie_node(s, memmap, irq_mmio_phandle, HOBGOBLIN_PCIE1,
+                     HOBGOBLIN_PCIE1_MMIO0, HOBGOBLIN_PCIE1_MMIO1,
                      HOBGOBLIN2_PCIE1_IRQ, pcie1_phandle);
 
     g_free(soc_name);
