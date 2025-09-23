@@ -1301,9 +1301,9 @@ static void create_fdt_axi(HobgoblinState *s, const memmapEntry_t *memmap,
 
     uint32_t interrupts_extended_fmc[] = {
         cpu_to_be32(irq_mmio_phandle),
-        cpu_to_be32(irqmap[1][HOBGOBLIN_FMC_AXIDMA_IRQ0]),
+        cpu_to_be32(HIRQ(s, HOBGOBLIN_FMC_AXIDMA_IRQ0)),
         cpu_to_be32(irq_mmio_phandle),
-        cpu_to_be32(irqmap[1][HOBGOBLIN_FMC_AXIDMA_IRQ1])
+        cpu_to_be32(HIRQ(s, HOBGOBLIN_FMC_AXIDMA_IRQ1))
     };
     qemu_fdt_setprop(mc->fdt, name, "interrupts-extended",
                      interrupts_extended_fmc, sizeof(interrupts_extended_fmc));
@@ -1321,9 +1321,9 @@ static void create_fdt_axi(HobgoblinState *s, const memmapEntry_t *memmap,
 
     uint32_t interrupts_extended_axi[] = {
         cpu_to_be32(irq_mmio_phandle),
-        cpu_to_be32(irqmap[1][HOBGOBLIN_AXIDMA_IRQ0]),
+        cpu_to_be32(HIRQ(s, HOBGOBLIN_AXIDMA_IRQ0)),
         cpu_to_be32(irq_mmio_phandle),
-        cpu_to_be32(irqmap[1][HOBGOBLIN_AXIDMA_IRQ1])
+        cpu_to_be32(HIRQ(s, HOBGOBLIN_AXIDMA_IRQ1))
     };
     qemu_fdt_setprop(mc->fdt, name, "interrupts-extended",
                      interrupts_extended_axi, sizeof(interrupts_extended_axi));
@@ -1392,7 +1392,7 @@ static void create_fdt_timer(HobgoblinState *s, const memmapEntry_t *memmap,
 
     uint32_t interrupts_extended[] = { cpu_to_be32(irq_mmio_phandle),
                                        cpu_to_be32(
-                                           irqmap[0][HOBGOBLIN_TIMER_IRQ]) };
+                                           HIRQ(s, HOBGOBLIN_TIMER_IRQ)) };
     qemu_fdt_setprop(mc->fdt, name, "interrupts-extended", interrupts_extended,
                      sizeof(interrupts_extended));
 
@@ -1427,7 +1427,7 @@ static void create_fdt_spi(HobgoblinState *s, const memmapEntry_t *memmap,
 
     uint32_t interrupts_extended[] = {
         cpu_to_be32(irq_mmio_phandle),
-        cpu_to_be32(irqmap[0][HOBGOBLIN_SPI_IRQ]),
+        cpu_to_be32(HIRQ(s, HOBGOBLIN_SPI_IRQ)),
     };
     qemu_fdt_setprop(mc->fdt, name, "interrupts-extended", interrupts_extended,
                      sizeof(interrupts_extended));
@@ -1472,7 +1472,7 @@ static void create_fdt_uart(HobgoblinState *s, const memmapEntry_t *memmap,
     qemu_fdt_setprop_cell(mc->fdt, name, "current-speed", 115200);
     uint32_t interrupts_extended0[] = {
         cpu_to_be32(irq_mmio_phandle),
-        cpu_to_be32(irqmap[0][HOBGOBLIN_UART0_IRQ]),
+        cpu_to_be32(HIRQ(s, HOBGOBLIN_UART0_IRQ)),
     };
     qemu_fdt_setprop(mc->fdt, name, "interrupts-extended", interrupts_extended0,
                      sizeof(interrupts_extended0));
@@ -1492,7 +1492,7 @@ static void create_fdt_uart(HobgoblinState *s, const memmapEntry_t *memmap,
     qemu_fdt_setprop_cell(mc->fdt, name, "current-speed", 115200);
     uint32_t interrupts_extended1[] = {
         cpu_to_be32(irq_mmio_phandle),
-        cpu_to_be32(irqmap[0][HOBGOBLIN_UART1_IRQ]),
+        cpu_to_be32(HIRQ(s, HOBGOBLIN_UART1_IRQ)),
     };
     qemu_fdt_setprop(mc->fdt, name, "interrupts-extended", interrupts_extended1,
                      sizeof(interrupts_extended1));
@@ -1589,7 +1589,7 @@ static void create_fdt_ethernet(HobgoblinState *s, const memmapEntry_t *memmap,
         s, memmap, irq_mmio_phandle,
         HOBGOBLIN_FMC_AXI_ETH,                // memmap index
         fmc_axi_phandle,                      // axistream-connected
-        irqmap[0][HOBGOBLIN_ETH_IRQ],         // ethernet interrupt
+        HIRQ(s, HOBGOBLIN_FMC_ETH_IRQ),       // ethernet interrupt
         fmc_phy_phandle,                      // phy phandle
         "rgmii-rxid",                         // phy-mode
         0x01,                                 // phy reg address
@@ -1602,7 +1602,7 @@ static void create_fdt_ethernet(HobgoblinState *s, const memmapEntry_t *memmap,
         s, memmap, irq_mmio_phandle,
         HOBGOBLIN_AXI_ETH,                    // memmap index
         axi_phandle,                          // axistream-connected
-        irqmap[0][HOBGOBLIN_FMC_ETH_IRQ],     // ethernet interrupt
+        HIRQ(s, HOBGOBLIN_ETH_IRQ),           // ethernet interrupt
         axi_phy_phandle,                      // phy phandle
         "sgmii",                              // phy-mode
         0x03,                                 // phy reg address
@@ -1611,7 +1611,7 @@ static void create_fdt_ethernet(HobgoblinState *s, const memmapEntry_t *memmap,
         true);                                // has TI quirks
 }
 
-static void create_gpio_node(MachineState *mc, const memmapEntry_t *memmap,
+static void create_gpio_node(HobgoblinState *s, const memmapEntry_t *memmap,
                              uint32_t irq_mmio_phandle, int memmap_index,
                              int irq_index, uint32_t phandle,
                              uint32_t tri_default, const char *line_name,
@@ -1619,6 +1619,7 @@ static void create_gpio_node(MachineState *mc, const memmapEntry_t *memmap,
 {
     char *name;
     const memmapEntry_t *entry = &memmap[memmap_index];
+    MachineState *mc = MACHINE(s);
 
     name = g_strdup_printf("/soc@0/gpio@%lx", entry->base);
     qemu_fdt_add_subnode(mc->fdt, name);
@@ -1633,7 +1634,7 @@ static void create_gpio_node(MachineState *mc, const memmapEntry_t *memmap,
     qemu_fdt_setprop(mc->fdt, name, "interrupt-controller", NULL, 0);
 
     uint32_t interrupts_extended[] = { cpu_to_be32(irq_mmio_phandle),
-                                       cpu_to_be32(irqmap[0][irq_index]) };
+                                       cpu_to_be32(HIRQ(s, irq_index)) };
     qemu_fdt_setprop(mc->fdt, name, "interrupts-extended", interrupts_extended,
                      sizeof(interrupts_extended));
     qemu_fdt_setprop_cell(mc->fdt, name, "phandle", phandle);
@@ -1711,10 +1712,10 @@ static void create_fdt_gpio(HobgoblinState *s, const memmapEntry_t *memmap,
     const char *gpio_restart_path = "/gpio-restart";
     const char *leds_path = "/leds";
 
-    create_gpio_node(mc, memmap, irq_mmio_phandle, HOBGOBLIN_GPIO0,
+    create_gpio_node(s, memmap, irq_mmio_phandle, HOBGOBLIN_GPIO0,
                      HOBGOBLIN_GPIO0_IRQ, gpio0_phandle, 0xfe, NULL, 0);
 
-    create_gpio_node(mc, memmap, irq_mmio_phandle, HOBGOBLIN_GPIO1,
+    create_gpio_node(s, memmap, irq_mmio_phandle, HOBGOBLIN_GPIO1,
                      HOBGOBLIN_GPIO1_IRQ, gpio1_phandle, 0x01,
                      "sdcard-fast-gpio", 1);
 
