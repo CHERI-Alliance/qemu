@@ -1819,7 +1819,7 @@ static void create_fdt(HobgoblinState *s, const memmapEntry_t *memmap,
         create_fdt_clock(s, memmap, clock_phandle);
         create_fdt_trng(s, memmap);
         create_fdt_timer(s, memmap, irq_mmio_phandle, intc_phandles);
-        create_fdt_spi(s, memmap, irq_mmio_phandle, gpio0_phandle);
+        create_fdt_spi(s, memmap, irq_mmio_phandle, gpio1_phandle);
         create_fdt_uart(s, memmap, irq_mmio_phandle);
         create_fdt_ethernet(s, memmap, irq_mmio_phandle, fmc_axi_phandle,
                             fmc_phy_phandle, axi_phandle, axi_phy_phandle,
