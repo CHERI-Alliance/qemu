@@ -64,6 +64,18 @@
 #define TYPE_XILINX_AXI_ETHERNET "xlnx.axi-ethernet"
 #define TYPE_XILINX_AXI_DMA "xlnx.axi-dma"
 
+#define CACHE_LINE_SIZE 64
+#define L1_ICACHE_SIZE (32 * 1024)
+#define L1_ICACHE_WAYS 4
+#define L1_DCACHE_SIZE (32 * 1024)
+#define L1_DCACHE_WAYS 4
+
+#define L2_CACHE_SIZE (2 * 1024 * 1024)
+#define L2_CACHE_WAYS 8
+
+#define ITLB_ENTRIES 32
+#define DTLB_ENTRIES 32
+
 static const memmapEntry_t v1_memmap[] = {
     [HOBGOBLIN_MROM] =     {     0x1000,      0x100,
         "riscv.hobgoblin.mrom", MEM_ROM },
@@ -931,6 +943,7 @@ static char *format_extensions(const char *ext_str, size_t *len)
 
 static void create_fdt_socket_cpus(HobgoblinState *s, int socket,
                                    char *clust_name, bool is_32_bit,
+                                   uint32_t l2cache_phandle,
                                    uint32_t *intc_phandles)
 {
     int cpu;
@@ -954,10 +967,24 @@ static void create_fdt_socket_cpus(HobgoblinState *s, int socket,
         qemu_fdt_setprop(mc->fdt, cpu_name, "riscv,isa-extensions",
                          formatted_ext, ext_len);
 
-        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "riscv,cbom-block-size", 0x40);
-        // qemu_fdt_setprop_cell(mc->fdt, cpu_name, "riscv,cbop-block-size",
-        // 0x40);
-        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "riscv,cboz-block-size", 0x40);
+        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "i-cache-block-size", CACHE_LINE_SIZE);
+        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "i-cache-sets", L1_ICACHE_SIZE / (CACHE_LINE_SIZE * L1_ICACHE_WAYS));
+        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "i-cache-size", L1_ICACHE_SIZE);
+        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "i-tlb-sets", 1);
+        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "i-tlb-size", ITLB_ENTRIES);
+
+        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "d-cache-block-size", CACHE_LINE_SIZE);
+        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "d-cache-sets", L1_DCACHE_SIZE / (CACHE_LINE_SIZE * L1_DCACHE_WAYS));
+        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "d-cache-size", L1_DCACHE_SIZE);
+        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "d-tlb-sets", 1);
+        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "d-tlb-size", DTLB_ENTRIES);
+
+        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "next-level-cache", l2cache_phandle);
+        qemu_fdt_setprop(mc->fdt, cpu_name, "tlb-split", NULL, 0);
+
+        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "riscv,cbom-block-size", CACHE_LINE_SIZE);
+        // qemu_fdt_setprop_cell(mc->fdt, cpu_name, "riscv,cbop-block-size", CACHE_LINE_SIZE);
+        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "riscv,cboz-block-size", CACHE_LINE_SIZE);
 
         qemu_fdt_setprop_string(mc->fdt, cpu_name, "compatible", "riscv");
         qemu_fdt_setprop_string(mc->fdt, cpu_name, "status", "okay");
@@ -1034,8 +1061,7 @@ static void create_fdt_socket_reserved_memory(HobgoblinState *s,
 }
 
 static void create_fdt_sockets(HobgoblinState *s, const memmapEntry_t *memmap,
-                               bool is_32_bit, uint32_t *irq_mmio_phandle,
-                               uint32_t *irq_pcie_phandle,
+                               bool is_32_bit, uint32_t l2cache_phandle,
                                uint32_t *intc_phandles)
 {
     int socket;
@@ -1051,7 +1077,7 @@ static void create_fdt_sockets(HobgoblinState *s, const memmapEntry_t *memmap,
     for (socket = 0; socket >= 0; socket--) {
         clust_name = g_strdup_printf("/cpus");
 
-        create_fdt_socket_cpus(s, socket, clust_name, is_32_bit, intc_phandles);
+        create_fdt_socket_cpus(s, socket, clust_name, is_32_bit, l2cache_phandle, intc_phandles);
 
         create_fdt_socket_memory(s, memmap, socket);
         create_fdt_socket_reserved_memory(s, memmap, socket);
@@ -1072,6 +1098,24 @@ static void create_fdt_clock(HobgoblinState *s, const memmapEntry_t *memmap,
                           CLINT_TIMEBASE_FREQ);
     qemu_fdt_setprop_string(mc->fdt, name, "compatible", "fixed-clock");
     qemu_fdt_setprop_cell(mc->fdt, name, "phandle", clock_phandle);
+
+    g_free(name);
+}
+
+static void create_fdt_l2cache(HobgoblinState *s, uint32_t l2cache_phandle)
+{
+    char *name;
+    MachineState *mc = MACHINE(s);
+
+    name = g_strdup_printf("/l2-cache");
+    qemu_fdt_add_subnode(mc->fdt, name);
+    qemu_fdt_setprop_string(mc->fdt, name, "compatible", "cache");
+    qemu_fdt_setprop_cell(mc->fdt, name, "cache-block-size", CACHE_LINE_SIZE);
+    qemu_fdt_setprop_cell(mc->fdt, name, "cache-level", 2);
+    qemu_fdt_setprop_cell(mc->fdt, name, "cache-sets", L2_CACHE_SIZE / (CACHE_LINE_SIZE * L2_CACHE_WAYS));
+    qemu_fdt_setprop_cell(mc->fdt, name, "cache-size", L2_CACHE_SIZE);
+    qemu_fdt_setprop(mc->fdt, name, "cache-unified", NULL, 0);
+    qemu_fdt_setprop_cell(mc->fdt, name, "phandle", l2cache_phandle);
 
     g_free(name);
 }
@@ -1725,6 +1769,7 @@ static void create_fdt(HobgoblinState *s, const memmapEntry_t *memmap,
         uint32_t phandle = 0;
         uint32_t *intc_phandles = g_new0(uint32_t, s->soc.num_harts);
 
+        uint32_t l2cache_phandle = ++phandle;
         for (int i = 0; i < s->soc.num_harts; i++) {
             intc_phandles[i] = ++phandle;
         }
@@ -1760,8 +1805,9 @@ static void create_fdt(HobgoblinState *s, const memmapEntry_t *memmap,
                                 "serial0:115200n8");
 
         create_fdt_aliases(s, memmap);
-        create_fdt_sockets(s, memmap, is_32_bit, &irq_mmio_phandle,
-                           &irq_pcie_phandle, intc_phandles);
+        create_fdt_sockets(s, memmap, is_32_bit, l2cache_phandle,
+                           intc_phandles);
+        create_fdt_l2cache(s, l2cache_phandle);
         create_fdt_virtio(s, memmap, irq_mmio_phandle);
         create_fdt_pcie(s, memmap, irq_mmio_phandle, pcie0_phandle,
                         pcie1_phandle);
