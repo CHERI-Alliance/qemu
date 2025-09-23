@@ -1729,17 +1729,16 @@ static void create_fdt(HobgoblinState *s, const memmapEntry_t *memmap,
             intc_phandles[i] = ++phandle;
         }
 
-        uint32_t irq_pcie_phandle = phandle++;
-        uint32_t irq_mmio_phandle = phandle++;
-        uint32_t gpio1_phandle = phandle++;
-        uint32_t clock_phandle = phandle++;
-        uint32_t axi_phy_phandle = phandle++;
-        uint32_t axi_phandle = phandle++;
-        uint32_t fmc_phy_phandle = phandle++;
-        uint32_t fmc_axi_phandle = phandle++;
-        uint32_t pcie0_phandle = phandle++;
-        uint32_t pcie1_phandle = phandle++;
-        uint32_t gpio0_phandle = phandle++;
+        uint32_t irq_mmio_phandle = ++phandle;
+        uint32_t gpio1_phandle = ++phandle;
+        uint32_t clock_phandle = ++phandle;
+        uint32_t axi_phy_phandle = ++phandle;
+        uint32_t axi_phandle = ++phandle;
+        uint32_t fmc_phy_phandle = ++phandle;
+        uint32_t fmc_axi_phandle = ++phandle;
+        uint32_t pcie0_phandle = ++phandle;
+        uint32_t pcie1_phandle = ++phandle;
+        uint32_t gpio0_phandle = ++phandle;
 
         qemu_fdt_setprop_string(mc->fdt, "/", "model", "hobgoblin,qemu");
         qemu_fdt_setprop_string(mc->fdt, "/", "compatible", "codasip,a730");
