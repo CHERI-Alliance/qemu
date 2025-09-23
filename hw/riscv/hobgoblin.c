@@ -1584,30 +1584,31 @@ static void create_fdt_ethernet(HobgoblinState *s, const memmapEntry_t *memmap,
                                 uint32_t axi_phy_phandle,
                                 uint32_t clock_phandle)
 {
-    // Add ethernet (RGMII interface)
-    add_fdt_ethernet_node(s, memmap, irq_mmio_phandle,
-                          HOBGOBLIN_FMC_AXI_ETH,        // memmap index
-                          fmc_axi_phandle,              // axistream-connected
-                          irqmap[0][HOBGOBLIN_ETH_IRQ], // ethernet interrupt
-                          fmc_phy_phandle,              // phy phandle
-                          "rgmii-rxid",                 // phy-mode
-                          0x01,                         // phy reg address
-                          0x12,                         // phy interrupt
-                          clock_phandle,                // clock phandle
-                          false);                       // no TI quirks
-
-    // Add ethernet(SGMII interface)
+    // Add FMC ethernet (RGMII interface)
     add_fdt_ethernet_node(
         s, memmap, irq_mmio_phandle,
-        HOBGOBLIN_AXI_ETH,                // memmap index
-        axi_phandle,                      // axistream-connected
-        irqmap[0][HOBGOBLIN_FMC_ETH_IRQ], // ethernet interrupt
-        axi_phy_phandle,                  // phy phandle
-        "sgmii",                          // phy-mode
-        0x03,                             // phy reg address
-        0x0d,                             // phy interrupt
-        clock_phandle,                    // clock phandle
-        true);                            // has TI quirks
+        HOBGOBLIN_FMC_AXI_ETH,                // memmap index
+        fmc_axi_phandle,                      // axistream-connected
+        irqmap[0][HOBGOBLIN_ETH_IRQ],         // ethernet interrupt
+        fmc_phy_phandle,                      // phy phandle
+        "rgmii-rxid",                         // phy-mode
+        0x01,                                 // phy reg address
+        0x12,                                 // phy interrupt
+        clock_phandle,                        // clock phandle
+        false);                               // no TI quirks
+
+    // Add ethernet (SGMII interface)
+    add_fdt_ethernet_node(
+        s, memmap, irq_mmio_phandle,
+        HOBGOBLIN_AXI_ETH,                    // memmap index
+        axi_phandle,                          // axistream-connected
+        irqmap[0][HOBGOBLIN_FMC_ETH_IRQ],     // ethernet interrupt
+        axi_phy_phandle,                      // phy phandle
+        "sgmii",                              // phy-mode
+        0x03,                                 // phy reg address
+        0x0d,                                 // phy interrupt
+        clock_phandle,                        // clock phandle
+        true);                                // has TI quirks
 }
 
 static void create_gpio_node(MachineState *mc, const memmapEntry_t *memmap,
