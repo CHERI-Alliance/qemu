@@ -1779,8 +1779,10 @@ static void create_fdt(HobgoblinState *s, const memmapEntry_t *memmap,
         uint32_t clock_phandle = ++phandle;
         uint32_t axi_phy_phandle = ++phandle;
         uint32_t axi_phandle = ++phandle;
+        uint32_t i2c0_phandle __attribute__((unused)) = ++phandle;
         uint32_t fmc_phy_phandle = ++phandle;
         uint32_t fmc_axi_phandle = ++phandle;
+        uint32_t i2c1_phandle __attribute__((unused)) = ++phandle;
         uint32_t pcie0_phandle = ++phandle;
         uint32_t pcie1_phandle = ++phandle;
         uint32_t gpio0_phandle = ++phandle;
