@@ -201,6 +201,7 @@ uint8_t irqmap[2][HOBGOBLIN_IRQ_END] = {
         [HOBGOBLIN_FMC_ETH_IRQ]     = 10,
         [HOBGOBLIN_FMC_AXIDMA_IRQ0] = 11,
         [HOBGOBLIN_FMC_AXIDMA_IRQ1] = 12,
+        [HOBGOBLIN_FMC_ETH_PHY_IRQ] = 13,
         [HOBGOBLIN_ETH_IRQ]      = 15,
         [HOBGOBLIN_AXIDMA_IRQ0]  = 16,
         [HOBGOBLIN_AXIDMA_IRQ1]  = 17,
@@ -217,9 +218,11 @@ uint8_t irqmap[2][HOBGOBLIN_IRQ_END] = {
         [HOBGOBLIN_FMC_ETH_IRQ]     = 15,
         [HOBGOBLIN_FMC_AXIDMA_IRQ0] = 16,
         [HOBGOBLIN_FMC_AXIDMA_IRQ1] = 17,
+        [HOBGOBLIN_FMC_ETH_PHY_IRQ] = 18,
         [HOBGOBLIN_ETH_IRQ]      = 10,
         [HOBGOBLIN_AXIDMA_IRQ0]  = 11,
         [HOBGOBLIN_AXIDMA_IRQ1]  = 12,
+        [HOBGOBLIN_ETH_PHY_IRQ] = 13,
         [HOBGOBLIN_VIRTIO0_IRQ]  = 56,
         [HOBGOBLIN_MAX_IRQ] = 63,
         [HOBGOBLIN2_PCIE0_IRQ]      = 41,
@@ -1593,7 +1596,7 @@ static void create_fdt_ethernet(HobgoblinState *s, const memmapEntry_t *memmap,
         fmc_phy_phandle,                      // phy phandle
         "rgmii-rxid",                         // phy-mode
         0x01,                                 // phy reg address
-        0x12,                                 // phy interrupt
+        HIRQ(s, HOBGOBLIN_FMC_ETH_PHY_IRQ),   // phy interrupt
         clock_phandle,                        // clock phandle
         false);                               // no TI quirks
 
@@ -1606,7 +1609,7 @@ static void create_fdt_ethernet(HobgoblinState *s, const memmapEntry_t *memmap,
         axi_phy_phandle,                      // phy phandle
         "sgmii",                              // phy-mode
         0x03,                                 // phy reg address
-        0x0d,                                 // phy interrupt
+        HIRQ(s, HOBGOBLIN_ETH_PHY_IRQ),       // phy interrupt
         clock_phandle,                        // clock phandle
         true);                                // has TI quirks
 }
