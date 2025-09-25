@@ -249,6 +249,8 @@ static void rv64_codasip_a730_cpu_init(Object *obj)
     qdev_prop_set_bit(DEVICE(obj), "zcf", true);
     qdev_prop_set_bit(DEVICE(obj), "zbkb", true);
     qdev_prop_set_bit(DEVICE(obj), "Zihintpause", true);
+    qdev_prop_set_bit(DEVICE(obj), "sstc", true);
+    qdev_prop_set_bit(DEVICE(obj), "sscofpmf", true);
     /*
      * QEMU 6.x has no support for limiting the virtual addressing modes
      * (later versions add support for filtering certain SvXX modes)
