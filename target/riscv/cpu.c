@@ -278,6 +278,8 @@ static void rv64_codasip_a730_cpu_init(Object *obj)
     cpu->cfg.ext_zcf = true;
     cpu->cfg.ext_zbkb = true;
     cpu->cfg.ext_zihintpause = true;
+    cpu->cfg.ext_sstc = true;
+    cpu->cfg.ext_sscofpmf = true;
     /*
      * QEMU 6.x has no support for limiting the virtual addressing modes
      * (later versions add support for filtering certain SvXX modes)
