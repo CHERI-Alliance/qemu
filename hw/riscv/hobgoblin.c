@@ -877,7 +877,7 @@ static char *custom_riscv_isa_string(RISCVCPU *cpu, bool is_32_bit)
         bool *flag;
         const char *ext;
     } ext_map_t;
-
+    bool enable = true;
     ext_map_t base_exts[] = {
         { &cpu->cfg.ext_i, "i" }, { &cpu->cfg.ext_m, "m" },
         { &cpu->cfg.ext_a, "a" }, { &cpu->cfg.ext_f, "f" },
@@ -886,13 +886,27 @@ static char *custom_riscv_isa_string(RISCVCPU *cpu, bool is_32_bit)
         { &cpu->cfg.ext_v, "v" }
     };
 
-    ext_map_t multi_exts[] = { { &cpu->cfg.ext_icbom, "_zicbom" },
-                               { &cpu->cfg.ext_icboz, "_zicboz" },
-                               { &cpu->cfg.ext_zca, "_zca" },
-                               { &cpu->cfg.ext_zcb, "_zcb" },
-                               { &cpu->cfg.ext_zcd, "_zcd" },
-                               { &cpu->cfg.ext_zcf, "_zcf" },
-                               { &cpu->cfg.ext_svpbmt, "_svpbmt" } };
+    ext_map_t multi_exts[] = {
+        { &cpu->cfg.ext_sscofpmf, "_sscofpmf" },
+        { &cpu->cfg.ext_sstc, "_sstc" },
+        { &cpu->cfg.ext_svnapot, "_svnapot" },
+        { &cpu->cfg.ext_svpbmt, "_svpbmt" },
+        { &cpu->cfg.ext_svinval, "_svinval" },
+        { &cpu->cfg.ext_zihintpause, "_zihintpause" },
+        { &cpu->cfg.ext_zish4, "_zish4add" },
+        { &cpu->cfg.ext_zba, "_zba" },
+        { &cpu->cfg.ext_zbb, "_zbb" },
+        { &cpu->cfg.ext_zbc, "_zbs" },
+        { &cpu->cfg.ext_zfhmin, "_zfhmin" },
+        { &cpu->cfg.ext_zbkb, "_zbkb" },
+        { &cpu->cfg.ext_zca, "_zca" },
+        { &cpu->cfg.ext_zcb, "_zcb" },
+        { &cpu->cfg.ext_zcd, "_zcd" },
+        { &cpu->cfg.ext_zcf, "_zcf" },
+        { &cpu->cfg.ext_icbom, "_zicbom" },
+        { &enable, "_zicbop" },
+        { &cpu->cfg.ext_icboz, "_zicboz" },
+    };
 
     GString *result = (is_32_bit) ? g_string_new("rv32") : g_string_new("rv64");
 
