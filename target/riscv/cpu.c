@@ -773,6 +773,9 @@ static void riscv_cpu_reset(DeviceState *dev)
     null_capability(&env->mtdc);
     null_capability(&env->stdc);
     null_capability(&env->vstdc);
+#elif defined(TARGET_CHERI_RISCV_STD_093)
+    /* Need to initialize this since Type_None has a non-zero value. */
+    env->last_cap_type = CapEx093_Type_None;
 #endif
 
 #endif /* TARGET_CHERI */
