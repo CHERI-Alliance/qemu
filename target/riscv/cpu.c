@@ -752,21 +752,21 @@ static void riscv_cpu_reset(DeviceState *dev)
     set_max_perms_capability(env, &env->ddc, 0);
     // Supervisor mode trap handling
     set_max_perms_capability(env, &env->stvecc, 0);
-    null_capability(&env->sscratchc);
+    env->sscratchc = make_null_capability(env);
     set_max_perms_capability(env, &env->sepcc, 0);
     // Machine mode trap handling
     set_max_perms_capability(env, &env->mtvecc, 0);
-    null_capability(&env->mscratchc);
+    env->mscratchc = make_null_capability(env);
     set_max_perms_capability(env, &env->mepcc, 0);
 
-    null_capability(&env->utidc);
-    null_capability(&env->stidc);
-    null_capability(&env->vstidc);
-    null_capability(&env->mtidc);
+    env->utidc = make_null_capability(env);
+    env->stidc = make_null_capability(env);
+    env->vstidc = make_null_capability(env);
+    env->mtidc = make_null_capability(env);
 #ifdef TARGET_CHERI_RISCV_V9
-    null_capability(&env->mtdc);
-    null_capability(&env->stdc);
-    null_capability(&env->vstdc);
+    env->mtdc = make_null_capability(env);
+    env->stdc = make_null_capability(env);
+    env->vstdc = make_null_capability(env);
 #elif defined(TARGET_CHERI_RISCV_STD_093)
     /* Need to initialize this since Type_None has a non-zero value. */
     env->last_cap_type = CapEx093_Type_None;

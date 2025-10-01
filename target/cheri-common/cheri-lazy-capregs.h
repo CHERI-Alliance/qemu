@@ -148,11 +148,9 @@ get_readonly_capreg(CPUArchState *env, unsigned regnum)
     switch (get_capreg_state(gpcrs, regnum)) {
     case CREG_INTEGER: {
         // Update capreg to a decompressed integer value and clear pesbt
-        cheri_debug_assert(get_cap_in_gpregs(gpcrs, regnum)->cr_pesbt ==
-                           CAP_NULL_PESBT);
-        const cap_register_t *result =
-            int_to_cap(get_cap_in_gpregs(gpcrs, regnum)->_cr_cursor,
-                       get_cap_in_gpregs(gpcrs, regnum));
+        cap_register_t *result = get_cap_in_gpregs(gpcrs, regnum);
+        cheri_debug_assert(result->cr_pesbt == CAP_NULL_PESBT);
+        *result = make_capability_from_int(env, result->_cr_cursor);
         cheri_debug_assert(result->cr_pesbt == CAP_NULL_PESBT);
         cheri_debug_assert(get_capreg_state(gpcrs, regnum) ==
                            CREG_FULLY_DECOMPRESSED);
@@ -476,8 +474,8 @@ static inline void nullify_capreg(CPUArchState *env, unsigned regnum)
     cheri_debug_assert(regnum != NULL_CAPREG_INDEX);
 
     GPCapRegs *gpcrs = cheri_get_gpcrs(env);
-    const cap_register_t *newval =
-        null_capability(get_cap_in_gpregs(gpcrs, regnum));
+    cap_register_t *newval = get_cap_in_gpregs(gpcrs, regnum);
+    *newval = make_null_capability(env);
     cheri_debug_assert(get_capreg_state(gpcrs, regnum) ==
                        CREG_FULLY_DECOMPRESSED);
     sanity_check_capreg(gpcrs, regnum);
@@ -489,9 +487,9 @@ static inline void reset_capregs(CPUArchState *env)
     // Reset all to NULL:
     GPCapRegs *gpcrs = cheri_get_gpcrs(env);
     for (size_t i = 0; i < ARRAY_SIZE(gpcrs->decompressed); i++) {
-        const cap_register_t *newval =
-            null_capability(get_cap_in_gpregs(gpcrs, i));
-        // Register should be fully decompressed
+        cap_register_t *newval = get_cap_in_gpregs(gpcrs, i);
+        *newval = make_null_capability(env);
+        /* Register should be fully decompressed */
         cheri_debug_assert(get_capreg_state(gpcrs, i) ==
                            CREG_FULLY_DECOMPRESSED);
         sanity_check_capreg(gpcrs, i);
@@ -503,7 +501,7 @@ static inline void set_max_perms_capregs(CPUArchState *env)
 {
     /* Reset all to max perms (except NULL of course): */
     GPCapRegs *gpcrs = cheri_get_gpcrs(env);
-    null_capability(get_cap_in_gpregs(gpcrs, NULL_CAPREG_INDEX));
+    *get_cap_in_gpregs(gpcrs, NULL_CAPREG_INDEX) = make_null_capability(env);
     sanity_check_capreg(gpcrs, NULL_CAPREG_INDEX);
     for (size_t i = 0; i < ARRAY_SIZE(gpcrs->decompressed); i++) {
         if (i == NULL_CAPREG_INDEX)

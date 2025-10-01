@@ -61,7 +61,7 @@ int aarch64_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         arm_set_xreg(env, n, tmp);
         return 8;
     case 32:
-        set_aarch_reg_to_x(&env->pc, tmp);
+        set_aarch_reg_to_x(env, &env->pc, tmp);
         return 8;
     case 33:
         /* CPSR */

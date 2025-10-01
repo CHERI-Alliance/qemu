@@ -67,14 +67,14 @@
  * active. Each CPU holds a private logging state, that can be controlled
  * individually.
  *
- * TODO(am2419): how do we deal with orderding in case multiple registers are updated?
- * This is critical to recognize which value goes in which register, and also how to
- * tie multiple memory accesses to the respective value/register.
- * We could add an explicit target-specific register ID handle in place of the
- * register name. This could be used also to fetch the register name and would
- * provide an identifier to external parsers.
- * Memory updates are harder to deal with, at least in the current format, perhaps
- * the semantic of the instruction is enough to recover the ordering from a trace.
+ * TODO(am2419): how do we deal with orderding in case multiple registers are
+ * updated? This is critical to recognize which value goes in which register,
+ * and also how to tie multiple memory accesses to the respective
+ * value/register. We could add an explicit target-specific register ID handle
+ * in place of the register name. This could be used also to fetch the register
+ * name and would provide an identifier to external parsers. Memory updates are
+ * harder to deal with, at least in the current format, perhaps the semantic of
+ * the instruction is enough to recover the ordering from a trace.
  */
 
 #ifdef CONFIG_TCG_LOG_INSTR
@@ -489,11 +489,12 @@ static void emit_cvtrace_entry(CPUArchState *env, cpu_log_instr_info_t *iinfo)
 #else
         if (reginfo_is_cap(rinfo)) {
             cap_register_t intcap;
-            cap_register_t *cr = &rinfo->cap;
+            const cap_register_t *cr = &rinfo->cap;
 
             if (!reginfo_has_cap(rinfo)) {
-                // cvtrace expects a null capability in the integer case
-                cr = null_capability(&intcap);
+                /* cvtrace expects a null capability in the integer case. */
+                intcap = make_capability_from_int(env, rinfo->gpr);
+                cr = &intcap;
             }
             uint64_t metadata = (((uint64_t)cr->cr_tag << 63) |
                                  ((uint64_t)cap_get_otype_signext(cr) << 32) |

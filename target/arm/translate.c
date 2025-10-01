@@ -9991,7 +9991,7 @@ void restore_state_to_opc(CPUARMState *env, TranslationBlock *tb,
         assert(cap_is_in_bounds(_cheri_get_pcc_unchecked(env), data[0], 4));
         env->pc.cap._cr_cursor = data[0];
 #else
-        set_aarch_reg_to_x(&env->pc, data[0]);
+        set_aarch_reg_to_x(env, &env->pc, data[0]);
 #endif
         env->condexec_bits = 0;
         env->exception.syndrome = data[2] << ARM_INSN_START_WORD2_SHIFT;

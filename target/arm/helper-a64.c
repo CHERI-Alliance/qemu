@@ -1070,7 +1070,7 @@ illegal_return:
     env->pstate |= PSTATE_IL;
     // LETODO
     ASSERT_IF_CHERI();
-    set_aarch_reg_to_x(&env->pc, new_pc);
+    set_aarch_reg_to_x(env, &env->pc, new_pc);
     spsr &= PSTATE_NZCV | PSTATE_DAIF;
     spsr |= pstate_read(env) & ~(PSTATE_NZCV | PSTATE_DAIF);
     pstate_write(env, spsr);

@@ -10431,7 +10431,7 @@ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
             env->elr_el[new_el] = env->pc;
         else
 #endif
-            set_aarch_reg_to_x(&env->elr_el[new_el],
+            set_aarch_reg_to_x(env, &env->elr_el[new_el],
                                get_aarch_reg_as_x(&env->pc));
     } else {
         ASSERT_IF_CHERI();

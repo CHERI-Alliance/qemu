@@ -288,12 +288,12 @@ static void mips_cpu_reset(DeviceState *dev)
     // TODO: make DDC and KCC unconditionally only be in the special reg file
     set_max_perms_capability(env, &env->active_tc.CHWR.DDC, 0);
     // TODO: should kdc be NULL or full priv?
-    null_capability(&env->active_tc.CHWR.UserTlsCap);
-    null_capability(&env->active_tc.CHWR.PrivTlsCap);
-    null_capability(&env->active_tc.CHWR.KR1C);
-    null_capability(&env->active_tc.CHWR.KR2C);
+    env->active_tc.CHWR.UserTlsCap = make_null_capability(env);
+    env->active_tc.CHWR.PrivTlsCap = make_null_capability(env);
+    env->active_tc.CHWR.KR1C = make_null_capability(env);
+    env->active_tc.CHWR.KR2C = make_null_capability(env);
     set_max_perms_capability(env, &env->active_tc.CHWR.KCC, 0);
-    null_capability(&env->active_tc.CHWR.KDC); // KDC can be NULL
+    env->active_tc.CHWR.KDC = make_null_capability(env); // KDC can be NULL
     // Note: EPCC also needs to be set to be a full address-space capability
     // so that a MIPS eret without a prior trap works as expected:
     set_max_perms_capability(env, &env->active_tc.CHWR.EPCC, 0);
@@ -301,7 +301,7 @@ static void mips_cpu_reset(DeviceState *dev)
     set_max_perms_capability(env, &env->active_tc.CHWR.ErrorEPCC, 0);
 
     // Fake capability register to allow cjr branch delay slots to work
-    null_capability(&env->active_tc.CapBranchTarget);
+    env->active_tc.CapBranchTarget = make_null_capability(env);
 
     // env->CP0_Status |= (1 << CP0St_CU2);
 #endif /* TARGET_CHERI */

@@ -3677,11 +3677,12 @@ static inline void set_aarch_reg_value(AARCH_REG_TYPE *aarch_reg,
 
 // Set a value as if it were an X register (use get_xreg for the GP register
 // file).
-static inline void set_aarch_reg_to_x(AARCH_REG_TYPE *aarch_reg,
+static inline void set_aarch_reg_to_x(CPUARMState *env,
+                                      AARCH_REG_TYPE *aarch_reg,
                                       target_ulong val)
 {
 #ifdef TARGET_CHERI
-    int_to_cap(val, &aarch_reg->cap);
+    aarch_reg->cap = make_capability_from_int(env, val);
 #else
     *aarch_reg = val;
 #endif

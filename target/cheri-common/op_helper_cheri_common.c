@@ -732,10 +732,10 @@ void CHERI_HELPER_IMPL(ccopytype(CPUArchState *env, uint32_t cd, uint32_t cb,
         if (CHERI_TAG_CLEAR_ON_INVALID(env)) {
             RESULT_VALID = false;
         } else {
-            // For reserved otypes we return a null-derived value.
-            cap_register_t result;
-            update_capreg(env, cd,
-                          int_to_cap(cap_get_otype_signext(ctp), &result));
+            /* For reserved otypes we return a null-derived value. */
+            cap_register_t result =
+                make_capability_from_int(env, cap_get_otype_signext(ctp));
+            update_capreg(env, cd, &result);
             return;
         }
     }
@@ -1002,8 +1002,8 @@ void CHERI_HELPER_IMPL(cfromptr(CPUArchState *env, uint32_t cd, uint32_t cb,
      * CFromPtr: Create capability from pointer
      */
     if (rt == (target_ulong)0) {
-        cap_register_t result;
-        update_capreg(env, cd, null_capability(&result));
+        cap_register_t result = make_null_capability(env);
+        update_capreg(env, cd, &result);
         return;
     } else if (!cbp->cr_tag) {
         raise_cheri_exception_or_invalidate(env, CapEx_TagViolation, cb);
@@ -1155,7 +1155,7 @@ target_ulong CHERI_HELPER_IMPL(csub(CPUArchState *env, uint32_t cb,
     if (cbp->cr_tag != ctp->cr_tag ||
         (cbp->cr_tag && !cap_bounds_are_subset(cbp, ctp) && !cap_bounds_are_subset(ctp, cbp))) {
         // Don't warn about subtracting NULL:
-        if (!is_null_capability(ctp)) {
+        if (!is_null_capability(env, ctp)) {
             warn_report("Subtraction between two capabilities that are not subsets: \r\n"
                     "\tLHS: " PRINT_CAP_FMTSTR "\r\n\tRHS: " PRINT_CAP_FMTSTR "\r",
                     PRINT_CAP_ARGS(cbp), PRINT_CAP_ARGS(ctp));

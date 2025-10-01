@@ -332,47 +332,39 @@ static inline void assert_valid_jump_target(const cap_register_t *target)
     cheri_debug_assert(cap_cursor_in_bounds(target));
 }
 
-static inline cap_register_t *null_capability(cap_register_t *cp)
+/*
+ * Convert an integer to a capability that holds the integer the address field.
+ *
+ * The contents of other fields will be those of a NULL capability.
+ */
+static inline QEMU_ALWAYS_INLINE cap_register_t
+make_capability_from_int(CPUArchState *env, target_ulong addr)
 {
     uint8_t lvbits = CAP_CC(MANDATORY_LEVEL_BITS);
 #ifdef TARGET_CHERI_RISCV_STD
     /* Keep the number of level bits from the input capability. */
-    lvbits = cr->cr_lvbits;
+    lvbits = env_archcpu(env)->cfg.lvbits;
 #endif
-    *cp = CAP_cc(make_null_derived_cap_ext)(0, lvbits);
-    cp->cr_extra = CREG_FULLY_DECOMPRESSED;
-
-    return cp;
+    cap_register_t result = CAP_cc(make_null_derived_cap_ext)(addr, lvbits);
+    result.cr_extra = CREG_FULLY_DECOMPRESSED;
+    return result;
 }
 
-static inline bool is_null_capability(const cap_register_t *cp)
+static inline QEMU_ALWAYS_INLINE cap_register_t
+make_null_capability(CPUArchState *env)
 {
-    cap_register_t null;
-    // This also compares padding but it should always be NULL assuming
-    // null_capability() was used
-    return memcmp(null_capability(&null), cp, sizeof(cap_register_t)) == 0;
+    return make_capability_from_int(env, 0);
 }
 
-/*
- * Convert 64-bit integer into a capability that holds the integer in
- * its offset field.
- *
- *       cap.base = 0, cap.tag = false, cap.offset = x
- *
- * The contents of other fields of int to cap depends on the capability
- * compression scheme in use (e.g. 256-bit capabilities or 128-bit
- * compressed capabilities). In particular, with 128-bit compressed
- * capabilities, length is not always zero. The length of a capability
- * created via int to cap is not semantically meaningful, and programs
- * should not rely on it having any particular value.
- */
-static inline const cap_register_t *int_to_cap(target_ulong x,
-                                               cap_register_t *cr)
+static inline bool is_null_capability(CPUArchState *env,
+                                      const cap_register_t *cp)
 {
-
-    (void)null_capability(cr);
-    cr->_cr_cursor = x;
-    return cr;
+    cap_register_t null = make_null_capability(env);
+    /*
+     * This also compares padding, but it should always be zeroed if the correct
+     * initialization function were used.
+     */
+    return memcmp(&null, cp, sizeof(cap_register_t)) == 0;
 }
 
 /*
@@ -382,7 +374,7 @@ static inline const cap_register_t *int_to_cap(target_ulong x,
  * valid improves timing on the FPGA and with the shift towards address-based
  * interpretation it becomes less useful to retain the offset value.
  *
- * Previous behaviour was to use int_to_cap instead
+ * Previous behaviour was to create a NULL-derived capability instead
  *
  */
 static inline cap_register_t *cap_mark_unrepresentable(target_ulong addr,
@@ -499,15 +491,17 @@ static inline void cap_increment_offset(cap_register_t *cap, uint64_t offset)
     return cap_set_cursor(cap, new_addr);
 }
 
+#ifndef TARGET_CHERI_RISCV_STD
 /** Encode the permissions for the in-memory capability representation. */
 static inline target_ulong cap_encode_perms(target_ulong perms)
 {
     /* This assumes permissions are single-bit checks (Morello, ISAv9) */
-    cap_register_t reg;
-    null_capability(&reg);
+    cap_register_t reg =
+        CAP_cc(make_null_derived_cap_ext)(0, CAP_CC(MANDATORY_LEVEL_BITS));
     assert(reg.cr_pesbt == CAP_MEM_XOR_MASK);
     cap_set_perms(&reg, perms);
     return reg.cr_pesbt ^ CAP_MEM_XOR_MASK;
 }
+#endif
 
 #endif /* TARGET_CHERI */

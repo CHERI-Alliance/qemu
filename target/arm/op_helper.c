@@ -577,7 +577,7 @@ void HELPER(msr_banked)(CPUARMState *env, uint32_t value, uint32_t tgtmode,
         env->banked_spsr[bank_number(tgtmode)] = value;
         break;
     case 17: /* ELR_Hyp */
-        set_aarch_reg_to_x(&env->elr_el[2], value);
+        set_aarch_reg_to_x(env, &env->elr_el[2], value);
         break;
     case 13:
         env->banked_r13[bank_number(tgtmode)] = value;

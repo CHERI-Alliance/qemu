@@ -165,7 +165,7 @@ static void cp_reg_reset(gpointer key, gpointer value, gpointer opaque)
         if (ri->has_special_capresetvalue) {
             CPREG_FIELDCAP(&cpu->env, ri) = ri->capresetvalue;
         } else {
-            null_capability(&CPREG_FIELDCAP(&cpu->env, ri));
+            CPREG_FIELDCAP(&cpu->env, ri) = make_null_capability(&cpu->env);
         }
         return;
     }
@@ -248,24 +248,24 @@ static void arm_cpu_reset(DeviceState *dev)
      * a canonical null capability.
      */
     for (size_t i = 0; i < ARRAY_SIZE(env->sp_el); i++) {
-        null_capability(&env->sp_el[i].cap);
+        env->sp_el[i].cap = make_null_capability(env);
     }
     for (size_t i = 0; i < ARRAY_SIZE(env->elr_el); i++) {
-        null_capability(&env->elr_el[i].cap);
+        env->elr_el[i].cap = make_null_capability(env);
     }
     /*
      * The following are marked as arm_cp_reset_ignore. However, they are before
      * end_reset_fields, so we should ensure that the value is canonical NULL
      * instead of all zeroes.
      */
-    null_capability(&env->cp15.tpidrurw_s.cap);
-    null_capability(&env->cp15.tpidrurw_ns.cap);
-    null_capability(&env->cp15.tpidruro_s.cap);
-    null_capability(&env->cp15.tpidruro_ns.cap);
-    null_capability(&env->cp15.tpidrprw_s.cap);
-    null_capability(&env->cp15.tpidrprw_ns.cap);
-    null_capability(&env->cp15.vbar_s.cap);
-    null_capability(&env->cp15.vbar_ns.cap);
+    env->cp15.tpidrurw_s.cap = make_null_capability(env);
+    env->cp15.tpidrurw_ns.cap = make_null_capability(env);
+    env->cp15.tpidruro_s.cap = make_null_capability(env);
+    env->cp15.tpidruro_ns.cap = make_null_capability(env);
+    env->cp15.tpidrprw_s.cap = make_null_capability(env);
+    env->cp15.tpidrprw_ns.cap = make_null_capability(env);
+    env->cp15.vbar_s.cap = make_null_capability(env);
+    env->cp15.vbar_ns.cap = make_null_capability(env);
 #endif
 
     g_hash_table_foreach(cpu->cp_regs, cp_reg_reset, cpu);
