@@ -463,6 +463,8 @@ struct RISCVCPU {
         bool ext_cheri;
         bool ext_zyhybrid;
         bool ext_zylevels1;
+        /* number of levels (Zcherilevels): 0 invalid, 1 disabled (default)) */
+        uint8_t _compat_cheri_levels; /* To keep existing scripts working */
         uint8_t lvbits; /* Only 0 and 1 (Zylevels1) are currently supported. */
 #endif
         char *priv_spec;
