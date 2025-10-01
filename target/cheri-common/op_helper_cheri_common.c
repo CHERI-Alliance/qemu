@@ -692,7 +692,7 @@ void CHERI_HELPER_IMPL(cbuildcap(CPUArchState *env, uint32_t cd, uint32_t cb,
         cap_set_cursor(&derived, cap_get_base(&result));
         CAP_cc(setbounds)(&derived, cap_get_length_full(&result));
         cap_set_cursor(&derived, cap_get_cursor(&result));
-        cap_set_perms(&derived,
+        cap_set_perms(env, &derived,
                       cap_get_all_perms(cbp) & cap_get_all_perms(ctp));
 #ifndef TARGET_AARCH64
         cap_set_exec_mode(&derived, cap_get_exec_mode(ctp));
@@ -870,7 +870,7 @@ void CHERI_HELPER_IMPL(cunseal(CPUArchState *env, uint32_t cd, uint32_t cs,
     } else {
         new_perms &= ~CAP_PERM_GLOBAL;
     }
-    cap_set_perms(&result, new_perms);
+    cap_set_perms(env, &result, new_perms);
     if (RESULT_VALID) {
         cap_set_unsealed(&result);
     } else {
@@ -938,7 +938,16 @@ void CHERI_HELPER_IMPL(candperm(CPUArchState *env, uint32_t cd, uint32_t cb,
         result.cr_tag = 0;
     }
     target_ulong new_perms = cap_get_all_perms(cbp) & rt;
-    cap_set_perms(&result, new_perms);
+    /* Ensure that the permission can be encoded */
+    cap_legalize_perms(env, &result, &new_perms);
+#ifdef TARGET_CHERI_RISCV_STD
+    /* If the execution mode is no longer encodable with X removed, strip it. */
+    CheriExecMode mode = cap_get_exec_mode(cbp);
+    if (fix_up_exec_mode(env, &mode, new_perms)) {
+        cap_set_exec_mode(&result, mode);
+    }
+#endif
+    cap_set_perms(env, &result, new_perms);
     update_capreg(env, cd, &result);
 }
 
