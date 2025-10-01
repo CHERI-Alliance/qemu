@@ -1532,16 +1532,6 @@ static inline void gen_cap_in_bounds(DisasContext *ctx, int regnum, TCGv addr,
 #endif
 }
 
-static inline void gen_cap_has_perms(DisasContext *ctx, int regnum,
-                                     uint32_t perms, TCGv result)
-{
-    gen_cap_load_pesbt(ctx, regnum, result);
-    TCGv compare = tcg_const_tl(cap_encode_perms(perms));
-    tcg_gen_and_tl(result, result, compare);
-    tcg_gen_setcond_tl(TCG_COND_EQ, result, result, compare);
-    tcg_temp_free(compare);
-}
-
 #if CHERI_CAP_BITS == 128
 // Handles sealed and unrepresentable caps when the cursor is changed. If
 // you are only changing flag bits, specify flag_bits_only. Do NOT modify cursor
@@ -1938,6 +1928,16 @@ static inline void gen_cap_get_eq_i32(DisasContext *ctx, int rx, int ry,
 
 /* RISC-V standard permissions aren't necessarily a simple bitmask */
 #ifndef TARGET_CHERI_RISCV_STD
+static inline void gen_cap_has_perms(DisasContext *ctx, int regnum,
+                                     uint32_t perms, TCGv result)
+{
+    gen_cap_load_pesbt(ctx, regnum, result);
+    TCGv compare = tcg_const_tl(cap_encode_perms(perms));
+    tcg_gen_and_tl(result, result, compare);
+    tcg_gen_setcond_tl(TCG_COND_EQ, result, result, compare);
+    tcg_temp_free(compare);
+}
+
 static inline void gen_cap_clear_perms(DisasContext *ctx, int regnum, TCGv mask,
                                        bool canon)
 {
