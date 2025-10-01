@@ -117,7 +117,9 @@ static inline bool cap_has_reserved_bits_set(const cap_register_t *c)
  * Returns true if the permissions encoding in @p c could not have been
  * produced by a valid ACPERM sequence.
  */
-static inline bool cap_has_invalid_perms_encoding(const cap_register_t *c)
+static inline bool
+cap_has_invalid_perms_encoding(G_GNUC_UNUSED CPUArchState *env,
+                               const cap_register_t *c)
 {
     /* TODO: implement this for the RISC-V standard. */
     return false;

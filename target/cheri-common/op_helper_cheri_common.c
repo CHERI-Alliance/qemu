@@ -674,7 +674,7 @@ void CHERI_HELPER_IMPL(cbuildcap(CPUArchState *env, uint32_t cd, uint32_t cb,
     } else if ((cap_get_all_perms(ctp) & cap_get_all_perms(cbp)) !=
                cap_get_all_perms(ctp)) {
         raise_cheri_exception_or_invalidate(env, CapEx_UserDefViolation, cb);
-    } else if (cap_has_invalid_perms_encoding(ctp)) {
+    } else if (cap_has_invalid_perms_encoding(env, ctp)) {
         raise_cheri_exception_or_invalidate(env, CapEx_UserDefViolation, ct);
     } else if (cap_has_reserved_bits_set(ctp)) {
         raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation, ct);
