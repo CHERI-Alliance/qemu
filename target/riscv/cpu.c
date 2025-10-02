@@ -976,7 +976,7 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
 
 #ifdef TARGET_CHERI
     if (cpu->cfg.ext_cheri) {
-        set_feature(env, RISCV_FEATURE_CHERI_HYBRID);
+        set_feature(env, RISCV_FEATURE_CHERI);
 #ifdef TARGET_CHERI_RISCV_V9
         /* Non-standard extensions present */
         set_misa(env, env->misa_mxl, env->misa_ext | RV('X'));
