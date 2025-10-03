@@ -836,14 +836,14 @@ restart:
                           __func__, i);
             return TRANSLATE_CHERI_FAIL;
 #endif
-#if RISCV_PTE_TRAPPY & PTE_A
+#if RISCV_PTE_TRAPPY
         } else if (!(pte & PTE_A)) {
             /* PTE not marked as accessed */
             qemu_log_mask(CPU_LOG_MMU, "%s Translate fail: A not set\n",
                           __func__);
             return TRANSLATE_FAIL;
 #endif
-#if RISCV_PTE_TRAPPY & PTE_D
+#if RISCV_PTE_TRAPPY
         } else if ((access_type == MMU_DATA_STORE) && !(pte & PTE_D)) {
             /* PTE not marked as dirty */
             qemu_log_mask(CPU_LOG_MMU, "%s Translate fail: D not set\n",
@@ -851,14 +851,14 @@ restart:
             return TRANSLATE_FAIL;
 #endif
 #if defined(TARGET_CHERI)
-#if RISCV_PTE_TRAPPY & PTE_D
+#if RISCV_PTE_TRAPPY
         } else if (access_type == MMU_DATA_CAP_STORE && !(pte & PTE_D)) {
             /* PTE not marked as dirty for cap store */
             qemu_log_mask(CPU_LOG_MMU, "%s Translate fail: D not set (cap)\n",
                           __func__);
             return TRANSLATE_FAIL;
 #endif
-#if defined(TARGET_CHERI_RISCV_V9) && RISCV_PTE_TRAPPY & PTE_CD
+#if defined(TARGET_CHERI_RISCV_V9) && RISCV_PTE_TRAPPY
         } else if (access_type == MMU_DATA_CAP_STORE && !(pte & PTE_CD)) {
             /* CD clear; force the software trap handler to get involved */
             return TRANSLATE_CHERI_FAIL;
