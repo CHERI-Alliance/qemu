@@ -1643,6 +1643,11 @@ void riscv_cpu_do_interrupt(CPUState *cs)
          */
         if (cause == RISCV_EXCP_CHERI) {
             env->mtval2 = cheri_exc_info;
+        } else if (cause == RISCV_EXCP_LOAD_PAGE_FAULT ||
+                   cause == RISCV_EXCP_STORE_PAGE_FAULT) {
+            /* 0.9.3 reports 0/1/2 in mtval2 to report CHERI page faults */
+            assert(env->last_cap_cause == 0 || env->last_cap_cause == 1);
+            env->mtval2 = env->last_cap_cause;
         }
 #endif
         riscv_log_instr_csr_changed(env, CSR_MTVAL2);
