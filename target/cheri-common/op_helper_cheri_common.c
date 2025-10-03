@@ -280,6 +280,10 @@ target_ulong CHERI_HELPER_IMPL(cgetperm(CPUArchState *env, uint32_t cb))
     target_ulong perms = cap_get_all_perms(cbp);
     cheri_debug_assert(((perms & CAP_VALID_PERM_BITS) == perms) &&
                        "Unknown permission bits set!");
+#ifdef TARGET_CHERI_RISCV_STD_093
+    /* The reserved 1-bits were not present in 0.9.3, zero them */
+    perms &= ~(CAP_CC(PERMS_RESERVED_ONES));
+#endif
     return perms;
 }
 
