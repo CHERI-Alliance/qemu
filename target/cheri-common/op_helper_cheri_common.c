@@ -315,7 +315,7 @@ target_ulong CHERI_HELPER_IMPL(cgettype(CPUArchState *env, uint32_t cb))
      */
     const cap_register_t *cbp = get_readonly_capreg(env, cb);
     const target_long otype = cap_get_otype_signext(cbp);
-#ifdef TARGET_MORELLO
+#if defined(TARGET_MORELLO) || defined(TARGET_CHERI_RISCV_STD)
     cheri_debug_assert(otype == cap_get_otype_unsigned(cbp));
 #else
     // Must be either a valid positive type < maximum or one of the special
