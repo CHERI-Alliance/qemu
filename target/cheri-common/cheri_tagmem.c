@@ -328,8 +328,7 @@ static void lock_tag_write_tag_and_release(lock_tag *lock, bool tag)
 static bool lock_tag_read(lock_tag *lock)
 {
 #ifdef CONFIG_DEBUG_TCG
-    assert(!need_concurrent_tags() ||
-           (lock->as_int & (LOCKTAG_MASK_READERS | LOCKTAG_MASK_WRITE_LOCKED)));
+    assert(need_concurrent_tags());
 #endif
     return lock->as_int & LOCKTAG_MASK_TAG;
 }
