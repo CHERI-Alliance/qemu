@@ -1273,5 +1273,8 @@ bool cheri_tag_get_debug(RAMBlock *ram, ram_addr_t ram_offset)
     CheriTagBlock *tagblk = cheri_tag_block(tag, ram);
     cheri_debug_assert(tagblk);
     const size_t tagblk_index = CAP_TAGBLK_IDX(tag);
-    return tagblock_get_tag(tagblk, tagblk_index);
+    bool tag_value = need_concurrent_tags()
+        ? tagblock_get_locktag(tagblk, tagblk_index, NULL)
+        : tagblock_get_tag(tagblk, tagblk_index);
+    return tag_value;
 }
