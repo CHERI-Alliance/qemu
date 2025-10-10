@@ -201,7 +201,6 @@ void helper_cbo_zero_cap(CPURISCVState *env, uint32_t addr_reg)
     uint16_t cbozlen;
     uint32_t auth_reg; /* register number of the authorizing capability */
     const cap_register_t *auth_cap;
-    cap_register_t ctmp;
 
     check_zicbo_envcfg(env, MENVCFG_CBZE, _host_return_address);
 

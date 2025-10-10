@@ -589,9 +589,7 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
     RISCVCPU *cpu = env_archcpu(env);
     int napot_bits = 0;
     target_ulong napot_mask;
-#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
-    bool pte_cheri_error = false;
-#endif
+
 #ifdef CONFIG_RVFI_DII
     if (env->rvfi_dii_have_injected_insn && access_type == MMU_INST_FETCH) {
         /*

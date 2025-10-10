@@ -325,7 +325,7 @@ static inline __attribute__((always_inline)) bool load_store_implementation(
         }
     }
 
-    TCGv_i64 wb;
+    TCGv_i64 wb = 0;
     // There are too many places we might accidentally add DDC base, so if we
     // are going to store back, take a copy
     if ((pre_inc || post_inc)) {
