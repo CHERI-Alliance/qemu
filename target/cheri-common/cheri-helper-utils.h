@@ -238,7 +238,9 @@ static inline const char* cheri_cause_str(CheriCapExcCause cause) {
     case CapEx_UserDefViolation: return "User-defined Permission Violation";
     case CapEx_TLBNoStoreCap: return "TLB prohibits Store Capability";
     case CapEx_InexactBounds: return "Bounds Cannot Be Represented Exactly";
+#ifndef TARGET_CHERI_RISCV_STD
     case CapEx_UnalignedBase: return "Unaligned Base";
+#endif
     case CapEx_CapLoadGen: return "Cap Load Gen Mismatch";
     case CapEx_GlobalViolation: return "Global Violation";
     case CapEx_PermitExecuteViolation: return "Permit_Execute Violation";

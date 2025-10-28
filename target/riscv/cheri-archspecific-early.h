@@ -57,7 +57,9 @@ typedef enum CheriCapExc {
     CapEx_UserDefViolation              = 0x8,
     CapEx_TLBNoStoreCap                 = 0x9,
     CapEx_InexactBounds                 = 0xA,
+#ifndef TARGET_CHERI_RISCV_STD
     CapEx_UnalignedBase                 = 0xB,
+#endif
     CapEx_CapLoadGen                    = 0xC,
     // 0xd - 0xf reserved
     CapEx_GlobalViolation               = 0x10,
@@ -108,8 +110,6 @@ static inline Cheri093CapExcCause cheri093_cap_cause(CheriCapExcCause cause)
     case CapEx_SealViolation:
     case CapEx_TypeViolation:
         return CapEx093_SealViolation;
-    case CapEx_UnalignedBase:
-        return CapEx093_InvalidAddressViolation;
     default:
         /* All other exceptions map to a permissions violation */
         return CapEx093_PermissionViolation;
