@@ -247,9 +247,9 @@ struct CPUArchState {
     uint64_t mie;
     uint64_t mideleg;
 
-    target_ulong satp;   /* since: priv-1.10.0 */
-    target_ulong stval;
-    target_ulong medeleg;
+    uint64_t satp;   /* since: priv-1.10.0 */
+    uint64_t stval;
+    uint64_t medeleg;
 
 #if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
     target_ulong sccsr;
@@ -257,26 +257,22 @@ struct CPUArchState {
 
 #ifdef TARGET_CHERI
     cap_register_t stvecc;    // SCR 12 Supervisor trap code cap. (STCC)
-    cap_register_t sscratchc; // SCR 14 Supervisor scratch cap. (SScratchC)
     cap_register_t sepcc;     // SCR 15 Supervisor exception PC cap. (SEPCC)
 #else
-    target_ulong stvec;
-    target_ulong sepc;
-    target_ulong sscratch;
+    uint64_t stvec;
+    uint64_t sepc;
 #endif
-    target_ulong scause;
+    uint64_t scause;
 
 #ifdef TARGET_CHERI
     cap_register_t mtvecc;    // SCR 28 Machine trap code cap. (MTCC)
-    cap_register_t mscratchc; // SCR 30 Machine scratch cap. (MScratchC)
     cap_register_t mepcc;     // SCR 31 Machine exception PC cap. (MEPCC)
 #else
-    target_ulong mtvec;
-    target_ulong mepc;
-    target_ulong mscratch;
+    uint64_t mtvec;
+    uint64_t mepc;
 #endif
-    target_ulong mcause;
-    target_ulong mtval;  /* since: priv-1.10.0 */
+    uint64_t mcause;
+    uint64_t mtval;  /* since: priv-1.10.0 */
 
     /* Machine and Supervisor interrupt priorities */
     uint8_t miprio[64];
@@ -287,19 +283,19 @@ struct CPUArchState {
     target_ulong siselect;
 
     /* Hypervisor CSRs */
-    target_ulong hstatus;
-    target_ulong hedeleg;
+    uint64_t hstatus;
+    uint64_t hedeleg;
     uint64_t hideleg;
-    target_ulong hcounteren;
-    target_ulong htval;
-    target_ulong htinst;
-    target_ulong hgatp;
+    uint32_t hcounteren;
+    uint64_t htval;
+    uint64_t htinst;
+    uint64_t hgatp;
     target_ulong hgeie;
     target_ulong hgeip;
     uint64_t htimedelta;
 
     /* Hypervisor controlled virtual interrupt priorities */
-    target_ulong hvictl;
+    uint32_t hvictl;
     uint8_t hviprio[64];
 
     /* Virtual CSRs */
@@ -312,24 +308,24 @@ struct CPUArchState {
     uint64_t mscratchh;
     uint64_t sscratchh;
 
-    target_ulong vstvec;
-    target_ulong vsepc;
-    target_ulong vsscratch;
+    uint64_t vstvec;
+    uint64_t vsscratch;
+    uint64_t vsepc;
 #endif
     /*
      * For RV32 this is 32-bit vsstatus and 32-bit vsstatush.
      * For RV64 this is a 64-bit vsstatus.
      */
     uint64_t vsstatus;
-    target_ulong vscause;
-    target_ulong vstval;
-    target_ulong vsatp;
+    uint64_t vscause;
+    uint64_t vstval;
+    uint64_t vsatp;
 
     /* AIA VS-mode CSRs */
     target_ulong vsiselect;
 
-    target_ulong mtval2;
-    target_ulong mtinst;
+    uint64_t mtval2;
+    uint64_t mtinst;
 
     /* HS Backup CSRs */
 #ifdef TARGET_CHERI
@@ -338,18 +334,18 @@ struct CPUArchState {
     cap_register_t sscratchc_hs;
 
 #ifdef TARGET_CHERI_RISCV_STD_093
-    target_ulong stval2;
-    target_ulong vstval2;
-    target_ulong stval2_hs;
+    uint64_t stval2;
+    uint64_t vstval2;
+    uint64_t stval2_hs;
 #endif
 #else
-    target_ulong stvec_hs;
-    target_ulong sepc_hs;
-    target_ulong sscratch_hs;
+    uint64_t stvec_hs;
+    uint64_t sscratch_hs;
+    uint64_t sepc_hs;
 #endif
-    target_ulong scause_hs;
-    target_ulong stval_hs;
-    target_ulong satp_hs;
+    uint64_t scause_hs;
+    uint64_t stval_hs;
+    uint64_t satp_hs;
     uint64_t mstatus_hs;
 
     /* Signals whether the current exception occurred with two-stage address
@@ -389,6 +385,14 @@ struct CPUArchState {
     cap_register_t mtdc;  /* Machine trap data cap */
     cap_register_t stdc;  /* Supervisor trap data cap */
     cap_register_t vstdc; /* Virtual Supervisor trap data cap */
+#endif
+
+#ifdef TARGET_CHERI
+    cap_register_t sscratchc; // SCR 14 Supervisor scratch cap. (SScratchC)
+    cap_register_t mscratchc; // SCR 30 Machine scratch cap. (MScratchC)
+#else
+    uint64_t sscratch;
+    uint64_t mscratch;
 #endif
 
     /* temporary htif regs */
@@ -440,7 +444,7 @@ struct CPUArchState {
 
     /* CSRs for execution enviornment configuration */
     uint64_t menvcfg;
-    target_ulong senvcfg;
+    uint64_t senvcfg;
     uint64_t henvcfg;
 #endif
     target_ulong cur_pmmask;
