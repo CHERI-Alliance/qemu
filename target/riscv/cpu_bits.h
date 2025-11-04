@@ -753,7 +753,6 @@ typedef enum RISCVException {
  * always in the lower 32 bits, the definitions don't have to take this into
  * account.
  */
-#define MSECCFG_CRE                        (1 << 3)
 #define MENVCFG_CRE                        (1 << 28)
 #define SENVCFG_CRE                        (1 << 28)
 #endif
