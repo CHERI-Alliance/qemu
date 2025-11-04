@@ -489,7 +489,7 @@ static bool trans_fence_i(DisasContext *ctx, arg_fence_i *a)
     return true;
 }
 
-static bool is_cap_csr(uint32_t csrno)
+static inline bool is_cap_csr(uint32_t csrno)
 {
 #ifdef TARGET_CHERI
     return get_csr_cap_info(csrno) != NULL;
