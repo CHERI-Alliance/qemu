@@ -702,7 +702,16 @@ typedef enum {
     rv_op_cbo_inval,
     rv_op_cbo_inval_cap,
     rv_op_cbo_zero,
-    rv_op_cbo_zero_cap
+    rv_op_cbo_zero_cap,
+
+    // Zba CHERI extension
+    rv_op_add_uw_cap,
+    rv_op_sh1add_cap,
+    rv_op_sh1add_uw_cap,
+    rv_op_sh2add_cap,
+    rv_op_sh2add_uw_cap,
+    rv_op_sh3add_cap,
+    rv_op_sh3add_uw_cap
 } rv_op;
 
 /* structures */
@@ -782,6 +791,7 @@ static const char rv_freg_name_sym[32][5] = {
 #define rv_fmt_rd_uoffset             "O\t0,Uo"
 #define rv_fmt_cd_offset              "O\tC0,o"
 #define rv_fmt_rd_rs1_rs2             "O\t0,1,2"
+#define rv_fmt_cd_rs1_cs2             "O\tC0,1,C2"
 #define rv_fmt_cd_cs1_cs2             "O\tC0,C1,C2"
 #define rv_fmt_cd_cs1_rs2             "O\tC0,C1,2"
 #define rv_fmt_rd_cs1_cs2             "O\t0,C1,C2"
@@ -1620,7 +1630,16 @@ const rv_opcode_data opcode_data[] = {
     [rv_op_cbo_inval] = { "cbo.inval", rv_codec_cbo_rs1, rv_fmt_cbo_rs1, NULL, 0, 0, 0 },
     [rv_op_cbo_inval_cap] = { "cbo.inval", rv_codec_cbo_rs1, rv_fmt_cbo_cs1, NULL, 0, 0, 0 },
     [rv_op_cbo_zero] = { "cbo.zero", rv_codec_cbo_rs1, rv_fmt_cbo_rs1, NULL, 0, 0, 0 },
-    [rv_op_cbo_zero_cap] = { "cbo.zero", rv_codec_cbo_rs1, rv_fmt_cbo_cs1, NULL, 0, 0, 0 }
+    [rv_op_cbo_zero_cap] = { "cbo.zero", rv_codec_cbo_rs1, rv_fmt_cbo_cs1, NULL, 0, 0, 0 },
+
+    // Zba CHERI extension
+    [rv_op_add_uw_cap] =    { "add.uw",    rv_codec_r, rv_fmt_cd_rs1_cs2, NULL, 0, 0, 0 },
+    [rv_op_sh1add_cap] =    { "sh1add",    rv_codec_r, rv_fmt_cd_rs1_cs2, NULL, 0, 0, 0 },
+    [rv_op_sh1add_uw_cap] = { "sh1add.uw", rv_codec_r, rv_fmt_cd_rs1_cs2, NULL, 0, 0, 0 },
+    [rv_op_sh2add_cap] =    { "sh2add",    rv_codec_r, rv_fmt_cd_rs1_cs2, NULL, 0, 0, 0 },
+    [rv_op_sh2add_uw_cap] = { "sh2add.uw", rv_codec_r, rv_fmt_cd_rs1_cs2, NULL, 0, 0, 0 },
+    [rv_op_sh3add_cap] =    { "sh3add",    rv_codec_r, rv_fmt_cd_rs1_cs2, NULL, 0, 0, 0 },
+    [rv_op_sh3add_uw_cap] = { "sh3add.uw", rv_codec_r, rv_fmt_cd_rs1_cs2, NULL, 0, 0, 0 }
 };
 
 /* CSR names */
@@ -2414,9 +2433,18 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa, int flags)
                 break;
             case 73:  op = rv_op_modesw_cap; break;
             case 81:  op = rv_op_modesw_int; break;
-            case 130: op = rv_op_sh1add; break;
-            case 132: op = rv_op_sh2add; break;
-            case 134: op = rv_op_sh3add; break;
+            case 130:
+		      op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_sh1add_cap :
+			      rv_op_sh1add;
+		      break;
+            case 132:
+		      op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_sh2add_cap :
+			      rv_op_sh2add;
+		      break;
+            case 134:
+		      op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_sh3add_cap :
+			      rv_op_sh3add;
+		      break;
             case 161: op = rv_op_bset; break;
             case 162: op = rv_op_xperm4; break;
             case 164: op = rv_op_xperm8; break;
@@ -2462,16 +2490,28 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa, int flags)
             case 13: op = rv_op_divuw; break;
             case 14: op = rv_op_remw; break;
             case 15: op = rv_op_remuw; break;
-            case 32: op = rv_op_add_uw; break;
+            case 32:
+		      op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_add_uw_cap :
+			      rv_op_add_uw;
+		      break;
             case 36:
                 switch ((inst >> 20) & 0b11111) {
                 case 0: op = rv_op_zext_h; break;
                 default: op = rv_op_packw; break;
                 }
                 break;
-            case 130: op = rv_op_sh1add_uw; break;
-            case 132: op = rv_op_sh2add_uw; break;
-            case 134: op = rv_op_sh3add_uw; break;
+            case 130:
+		      op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_sh1add_uw_cap :
+			      rv_op_sh1add_uw;
+		      break;
+            case 132:
+		      op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_sh2add_uw_cap :
+			      rv_op_sh2add_uw;
+		      break;
+            case 134:
+		      op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_sh3add_uw_cap :
+			      rv_op_sh3add_uw;
+		      break;
             case 256: op = rv_op_subw; break;
             case 261: op = rv_op_sraw; break;
             case 385: op = rv_op_rolw; break;
