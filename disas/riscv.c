@@ -711,7 +711,13 @@ typedef enum {
     rv_op_sh2add_cap,
     rv_op_sh2add_uw_cap,
     rv_op_sh3add_cap,
-    rv_op_sh3add_uw_cap
+    rv_op_sh3add_uw_cap,
+
+    // Zish4add
+    rv_op_sh4add,
+    rv_op_sh4add_uw,
+    rv_op_sh4add_cap,
+    rv_op_sh4add_uw_cap
 } rv_op;
 
 /* structures */
@@ -1639,7 +1645,13 @@ const rv_opcode_data opcode_data[] = {
     [rv_op_sh2add_cap] =    { "sh2add",    rv_codec_r, rv_fmt_cd_rs1_cs2, NULL, 0, 0, 0 },
     [rv_op_sh2add_uw_cap] = { "sh2add.uw", rv_codec_r, rv_fmt_cd_rs1_cs2, NULL, 0, 0, 0 },
     [rv_op_sh3add_cap] =    { "sh3add",    rv_codec_r, rv_fmt_cd_rs1_cs2, NULL, 0, 0, 0 },
-    [rv_op_sh3add_uw_cap] = { "sh3add.uw", rv_codec_r, rv_fmt_cd_rs1_cs2, NULL, 0, 0, 0 }
+    [rv_op_sh3add_uw_cap] = { "sh3add.uw", rv_codec_r, rv_fmt_cd_rs1_cs2, NULL, 0, 0, 0 },
+
+    // Zish4add
+    [rv_op_sh4add] =        { "sh4add",    rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
+    [rv_op_sh4add_uw] =     { "sh4add.uw", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
+    [rv_op_sh4add_cap] =    { "sh4add",    rv_codec_r, rv_fmt_cd_rs1_cs2, NULL, 0, 0, 0 },
+    [rv_op_sh4add_uw_cap] = { "sh4add.uw", rv_codec_r, rv_fmt_cd_rs1_cs2, NULL, 0, 0, 0 }
 };
 
 /* CSR names */
@@ -2445,6 +2457,10 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa, int flags)
 		      op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_sh3add_cap :
 			      rv_op_sh3add;
 		      break;
+            case 135:
+		      op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_sh4add_cap :
+			      rv_op_sh4add;
+		      break;
             case 161: op = rv_op_bset; break;
             case 162: op = rv_op_xperm4; break;
             case 164: op = rv_op_xperm8; break;
@@ -2511,6 +2527,10 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa, int flags)
             case 134:
 		      op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_sh3add_uw_cap :
 			      rv_op_sh3add_uw;
+		      break;
+            case 135:
+		      op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_sh4add_uw_cap :
+			      rv_op_sh4add_uw;
 		      break;
             case 256: op = rv_op_subw; break;
             case 261: op = rv_op_sraw; break;
