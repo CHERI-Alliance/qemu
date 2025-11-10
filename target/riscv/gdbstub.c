@@ -185,13 +185,13 @@ static int riscv_gdb_get_cheri_reg(CPURISCVState *env, GByteArray *buf, int n)
     return 0;
 }
 
-static int riscv_gdb_set_cheri_reg(CPURISCVState *env, uint8_t *mem_buf, int n)
+static int riscv_gdb_cheri_reg_no_write(CPURISCVState *env, uint8_t *mem_buf,
+                                        int n)
 {
     /* All CHERI registers are read-only currently.  */
     if (n <= CHERI_GDB_NUM_CAPREGS) {
         return CHERI_CAP_SIZE + 1;
     }
-
     return 0;
 }
 #endif
@@ -228,23 +228,18 @@ static int riscv_gen_dynamic_csr_xml(CPUState *cs, int base_reg)
     return CSR_TABLE_SIZE;
 }
 
-#if defined(TARGET_CHERI)
+#if defined(TARGET_CHERI_RISCV_V9)
 static struct SCR {
     uint32_t csrno;
     const char *name;
     bool code;
 } scrs[] = {
     { .csrno = CSR_STVECC, .name = "stcc", .code = true },
-#ifdef TARGET_CHERI_RISCV_V9
     { .csrno = CSR_STDC, .name = "stdc" },
-#endif
     { .csrno = CSR_SSCRATCHC, .name = "sscratchc" },
     { .csrno = CSR_SEPCC, .name = "sepcc", .code = true },
-
     { .csrno = CSR_MTVECC, .name = "mtcc", .code = true },
-#ifdef TARGET_CHERI_RISCV_V9
     { .csrno = CSR_MTDC, .name = "mtdc" },
-#endif
     { .csrno = CSR_MSCRATCHC, .name = "mscratchc" },
     { .csrno = CSR_MEPCC, .name = "mepcc", .code = true },
 };
@@ -254,15 +249,6 @@ static int riscv_gdb_get_scr(CPURISCVState *env, GByteArray *buf, int n)
     if (n < ARRAY_SIZE(scrs)) {
         cap_register_t *scr = get_cap_csr(env, scrs[n].csrno);
         return gdb_get_capreg(buf, scr);
-    }
-    return 0;
-}
-
-static int riscv_gdb_set_scr(CPURISCVState *env, uint8_t *mem_buf, int n)
-{
-    /* All CHERI registers are read-only currently.  */
-    if (n < ARRAY_SIZE(scrs)) {
-        return CHERI_CAP_SIZE + 1;
     }
     return 0;
 }
@@ -295,6 +281,61 @@ static int riscv_gen_dynamic_scr_xml(CPUState *cs, int base_reg)
 }
 #endif
 
+#if defined(TARGET_CHERI_RISCV_STD)
+static int riscv_gen_dynamic_ycsr_xml(CPUState *cs, int base_reg)
+{
+    RISCVCPU *cpu = RISCV_CPU(cs);
+    CPURISCVState *env = &cpu->env;
+    int bitsize = riscv_cpu_mxl(env) == MXL_RV32 ? 64 : 128;
+    GString *s = g_string_new(NULL);
+    g_string_printf(s, "<?xml version=\"1.0\"?>");
+    g_string_append_printf(s, "<!DOCTYPE feature SYSTEM \"gdb-target.dtd\">");
+    g_string_append_printf(s, "<feature name=\"org.gnu.gdb.riscv.ycsr\">");
+
+    for (int i = 0; i < CSR_TABLE_SIZE; i++) {
+        riscv_csr_cap_ops *cap_ops = get_csr_cap_info(i);
+        if (!cap_ops) {
+            continue;
+        }
+        riscv_csr_predicate_fn predicate = csr_ops[i].predicate;
+        if (predicate && (predicate(env, i) == RISCV_EXCP_NONE)) {
+            if (csr_ops[i].name) {
+                g_string_append_printf(s, "<reg name=\"%s\"", csr_ops[i].name);
+            } else {
+                g_string_append_printf(s, "<reg name=\"csr%03x\"", i);
+            }
+            g_string_append_printf(s, " bitsize=\"%d\"", bitsize);
+            g_string_append_printf(s, " group=\"system\"");
+            g_string_append_printf(s, " regnum=\"%d\"/>", base_reg + i);
+
+            g_string_append_printf(s, "<reg name=\"%s\"", cap_ops->name);
+            g_string_append_printf(s, " group=\"system\"");
+            g_string_append_printf(s, " bitsize=\"%d\"", bitsize);
+            if ((cap_ops->flags & CSR_OP_IS_CODE_PTR) != 0) {
+                g_string_append_printf(s, " type=\"code_capability\"");
+            } else {
+                g_string_append_printf(s, " type=\"data_capability\"");
+            }
+            g_string_append_printf(s, " regnum=\"%d\"/>", base_reg + i);
+        }
+    }
+
+    g_string_append_printf(s, "</feature>");
+
+    cpu->dyn_ycsr_xml = g_string_free(s, false);
+    return CSR_TABLE_SIZE;
+}
+
+static int riscv_gdb_get_ycsr(CPURISCVState *env, GByteArray *buf, int n)
+{
+    if (n < CSR_TABLE_SIZE) {
+        const cap_register_t *value = get_cap_csr(env, n);
+        return gdb_get_capreg(buf, value);
+    }
+    return 0;
+}
+#endif
+
 void riscv_cpu_register_gdb_regs_for_features(CPUState *cs)
 {
     RISCVCPU *cpu = RISCV_CPU(cs);
@@ -315,7 +356,7 @@ void riscv_cpu_register_gdb_regs_for_features(CPUState *cs)
 #endif
 #if defined(TARGET_CHERI)
     gdb_register_coprocessor(cs, riscv_gdb_get_cheri_reg,
-                             riscv_gdb_set_cheri_reg, CHERI_GDB_NUM_REGS,
+                             riscv_gdb_cheri_reg_no_write, CHERI_GDB_NUM_REGS,
 #if defined(TARGET_RISCV32)
                              "riscv-32bit-cheri.xml", 0);
 #elif defined(TARGET_RISCV64)
@@ -328,9 +369,13 @@ void riscv_cpu_register_gdb_regs_for_features(CPUState *cs)
     gdb_register_coprocessor(cs, riscv_gdb_get_csr, riscv_gdb_set_csr,
                              riscv_gen_dynamic_csr_xml(cs, cs->gdb_num_regs),
                              "riscv-csr.xml", 0);
-#if defined(TARGET_CHERI)
-    gdb_register_coprocessor(cs, riscv_gdb_get_scr, riscv_gdb_set_scr,
-                             riscv_gen_dynamic_scr_xml(cs, cs->gdb_num_regs),
-                             "riscv-scr.xml", 0);
+#if defined(TARGET_CHERI_RISCV_V9)
+    gdb_register_coprocessor(
+        cs, riscv_gdb_get_scr, riscv_gdb_cheri_reg_no_write,
+        riscv_gen_dynamic_scr_xml(cs, cs->gdb_num_regs), "riscv-scr.xml", 0);
+#elif defined(TARGET_CHERI_RISCV_STD)
+    gdb_register_coprocessor(
+        cs, riscv_gdb_get_ycsr, riscv_gdb_cheri_reg_no_write,
+        riscv_gen_dynamic_ycsr_xml(cs, cs->gdb_num_regs), "riscv-ycsr.xml", 0);
 #endif
 }

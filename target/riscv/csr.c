@@ -2832,13 +2832,15 @@ static riscv_csr_cap_ops csr_cap_ops[] = {
     { "mscratchc", CSR_MSCRATCHC, read_capcsr_reg, write_cap_csr_reg,
       CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
     { "mtvecc", CSR_MTVECC, read_capcsr_reg, write_xtvecc,
-      CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG },
+      CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG |
+          CSR_OP_IS_CODE_PTR },
     { "stvecc", CSR_STVECC, read_capcsr_reg, write_xtvecc,
-      CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG },
+      CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG |
+          CSR_OP_IS_CODE_PTR },
     { "mepcc", CSR_MEPCC, read_xepcc, write_xepcc,
-      CSR_OP_IA_CONVERSION | CSR_OP_EXTENDED_REG },
+      CSR_OP_IA_CONVERSION | CSR_OP_EXTENDED_REG | CSR_OP_IS_CODE_PTR },
     { "sepcc", CSR_SEPCC, read_xepcc, write_xepcc,
-      CSR_OP_IA_CONVERSION | CSR_OP_EXTENDED_REG },
+      CSR_OP_IA_CONVERSION | CSR_OP_EXTENDED_REG | CSR_OP_IS_CODE_PTR },
     { "sscratchc", CSR_SSCRATCHC, read_capcsr_reg, write_cap_csr_reg,
       CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
     { "ddc", CSR_DDC, read_capcsr_reg, write_cap_csr_reg,
@@ -2852,11 +2854,12 @@ static riscv_csr_cap_ops csr_cap_ops[] = {
     { "vstidc", CSR_VSTIDC, read_capcsr_reg, write_cap_csr_reg,
       CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
     { "vsepcc", CSR_VSEPCC, read_xepcc, write_xepcc,
-      CSR_OP_IA_CONVERSION | CSR_OP_EXTENDED_REG },
+      CSR_OP_IA_CONVERSION | CSR_OP_EXTENDED_REG | CSR_OP_IS_CODE_PTR },
     { "vsscratchc", CSR_VSSCRATCHC, read_capcsr_reg, write_cap_csr_reg,
       CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
     { "vstvecc", CSR_VSTVECC, read_capcsr_reg, write_xtvecc,
-      CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG },
+      CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG |
+          CSR_OP_IS_CODE_PTR },
 #ifdef TARGET_CHERI_RISCV_V9
     /* For backwards compatibility add the *tdc registers */
     { "mtdc", CSR_MTDC, read_capcsr_reg, write_cap_csr_reg,
