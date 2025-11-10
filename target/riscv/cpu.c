@@ -293,8 +293,7 @@ static void rv32_codasip_l730_cpu_init(Object *obj)
      */
     set_misa(env, MXL_RV32, RVI | RVM | RVA | RVF | RVD | RVC | RVS | RVU);
 
-    /* This CPU supports priv v1.12. QEMU 6.x supports only up to 1.11. */
-    set_priv_version(env, PRIV_VERSION_1_11_0);
+    set_priv_version(env, PRIV_VERSION_1_12_0);
     qdev_prop_set_bit(DEVICE(obj), "mmu", false);
     qdev_prop_set_bit(DEVICE(obj), "pmp", false);
 }
