@@ -210,7 +210,6 @@ static void morello_machine_init(MachineState *machine)
      * as it will assert if ram_size is not large enough to hold the ELF */
 
     binfo.ram_size = 0x13000000;
-    binfo.nb_cpus = machine->smp.cpus;
     binfo.secure_boot = seperate_s_ns;
 
     if (morelloMachineState->is_ack) {
