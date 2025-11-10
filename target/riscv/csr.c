@@ -2223,6 +2223,11 @@ static void write_xtvecc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
         auth = csr;
     }
 
+    if (!cap_has_perms(auth, CAP_ACCESS_SYS_REGS)) {
+        warn_report_once("Setting %s without ASR permission (likely a bug)",
+                         csr_cap_info->name);
+    }
+
     if (!is_representable_cap_with_addr(auth, new_tvec + RISCV_HICAUSE * 4)) {
         error_report("Attempting to set vector register with unrepresentable "
                      "range (0x" TARGET_FMT_lx ") on %s: " PRINT_CAP_FMTSTR
