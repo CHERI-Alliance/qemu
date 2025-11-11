@@ -4008,7 +4008,7 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_MTINST] =              CSR_OP_RW_PRIV(hmode, mtinst, 1_12_0),
 
 #ifdef TARGET_CHERI_RISCV_STD_093
-    [CSR_STVAL2]       = { "stval2", any, read_stval2, write_stval2 },
+    [CSR_STVAL2]       = { "stval2", smode, read_stval2, write_stval2 },
     [CSR_STVAL2]       = { "vstval2", hmode, read_vstval2, write_vstval2 },
 #endif
 
