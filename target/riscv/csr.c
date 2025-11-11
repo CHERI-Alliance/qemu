@@ -3678,7 +3678,7 @@ static RISCVException riscv_csrrw_do64(CPURISCVState *env, int csrno,
     if (csr_ops[csrno].op) {
         ret = csr_ops[csrno].op(env, csrno, ret_value, new_value, write_mask);
 #ifdef CONFIG_TCG_LOG_INSTR
-        if (ret >= 0 && csr_ops[csrno].log_update) {
+        if (ret == RISCV_EXCP_NONE && csr_ops[csrno].log_update) {
             csr_ops[csrno].log_update(env, csrno, new_value);
         }
 #endif
