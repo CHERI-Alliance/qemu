@@ -145,6 +145,11 @@ const char mips_cheri_hw_regnames[32][10] = {
     {0},           {0},         {0},      {0},
     {"ErrorEPCC"}, {"KCC"},     {"KDC"},  {"EPCC"},
 };
+
+void print_cheri_mips_version(void)
+{
+    printf("Compiled for MIPS64 (with CHERI)\n");
+}
 #endif
 
 #ifdef CONFIG_TCG_LOG_INSTR

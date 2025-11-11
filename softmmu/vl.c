@@ -877,6 +877,9 @@ static MachineClass *find_default_machine(GSList *machines)
     return default_machineclass;
 }
 
+/* Add a weak hook for CHERI-MIPS version string (needed by cheritest) */
+__attribute__((weak)) void print_cheri_mips_version(void) {}
+
 static void version(void)
 {
     printf("QEMU emulator version " QEMU_FULL_VERSION "\n"
@@ -884,6 +887,7 @@ static void version(void)
 #ifdef CHERI_UNALIGNED
     printf("Built with support for unaligned loads/stores\n");
 #endif
+    print_cheri_mips_version();
 #if defined(CONFIG_TCG_LOG_INSTR)
     printf("Built with instruction logging enabled\n");
 #endif
