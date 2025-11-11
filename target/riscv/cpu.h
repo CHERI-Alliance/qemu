@@ -513,8 +513,11 @@ struct RISCVCPUConfig {
     bool ext_ifencei;
     bool ext_icsr;
     bool ext_svinval;
+#if !defined(TARGET_CHERI_RISCV_V9)
+    /* Incompatible with ISAv9 */
     bool ext_svnapot;
     bool ext_svpbmt;
+#endif
     bool ext_zfh;
     bool ext_zfhmin;
     bool ext_zve32f;

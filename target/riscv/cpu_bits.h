@@ -677,9 +677,14 @@ typedef enum {
 #define PTE_A               0x040 /* Accessed */
 #define PTE_D               0x080 /* Dirty */
 #define PTE_SOFT            0x300 /* Reserved for Software */
+#if defined(TARGET_CHERI_RISCV_V9)
+/* PBMT and NAPOT bits are incompatible with CHERI ISAv9 */
+#define PTE_ATTR 0 /* All attributes bits */
+#else
 #define PTE_PBMT            0x6000000000000000ULL /* Page-based memory types */
 #define PTE_N               0x8000000000000000ULL /* NAPOT translation */
 #define PTE_ATTR            (PTE_N | PTE_PBMT) /* All attributes bits */
+#endif
 #if defined(TARGET_CHERI_RISCV_V9) && !defined(TARGET_RISCV32)
 #define PTE_CRG             0x0800000000000000 /* Cap Read Generation */
 #define PTE_CRM             0x1000000000000000 /* Cap Read Modifier */

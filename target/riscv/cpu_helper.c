@@ -908,7 +908,9 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
     }
 #endif
     hwaddr ppn;
+#if !defined(TARGET_CHERI_RISCV_V9)
     RISCVCPU *cpu = env_archcpu(env);
+#endif
     int napot_bits = 0;
     target_ulong napot_mask;
 
@@ -1088,8 +1090,10 @@ restart:
 
         if (riscv_cpu_sxl(env) == MXL_RV32) {
             ppn = pte >> PTE_PPN_SHIFT;
+#if !defined(TARGET_CHERI_RISCV_V9)
         } else if (cpu->cfg.ext_svpbmt || cpu->cfg.ext_svnapot) {
             ppn = (pte & (target_ulong)PTE_PPN_MASK) >> PTE_PPN_SHIFT;
+#endif
         } else {
             if (pte & PTE_RESERVED) {
                 qemu_log_mask(
@@ -1115,10 +1119,12 @@ restart:
             qemu_log_mask(CPU_LOG_MMU, "%s Translate fail: V not set\n",
                           __func__);
             return TRANSLATE_FAIL;
+#if !defined(TARGET_CHERI_RISCV_V9)
         } else if (!cpu->cfg.ext_svpbmt && (pte & PTE_PBMT)) {
             qemu_log_mask(CPU_LOG_MMU, "%s Translate fail: PBMT not set\n",
               __func__);
             return TRANSLATE_FAIL;
+#endif
         } else if (!(pte & (PTE_R | PTE_W | PTE_X))) {
             /* Inner PTE, continue walking */
 #if defined(TARGET_CHERI_RISCV_STD_093) && !defined(TARGET_RISCV32)
@@ -1291,12 +1297,14 @@ restart:
                benefit. */
             target_ulong vpn = addr >> PGSHIFT;
 
+#if !defined(TARGET_CHERI_RISCV_V9)
             if (cpu->cfg.ext_svnapot && (pte & PTE_N)) {
                 napot_bits = ctzl(ppn) + 1;
                 if ((i != (levels - 1)) || (napot_bits != 4)) {
                     return TRANSLATE_FAIL;
                 }
             }
+#endif
 
             napot_mask = (1 << napot_bits) - 1;
             *physical = (((ppn & ~napot_mask) | (vpn & napot_mask) |
