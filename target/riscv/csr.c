@@ -2794,13 +2794,6 @@ static RISCVException write_pmpcfg(CPURISCVState *env, int csrno,
         return RISCV_EXCP_ILLEGAL_INST;
     }
     pmpcfg_csr_write(env, csrno - CSR_PMPCFG0, val);
-#ifdef CONFIG_TCG_LOG_INSTR
-    if (qemu_log_instr_enabled(env)) {
-        char buf[16];
-        snprintf(buf, sizeof(buf), "pmpcfg%d", csrno - CSR_PMPCFG0);
-        qemu_log_instr_reg(env, buf, val, csrno, LRI_CSR_ACCESS);
-    }
-#endif
     return RISCV_EXCP_NONE;
 }
 
@@ -2815,13 +2808,6 @@ static RISCVException write_pmpaddr(CPURISCVState *env, int csrno,
                                     target_ulong val)
 {
     pmpaddr_csr_write(env, csrno - CSR_PMPADDR0, val);
-#ifdef CONFIG_TCG_LOG_INSTR
-    if (qemu_log_instr_enabled(env)) {
-        char buf[16];
-        snprintf(buf, sizeof(buf), "pmpaddr%d", csrno - CSR_PMPADDR0);
-        qemu_log_instr_reg(env, buf, val, csrno, LRI_CSR_ACCESS);
-    }
-#endif
     return RISCV_EXCP_NONE;
 }
 
