@@ -3820,30 +3820,6 @@ RISCVException riscv_csrrw_debug(CPURISCVState *env, int csrno,
     return ret;
 }
 
-/* Internal use only */
-#define _CSR_OP_FN_RW(pred, readfn, writefn, csr_name, priv) \
-    {.predicate=pred, .read=readfn, .write=writefn,          \
-     .op=NULL, .name=csr_name, .min_priv_ver=priv}
-
-/* Shorthand for functions following the read_<csr> pattern
- * but which need to specify the privilage spec version. */
-#define CSR_OP_R_PRIV(pred, name, priv)                            \
-    _CSR_OP_FN_RW(pred, glue(read_, name), NULL,                   \
-                  stringify(name), glue(PRIV_VERSION_, priv))
-
-/* Shorthand for functions following the read/write_<csr> pattern
- * but which need to specify the privilage spec version */
-#define CSR_OP_RW_PRIV(pred, name, priv)                            \
-    _CSR_OP_FN_RW(pred, glue(read_, name), glue(write_, name),      \
-                  stringify(name), glue(PRIV_VERSION_, priv))
-
-/* Define csr_ops entry for read-modify-write CSR register */
-#define CSR_OP_RMW_PRIV(pred, csr_name, priv)                          \
-    {.predicate=pred, .read=NULL, .write=NULL,                     \
-     .op=glue(rmw_, csr_name),         \
-     .name=stringify(csr_name),                                    \
-     .min_priv_ver = glue(PRIV_VERSION_, priv)}
-
 /* Control and Status Register function table */
 riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     /* User Floating-Point CSRs */
@@ -3851,13 +3827,20 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_FRM]      = { "frm",      fs,     read_frm,     write_frm    },
     [CSR_FCSR]     = { "fcsr",     fs,     read_fcsr,    write_fcsr   },
     /* Vector CSRs */
-    [CSR_VSTART] =              CSR_OP_RW_PRIV(vs, vstart, 1_12_0),
-    [CSR_VXSAT] =               CSR_OP_RW_PRIV(vs, vxsat, 1_12_0),
-    [CSR_VXRM] =                CSR_OP_RW_PRIV(vs, vxrm, 1_12_0),
-    [CSR_VCSR] =                CSR_OP_RW_PRIV(vs, vcsr, 1_12_0),
-    [CSR_VL] =                  CSR_OP_R_PRIV(vs, vl, 1_12_0),
-    [CSR_VTYPE] =               CSR_OP_R_PRIV(vs, vtype, 1_12_0),
-    [CSR_VLENB] =               CSR_OP_R_PRIV(vs, vlenb, 1_12_0),
+    [CSR_VSTART]   = { "vstart",   vs,    read_vstart,  write_vstart,
+                                          .min_priv_ver = PRIV_VERSION_1_12_0 },
+    [CSR_VXSAT]    = { "vxsat",    vs,    read_vxsat,   write_vxsat,
+                                          .min_priv_ver = PRIV_VERSION_1_12_0 },
+    [CSR_VXRM]     = { "vxrm",     vs,    read_vxrm,    write_vxrm,
+                                          .min_priv_ver = PRIV_VERSION_1_12_0 },
+    [CSR_VCSR]     = { "vcsr",     vs,    read_vcsr,    write_vcsr,
+                                          .min_priv_ver = PRIV_VERSION_1_12_0 },
+    [CSR_VL]       = { "vl",       vs,    read_vl,
+                                          .min_priv_ver = PRIV_VERSION_1_12_0 },
+    [CSR_VTYPE]    = { "vtype",    vs,    read_vtype,
+                                          .min_priv_ver = PRIV_VERSION_1_12_0 },
+    [CSR_VLENB]    = { "vlenb",    vs,    read_vlenb,
+                                          .min_priv_ver = PRIV_VERSION_1_12_0 },
     /* User Timers and Counters */
     [CSR_CYCLE]    = { "cycle",    ctr,    read_instret  },
     [CSR_INSTRET]  = { "instret",  ctr,    read_instret  },
@@ -3907,13 +3890,6 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_MTVAL]    = { "mtval",    any,  read_mtval,    write_mtval    },
     [CSR_MIP]      = { "mip",      any,  NULL,    NULL, rmw_mip        },
 
-    /* Execution environment configuration */
-    [CSR_MENVCFG]  =            CSR_OP_RW_PRIV(any, menvcfg, 1_12_0),
-    [CSR_MENVCFGH] =            CSR_OP_RW_PRIV(any32, menvcfgh, 1_12_0),
-    [CSR_SENVCFG]  =            CSR_OP_RW_PRIV(smode, senvcfg, 1_12_0),
-    [CSR_HENVCFG]  =            CSR_OP_RW_PRIV(hmode, henvcfg, 1_12_0),
-    [CSR_HENVCFGH] =            CSR_OP_RW_PRIV(hmode32, henvcfgh, 1_12_0),
-
     /* Machine-Level Window to Indirectly Accessed Registers (AIA) */
     [CSR_MISELECT] = { "miselect", aia_any,   NULL, NULL,    rmw_xiselect },
     [CSR_MIREG]    = { "mireg",    aia_any,   NULL, NULL,    rmw_xireg },
@@ -3938,6 +3914,18 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_MVIENH]   = { "mvienh",   aia_any32, read_zero,  write_ignore },
     [CSR_MVIPH]    = { "mviph",    aia_any32, read_zero,  write_ignore },
     [CSR_MIPH]     = { "miph",     aia_any32, NULL, NULL, rmw_miph     },
+
+    /* Execution environment configuration */
+    [CSR_MENVCFG]  = { "menvcfg",  any,   read_menvcfg,  write_menvcfg,
+                                          .min_priv_ver = PRIV_VERSION_1_12_0 },
+    [CSR_MENVCFGH] = { "menvcfgh", any32, read_menvcfgh, write_menvcfgh,
+                                          .min_priv_ver = PRIV_VERSION_1_12_0 },
+    [CSR_SENVCFG]  = { "senvcfg",  smode, read_senvcfg,  write_senvcfg,
+                                          .min_priv_ver = PRIV_VERSION_1_12_0 },
+    [CSR_HENVCFG]  = { "henvcfg",  hmode, read_henvcfg, write_henvcfg,
+                                          .min_priv_ver = PRIV_VERSION_1_12_0 },
+    [CSR_HENVCFGH] = { "henvcfgh", hmode32, read_henvcfgh, write_henvcfgh,
+                                          .min_priv_ver = PRIV_VERSION_1_12_0 },
 
     /* Supervisor Trap Setup */
     [CSR_SSTATUS]    = { "sstatus",    smode, read_sstatus,    write_sstatus, NULL,
@@ -3975,41 +3963,68 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_SIEH]       = { "sieh",   aia_smode32, NULL, NULL, rmw_sieh },
     [CSR_SIPH]       = { "siph",   aia_smode32, NULL, NULL, rmw_siph },
 
-    [CSR_HSTATUS] =             CSR_OP_RW_PRIV(hmode, hstatus, 1_12_0),
-    [CSR_HEDELEG] =             CSR_OP_RW_PRIV(hmode, hedeleg, 1_12_0),
-    [CSR_HIDELEG] =             CSR_OP_RMW_PRIV(hmode, hideleg, 1_12_0),
-    [CSR_HVIP] =                CSR_OP_RMW_PRIV(hmode, hvip, 1_12_0),
-    [CSR_HIP] =                 CSR_OP_RMW_PRIV(hmode, hip, 1_12_0),
-    [CSR_HIE] =                 CSR_OP_RMW_PRIV(hmode, hie, 1_12_0),
-    [CSR_HCOUNTEREN] =          CSR_OP_RW_PRIV(hmode, hcounteren, 1_12_0),
-    [CSR_HGEIE] =               CSR_OP_RW_PRIV(hmode, hgeie, 1_12_0),
-    [CSR_HTVAL] =               CSR_OP_RW_PRIV(hmode, htval, 1_12_0),
-    [CSR_HTINST] =              CSR_OP_RW_PRIV(hmode, htinst, 1_12_0),
-    [CSR_HGEIP] =               CSR_OP_R_PRIV(hmode, hgeip, 1_12_0),
-    [CSR_HGATP] =               CSR_OP_RW_PRIV(hmode, hgatp, 1_12_0),
-    [CSR_HTIMEDELTA] =          CSR_OP_RW_PRIV(hmode, htimedelta, 1_12_0),
-    [CSR_HTIMEDELTAH] =         CSR_OP_RW_PRIV(hmode32, htimedeltah, 1_12_0),
+    [CSR_HSTATUS]     = { "hstatus",     hmode,   read_hstatus,   write_hstatus,
+                                         .min_priv_ver = PRIV_VERSION_1_12_0 },
+    [CSR_HEDELEG]     = { "hedeleg",     hmode,   read_hedeleg,   write_hedeleg,
+                                         .min_priv_ver = PRIV_VERSION_1_12_0 },
+    [CSR_HIDELEG]     = { "hideleg",     hmode,   NULL,   NULL, rmw_hideleg,
+                                         .min_priv_ver = PRIV_VERSION_1_12_0 },
+    [CSR_HVIP]        = { "hvip",        hmode,   NULL,   NULL,   rmw_hvip,
+                                         .min_priv_ver = PRIV_VERSION_1_12_0 },
+    [CSR_HIP]         = { "hip",         hmode,   NULL,   NULL,   rmw_hip,
+                                         .min_priv_ver = PRIV_VERSION_1_12_0 },
+    [CSR_HIE]         = { "hie",         hmode,   NULL,   NULL,    rmw_hie,
+                                         .min_priv_ver = PRIV_VERSION_1_12_0 },
+    [CSR_HCOUNTEREN]  = { "hcounteren",  hmode,   read_hcounteren, write_hcounteren,
+                                         .min_priv_ver = PRIV_VERSION_1_12_0 },
+    [CSR_HGEIE]       = { "hgeie",       hmode,   read_hgeie,       write_hgeie,
+                                         .min_priv_ver = PRIV_VERSION_1_12_0 },
+    [CSR_HTVAL]       = { "htval",       hmode,   read_htval,     write_htval,
+                                         .min_priv_ver = PRIV_VERSION_1_12_0 },
+    [CSR_HTINST]      = { "htinst",      hmode,   read_htinst,    write_htinst,
+                                         .min_priv_ver = PRIV_VERSION_1_12_0 },
+    [CSR_HGEIP]       = { "hgeip",       hmode,   read_hgeip,
+                                         .min_priv_ver = PRIV_VERSION_1_12_0 },
+    [CSR_HGATP]       = { "hgatp",       hmode,   read_hgatp,     write_hgatp,
+                                         .min_priv_ver = PRIV_VERSION_1_12_0 },
+    [CSR_HTIMEDELTA]  = { "htimedelta",  hmode,   read_htimedelta, write_htimedelta,
+                                         .min_priv_ver = PRIV_VERSION_1_12_0 },
+    [CSR_HTIMEDELTAH] = { "htimedeltah", hmode32, read_htimedeltah, write_htimedeltah,
+                                         .min_priv_ver = PRIV_VERSION_1_12_0 },
 
-    [CSR_VSSTATUS] =            CSR_OP_RW_PRIV(hmode, vsstatus, 1_12_0),
-    [CSR_VSIP] =                CSR_OP_RMW_PRIV(hmode, vsip, 1_12_0),
-    [CSR_VSIE] =                CSR_OP_RMW_PRIV(hmode, vsie, 1_12_0),
-    [CSR_VSTVEC] =              CSR_OP_RW_PRIV(hmode, vstvec, 1_12_0),
-    [CSR_VSSCRATCH] =           CSR_OP_RW_PRIV(hmode, vsscratch, 1_12_0),
-    [CSR_VSEPC] =               CSR_OP_RW_PRIV(hmode, vsepc, 1_12_0),
-    [CSR_VSCAUSE] =             CSR_OP_RW_PRIV(hmode, vscause, 1_12_0),
-    [CSR_VSTVAL] =              CSR_OP_RW_PRIV(hmode, vstval, 1_12_0),
-    [CSR_VSATP] =               CSR_OP_RW_PRIV(hmode, vsatp, 1_12_0),
+    [CSR_VSSTATUS]    = { "vsstatus",    hmode,   read_vsstatus,  write_vsstatus,
+                                         .min_priv_ver = PRIV_VERSION_1_12_0 },
+    [CSR_VSIP]        = { "vsip",        hmode,   NULL,    NULL,  rmw_vsip,
+                                         .min_priv_ver = PRIV_VERSION_1_12_0 },
+    [CSR_VSIE]        = { "vsie",        hmode,   NULL,    NULL,    rmw_vsie ,
+                                         .min_priv_ver = PRIV_VERSION_1_12_0 },
+    [CSR_VSTVEC]      = { "vstvec",      hmode,   read_vstvec,    write_vstvec,
+                                         .min_priv_ver = PRIV_VERSION_1_12_0 },
+    [CSR_VSSCRATCH]   = { "vsscratch",   hmode,   read_vsscratch, write_vsscratch,
+                                         .min_priv_ver = PRIV_VERSION_1_12_0 },
+    [CSR_VSEPC]       = { "vsepc",       hmode,   read_vsepc,     write_vsepc,
+                                         .min_priv_ver = PRIV_VERSION_1_12_0 },
+    [CSR_VSCAUSE]     = { "vscause",     hmode,   read_vscause,   write_vscause,
+                                         .min_priv_ver = PRIV_VERSION_1_12_0 },
+    [CSR_VSTVAL]      = { "vstval",      hmode,   read_vstval,    write_vstval,
+                                         .min_priv_ver = PRIV_VERSION_1_12_0 },
+    [CSR_VSATP]       = { "vsatp",       hmode,   read_vsatp,     write_vsatp,
+                                         .min_priv_ver = PRIV_VERSION_1_12_0 },
 
 #ifdef TARGET_CHERI_RISCV_STD_093
-    [CSR_MTVAL2] =              CSR_OP_RW_PRIV(any, mtval2, 1_12_0),
+    [CSR_MTVAL2]      = { "mtval2",      any,   read_mtval2,    write_mtval2,
 #else
-    [CSR_MTVAL2] =              CSR_OP_RW_PRIV(hmode, mtval2, 1_12_0),
+    [CSR_MTVAL2]      = { "mtval2",      hmode,   read_mtval2,    write_mtval2,
 #endif
-    [CSR_MTINST] =              CSR_OP_RW_PRIV(hmode, mtinst, 1_12_0),
+                                     .min_priv_ver = PRIV_VERSION_1_12_0 },
+    [CSR_MTINST]      = { "mtinst",      hmode,   read_mtinst,    write_mtinst,
+                                         .min_priv_ver = PRIV_VERSION_1_12_0 },
 
 #ifdef TARGET_CHERI_RISCV_STD_093
-    [CSR_STVAL2]       = { "stval2", smode, read_stval2, write_stval2 },
-    [CSR_STVAL2]       = { "vstval2", hmode, read_vstval2, write_vstval2 },
+    [CSR_STVAL2]       = { "stval2", smode, read_stval2, write_stval2,
+        .min_priv_ver = PRIV_VERSION_1_12_0 },
+    [CSR_STVAL2]       = { "vstval2", hmode, read_vstval2, write_vstval2,
+        .min_priv_ver = PRIV_VERSION_1_12_0 },
 #endif
 
 #ifdef TARGET_CHERI_RISCV_V9
@@ -4053,7 +4068,8 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_VSIPH]       = { "vsiph",       aia_hmode32, NULL, NULL, rmw_vsiph },
 
     /* Physical Memory Protection */
-    [CSR_MSECCFG] =             CSR_OP_RW_PRIV(epmp_or_cheri093, mseccfg,1_12_0),
+    [CSR_MSECCFG]    = { "mseccfg",  epmp_or_cheri093, read_mseccfg, write_mseccfg,
+                         .min_priv_ver = PRIV_VERSION_1_11_0           },
     [CSR_PMPCFG0]    = { "pmpcfg0",   pmp, read_pmpcfg,  write_pmpcfg  },
     [CSR_PMPCFG1]    = { "pmpcfg1",   pmp, read_pmpcfg,  write_pmpcfg  },
     [CSR_PMPCFG2]    = { "pmpcfg2",   pmp, read_pmpcfg,  write_pmpcfg  },
@@ -4089,7 +4105,6 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_SPMBASE] =    { "spmbase", pointer_masking, read_spmbase, write_spmbase },
 
     /* Performance Counters */
-    [CSR_MCOUNTINHIBIT] =       CSR_OP_RW_PRIV(any, mcountinhibit, 1_11_0),
     [CSR_HPMCOUNTER3]    = { "hpmcounter3",    ctr,    read_zero },
     [CSR_HPMCOUNTER4]    = { "hpmcounter4",    ctr,    read_zero },
     [CSR_HPMCOUNTER5]    = { "hpmcounter5",    ctr,    read_zero },
@@ -4149,6 +4164,10 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_MHPMCOUNTER29]  = { "mhpmcounter29",  any,    read_zero },
     [CSR_MHPMCOUNTER30]  = { "mhpmcounter30",  any,    read_zero },
     [CSR_MHPMCOUNTER31]  = { "mhpmcounter31",  any,    read_zero },
+
+    [CSR_MCOUNTINHIBIT]  = { "mcountinhibit",  any, read_mcountinhibit,
+                             write_mcountinhibit,
+                             .min_priv_ver = PRIV_VERSION_1_11_0       },
 
     [CSR_MHPMEVENT3]     = { "mhpmevent3",     any,    read_zero },
     [CSR_MHPMEVENT4]     = { "mhpmevent4",     any,    read_zero },
