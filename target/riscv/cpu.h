@@ -1068,7 +1068,6 @@ typedef struct {
     riscv_csr_op_fn op;
     riscv_csr_read128_fn read128;
     riscv_csr_write128_fn write128;
-    riscv_csr_log_update_fn log_update;
     /* The default priv spec version should be PRIV_VERSION_1_10_0 (i.e 0) */
     uint32_t min_priv_ver;
 } riscv_csr_operations;

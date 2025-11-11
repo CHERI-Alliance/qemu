@@ -30,7 +30,16 @@
 #endif
 
 /* CSR update logging API */
-#if CONFIG_TCG_LOG_INSTR
+#ifdef CONFIG_TCG_LOG_INSTR
+static void log_changed_csr(CPURISCVState *env, int csrno,
+                            target_ulong value)
+{
+    if (qemu_log_instr_enabled(env)) {
+        qemu_log_instr_reg(env, csr_ops[csrno].name, value, csrno,
+                           LRI_CSR_ACCESS);
+    }
+}
+
 void riscv_log_instr_csr_changed(CPURISCVState *env, int csrno)
 {
     target_ulong value;
@@ -53,8 +62,7 @@ void riscv_log_instr_csr_changed(CPURISCVState *env, int csrno)
             csr_ops[csrno].op(env, csrno, &value, 0, /*write_mask*/0);
         else
             return;
-        if (csr_ops[csrno].log_update)
-            csr_ops[csrno].log_update(env, csrno, value);
+        log_changed_csr(env, csrno, value);
     }
 }
 #endif
@@ -3664,8 +3672,8 @@ static RISCVException riscv_csrrw_do64(CPURISCVState *env, int csrno,
     if (csr_ops[csrno].op) {
         ret = csr_ops[csrno].op(env, csrno, ret_value, new_value, write_mask);
 #ifdef CONFIG_TCG_LOG_INSTR
-        if (ret == RISCV_EXCP_NONE && csr_ops[csrno].log_update) {
-            csr_ops[csrno].log_update(env, csrno, new_value);
+        if (ret == RISCV_EXCP_NONE) {
+            log_changed_csr(env, csrno, new_value);
         }
 #endif
         return ret;
@@ -3690,10 +3698,8 @@ static RISCVException riscv_csrrw_do64(CPURISCVState *env, int csrno,
                 return ret;
             }
 #ifdef CONFIG_TCG_LOG_INSTR
-            if (csr_ops[csrno].log_update) {
-                csr_ops[csrno].read(env, csrno, &new_value);
-                csr_ops[csrno].log_update(env, csrno, new_value);
-            }
+            csr_ops[csrno].read(env, csrno, &new_value);
+            log_changed_csr(env, csrno, new_value);
 #endif
         }
     }
@@ -3814,32 +3820,17 @@ RISCVException riscv_csrrw_debug(CPURISCVState *env, int csrno,
     return ret;
 }
 
-
-#ifdef CONFIG_TCG_LOG_INSTR
-static void log_changed_csr_fn(CPURISCVState *env, int csrno,
-                               target_ulong value)
-{
-    if (qemu_log_instr_enabled(env)) {
-        qemu_log_instr_reg(env, csr_ops[csrno].name, value, csrno,
-                           LRI_CSR_ACCESS);
-    }
-}
-#else
-#define log_changed_csr_fn (NULL)
-#endif
-
 /* Internal use only */
-#define _CSR_OP_FN_RW(pred, readfn, writefn, logfn, csr_name, priv)    \
-    {.predicate=pred, .read=readfn, .write=writefn,                \
-     .op=NULL, .log_update=logfn, .name=csr_name,                      \
-     .min_priv_ver = priv}
+#define _CSR_OP_FN_RW(pred, readfn, writefn, csr_name, priv) \
+    {.predicate=pred, .read=readfn, .write=writefn,          \
+     .op=NULL, .name=csr_name, .min_priv_ver=priv}
 
 /* Define csr_ops entry for read-only CSR register */
 #define CSR_OP_FN_R(pred, readfn, name)                            \
-    _CSR_OP_FN_RW(pred, readfn, NULL, NULL, name, 0)
+    _CSR_OP_FN_RW(pred, readfn, NULL, name, 0)
 
-#define CSR_OP_FN_R_PRIV(pred, readfn, name, priv)                 \
-    _CSR_OP_FN_RW(pred, readfn, NULL, NULL, name,                  \
+#define CSR_OP_FN_R_PRIV(pred, readfn, name, priv) \
+    _CSR_OP_FN_RW(pred, readfn, NULL, name,        \
                   glue(PRIV_VERSION_, priv))
 
 /* Shorthand for functions following the read_<csr> pattern */
@@ -3849,16 +3840,15 @@ static void log_changed_csr_fn(CPURISCVState *env, int csrno,
 /* Shorthand for functions following the read_<csr> pattern
  * but which need to specify the privilage spec version. */
 #define CSR_OP_R_PRIV(pred, name, priv)                            \
-    _CSR_OP_FN_RW(pred, glue(read_, name), NULL, NULL,             \
+    _CSR_OP_FN_RW(pred, glue(read_, name), NULL,                   \
                   stringify(name), glue(PRIV_VERSION_, priv))
 
 /* Define csr_ops entry for read-write CSR register */
 #define CSR_OP_FN_RW(pred, readfn, writefn, name)                  \
-    _CSR_OP_FN_RW(pred, readfn, writefn, log_changed_csr_fn, name, 0)
+    _CSR_OP_FN_RW(pred, readfn, writefn, name, 0)
 
-#define CSR_OP_FN_RW_PRIV(pred, readfn, writefn, name, priv)       \
-    _CSR_OP_FN_RW(pred, readfn, writefn, log_changed_csr_fn, name, \
-                  glue(PRIV_VERSION_, priv))
+#define CSR_OP_FN_RW_PRIV(pred, readfn, writefn, name, priv)                   \
+    _CSR_OP_FN_RW(pred, readfn, writefn, name, glue(PRIV_VERSION_, priv))
 
 /* Shorthand for functions following the read/write_<csr> pattern */
 #define CSR_OP_RW(pred, name)                                      \
@@ -3869,8 +3859,7 @@ static void log_changed_csr_fn(CPURISCVState *env, int csrno,
  * but which need to specify the privilage spec version */
 #define CSR_OP_RW_PRIV(pred, name, priv)                            \
     _CSR_OP_FN_RW(pred, glue(read_, name), glue(write_, name),      \
-                  log_changed_csr_fn, stringify(name),              \
-                  glue(PRIV_VERSION_, priv))
+                  stringify(name), glue(PRIV_VERSION_, priv))
 
 /*
  * Shorthand for functions following the read/write_<csr> pattern,
@@ -3882,7 +3871,7 @@ static void log_changed_csr_fn(CPURISCVState *env, int csrno,
 
 #define CSR_OP_RMW_PRIV(pred, csr_name, priv)                          \
     {.predicate=pred, .read=NULL, .write=NULL,                     \
-     .op=glue(rmw_, csr_name), .log_update=log_changed_csr_fn,         \
+     .op=glue(rmw_, csr_name),         \
      .name=stringify(csr_name),                                    \
      .min_priv_ver = glue(PRIV_VERSION_, priv)}
 
@@ -3892,8 +3881,7 @@ static void log_changed_csr_fn(CPURISCVState *env, int csrno,
 /* Define csr_ops entry for read-modify-write CSR register */
 #define CSR_OP_RMW(pred, csr_name)                                 \
     {.predicate=pred, .read=NULL, .write=NULL,                     \
-     .op=glue(rmw_, csr_name), .log_update=log_changed_csr_fn,     \
-     .name=stringify(csr_name)}
+     .op=glue(rmw_, csr_name), .name=stringify(csr_name)}
 
 /* Control and Status Register function table */
 riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
