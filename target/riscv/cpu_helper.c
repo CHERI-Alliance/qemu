@@ -1091,19 +1091,23 @@ restart:
         } else if (cpu->cfg.ext_svpbmt || cpu->cfg.ext_svnapot) {
             ppn = (pte & (target_ulong)PTE_PPN_MASK) >> PTE_PPN_SHIFT;
         } else {
+            if (pte & PTE_RESERVED) {
+                qemu_log_mask(
+                    CPU_LOG_MMU,
+                    "%s Translate fail: reserved bit set: " TARGET_FMT_lx "\n",
+                    __func__, (pte & ~(target_ulong)PTE_PPN_MASK));
+                return TRANSLATE_FAIL;
+            }
 #if !defined(TARGET_RISCV32)
             /*
              * The top ten bits of the PTE are reserved.  While there may
              * eventually be a RISCV system with more than 44 bits of ppn (that is,
              * a 56-bit physical address space, or 64 PiB), we aren't one, yet.
              */
-            ppn = (pte & ~0xFFC0000000000000ULL) >> PTE_PPN_SHIFT;
+            ppn = (pte & (target_ulong)PTE_PPN_MASK) >> PTE_PPN_SHIFT;
 #else
             ppn = pte >> PTE_PPN_SHIFT;
 #endif
-            if ((pte & ~(target_ulong)PTE_PPN_MASK) >> PTE_PPN_SHIFT) {
-                return TRANSLATE_FAIL;
-            }
         }
 
         if (!(pte & PTE_V)) {
