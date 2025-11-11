@@ -236,9 +236,9 @@ static void rv64_codasip_a730_cpu_init(Object *obj)
     qdev_prop_set_bit(DEVICE(obj), "mmu", true);
     qdev_prop_set_bit(DEVICE(obj), "pmp", false);
     qdev_prop_set_bit(DEVICE(obj), "zicbom", true);
-    qdev_prop_set_bit(DEVICE(obj), "x-zba", true);
-    qdev_prop_set_bit(DEVICE(obj), "x-zbb", true);
-    qdev_prop_set_bit(DEVICE(obj), "x-zbs", true);
+    qdev_prop_set_bit(DEVICE(obj), "zba", true);
+    qdev_prop_set_bit(DEVICE(obj), "zbb", true);
+    qdev_prop_set_bit(DEVICE(obj), "zbs", true);
 
     /*
      * QEMU 6.x has no support for limiting the virtual addressing modes
