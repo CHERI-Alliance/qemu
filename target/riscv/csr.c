@@ -3825,35 +3825,11 @@ RISCVException riscv_csrrw_debug(CPURISCVState *env, int csrno,
     {.predicate=pred, .read=readfn, .write=writefn,          \
      .op=NULL, .name=csr_name, .min_priv_ver=priv}
 
-/* Define csr_ops entry for read-only CSR register */
-#define CSR_OP_FN_R(pred, readfn, name)                            \
-    _CSR_OP_FN_RW(pred, readfn, NULL, name, 0)
-
-#define CSR_OP_FN_R_PRIV(pred, readfn, name, priv) \
-    _CSR_OP_FN_RW(pred, readfn, NULL, name,        \
-                  glue(PRIV_VERSION_, priv))
-
-/* Shorthand for functions following the read_<csr> pattern */
-#define CSR_OP_R(pred, name)                                    \
-    CSR_OP_FN_R(pred, glue(read_, name), stringify(name))
-
 /* Shorthand for functions following the read_<csr> pattern
  * but which need to specify the privilage spec version. */
 #define CSR_OP_R_PRIV(pred, name, priv)                            \
     _CSR_OP_FN_RW(pred, glue(read_, name), NULL,                   \
                   stringify(name), glue(PRIV_VERSION_, priv))
-
-/* Define csr_ops entry for read-write CSR register */
-#define CSR_OP_FN_RW(pred, readfn, writefn, name)                  \
-    _CSR_OP_FN_RW(pred, readfn, writefn, name, 0)
-
-#define CSR_OP_FN_RW_PRIV(pred, readfn, writefn, name, priv)                   \
-    _CSR_OP_FN_RW(pred, readfn, writefn, name, glue(PRIV_VERSION_, priv))
-
-/* Shorthand for functions following the read/write_<csr> pattern */
-#define CSR_OP_RW(pred, name)                                      \
-    CSR_OP_FN_RW(pred, glue(read_, name), glue(write_, name),      \
-                 stringify(name))
 
 /* Shorthand for functions following the read/write_<csr> pattern
  * but which need to specify the privilage spec version */
@@ -3861,35 +3837,19 @@ RISCVException riscv_csrrw_debug(CPURISCVState *env, int csrno,
     _CSR_OP_FN_RW(pred, glue(read_, name), glue(write_, name),      \
                   stringify(name), glue(PRIV_VERSION_, priv))
 
-/*
- * Shorthand for functions following the read/write_<csr> pattern,
- * with custom write logging.
- */
-#define CSR_OP_NOLOG_RW(pred, name)                                \
-    _CSR_OP_FN_RW(pred, glue(read_, name), glue(write_, name),     \
-                  NULL, stringify(name), 0)
-
+/* Define csr_ops entry for read-modify-write CSR register */
 #define CSR_OP_RMW_PRIV(pred, csr_name, priv)                          \
     {.predicate=pred, .read=NULL, .write=NULL,                     \
      .op=glue(rmw_, csr_name),         \
      .name=stringify(csr_name),                                    \
      .min_priv_ver = glue(PRIV_VERSION_, priv)}
 
-#define CSR_OP_NOLOG_FN_RW(pred, readfn, writefn, name)            \
-    _CSR_OP_FN_RW(pred, readfn, writefn, NULL, stringify(name))
-
-/* Define csr_ops entry for read-modify-write CSR register */
-#define CSR_OP_RMW(pred, csr_name)                                 \
-    {.predicate=pred, .read=NULL, .write=NULL,                     \
-     .op=glue(rmw_, csr_name), .name=stringify(csr_name)}
-
 /* Control and Status Register function table */
 riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     /* User Floating-Point CSRs */
-    [CSR_FFLAGS] =              CSR_OP_RW(fs, fflags),
-    [CSR_FRM] =                 CSR_OP_RW(fs, frm),
-    [CSR_FCSR] =                CSR_OP_RW(fs, fcsr),
-
+    [CSR_FFLAGS]   = { "fflags",   fs,     read_fflags,  write_fflags },
+    [CSR_FRM]      = { "frm",      fs,     read_frm,     write_frm    },
+    [CSR_FCSR]     = { "fcsr",     fs,     read_fcsr,    write_fcsr   },
     /* Vector CSRs */
     [CSR_VSTART] =              CSR_OP_RW_PRIV(vs, vstart, 1_12_0),
     [CSR_VXSAT] =               CSR_OP_RW_PRIV(vs, vxsat, 1_12_0),
@@ -3899,30 +3859,30 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_VTYPE] =               CSR_OP_R_PRIV(vs, vtype, 1_12_0),
     [CSR_VLENB] =               CSR_OP_R_PRIV(vs, vlenb, 1_12_0),
     /* User Timers and Counters */
-    [CSR_CYCLE] =               CSR_OP_FN_R(ctr, read_instret, "cycle"),
-    [CSR_INSTRET] =             CSR_OP_FN_R(ctr, read_instret, "instret"),
-    [CSR_CYCLEH] =              CSR_OP_FN_R(ctr32, read_instreth, "cycleh"),
-    [CSR_INSTRETH] =            CSR_OP_FN_R(ctr32, read_instreth, "instreth"),
+    [CSR_CYCLE]    = { "cycle",    ctr,    read_instret  },
+    [CSR_INSTRET]  = { "instret",  ctr,    read_instret  },
+    [CSR_CYCLEH]   = { "cycleh",   ctr32,  read_instreth },
+    [CSR_INSTRETH] = { "instreth", ctr32,  read_instreth },
 
     /*
      * In privileged mode, the monitor will have to emulate TIME CSRs only if
      * rdtime callback is not provided by machine/platform emulation.
      */
-    [CSR_TIME] =                CSR_OP_R(ctr, time),
-    [CSR_TIMEH] =               CSR_OP_R(ctr32, timeh),
+    [CSR_TIME]  = { "time",  ctr,   read_time  },
+    [CSR_TIMEH] = { "timeh", ctr32, read_timeh },
 
 #if !defined(CONFIG_USER_ONLY)
     /* Machine Timers and Counters */
-    [CSR_MCYCLE] =              CSR_OP_FN_R(any, read_instret, "mcycle"),
-    [CSR_MINSTRET] =            CSR_OP_FN_R(any, read_instret, "minstret"),
-    [CSR_MCYCLEH] =             CSR_OP_FN_R(any32, read_instreth, "mcycleh"),
-    [CSR_MINSTRETH] =           CSR_OP_FN_R(any32, read_instreth, "minstreth"),
+    [CSR_MCYCLE]    = { "mcycle",    any,   read_instret  },
+    [CSR_MINSTRET]  = { "minstret",  any,   read_instret  },
+    [CSR_MCYCLEH]   = { "mcycleh",   any32, read_instreth },
+    [CSR_MINSTRETH] = { "minstreth", any32, read_instreth },
 
     /* Machine Information Registers */
-    [CSR_MVENDORID] =           CSR_OP_FN_R(any, read_zero, "mvendorid"),
-    [CSR_MARCHID] =             CSR_OP_FN_R(any, read_zero, "marchid"),
-    [CSR_MIMPID] =              CSR_OP_FN_R(any, read_zero, "mimppid"),
-    [CSR_MHARTID] =             CSR_OP_R(any, mhartid),
+    [CSR_MVENDORID] = { "mvendorid", any,   read_zero    },
+    [CSR_MARCHID]   = { "marchid",   any,   read_zero    },
+    [CSR_MIMPID]    = { "mimpid",    any,   read_zero    },
+    [CSR_MHARTID]   = { "mhartid",   any,   read_mhartid },
 
     [CSR_MCONFIGPTR]  = { "mconfigptr", any,   read_zero,
                                         .min_priv_ver = PRIV_VERSION_1_12_0 },
@@ -3931,21 +3891,21 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
                                                read_mstatus_i128                   },
     [CSR_MISA]        = { "misa",       any,   read_misa,        write_misa, NULL,
                                                read_misa_i128                      },
-    [CSR_MIDELEG] =             CSR_OP_RMW(any, mideleg),
-    [CSR_MEDELEG] =             CSR_OP_RW(any, medeleg),
-    [CSR_MIE] =                 CSR_OP_RMW(any, mie),
-    [CSR_MTVEC] =               CSR_OP_RW(any, mtvec),
-    [CSR_MCOUNTEREN] =          CSR_OP_RW(any, mcounteren),
+    [CSR_MIDELEG]     = { "mideleg",    any,   NULL,    NULL,    rmw_mideleg       },
+    [CSR_MEDELEG]     = { "medeleg",    any,   read_medeleg,     write_medeleg     },
+    [CSR_MIE]         = { "mie",        any,   NULL,    NULL,    rmw_mie           },
+    [CSR_MTVEC]       = { "mtvec",      any,   read_mtvec,       write_mtvec       },
+    [CSR_MCOUNTEREN]  = { "mcounteren", any,   read_mcounteren,  write_mcounteren  },
 
-    [CSR_MSTATUSH] =            CSR_OP_RW(any32, mstatush),
+    [CSR_MSTATUSH]    = { "mstatush",   any32, read_mstatush,    write_mstatush    },
 
     /* Machine Trap Handling */
     [CSR_MSCRATCH] = { "mscratch", any,  read_mscratch,      write_mscratch, NULL,
                                          read_mscratch_i128, write_mscratch_i128   },
-    [CSR_MEPC] =                CSR_OP_RW(any, mepc),
-    [CSR_MCAUSE] =              CSR_OP_RW(any, mcause),
-    [CSR_MTVAL] =               CSR_OP_RW(any, mtval),
-    [CSR_MIP] =                 CSR_OP_RMW(any, mip),
+    [CSR_MEPC]     = { "mepc",     any,  read_mepc,     write_mepc     },
+    [CSR_MCAUSE]   = { "mcause",   any,  read_mcause,   write_mcause   },
+    [CSR_MTVAL]    = { "mtval",    any,  read_mtval,    write_mtval    },
+    [CSR_MIP]      = { "mip",      any,  NULL,    NULL, rmw_mip        },
 
     /* Execution environment configuration */
     [CSR_MENVCFG]  =            CSR_OP_RW_PRIV(any, menvcfg, 1_12_0),
@@ -3983,18 +3943,19 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_SSTATUS]    = { "sstatus",    smode, read_sstatus,    write_sstatus, NULL,
                                               read_sstatus_i128                 },
     [CSR_SIE]        = { "sie",        smode, NULL,   NULL,    rmw_sie          },
-    [CSR_STVEC] =               CSR_OP_RW(smode, stvec),
-    [CSR_SCOUNTEREN] =          CSR_OP_RW(smode, scounteren),
+    [CSR_STVEC]      = { "stvec",      smode, read_stvec,      write_stvec      },
+    [CSR_SCOUNTEREN] = { "scounteren", smode, read_scounteren, write_scounteren },
 
     /* Supervisor Trap Handling */
     [CSR_SSCRATCH] = { "sscratch", smode, read_sscratch, write_sscratch, NULL,
-                                          read_sscratch_i128, write_sscratch_i128  },    [CSR_SEPC] =                CSR_OP_RW(smode, sepc),
-    [CSR_SCAUSE] =              CSR_OP_RW(smode, scause),
-    [CSR_STVAL] =               CSR_OP_RW(smode, stval),
-    [CSR_SIP] =                 CSR_OP_RMW(smode, sip),
+                                          read_sscratch_i128, write_sscratch_i128  },
+    [CSR_SEPC]     = { "sepc",     smode, read_sepc,     write_sepc     },
+    [CSR_SCAUSE]   = { "scause",   smode, read_scause,   write_scause   },
+    [CSR_STVAL]    = { "stval",    smode, read_stval,   write_stval   },
+    [CSR_SIP]      = { "sip",      smode, NULL,    NULL, rmw_sip        },
 
     /* Supervisor Protection and Translation */
-    [CSR_SATP] =                CSR_OP_RW(smode, satp),
+    [CSR_SATP]     = { "satp",     smode, read_satp,    write_satp      },
 
     /* Supervisor-Level Window to Indirectly Accessed Registers (AIA) */
     [CSR_SISELECT]   = { "siselect",   aia_smode, NULL, NULL, rmw_xiselect },
@@ -4047,17 +4008,17 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_MTINST] =              CSR_OP_RW_PRIV(hmode, mtinst, 1_12_0),
 
 #ifdef TARGET_CHERI_RISCV_STD_093
-    [CSR_STVAL2] =              CSR_OP_RW(any, stval2),
-    [CSR_VSTVAL2] =             CSR_OP_RW(hmode, vstval2),
+    [CSR_STVAL2]       = { "stval2", any, read_stval2, write_stval2 },
+    [CSR_STVAL2]       = { "vstval2", hmode, read_vstval2, write_vstval2 },
 #endif
 
 #ifdef TARGET_CHERI_RISCV_V9
     // CHERI CSRs: For now we always report enabled and dirty and don't support
     // turning off CHERI.  sccsr contains global capability load generation bits
     // that can be written, but the other two are constant.
-    [CSR_UCCSR] =               CSR_OP_FN_RW(umode, read_ccsr, write_ccsr, "uccsr"),
-    [CSR_SCCSR] =               CSR_OP_FN_RW(smode, read_ccsr, write_ccsr, "sccsr"),
-    [CSR_MCCSR] =               CSR_OP_FN_RW(any, read_ccsr, write_ccsr, "mccsr"),
+    [CSR_UCCSR]        = { "uccsr", umode, read_ccsr, write_ccsr },
+    [CSR_SCCSR]        = { "sccsr", smode, read_ccsr, write_ccsr },
+    [CSR_MCCSR]        = { "mccsr", any, read_ccsr, write_ccsr },
 #endif
 
     /* Virtual Interrupts and Interrupt Priorities (H-extension with AIA) */
@@ -4093,26 +4054,26 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
 
     /* Physical Memory Protection */
     [CSR_MSECCFG] =             CSR_OP_RW_PRIV(epmp_or_cheri093, mseccfg,1_12_0),
-    [CSR_PMPCFG0]    = CSR_OP_FN_RW(pmp, read_pmpcfg, write_pmpcfg, "pmpcfg0"),
-    [CSR_PMPCFG1]    = CSR_OP_FN_RW(pmp, read_pmpcfg, write_pmpcfg, "pmpcfg1"),
-    [CSR_PMPCFG2]    = CSR_OP_FN_RW(pmp, read_pmpcfg, write_pmpcfg, "pmpcfg2"),
-    [CSR_PMPCFG3]    = CSR_OP_FN_RW(pmp, read_pmpcfg, write_pmpcfg, "pmpcfg3"),
-    [CSR_PMPADDR0]   = CSR_OP_FN_RW(pmp, read_pmpaddr, write_pmpaddr, "pmpaddr0"),
-    [CSR_PMPADDR1]   = CSR_OP_FN_RW(pmp, read_pmpaddr, write_pmpaddr, "pmpaddr1"),
-    [CSR_PMPADDR2]   = CSR_OP_FN_RW(pmp, read_pmpaddr, write_pmpaddr, "pmpaddr2"),
-    [CSR_PMPADDR3]   = CSR_OP_FN_RW(pmp, read_pmpaddr, write_pmpaddr, "pmpaddr3"),
-    [CSR_PMPADDR4]   = CSR_OP_FN_RW(pmp, read_pmpaddr, write_pmpaddr, "pmpaddr4"),
-    [CSR_PMPADDR5]   = CSR_OP_FN_RW(pmp, read_pmpaddr, write_pmpaddr, "pmpaddr5"),
-    [CSR_PMPADDR6]   = CSR_OP_FN_RW(pmp, read_pmpaddr, write_pmpaddr, "pmpaddr6"),
-    [CSR_PMPADDR7]   = CSR_OP_FN_RW(pmp, read_pmpaddr, write_pmpaddr, "pmpaddr7"),
-    [CSR_PMPADDR8]   = CSR_OP_FN_RW(pmp, read_pmpaddr, write_pmpaddr, "pmpaddr8"),
-    [CSR_PMPADDR9]   = CSR_OP_FN_RW(pmp, read_pmpaddr, write_pmpaddr, "pmpaddr9"),
-    [CSR_PMPADDR10]  = CSR_OP_FN_RW(pmp, read_pmpaddr, write_pmpaddr, "pmpaddr10"),
-    [CSR_PMPADDR11]  = CSR_OP_FN_RW(pmp, read_pmpaddr, write_pmpaddr, "pmpaddr11"),
-    [CSR_PMPADDR12]  = CSR_OP_FN_RW(pmp, read_pmpaddr, write_pmpaddr, "pmpaddr12"),
-    [CSR_PMPADDR13]  = CSR_OP_FN_RW(pmp, read_pmpaddr, write_pmpaddr, "pmpaddr13"),
-    [CSR_PMPADDR14]  = CSR_OP_FN_RW(pmp, read_pmpaddr, write_pmpaddr, "pmpaddr14"),
-    [CSR_PMPADDR15]  = CSR_OP_FN_RW(pmp, read_pmpaddr, write_pmpaddr, "pmpaddr15"),
+    [CSR_PMPCFG0]    = { "pmpcfg0",   pmp, read_pmpcfg,  write_pmpcfg  },
+    [CSR_PMPCFG1]    = { "pmpcfg1",   pmp, read_pmpcfg,  write_pmpcfg  },
+    [CSR_PMPCFG2]    = { "pmpcfg2",   pmp, read_pmpcfg,  write_pmpcfg  },
+    [CSR_PMPCFG3]    = { "pmpcfg3",   pmp, read_pmpcfg,  write_pmpcfg  },
+    [CSR_PMPADDR0]   = { "pmpaddr0",  pmp, read_pmpaddr, write_pmpaddr },
+    [CSR_PMPADDR1]   = { "pmpaddr1",  pmp, read_pmpaddr, write_pmpaddr },
+    [CSR_PMPADDR2]   = { "pmpaddr2",  pmp, read_pmpaddr, write_pmpaddr },
+    [CSR_PMPADDR3]   = { "pmpaddr3",  pmp, read_pmpaddr, write_pmpaddr },
+    [CSR_PMPADDR4]   = { "pmpaddr4",  pmp, read_pmpaddr, write_pmpaddr },
+    [CSR_PMPADDR5]   = { "pmpaddr5",  pmp, read_pmpaddr, write_pmpaddr },
+    [CSR_PMPADDR6]   = { "pmpaddr6",  pmp, read_pmpaddr, write_pmpaddr },
+    [CSR_PMPADDR7]   = { "pmpaddr7",  pmp, read_pmpaddr, write_pmpaddr },
+    [CSR_PMPADDR8]   = { "pmpaddr8",  pmp, read_pmpaddr, write_pmpaddr },
+    [CSR_PMPADDR9]   = { "pmpaddr9",  pmp, read_pmpaddr, write_pmpaddr },
+    [CSR_PMPADDR10]  = { "pmpaddr10", pmp, read_pmpaddr, write_pmpaddr },
+    [CSR_PMPADDR11]  = { "pmpaddr11", pmp, read_pmpaddr, write_pmpaddr },
+    [CSR_PMPADDR12]  = { "pmpaddr12", pmp, read_pmpaddr, write_pmpaddr },
+    [CSR_PMPADDR13]  = { "pmpaddr13", pmp, read_pmpaddr, write_pmpaddr },
+    [CSR_PMPADDR14] =  { "pmpaddr14", pmp, read_pmpaddr, write_pmpaddr },
+    [CSR_PMPADDR15] =  { "pmpaddr15", pmp, read_pmpaddr, write_pmpaddr },
 
     /* User Pointer Masking */
     [CSR_UMTE]    =    { "umte",    pointer_masking, read_umte,    write_umte    },
@@ -4128,19 +4089,161 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_SPMBASE] =    { "spmbase", pointer_masking, read_spmbase, write_spmbase },
 
     /* Performance Counters */
-    [CSR_HPMCOUNTER3   ... CSR_HPMCOUNTER31] =    CSR_OP_FN_R(ctr, read_zero, "hpmcounterN"),
-    [CSR_MHPMCOUNTER3  ... CSR_MHPMCOUNTER31] =   CSR_OP_FN_R(any, read_zero, "mhpmcounterN"),
     [CSR_MCOUNTINHIBIT] =       CSR_OP_RW_PRIV(any, mcountinhibit, 1_11_0),
+    [CSR_HPMCOUNTER3]    = { "hpmcounter3",    ctr,    read_zero },
+    [CSR_HPMCOUNTER4]    = { "hpmcounter4",    ctr,    read_zero },
+    [CSR_HPMCOUNTER5]    = { "hpmcounter5",    ctr,    read_zero },
+    [CSR_HPMCOUNTER6]    = { "hpmcounter6",    ctr,    read_zero },
+    [CSR_HPMCOUNTER7]    = { "hpmcounter7",    ctr,    read_zero },
+    [CSR_HPMCOUNTER8]    = { "hpmcounter8",    ctr,    read_zero },
+    [CSR_HPMCOUNTER9]    = { "hpmcounter9",    ctr,    read_zero },
+    [CSR_HPMCOUNTER10]   = { "hpmcounter10",   ctr,    read_zero },
+    [CSR_HPMCOUNTER11]   = { "hpmcounter11",   ctr,    read_zero },
+    [CSR_HPMCOUNTER12]   = { "hpmcounter12",   ctr,    read_zero },
+    [CSR_HPMCOUNTER13]   = { "hpmcounter13",   ctr,    read_zero },
+    [CSR_HPMCOUNTER14]   = { "hpmcounter14",   ctr,    read_zero },
+    [CSR_HPMCOUNTER15]   = { "hpmcounter15",   ctr,    read_zero },
+    [CSR_HPMCOUNTER16]   = { "hpmcounter16",   ctr,    read_zero },
+    [CSR_HPMCOUNTER17]   = { "hpmcounter17",   ctr,    read_zero },
+    [CSR_HPMCOUNTER18]   = { "hpmcounter18",   ctr,    read_zero },
+    [CSR_HPMCOUNTER19]   = { "hpmcounter19",   ctr,    read_zero },
+    [CSR_HPMCOUNTER20]   = { "hpmcounter20",   ctr,    read_zero },
+    [CSR_HPMCOUNTER21]   = { "hpmcounter21",   ctr,    read_zero },
+    [CSR_HPMCOUNTER22]   = { "hpmcounter22",   ctr,    read_zero },
+    [CSR_HPMCOUNTER23]   = { "hpmcounter23",   ctr,    read_zero },
+    [CSR_HPMCOUNTER24]   = { "hpmcounter24",   ctr,    read_zero },
+    [CSR_HPMCOUNTER25]   = { "hpmcounter25",   ctr,    read_zero },
+    [CSR_HPMCOUNTER26]   = { "hpmcounter26",   ctr,    read_zero },
+    [CSR_HPMCOUNTER27]   = { "hpmcounter27",   ctr,    read_zero },
+    [CSR_HPMCOUNTER28]   = { "hpmcounter28",   ctr,    read_zero },
+    [CSR_HPMCOUNTER29]   = { "hpmcounter29",   ctr,    read_zero },
+    [CSR_HPMCOUNTER30]   = { "hpmcounter30",   ctr,    read_zero },
+    [CSR_HPMCOUNTER31]   = { "hpmcounter31",   ctr,    read_zero },
 
-    [CSR_MHPMEVENT3    ... CSR_MHPMEVENT31] =     CSR_OP_FN_R(any, read_zero, "mhpmeventN"),
-    [CSR_HPMCOUNTER3H  ... CSR_HPMCOUNTER31H] =   CSR_OP_FN_R(ctr32, read_zero, "hpmcounterNh"),
-    [CSR_MHPMCOUNTER3H ... CSR_MHPMCOUNTER31H] =  CSR_OP_FN_R(any32, read_zero, "mhpmcounterNh"),
+    [CSR_MHPMCOUNTER3]   = { "mhpmcounter3",   any,    read_zero },
+    [CSR_MHPMCOUNTER4]   = { "mhpmcounter4",   any,    read_zero },
+    [CSR_MHPMCOUNTER5]   = { "mhpmcounter5",   any,    read_zero },
+    [CSR_MHPMCOUNTER6]   = { "mhpmcounter6",   any,    read_zero },
+    [CSR_MHPMCOUNTER7]   = { "mhpmcounter7",   any,    read_zero },
+    [CSR_MHPMCOUNTER8]   = { "mhpmcounter8",   any,    read_zero },
+    [CSR_MHPMCOUNTER9]   = { "mhpmcounter9",   any,    read_zero },
+    [CSR_MHPMCOUNTER10]  = { "mhpmcounter10",  any,    read_zero },
+    [CSR_MHPMCOUNTER11]  = { "mhpmcounter11",  any,    read_zero },
+    [CSR_MHPMCOUNTER12]  = { "mhpmcounter12",  any,    read_zero },
+    [CSR_MHPMCOUNTER13]  = { "mhpmcounter13",  any,    read_zero },
+    [CSR_MHPMCOUNTER14]  = { "mhpmcounter14",  any,    read_zero },
+    [CSR_MHPMCOUNTER15]  = { "mhpmcounter15",  any,    read_zero },
+    [CSR_MHPMCOUNTER16]  = { "mhpmcounter16",  any,    read_zero },
+    [CSR_MHPMCOUNTER17]  = { "mhpmcounter17",  any,    read_zero },
+    [CSR_MHPMCOUNTER18]  = { "mhpmcounter18",  any,    read_zero },
+    [CSR_MHPMCOUNTER19]  = { "mhpmcounter19",  any,    read_zero },
+    [CSR_MHPMCOUNTER20]  = { "mhpmcounter20",  any,    read_zero },
+    [CSR_MHPMCOUNTER21]  = { "mhpmcounter21",  any,    read_zero },
+    [CSR_MHPMCOUNTER22]  = { "mhpmcounter22",  any,    read_zero },
+    [CSR_MHPMCOUNTER23]  = { "mhpmcounter23",  any,    read_zero },
+    [CSR_MHPMCOUNTER24]  = { "mhpmcounter24",  any,    read_zero },
+    [CSR_MHPMCOUNTER25]  = { "mhpmcounter25",  any,    read_zero },
+    [CSR_MHPMCOUNTER26]  = { "mhpmcounter26",  any,    read_zero },
+    [CSR_MHPMCOUNTER27]  = { "mhpmcounter27",  any,    read_zero },
+    [CSR_MHPMCOUNTER28]  = { "mhpmcounter28",  any,    read_zero },
+    [CSR_MHPMCOUNTER29]  = { "mhpmcounter29",  any,    read_zero },
+    [CSR_MHPMCOUNTER30]  = { "mhpmcounter30",  any,    read_zero },
+    [CSR_MHPMCOUNTER31]  = { "mhpmcounter31",  any,    read_zero },
 
+    [CSR_MHPMEVENT3]     = { "mhpmevent3",     any,    read_zero },
+    [CSR_MHPMEVENT4]     = { "mhpmevent4",     any,    read_zero },
+    [CSR_MHPMEVENT5]     = { "mhpmevent5",     any,    read_zero },
+    [CSR_MHPMEVENT6]     = { "mhpmevent6",     any,    read_zero },
+    [CSR_MHPMEVENT7]     = { "mhpmevent7",     any,    read_zero },
+    [CSR_MHPMEVENT8]     = { "mhpmevent8",     any,    read_zero },
+    [CSR_MHPMEVENT9]     = { "mhpmevent9",     any,    read_zero },
+    [CSR_MHPMEVENT10]    = { "mhpmevent10",    any,    read_zero },
+    [CSR_MHPMEVENT11]    = { "mhpmevent11",    any,    read_zero },
+    [CSR_MHPMEVENT12]    = { "mhpmevent12",    any,    read_zero },
+    [CSR_MHPMEVENT13]    = { "mhpmevent13",    any,    read_zero },
+    [CSR_MHPMEVENT14]    = { "mhpmevent14",    any,    read_zero },
+    [CSR_MHPMEVENT15]    = { "mhpmevent15",    any,    read_zero },
+    [CSR_MHPMEVENT16]    = { "mhpmevent16",    any,    read_zero },
+    [CSR_MHPMEVENT17]    = { "mhpmevent17",    any,    read_zero },
+    [CSR_MHPMEVENT18]    = { "mhpmevent18",    any,    read_zero },
+    [CSR_MHPMEVENT19]    = { "mhpmevent19",    any,    read_zero },
+    [CSR_MHPMEVENT20]    = { "mhpmevent20",    any,    read_zero },
+    [CSR_MHPMEVENT21]    = { "mhpmevent21",    any,    read_zero },
+    [CSR_MHPMEVENT22]    = { "mhpmevent22",    any,    read_zero },
+    [CSR_MHPMEVENT23]    = { "mhpmevent23",    any,    read_zero },
+    [CSR_MHPMEVENT24]    = { "mhpmevent24",    any,    read_zero },
+    [CSR_MHPMEVENT25]    = { "mhpmevent25",    any,    read_zero },
+    [CSR_MHPMEVENT26]    = { "mhpmevent26",    any,    read_zero },
+    [CSR_MHPMEVENT27]    = { "mhpmevent27",    any,    read_zero },
+    [CSR_MHPMEVENT28]    = { "mhpmevent28",    any,    read_zero },
+    [CSR_MHPMEVENT29]    = { "mhpmevent29",    any,    read_zero },
+    [CSR_MHPMEVENT30]    = { "mhpmevent30",    any,    read_zero },
+    [CSR_MHPMEVENT31]    = { "mhpmevent31",    any,    read_zero },
+
+    [CSR_HPMCOUNTER3H]   = { "hpmcounter3h",   ctr32,  read_zero },
+    [CSR_HPMCOUNTER4H]   = { "hpmcounter4h",   ctr32,  read_zero },
+    [CSR_HPMCOUNTER5H]   = { "hpmcounter5h",   ctr32,  read_zero },
+    [CSR_HPMCOUNTER6H]   = { "hpmcounter6h",   ctr32,  read_zero },
+    [CSR_HPMCOUNTER7H]   = { "hpmcounter7h",   ctr32,  read_zero },
+    [CSR_HPMCOUNTER8H]   = { "hpmcounter8h",   ctr32,  read_zero },
+    [CSR_HPMCOUNTER9H]   = { "hpmcounter9h",   ctr32,  read_zero },
+    [CSR_HPMCOUNTER10H]  = { "hpmcounter10h",  ctr32,  read_zero },
+    [CSR_HPMCOUNTER11H]  = { "hpmcounter11h",  ctr32,  read_zero },
+    [CSR_HPMCOUNTER12H]  = { "hpmcounter12h",  ctr32,  read_zero },
+    [CSR_HPMCOUNTER13H]  = { "hpmcounter13h",  ctr32,  read_zero },
+    [CSR_HPMCOUNTER14H]  = { "hpmcounter14h",  ctr32,  read_zero },
+    [CSR_HPMCOUNTER15H]  = { "hpmcounter15h",  ctr32,  read_zero },
+    [CSR_HPMCOUNTER16H]  = { "hpmcounter16h",  ctr32,  read_zero },
+    [CSR_HPMCOUNTER17H]  = { "hpmcounter17h",  ctr32,  read_zero },
+    [CSR_HPMCOUNTER18H]  = { "hpmcounter18h",  ctr32,  read_zero },
+    [CSR_HPMCOUNTER19H]  = { "hpmcounter19h",  ctr32,  read_zero },
+    [CSR_HPMCOUNTER20H]  = { "hpmcounter20h",  ctr32,  read_zero },
+    [CSR_HPMCOUNTER21H]  = { "hpmcounter21h",  ctr32,  read_zero },
+    [CSR_HPMCOUNTER22H]  = { "hpmcounter22h",  ctr32,  read_zero },
+    [CSR_HPMCOUNTER23H]  = { "hpmcounter23h",  ctr32,  read_zero },
+    [CSR_HPMCOUNTER24H]  = { "hpmcounter24h",  ctr32,  read_zero },
+    [CSR_HPMCOUNTER25H]  = { "hpmcounter25h",  ctr32,  read_zero },
+    [CSR_HPMCOUNTER26H]  = { "hpmcounter26h",  ctr32,  read_zero },
+    [CSR_HPMCOUNTER27H]  = { "hpmcounter27h",  ctr32,  read_zero },
+    [CSR_HPMCOUNTER28H]  = { "hpmcounter28h",  ctr32,  read_zero },
+    [CSR_HPMCOUNTER29H]  = { "hpmcounter29h",  ctr32,  read_zero },
+    [CSR_HPMCOUNTER30H]  = { "hpmcounter30h",  ctr32,  read_zero },
+    [CSR_HPMCOUNTER31H]  = { "hpmcounter31h",  ctr32,  read_zero },
+
+    [CSR_MHPMCOUNTER3H]  = { "mhpmcounter3h",  any32,  read_zero },
+    [CSR_MHPMCOUNTER4H]  = { "mhpmcounter4h",  any32,  read_zero },
+    [CSR_MHPMCOUNTER5H]  = { "mhpmcounter5h",  any32,  read_zero },
+    [CSR_MHPMCOUNTER6H]  = { "mhpmcounter6h",  any32,  read_zero },
+    [CSR_MHPMCOUNTER7H]  = { "mhpmcounter7h",  any32,  read_zero },
+    [CSR_MHPMCOUNTER8H]  = { "mhpmcounter8h",  any32,  read_zero },
+    [CSR_MHPMCOUNTER9H]  = { "mhpmcounter9h",  any32,  read_zero },
+    [CSR_MHPMCOUNTER10H] = { "mhpmcounter10h", any32,  read_zero },
+    [CSR_MHPMCOUNTER11H] = { "mhpmcounter11h", any32,  read_zero },
+    [CSR_MHPMCOUNTER12H] = { "mhpmcounter12h", any32,  read_zero },
+    [CSR_MHPMCOUNTER13H] = { "mhpmcounter13h", any32,  read_zero },
+    [CSR_MHPMCOUNTER14H] = { "mhpmcounter14h", any32,  read_zero },
+    [CSR_MHPMCOUNTER15H] = { "mhpmcounter15h", any32,  read_zero },
+    [CSR_MHPMCOUNTER16H] = { "mhpmcounter16h", any32,  read_zero },
+    [CSR_MHPMCOUNTER17H] = { "mhpmcounter17h", any32,  read_zero },
+    [CSR_MHPMCOUNTER18H] = { "mhpmcounter18h", any32,  read_zero },
+    [CSR_MHPMCOUNTER19H] = { "mhpmcounter19h", any32,  read_zero },
+    [CSR_MHPMCOUNTER20H] = { "mhpmcounter20h", any32,  read_zero },
+    [CSR_MHPMCOUNTER21H] = { "mhpmcounter21h", any32,  read_zero },
+    [CSR_MHPMCOUNTER22H] = { "mhpmcounter22h", any32,  read_zero },
+    [CSR_MHPMCOUNTER23H] = { "mhpmcounter23h", any32,  read_zero },
+    [CSR_MHPMCOUNTER24H] = { "mhpmcounter24h", any32,  read_zero },
+    [CSR_MHPMCOUNTER25H] = { "mhpmcounter25h", any32,  read_zero },
+    [CSR_MHPMCOUNTER26H] = { "mhpmcounter26h", any32,  read_zero },
+    [CSR_MHPMCOUNTER27H] = { "mhpmcounter27h", any32,  read_zero },
+    [CSR_MHPMCOUNTER28H] = { "mhpmcounter28h", any32,  read_zero },
+    [CSR_MHPMCOUNTER29H] = { "mhpmcounter29h", any32,  read_zero },
+    [CSR_MHPMCOUNTER30H] = { "mhpmcounter30h", any32,  read_zero },
+    [CSR_MHPMCOUNTER31H] = { "mhpmcounter31h", any32,  read_zero },
 #if !defined(TARGET_CHERI)
-    [CSR_MTID] =                CSR_OP_RW(stid, mtid),
-    [CSR_STID] =                CSR_OP_RW(stid, stid),
-    [CSR_UTID] =                CSR_OP_RW(stid, utid),
-    [CSR_VSTID] =               CSR_OP_RW(stid, vstid),
+    [CSR_MTID]           = { "mtid", stid,  read_mtid, write_mtid },
+    [CSR_STID]           = { "stid", stid,  read_stid, write_stid },
+    [CSR_UTID]           = { "utid", stid,  read_utid, write_utid },
+    [CSR_VSTID]          = { "vstid", stid,  read_vstid, write_vstid },
 #endif /* !TARGET_CHERI */
 #endif /* !CONFIG_USER_ONLY */
 };
