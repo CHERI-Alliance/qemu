@@ -231,7 +231,11 @@ common_semi_set_ret(CPUState *cs, target_ulong ret)
 {
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
-    arm_set_xreg(env, 0, ret);
+    if (is_a64(env)) {
+        arm_set_a64_reg(env, 0, ret);
+    } else {
+        env->regs[0] = ret;
+    }
 }
 
 static inline bool

@@ -3634,25 +3634,30 @@ static inline QEMU_ALWAYS_INLINE target_ulong arm_get_a64_reg(CPUARMState *env,
 #endif
 }
 
-// Set an integer register by number in any mode.
-static inline void arm_set_xreg(CPUARMState *env, int regnum,
-                                target_ulong value)
+/* Set an AArch32 register by number and log the changed value. */
+static inline void arm_set_a64_reg(CPUARMState *env, int regnum,
+                                   target_ulong value)
 {
+#ifndef TARGET_AARCH64
+    g_assert_not_reached(); /* Should have checked is_a64() */
+#else
 #ifdef TARGET_CHERI
     update_capreg_to_intval(env, regnum, value);
 #else
-#ifdef TARGET_AARCH64
-    if (is_a64(env)) {
-        env->xregs[regnum] = value;
-        qemu_log_instr_reg(env, arm64_regnames[regnum], value, regnum,
-                           LRI_GPR_ACCESS);
-        return;
-    }
+    env->xregs[regnum] = value;
+    qemu_log_instr_reg(env, arm64_regnames[regnum], value, regnum,
+                       LRI_GPR_ACCESS);
 #endif
+#endif
+}
+
+/* Set an AArch32 register by number and log the changed value. */
+static inline void arm_set_a32_reg(CPUARMState *env, int regnum,
+                                   target_ulong value)
+{
     env->regs[regnum] = value;
     qemu_log_instr_reg(env, arm32_regnames[regnum], value, regnum,
                        LRI_GPR_ACCESS);
-#endif
 }
 
 // Increment a register preserving any other fields.

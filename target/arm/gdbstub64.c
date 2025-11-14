@@ -53,12 +53,12 @@ int aarch64_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 
     if (n < 31) {
         /* Core integer register.  */
-        arm_set_xreg(env, n, tmp);
+        arm_set_a64_reg(env, n, tmp);
         return 8;
     }
     switch (n) {
     case 31:
-        arm_set_xreg(env, n, tmp);
+        arm_set_a64_reg(env, 31, tmp);
         return 8;
     case 32:
         set_aarch_reg_to_x(env, &env->pc, tmp);

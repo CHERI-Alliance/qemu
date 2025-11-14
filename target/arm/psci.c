@@ -171,9 +171,9 @@ void arm_handle_psci_call(ARMCPU *cpu)
         }
         /* Powerdown is not supported, we always go into WFI */
         if (is_a64(env)) {
-            arm_set_xreg(env, 0, 0);
+            arm_set_a64_reg(env, 0, 0);
         } else {
-            env->regs[0] = 0;
+            arm_set_a32_reg(env, 0, 0);
         }
         helper_wfi(env, 4);
         break;
@@ -215,9 +215,9 @@ void arm_handle_psci_call(ARMCPU *cpu)
 
 err:
     if (is_a64(env)) {
-        arm_set_xreg(env, 0, ret);
+        arm_set_a64_reg(env, 0, ret);
     } else {
-        env->regs[0] = ret;
+        arm_set_a32_reg(env, 0, ret);
     }
     return;
 

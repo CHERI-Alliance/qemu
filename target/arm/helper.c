@@ -10623,14 +10623,14 @@ static void handle_semihosting(CPUState *cs)
         qemu_log_mask(CPU_LOG_INT,
                       "...handling as semihosting call 0x" TARGET_FMT_lx "\n",
                       arm_get_a64_reg(env, 0));
-        arm_set_xreg(env, 0, do_common_semihosting(cs));
+        arm_set_a64_reg(env, 0, do_common_semihosting(cs));
         increment_aarch_reg(&env->pc, 4);
     } else {
 #ifndef TARGET_CHERI
         qemu_log_mask(CPU_LOG_INT,
                       "...handling as semihosting call 0x%x\n",
                       env->regs[0]);
-        env->regs[0] = do_common_semihosting(cs);
+        arm_set_a64_reg(env, 0, do_common_semihosting(cs));
         env->regs[15] += env->thumb ? 2 : 4;
 #endif
     }

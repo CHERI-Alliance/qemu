@@ -122,7 +122,7 @@ static void arm_set_cpu_on_async_work(CPUState *target_cpu_state,
     assert(info->target_el == arm_current_el(&target_cpu->env));
 
     if (info->target_aa64) {
-        arm_set_xreg(&target_cpu->env, 0, info->context_id);
+        arm_set_a64_reg(&target_cpu->env, 0, info->context_id);
     } else {
         target_cpu->env.regs[0] = info->context_id;
     }
