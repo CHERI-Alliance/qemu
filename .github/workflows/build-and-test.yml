@@ -1,0 +1,73 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: 'false'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+              python3 \
+              ninja-build \
+              pkgconf \
+              libglib2.0-dev \
+              libfdt-dev \
+              libslirp-dev \
+              libpixman-1-dev
+
+      - name: Configure
+        run: |
+          mkdir build
+          cd build
+          ../configure \
+            --enable-werror \
+            --disable-docs \
+            --enable-fdt=system \
+            --enable-slirp=system \
+            --disable-capstone \
+            --disable-linux-user \
+            --target-list="arm-softmmu,aarch64-softmmu,morello-softmmu,mips64-softmmu,mips64cheri128-softmmu,riscv64-softmmu,riscv64xcheri-softmmu,riscv32-softmmu,riscv32xcheri-softmmu,x86_64-softmmu,riscv32cheristd-softmmu,riscv64cheristd-softmmu"
+
+      - name: Build
+        run: |
+          cd build
+          make -j$(nproc)
+
+      - name: Run Morello tests
+        run: |
+          git clone https://github.com/rems-project/morello-generated-tests.git
+          pwd
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install pytest-xdist
+          cd tests/morello && pytest \
+            --morello-tests-dir=$GITHUB_WORKSPACE/morello-generated-tests \
+            --qemu=$GITHUB_WORKSPACE/build/qemu-system-morello \
+            --junit-xml=$GITHUB_WORKSPACE/morello-test-results.xml
+
+      - name: Run QEMU tests
+        run: |
+          cd build
+          pwd
+          ../meson/meson.py test --print-errorlogs --timeout-multiplier=2
+          cp meson-logs/testlog.junit.xml $GITHUB_WORKSPACE/qemu-test-results.xml
+        continue-on-error: true
+
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: "*-test-results.xml"
+          action_fail_on_inconclusive: 'true'
+          action_fail: 'true'
