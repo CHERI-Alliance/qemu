@@ -1842,26 +1842,29 @@ void CHERI_HELPER_IMPL(debug_cap(CPUArchState *env, uint32_t regndx))
 {
     GPCapRegs *gpcrs = cheri_get_gpcrs(env);
     // Index manually in order not to decompress
-    const cap_register_t *cap = (regndx < 32)
-                                    ? get_cap_in_gpregs(gpcrs, regndx)
-                                    : get_capreg_or_special(env, regndx);
-    CapRegState state =
-        regndx < 32 ? get_capreg_state(gpcrs, regndx) : CREG_FULLY_DECOMPRESSED;
-    bool stateMeansTagged = state == CREG_TAGGED_CAP;
-    bool decompressedMeansTagged =
-        (state == CREG_FULLY_DECOMPRESSED) && cap->cr_tag;
-    target_ulong pesbt = cap->cr_pesbt;
-    printf("Debug Cap %2d: Cursor " TARGET_FMT_lx ". Pesbt " TARGET_FMT_lx
-           ". Tagged %d (%d,%d). Type " TARGET_FMT_lx ". "
-           "Perms " TARGET_FMT_lx "\n",
-           regndx, cap->_cr_cursor, pesbt ^ CAP_MEM_XOR_MASK,
-           stateMeansTagged || decompressedMeansTagged, state, cap->cr_tag,
-           cap_get_otype_unsigned(cap), cap_get_all_perms(cap));
-    if (state == CREG_FULLY_DECOMPRESSED) {
-        printf("Base: " TARGET_FMT_lx ". Top " TARGET_FMT_lu TARGET_FMT_lx
-               ".\n",
-               cap->cr_base, (target_ulong)(cap->_cr_top >> CAP_CC(ADDR_WIDTH)),
-               (target_ulong)cap->_cr_top);
+    if(regndx < NUM_LAZY_CAP_REGS){
+        
+        const cap_register_t *cap = (regndx < 32)
+                                        ? get_cap_in_gpregs(gpcrs, regndx)
+                                        : get_capreg_or_special(env, regndx);
+        CapRegState state =
+            regndx < 32 ? get_capreg_state(gpcrs, regndx) : CREG_FULLY_DECOMPRESSED;
+        bool stateMeansTagged = state == CREG_TAGGED_CAP;
+        bool decompressedMeansTagged =
+            (state == CREG_FULLY_DECOMPRESSED) && cap->cr_tag;
+        target_ulong pesbt = cap->cr_pesbt;
+        printf("Debug Cap %2d: Cursor " TARGET_FMT_lx ". Pesbt " TARGET_FMT_lx
+               ". Tagged %d (%d,%d). Type " TARGET_FMT_lx ". "
+               "Perms " TARGET_FMT_lx "\n",
+               regndx, cap->_cr_cursor, pesbt ^ CAP_MEM_XOR_MASK,
+               stateMeansTagged || decompressedMeansTagged, state, cap->cr_tag,
+               cap_get_otype_unsigned(cap), cap_get_all_perms(cap));
+        if (state == CREG_FULLY_DECOMPRESSED) {
+            printf("Base: " TARGET_FMT_lx ". Top " TARGET_FMT_lu TARGET_FMT_lx
+                   ".\n",
+                   cap->cr_base, (target_ulong)(cap->_cr_top >> CAP_CC(ADDR_WIDTH)),
+                   (target_ulong)cap->_cr_top);
+        }
     }
 }
 
