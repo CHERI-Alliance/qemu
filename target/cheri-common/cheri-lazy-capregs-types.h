@@ -105,7 +105,8 @@ typedef struct GPCapRegs {
     aligned_cap_register_t decompressed[NUM_LAZY_CAP_REGS];
 } GPCapRegs;
 
-static inline cap_register_t *get_cap_in_gpregs(GPCapRegs *gpcrs, size_t index)
+static inline QEMU_ALWAYS_INLINE cap_register_t *
+get_cap_in_gpregs(GPCapRegs *gpcrs, size_t index)
 {
     return &gpcrs->decompressed[index].cap;
 }
@@ -114,7 +115,7 @@ static inline cap_register_t *get_cap_in_gpregs(GPCapRegs *gpcrs, size_t index)
  * Whether this lazy capreg is special (and therefore always stored fully
  * decompressed).
  */
-static inline bool lazy_capreg_number_is_special(int reg)
+static inline QEMU_ALWAYS_INLINE bool lazy_capreg_number_is_special(int reg)
 {
     cheri_debug_assert(reg < NUM_LAZY_CAP_REGS);
 #ifdef SCRATCH_REG_NUM

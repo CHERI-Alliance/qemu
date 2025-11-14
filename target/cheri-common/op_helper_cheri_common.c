@@ -1843,15 +1843,18 @@ void CHERI_HELPER_IMPL(debug_cap(CPUArchState *env, uint32_t regndx))
     GPCapRegs *gpcrs = cheri_get_gpcrs(env);
     /* Index manually in order not to decompress */
     const cap_register_t *cap;
-    if (regndx < 32) {
+    if (regndx < NUM_LAZY_CAP_REGS) {
         cap = get_cap_in_gpregs(gpcrs, regndx);
+    } else if (regndx == CHERI_EXC_REGNUM_PCC) {
+        cap = _cheri_get_pcc_unchecked(env);
+    } else if (regndx == CHERI_EXC_REGNUM_DDC) {
+        cap = cheri_get_ddc(env);
     } else {
-        assert(regndx == CHERI_EXC_REGNUM_PCC ||
-               regndx == CHERI_EXC_REGNUM_DDC || regndx < NUM_LAZY_CAP_REGS);
-        cap = get_capreg_or_special(env, regndx);
+        g_assert_not_reached();
     }
-    CapRegState state =
-        regndx < 32 ? get_capreg_state(gpcrs, regndx) : CREG_FULLY_DECOMPRESSED;
+    CapRegState state = regndx < NUM_LAZY_CAP_REGS
+                            ? get_capreg_state(gpcrs, regndx)
+                            : CREG_FULLY_DECOMPRESSED;
     bool stateMeansTagged = state == CREG_TAGGED_CAP;
     bool decompressedMeansTagged =
         (state == CREG_FULLY_DECOMPRESSED) && cap->cr_tag;
