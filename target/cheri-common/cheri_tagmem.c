@@ -737,11 +737,43 @@ tag_offset_to_addr(TagOffset offset)
 static void *cheri_tag_invalidate_one(CPUArchState *env, target_ulong vaddr,
                                       int32_t size, uintptr_t pc, int mmu_idx,
                                       tag_writer_lock_t *lock, bool lock_only);
-
-static void invalidate_from_locktag(lock_tag *lock)
+static void invalidate_from_locktag(lock_tag *lock, CPUArchState *env,
+                                    target_ulong vaddr, uintptr_t pc,
+                                    int mmu_idx)
 {
     if (lock != TAG_LOCK_NONE) {
-        assert(lock != TAG_LOCK_ERROR);
+        if (lock == TAG_LOCK_ERROR) {
+            /*
+             * If we have reached here and there is a TAG_LOCK_ERROR it means
+             * that our initial tag lock attempt failed to get the physical address. 
+             * However, the actual memory op succeeded to get the address. This may 
+             * be caused by MMU pages being populated between probe_write calls.
+             * To catch these, add the define below:
+             * #define TCG_RACE_DEBUG
+             */
+#ifdef TCG_RACE_DEBUG
+            qemu_log_flush();
+            char buffer[256];
+            FILE *f = fmemopen(buffer, sizeof(buffer), "w");
+            fprintf(f,
+                    "Attempt to invalidate invalid tag for vaddr %lx\nProbably "
+                    "caused by guest instruction: ",
+                    vaddr);
+            target_disas(f, env_cpu(env), cpu_get_current_pc(env, pc, false),
+                         -1);
+            fprintf(f, "\r");
+            fclose(f);
+            buffer[sizeof(buffer) - 1] = '\0';
+            error_report("%s", buffer);
+            void *host_addr = NULL;
+            int access_flags = probe_access_flags(
+                env, vaddr, MMU_DATA_STORE, mmu_idx, true, &host_addr, pc);
+            error_report(
+                "Probe access returns access_flags = 0x%x and host_addr %p",
+                access_flags, host_addr);
+#endif
+            return;
+        }
         lock_tag_write_tag_and_release(lock, 0);
     }
 }
@@ -752,7 +784,7 @@ void *cheri_tag_invalidate_aligned_impl(CPUArchState *env, target_ulong vaddr,
 {
     cheri_debug_assert(QEMU_IS_ALIGNED(vaddr, CHERI_CAP_SIZE));
     if (lock && *lock) {
-        invalidate_from_locktag((lock_tag *)*lock);
+        invalidate_from_locktag((lock_tag *)*lock, env, vaddr, pc, mmu_idx);
         return NULL;
     }
     return cheri_tag_invalidate_one(env, vaddr, CHERI_CAP_SIZE, pc, mmu_idx,
@@ -767,9 +799,11 @@ void cheri_tag_invalidate_impl(CPUArchState *env, target_ulong vaddr,
     cheri_debug_assert(size > 0);
 
     if (first && *first) {
-        invalidate_from_locktag((lock_tag *)*first);
+        vaddr = (vaddr / CHERI_CAP_SIZE) * CHERI_CAP_SIZE;
+        invalidate_from_locktag((lock_tag *)*first, env, vaddr, pc, mmu_idx);
         if (second && *second)
-            invalidate_from_locktag((lock_tag *)*second);
+            invalidate_from_locktag((lock_tag *)*second, env, vaddr + CHERI_CAP_SIZE, pc,
+                                    mmu_idx);
         return;
     }
 
@@ -849,8 +883,9 @@ static void *cheri_tag_invalidate_one(CPUArchState *env, target_ulong vaddr,
                                           lock_only, &host_addr, pc);
 
     if (access_flags & TLB_INVALID_MASK) {
-        if (lock)
+        if (lock) {
             *lock = TAG_LOCK_ERROR;
+        }
         return host_addr;
     }
 
