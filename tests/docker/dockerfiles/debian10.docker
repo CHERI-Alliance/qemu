@@ -11,6 +11,7 @@ FROM docker.io/library/debian:buster-slim
 
 # Duplicate deb line as deb-src
 RUN cat /etc/apt/sources.list | sed "s/^deb\ /deb-src /" >> /etc/apt/sources.list
+RUN sed -i 's/deb\.debian\.org/archive.debian.org/g' /etc/apt/sources.list && cat /etc/apt/sources.list
 
 # Install common build utilities
 RUN apt update && \
