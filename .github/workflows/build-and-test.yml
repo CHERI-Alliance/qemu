@@ -71,3 +71,5 @@ jobs:
           files: "*-test-results.xml"
           action_fail_on_inconclusive: 'true'
           action_fail: 'true'
+          # QEMU test results produce
+          large_files: 'true'
