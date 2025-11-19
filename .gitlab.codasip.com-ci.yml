@@ -31,7 +31,8 @@ variables:
       riscv32-softmmu riscv64-softmmu
       aarch64-softmmu
       mips64-softmmu
-      riscv32cheri-softmmu riscv64cheri-softmmu
+      riscv32xcheri-softmmu riscv64xcheri-softmmu
+      riscv32cheristd-softmmu riscv64cheristd-softmmu
       morello-softmmu
       mips64cheri128-softmmu
   CONFIGURE_ARGS:
@@ -100,8 +101,8 @@ build_qemu:
         - ninja install
     artifacts:
         paths:
-            - install/bin/qemu-system-riscv32cheri
-            - install/bin/qemu-system-riscv64cheri
+            - install/bin/qemu-system-riscv32cheristd
+            - install/bin/qemu-system-riscv64cheristd
             - install/bin/qemu-system-morello
             - install/bin/qemu-img
         expire_in: 8 hours
@@ -120,8 +121,8 @@ build_qemu_debug:
         - ninja install
     artifacts:
         paths:
-            - install_debug/bin/qemu-system-riscv32cheri
-            - install_debug/bin/qemu-system-riscv64cheri
+            - install_debug/bin/qemu-system-riscv32cheristd
+            - install_debug/bin/qemu-system-riscv64cheristd
             - install_debug/bin/qemu-system-morello
             - install_debug/bin/qemu-img
         expire_in: 8 hours
@@ -129,19 +130,19 @@ build_qemu_debug:
 
 .curl_upload: &curl_upload
     - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN"
-         --upload-file install/bin/qemu-system-riscv32cheri
+         --upload-file install/bin/qemu-system-riscv32cheristd
          $TGT_DIR/qemu-system-riscv32cheri'
     - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN"
-         --upload-file install/bin/qemu-system-riscv64cheri
+         --upload-file install/bin/qemu-system-riscv64cheristd
          $TGT_DIR/qemu-system-riscv64cheri'
     - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN"
          --upload-file install/bin/qemu-img $TGT_DIR/qemu-img'
     - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN"
-         --upload-file install_debug/bin/qemu-system-riscv32cheri
-         $TGT_DIR/qemu-system-riscv32cheri-debug'
+         --upload-file install_debug/bin/qemu-system-riscv32cheristd
+         $TGT_DIR/qemu-system-riscv32cheristd-debug'
     - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN"
-         --upload-file install_debug/bin/qemu-system-riscv64cheri
-         $TGT_DIR/qemu-system-riscv64cheri-debug'
+         --upload-file install_debug/bin/qemu-system-riscv64cheristd
+         $TGT_DIR/qemu-system-riscv64cheristd-debug'
     - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN"
          --upload-file install_debug/bin/qemu-img $TGT_DIR/qemu-img-debug'
 
