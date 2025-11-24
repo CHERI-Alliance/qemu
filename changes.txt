@@ -1,0 +1,24 @@
+Changes to the Codasip Prime release.
+
+Code rebased against common Cheri Alliance Branch. This branch still contains
+additional commits not in alliance branch, specifically backporting extensions
+for compatability with X730 configuration.
+In addition some features are not yet aligned in cheristd vs cheriX
+Update QEMU verion to 7.0
+
+Includes CHERI v9 support in addition to the RiscV CHERI standard v0.93
+The Codasip prime build targets the v0.93 standard version, this is a serparate
+build target the target is selected during configure use the
+`riscv64cheristd-softmmu` target for Codasip Prime.
+
+The parameter for configuring hybrid/purcap mode has been changed to Zyhybrid
+use it as a parameter for the CPU e.g
+codasip-a730,Zyhybrid=off
+It defaults to Zyhybrid mode == enabled.
+
+cheri_pte is deprecated in favour of Svucrg
+
+MTVAL2 - no longer reports combined CHERI +NORMAL PTE faults. This is inline with
+newer spec but a slight change compared to V0.93
+
+BRICK library is not currently supported.
