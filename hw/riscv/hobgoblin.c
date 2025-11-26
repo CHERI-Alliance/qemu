@@ -850,18 +850,18 @@ static void create_fdt_aliases(HobgoblinState *s, const memmapEntry_t *memmap)
     qemu_fdt_add_subnode(mc->fdt, name);
 
     ethernet0_alias =
-        g_strdup_printf("/soc@0/ethernet@%lx", memmap[HOBGOBLIN_AXI_ETH].base);
+        g_strdup_printf("/soc@0/ethernet@%" PRIx64, memmap[HOBGOBLIN_AXI_ETH].base);
     qemu_fdt_setprop_string(mc->fdt, name, "ethernet0", ethernet0_alias);
 
-    ethernet1_alias = g_strdup_printf("/soc@0/ethernet@%lx",
+    ethernet1_alias = g_strdup_printf("/soc@0/ethernet@%" PRIx64,
                                       memmap[HOBGOBLIN_FMC_AXI_ETH].base);
     qemu_fdt_setprop_string(mc->fdt, name, "ethernet1", ethernet1_alias);
 
     serial0_alias =
-        g_strdup_printf("/soc@0/serial@%lx", memmap[HOBGOBLIN_UART0].base);
+        g_strdup_printf("/soc@0/serial@%" PRIx64, memmap[HOBGOBLIN_UART0].base);
     qemu_fdt_setprop_string(mc->fdt, name, "serial0", serial0_alias);
 
-    spi0_alias = g_strdup_printf("/soc@0/spi@%lx", memmap[HOBGOBLIN_SPI].base);
+    spi0_alias = g_strdup_printf("/soc@0/spi@%" PRIx64, memmap[HOBGOBLIN_SPI].base);
     qemu_fdt_setprop_string(mc->fdt, name, "spi0", spi0_alias);
 
     g_free(name);
@@ -1043,7 +1043,7 @@ static void create_fdt_socket_memory(HobgoblinState *s,
     uint64_t dram0_base = hc->dram[0].base;
     uint64_t dram1_base = hc->dram[1].base;
 
-    char *name = g_strdup_printf("/memory@%lx", (long)dram0_base);
+    char *name = g_strdup_printf("/memory@%" PRIx64, dram0_base);
     qemu_fdt_add_subnode(mc->fdt, name);
     qemu_fdt_setprop_cells(mc->fdt, name, "reg", dram0_base >> 32, dram0_base,
                            dram1_base >> 32, dram1_base);
@@ -1162,7 +1162,7 @@ static void create_fdt_virtio(HobgoblinState *s, const memmapEntry_t *memmap,
         hwaddr offset = 0x200 * i;
         hwaddr base = mem_virtio->base + offset;
 
-        name = g_strdup_printf("/soc@0/virtio@%lx", (long)base);
+        name = g_strdup_printf("/soc@0/virtio@%" PRIx64, base);
         qemu_fdt_add_subnode(mc->fdt, name);
         qemu_fdt_setprop_string(mc->fdt, name, "compatible", "virtio,mmio");
 
@@ -1184,7 +1184,7 @@ static void create_pcie_node(HobgoblinState *s, const memmapEntry_t *memmap,
     const memmapEntry_t *entry = &memmap[memmap_index];
     MachineState *mc = MACHINE(s);
 
-    name = g_strdup_printf("/soc%s@0/pcie@%lx",
+    name = g_strdup_printf("/soc%s@0/pcie@%" PRIx64,
                            riscv_is_32bit(&s->soc) ? "32" : "64", entry->base);
     qemu_fdt_add_subnode(mc->fdt, name);
 
@@ -1284,7 +1284,7 @@ static void create_fdt_plic(HobgoblinState *s, const memmapEntry_t *memmap,
                             uint32_t irq_mmio_phandle, uint32_t *intc_phandles)
 {
     MachineState *mc = MACHINE(s);
-    char *name = g_strdup_printf("/soc@0/interrupt-controller@%lx",
+    char *name = g_strdup_printf("/soc@0/interrupt-controller@%" PRIx64,
                                  memmap[HOBGOBLIN_PLIC].base);
     uint32_t *plic_cells = g_new0(uint32_t, s->soc.num_harts * 4);
 
@@ -1324,7 +1324,7 @@ static void create_fdt_axi(HobgoblinState *s, const memmapEntry_t *memmap,
     char *name;
     MachineState *mc = MACHINE(s);
 
-    name = g_strdup_printf("/soc@0/axistream_dma@%lx",
+    name = g_strdup_printf("/soc@0/axistream_dma@%" PRIx64,
                            memmap[HOBGOBLIN_FMC_AXI_DMA].base);
     qemu_fdt_add_subnode(mc->fdt, name);
     qemu_fdt_setprop_string(mc->fdt, name, "compatible", "xlnx,eth-dma");
@@ -1345,7 +1345,7 @@ static void create_fdt_axi(HobgoblinState *s, const memmapEntry_t *memmap,
 
     g_free(name);
 
-    name = g_strdup_printf("/soc@0/axistream_dma@%lx",
+    name = g_strdup_printf("/soc@0/axistream_dma@%" PRIx64,
                            memmap[HOBGOBLIN_AXI_DMA].base);
     qemu_fdt_add_subnode(mc->fdt, name);
     qemu_fdt_setprop_string(mc->fdt, name, "compatible", "xlnx,eth-dma");
@@ -1370,7 +1370,7 @@ static void create_fdt_trng(HobgoblinState *s, const memmapEntry_t *memmap)
 {
     char *name;
     MachineState *mc = MACHINE(s);
-    name = g_strdup_printf("/soc@0/trng@%lx", memmap[HOBGOBLIN_TRNG].base);
+    name = g_strdup_printf("/soc@0/trng@%" PRIx64, memmap[HOBGOBLIN_TRNG].base);
 
     qemu_fdt_add_subnode(mc->fdt, name);
     qemu_fdt_setprop_string(mc->fdt, name, "compatible", "codasip,codasip-rng");
@@ -1387,7 +1387,7 @@ static void create_fdt_timer(HobgoblinState *s, const memmapEntry_t *memmap,
     char *name;
 
     // CLINT timer node
-    name = g_strdup_printf("/soc@0/timer@%lx", memmap[HOBGOBLIN_CLINT].base);
+    name = g_strdup_printf("/soc@0/timer@%" PRIx64, memmap[HOBGOBLIN_CLINT].base);
     qemu_fdt_add_subnode(mc->fdt, name);
 
     const char clint_compatible[] =
@@ -1411,7 +1411,7 @@ static void create_fdt_timer(HobgoblinState *s, const memmapEntry_t *memmap,
     g_free(name);
 
     // AXI timer node
-    name = g_strdup_printf("/soc@0/timer@%lx", memmap[HOBGOBLIN_TIMER].base);
+    name = g_strdup_printf("/soc@0/timer@%" PRIx64, memmap[HOBGOBLIN_TIMER].base);
     qemu_fdt_add_subnode(mc->fdt, name);
     qemu_fdt_setprop_cell(
         mc->fdt, name, "clock-frequency",
@@ -1443,7 +1443,7 @@ static void create_fdt_spi(HobgoblinState *s, const memmapEntry_t *memmap,
     char *name, *mmc_name;
     MachineState *mc = MACHINE(s);
 
-    name = g_strdup_printf("/soc@0/spi@%lx", memmap[HOBGOBLIN_SPI].base);
+    name = g_strdup_printf("/soc@0/spi@%" PRIx64, memmap[HOBGOBLIN_SPI].base);
     qemu_fdt_add_subnode(mc->fdt, name);
     qemu_fdt_setprop_cell(mc->fdt, name, "#address-cells", 1);
     qemu_fdt_setprop_cell(mc->fdt, name, "#size-cells", 0);
@@ -1495,7 +1495,7 @@ static void create_fdt_uart(HobgoblinState *s, const memmapEntry_t *memmap,
     MachineState *mc = MACHINE(s);
 
     name =
-        g_strdup_printf("/soc@0/serial@%lx", memmap[HOBGOBLIN_UART0].base);
+        g_strdup_printf("/soc@0/serial@%" PRIx64, memmap[HOBGOBLIN_UART0].base);
     qemu_fdt_add_subnode(mc->fdt, name);
     qemu_fdt_setprop_cell(
         mc->fdt, name, "clock-frequency",
@@ -1514,7 +1514,7 @@ static void create_fdt_uart(HobgoblinState *s, const memmapEntry_t *memmap,
     qemu_fdt_setprop_cell(mc->fdt, name, "reg-shift", 2);
     g_free(name);
 
-    name = g_strdup_printf("/soc@0/serial@%lx", memmap[HOBGOBLIN_UART1].base);
+    name = g_strdup_printf("/soc@0/serial@%" PRIx64, memmap[HOBGOBLIN_UART1].base);
     qemu_fdt_add_subnode(mc->fdt, name);
     qemu_fdt_setprop_string(mc->fdt, name, "compatible",
                             "xlnx,xps-uartlite-1.00.a");
@@ -1541,7 +1541,7 @@ static void add_fdt_ethernet_node(
     char *name, *mdio_name, *phy_name;
     MachineState *mc = MACHINE(s);
 
-    name = g_strdup_printf("/soc@0/ethernet@%lx", memmap[eth_idx].base);
+    name = g_strdup_printf("/soc@0/ethernet@%" PRIx64, memmap[eth_idx].base);
     qemu_fdt_add_subnode(mc->fdt, name);
 
     qemu_fdt_setprop_cell(mc->fdt, name, "axistream-connected",
@@ -1650,7 +1650,7 @@ static void create_gpio_node(HobgoblinState *s, const memmapEntry_t *memmap,
     const memmapEntry_t *entry = &memmap[memmap_index];
     MachineState *mc = MACHINE(s);
 
-    name = g_strdup_printf("/soc@0/gpio@%lx", entry->base);
+    name = g_strdup_printf("/soc@0/gpio@%" PRIx64, entry->base);
     qemu_fdt_add_subnode(mc->fdt, name);
 
     qemu_fdt_setprop_cell(mc->fdt, name, "#address-cells", 0);
