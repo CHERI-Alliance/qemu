@@ -2187,7 +2187,7 @@ static int read_mintthresh(CPURISCVState *env, int csrno, target_ulong *val)
 
 static int write_mintthresh(CPURISCVState *env, int csrno, target_ulong val)
 {
-    env->mintthresh = val;
+    env->mintthresh = val & MINTTHRESH_TH;
     return RISCV_EXCP_NONE;
 }
 
@@ -2664,7 +2664,7 @@ static int read_sintthresh(CPURISCVState *env, int csrno, target_ulong *val)
 
 static int write_sintthresh(CPURISCVState *env, int csrno, target_ulong val)
 {
-    env->sintthresh = val;
+    env->sintthresh = val & MINTTHRESH_TH;
     return RISCV_EXCP_NONE;
 }
 
