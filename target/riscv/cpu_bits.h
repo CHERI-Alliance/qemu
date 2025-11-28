@@ -881,6 +881,9 @@ typedef enum RISCVException {
 #define MIE_SSIE                           (1 << IRQ_S_SOFT)
 #define MIE_USIE                           (1 << IRQ_U_SOFT)
 
+/* mintthresh */
+#define MINTTHRESH_TH                      0xff
+
 /* General PointerMasking CSR bits*/
 #define PM_ENABLE       0x00000001ULL
 #define PM_CURRENT      0x00000002ULL
