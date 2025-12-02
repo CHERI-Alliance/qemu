@@ -340,6 +340,20 @@ static void rv32_codasip_l730_cpu_init(Object *obj)
     set_priv_version(env, PRIV_VERSION_1_12_0);
     qdev_prop_set_bit(DEVICE(obj), "mmu", false);
     qdev_prop_set_bit(DEVICE(obj), "pmp", false);
+
+    set_priv_version(env, PRIV_VERSION_1_12_0);
+
+    qdev_prop_set_bit(DEVICE(obj), "zicbom", true);
+    qdev_prop_set_bit(DEVICE(obj), "zicboz", true);
+    qdev_prop_set_bit(DEVICE(obj), "zba", true);
+    qdev_prop_set_bit(DEVICE(obj), "zbb", true);
+    qdev_prop_set_bit(DEVICE(obj), "zbc", true);
+    qdev_prop_set_bit(DEVICE(obj), "zbs", true);
+
+    qdev_prop_set_bit(DEVICE(obj), "zca", true);
+    qdev_prop_set_bit(DEVICE(obj), "zcb", true);
+    qdev_prop_set_bit(DEVICE(obj), "zcd", true);
+    qdev_prop_set_bit(DEVICE(obj), "zcf", true);
 }
 #endif
 
