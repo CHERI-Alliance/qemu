@@ -71,6 +71,10 @@ void riscv_log_instr_csr_changed(CPURISCVState *env, int csrno)
 }
 #endif
 
+#if !defined(CONFIG_USER_ONLY)
+#include "hw/intc/riscv_clic.h"
+#endif
+
 /* CSR function table public API */
 void riscv_get_csr_ops(int csrno, riscv_csr_operations *ops)
 {
@@ -1451,16 +1455,19 @@ static RISCVException rmw_mie64(CPURISCVState *env, int csrno,
                                 uint64_t *ret_val,
                                 uint64_t new_val, uint64_t wr_mask)
 {
-    uint64_t mask = wr_mask & all_ints;
+    /* Access to xie will be ignored in CLIC mode and will not trap. */
+    if (!riscv_clic_is_clic_mode(env)) {
+        uint64_t mask = wr_mask & all_ints;
 
-    if (ret_val) {
-        *ret_val = env->mie;
-    }
+        if (ret_val) {
+            *ret_val = env->mie;
+        }
 
-    env->mie = (env->mie & ~mask) | (new_val & mask);
+        env->mie = (env->mie & ~mask) | (new_val & mask);
 
-    if (!riscv_has_ext(env, RVH)) {
-        env->mie &= ~((uint64_t)MIP_SGEIP);
+        if (!riscv_has_ext(env, RVH)) {
+            env->mie &= ~((uint64_t)MIP_SGEIP);
+        }
     }
 
     return RISCV_EXCP_NONE;
@@ -1470,7 +1477,7 @@ static RISCVException rmw_mie(CPURISCVState *env, int csrno,
                               target_ulong *ret_val,
                               target_ulong new_val, target_ulong wr_mask)
 {
-    uint64_t rval;
+    uint64_t rval = 0;
     RISCVException ret;
 
     ret = rmw_mie64(env, csrno, &rval, new_val, wr_mask);
@@ -1485,7 +1492,7 @@ static RISCVException rmw_mieh(CPURISCVState *env, int csrno,
                                target_ulong *ret_val,
                                target_ulong new_val, target_ulong wr_mask)
 {
-    uint64_t rval;
+    uint64_t rval = 0;
     RISCVException ret;
 
     ret = rmw_mie64(env, csrno, &rval,
@@ -2105,7 +2112,7 @@ static RISCVException rmw_vsie64(CPURISCVState *env, int csrno,
                                  uint64_t new_val, uint64_t wr_mask)
 {
     RISCVException ret;
-    uint64_t rval, vsbits, mask = env->hideleg & VS_MODE_INTERRUPTS;
+    uint64_t rval = 0, vsbits, mask = env->hideleg & VS_MODE_INTERRUPTS;
 
     /* Bring VS-level bits to correct position */
     vsbits = new_val & (VS_MODE_INTERRUPTS >> 1);
@@ -2184,7 +2191,7 @@ static RISCVException rmw_sie(CPURISCVState *env, int csrno,
                               target_ulong *ret_val,
                               target_ulong new_val, target_ulong wr_mask)
 {
-    uint64_t rval;
+    uint64_t rval = 0;
     RISCVException ret;
 
     ret = rmw_sie64(env, csrno, &rval, new_val, wr_mask);
@@ -2199,7 +2206,7 @@ static RISCVException rmw_sieh(CPURISCVState *env, int csrno,
                                target_ulong *ret_val,
                                target_ulong new_val, target_ulong wr_mask)
 {
-    uint64_t rval;
+    uint64_t rval = 0;
     RISCVException ret;
 
     ret = rmw_sie64(env, csrno, &rval,
@@ -2771,7 +2778,7 @@ static RISCVException rmw_hie(CPURISCVState *env, int csrno,
                               target_ulong *ret_val,
                               target_ulong new_val, target_ulong wr_mask)
 {
-    uint64_t rval;
+    uint64_t rval = 0;
     RISCVException ret;
 
     ret = rmw_mie64(env, csrno, &rval, new_val, wr_mask & HS_MODE_INTERRUPTS);
