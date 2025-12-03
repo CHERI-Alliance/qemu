@@ -1965,13 +1965,13 @@ static int read_mintstatus(CPURISCVState *env, int csrno, target_ulong *val)
 static int read_mintthresh(CPURISCVState *env, int csrno, target_ulong *val)
 {
     *val = env->mintthresh;
-    return 0;
+    return RISCV_EXCP_NONE;
 }
 
 static int write_mintthresh(CPURISCVState *env, int csrno, target_ulong val)
 {
     env->mintthresh = val;
-    return 0;
+    return RISCV_EXCP_NONE;
 }
 
 /* Supervisor Trap Setup */
@@ -2361,13 +2361,13 @@ static int read_sintstatus(CPURISCVState *env, int csrno, target_ulong *val)
 static int read_sintthresh(CPURISCVState *env, int csrno, target_ulong *val)
 {
     *val = env->sintthresh;
-    return 0;
+    return RISCV_EXCP_NONE;
 }
 
 static int write_sintthresh(CPURISCVState *env, int csrno, target_ulong val)
 {
     env->sintthresh = val;
-    return 0;
+    return RISCV_EXCP_NONE;
 }
 
 /* Supervisor Protection and Translation */
