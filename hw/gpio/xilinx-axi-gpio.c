@@ -65,6 +65,8 @@ typedef struct XlnxAXIGPIO {
 
     uint32_t regs[R_MAX];
     RegisterInfo regs_info[R_MAX];
+
+    uint32_t shadow_status;
 } XlnxAXIGPIO;
 
 /* The interrupts should be triggered when a change arrives on the GPIO pins */
@@ -101,7 +103,7 @@ static void data_handler(void *opaque, int irq, int level, int channel)
         ARRAY_FIELD_DP32(s->regs, IP_ISR, CHANNEL2_ST, 1);
         break;
     }
-
+    s->shadow_status = s->regs[R_IP_ISR];
     irq_update(s);
 }
 
@@ -162,9 +164,17 @@ static void xlnx_axi_gpio_post_write(RegisterInfo  *reg, uint64_t val)
 {
     XlnxAXIGPIO *s = XLNX_AXI_GPIO(reg->opaque);
 
+    s->shadow_status = s->regs[R_IP_ISR];
     irq_update(s);
 }
 
+static void xlnx_axi_gpio_post_isr_write(RegisterInfo *reg, uint64_t val)
+{
+    XlnxAXIGPIO *s = XLNX_AXI_GPIO(reg->opaque);
+    s->regs[R_IP_ISR] = s->shadow_status ^ val;
+    s->shadow_status = s->regs[R_IP_ISR];
+    irq_update(s);
+}
 static uint64_t xlnx_axi_gpi_data_read(RegisterInfo  *reg, uint64_t val,
                                        uint8_t channel)
 {
@@ -190,21 +200,41 @@ static uint64_t xlnx_axi_gpio2_data_post_read(RegisterInfo  *reg, uint64_t val)
     return xlnx_axi_gpi_data_read(reg, val, 2);
 }
 
-static RegisterAccessInfo  xlnx_axi_gpio_regs_info[] = {
-    {   .name = "GPIO_DATA",  .addr = A_GPIO_DATA,
+static RegisterAccessInfo xlnx_axi_gpio_regs_info[] = {
+    {
+        .name = "GPIO_DATA",
+        .addr = A_GPIO_DATA,
         .post_read = xlnx_axi_gpio_data_post_read,
         .post_write = xlnx_axi_gpio_data_post_write1,
-    },{ .name = "GPIO_TRI",  .addr = A_GPIO_TRI,
-    },{ .name = "GPIO2_DATA",  .addr = A_GPIO2_DATA,
+    },
+    {
+        .name = "GPIO_TRI",
+        .addr = A_GPIO_TRI,
+    },
+    {
+        .name = "GPIO2_DATA",
+        .addr = A_GPIO2_DATA,
         .post_read = xlnx_axi_gpio2_data_post_read,
         .post_write = xlnx_axi_gpio_data_post_write2,
-    },{ .name = "GPIO2_TRI",  .addr = A_GPIO2_TRI,
-    },{ .name = "GIER",  .addr = A_GIER,
+    },
+    {
+        .name = "GPIO2_TRI",
+        .addr = A_GPIO2_TRI,
+    },
+    {
+        .name = "GIER",
+        .addr = A_GIER,
         .post_write = xlnx_axi_gpio_post_write,
-    },{ .name = "IP_IER",  .addr = A_IP_IER,
+    },
+    {
+        .name = "IP_IER",
+        .addr = A_IP_IER,
         .post_write = xlnx_axi_gpio_post_write,
-    },{ .name = "IP_ISR",  .addr = A_IP_ISR,
-        .post_write = xlnx_axi_gpio_post_write,
+    },
+    {
+        .name = "IP_ISR",
+        .addr = A_IP_ISR,
+        .post_write = xlnx_axi_gpio_post_isr_write,
     }
 };
 
@@ -216,6 +246,7 @@ static void xlnx_axi_gpio_reset(DeviceState *dev)
     for (i = 0; i < ARRAY_SIZE(s->regs_info); ++i) {
         register_reset(&s->regs_info[i]);
     }
+    s->shadow_status = 0;
 
     irq_update(s);
 }
