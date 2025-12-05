@@ -1,0 +1,196 @@
+#
+# This is the GitLab CI configuration file for the mainstream QEMU
+# project: https://gitlab.com/qemu-project/qemu/-/pipelines
+#
+# !!! DO NOT ADD ANY NEW CONFIGURATION TO THIS FILE !!!
+#
+# Only documentation or comments is accepted.
+#
+# To use a different set of jobs than the mainstream QEMU project,
+# you need to set the location of your custom yml file at "custom CI/CD
+# configuration path", on your GitLab CI namespace:
+# https://docs.gitlab.com/ee/ci/pipelines/settings.html#custom-cicd-configuration-path
+#
+# ----------------------------------------------------------------------
+#
+# QEMU CI jobs are based on templates. Some templates provide
+# user-configurable options, modifiable via configuration variables.
+#
+# See https://qemu-project.gitlab.io/qemu/devel/ci.html#custom-ci-cd-variables
+# for more information.
+#
+
+include:
+  - local: '/.gitlab-ci.d/qemu-project.yml'
+
+variables:
+  GIT_FETCH_EXTRA_FLAGS: --quiet --tags
+  GIT_DEPTH: 0
+  TARGETS:
+      x86_64-softmmu
+      riscv32-softmmu riscv64-softmmu
+      aarch64-softmmu
+      mips64-softmmu
+      riscv32cheri-softmmu riscv64cheri-softmmu
+      morello-softmmu
+      mips64cheri128-softmmu
+  CONFIGURE_ARGS:
+    --disable-gtk
+    --audio-drv-list=
+    --disable-brlapi
+    --disable-libiscsi
+    --disable-libnfs
+    --disable-rbd
+    --disable-sdl
+    --disable-snappy
+    --disable-vnc
+    --disable-vnc-jpeg
+    --disable-vnc-sasl
+    --disable-l2tpv3
+    --disable-oss
+    --disable-alsa
+    --disable-tpm
+    --meson=git
+
+stages:
+    - build
+    - package
+    - test
+
+default:
+    image:
+        name: docker-registry.codasip.com/cheri/qemu_test_env:latest
+        entrypoint: [""]
+    interruptible: true
+    tags:
+        - docker
+        - linux
+        - nolicense
+
+# The leading dot is intentional. We need a hidden job for defining a
+# yaml anchor.
+.configure_build: &configure_build
+    - mkdir -p build
+    - cd build
+    # --prefix needs an absolute path
+    # $CI_PROJECT_DIR is "The full path the repository is cloned to, and where
+    # the job runs from." Depending on the runner's config, this might be a
+    # relative path.
+    - ../configure $CONFIGURE_ARGS --target-list="$TARGETS"
+         --prefix=`realpath $CI_PROJECT_DIR`/install
+
+.configure_debug_build: &configure_debug_build
+    - mkdir -p build
+    - cd build
+    # see the comment above for --prefix
+    - ../configure $CONFIGURE_ARGS --target-list="$TARGETS"
+          --enable-debug
+          --prefix=`realpath $CI_PROJECT_DIR`/install_debug
+
+build_qemu:
+    stage: build
+    rules:
+        - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+        - if: $CI_PIPELINE_SOURCE == "push"
+        - if: $CI_PIPELINE_SOURCE == "schedule"
+        - if: '$CI_COMMIT_TAG != null'
+    script:
+        - *configure_build
+        - ninja
+        - ninja install
+    artifacts:
+        paths:
+            - install/bin/qemu-system-riscv32cheri
+            - install/bin/qemu-system-riscv64cheri
+            - install/bin/qemu-system-morello
+            - install/bin/qemu-img
+        expire_in: 8 hours
+
+
+build_qemu_debug:
+    stage: build
+    rules:
+        - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+        - if: $CI_PIPELINE_SOURCE == "push"
+        - if: $CI_PIPELINE_SOURCE == "schedule"
+        - if: '$CI_COMMIT_TAG != null'
+    script:
+        - *configure_debug_build
+        - ninja
+        - ninja install
+    artifacts:
+        paths:
+            - install_debug/bin/qemu-system-riscv32cheri
+            - install_debug/bin/qemu-system-riscv64cheri
+            - install_debug/bin/qemu-system-morello
+            - install_debug/bin/qemu-img
+        expire_in: 8 hours
+
+
+.curl_upload: &curl_upload
+    - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN"
+         --upload-file install/bin/qemu-system-riscv32cheri
+         $TGT_DIR/qemu-system-riscv32cheri'
+    - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN"
+         --upload-file install/bin/qemu-system-riscv64cheri
+         $TGT_DIR/qemu-system-riscv64cheri'
+    - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN"
+         --upload-file install/bin/qemu-img $TGT_DIR/qemu-img'
+    - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN"
+         --upload-file install_debug/bin/qemu-system-riscv32cheri
+         $TGT_DIR/qemu-system-riscv32cheri-debug'
+    - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN"
+         --upload-file install_debug/bin/qemu-system-riscv64cheri
+         $TGT_DIR/qemu-system-riscv64cheri-debug'
+    - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN"
+         --upload-file install_debug/bin/qemu-img $TGT_DIR/qemu-img-debug'
+
+nightly_upload:
+    stage: package
+    rules:
+        - if: $CI_PIPELINE_SOURCE == "schedule"
+    variables:
+        TGT_DIR: "$CI_API_V4_URL/projects/$CI_PROJECT_ID/packages/generic/qemu-cheri/0.0.1"
+    script:
+        - *curl_upload
+
+tag_upload:
+    stage: package
+    rules:
+        - if: '$CI_COMMIT_TAG != null'
+    variables:
+        TGT_DIR: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/qemu-cheri/${CI_COMMIT_TAG}"
+    script:
+        - *curl_upload
+
+trigger_job:
+  variables:
+    QEMU_BRANCH: $CI_COMMIT_REF_NAME
+  trigger:
+    project: cheri/software/cherilinux/qemu_tests
+
+test_qemu_standard:
+    stage: test
+    rules:
+        - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+        - if: $CI_PIPELINE_SOURCE == "push"
+    script:
+        - *configure_build
+        # configure --meson=git ensures that we use the submodule meson,
+        # i.e. we can call meson test instead of ninja test. meson test
+        # supports parameters for the test, ninja test doesn't.
+        # -t <factor> extends the timeouts, we saw timeouts on gitlab ci/cd
+        - ../meson/meson.py test -t 30
+    allow_failure: false
+    artifacts:
+        # By default, artifacts are created only if script succeeds.
+        # We want test output also for failures.
+        when: always
+        reports:
+           junit:
+           - build/meson-logs/testlog.junit.xml
+        paths:
+           - build/meson-logs/testlog.txt
+
+include:
+  - template: Jobs/SAST.gitlab-ci.yml
