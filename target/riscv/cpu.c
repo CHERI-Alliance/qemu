@@ -378,6 +378,19 @@ static void rv64_codasip_a730_cpu_init(Object *obj)
      */
 }
 
+static void rv64_codasip_h730_cpu_init(Object *obj)
+{
+    RISCVCPU *cpu = RISCV_CPU(obj);
+    /* use the a730 config as a base and then clear the mmu bits */
+    rv64_codasip_a730_cpu_init(obj);
+    cpu->cfg.mmu = false;
+#ifdef TARGET_CHERI
+    cpu->cfg.pmp = false;
+#else
+    cpu->cfg.pmp = true;
+#endif
+}
+
 static void rv128_base_cpu_init(Object *obj)
 {
     if (qemu_tcg_mttcg_enabled()) {
@@ -1914,14 +1927,25 @@ static const TypeInfo riscv_cpu_type_infos[] = {
     DEFINE_CPU(TYPE_RISCV_CPU_SIFIVE_E31,       rv32_sifive_e_cpu_init),
     DEFINE_CPU(TYPE_RISCV_CPU_SIFIVE_E34,       rv32_imafcu_nommu_cpu_init),
     DEFINE_CPU(TYPE_RISCV_CPU_SIFIVE_U34,       rv32_sifive_u_cpu_init),
+#ifdef TARGET_CHERI
+    DEFINE_CPU(TYPE_RISCV_CPU_CODASIP_V730,     rv32_codasip_l730_cpu_init),
+    DEFINE_CPU(TYPE_RISCV_CPU_CODASIP_V739,     rv32_codasip_l730_cpu_init),
+#else
     DEFINE_CPU(TYPE_RISCV_CPU_CODASIP_L730,     rv32_codasip_l730_cpu_init),
+#endif
 #elif defined(TARGET_RISCV64)
     DEFINE_CPU(TYPE_RISCV_CPU_BASE64,           rv64_base_cpu_init),
     DEFINE_CPU(TYPE_RISCV_CPU_SIFIVE_E51,       rv64_sifive_e_cpu_init),
     DEFINE_CPU(TYPE_RISCV_CPU_SIFIVE_U54,       rv64_sifive_u_cpu_init),
     DEFINE_CPU(TYPE_RISCV_CPU_SHAKTI_C,         rv64_sifive_u_cpu_init),
+#ifdef TARGET_CHERI
+    DEFINE_CPU(TYPE_RISCV_CPU_CODASIP_X730,     rv64_codasip_a730_cpu_init),
+    DEFINE_CPU(TYPE_RISCV_CPU_CODASIP_Y730,     rv64_codasip_h730_cpu_init),
+#else
     DEFINE_CPU(TYPE_RISCV_CPU_CODASIP_A730,     rv64_codasip_a730_cpu_init),
-    DEFINE_CPU(TYPE_RISCV_CPU_BASE128,          rv128_base_cpu_init),
+    DEFINE_CPU(TYPE_RISCV_CPU_CODASIP_H730,     rv64_codasip_h730_cpu_init),
+#endif
+DEFINE_CPU(TYPE_RISCV_CPU_BASE128,          rv128_base_cpu_init),
 #endif
 };
 
