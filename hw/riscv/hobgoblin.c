@@ -252,7 +252,9 @@ uint8_t irqmap[2][HOBGOBLIN_IRQ_END] = {
 #define HOBGOBLIN_PLIC_CONTEXT_STRIDE   0x1000
 
 /* CLINT timebase frequency */
-#define CLINT_TIMEBASE_FREQ             100000000 /* 100 MHz */
+#define CORE_PLATFORM_SCALING           20
+/* TIMEBASE_FREQ = 100MHz * CORE_PLATFORM_SCALING */
+#define CLINT_TIMEBASE_FREQ             (100000000 * CORE_PLATFORM_SCALING)
 
 static int hobgoblin_load_images(HobgoblinState *s, const memmapEntry_t *dram)
 {
