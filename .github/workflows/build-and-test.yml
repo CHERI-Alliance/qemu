@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ "main" ]
 
+permissions:
+  checks: write
+  pull-requests: write
+
 jobs:
   build-and-test:
     runs-on: ubuntu-22.04
@@ -67,9 +71,11 @@ jobs:
 
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
+        if: (!cancelled())
         with:
           files: "*-test-results.xml"
           action_fail_on_inconclusive: 'true'
-          action_fail: 'true'
-          # QEMU test results produce
+          # Would require additional permissions at the repository level
+          check_run: 'false'
+          # QEMU test results produce large output files
           large_files: 'true'
