@@ -83,6 +83,7 @@ static const memmapEntry_t v1_memmap[] = {
         "riscv.hobgoblin.boot.rom", MEM_ROM },
     [HOBGOBLIN_SRAM] =     { 0x20000000, 0x00100000,
         "riscv.hobgoblin.sram", MEM_RAM_CHERI },
+    [HOBGOBLIN_CLIC] =     { 0x00040000, 0x10000} ,
     [HOBGOBLIN_PLIC] =     { 0x40000000,  0x4000000 },
     [HOBGOBLIN_ID_REG] =   { 0x60000000,      0x1000,
         "id_register", MEM_ROM },
@@ -124,6 +125,7 @@ static const memmapEntry_t v2_memmap[] = {
     [HOBGOBLIN_SRAM] = { 0x20000000, 0x00100000, "riscv.hobgoblin.sram",
                          MEM_RAM_CHERI }, // Same location
     [HOBGOBLIN_PLIC] = { 0x18000000, 0x00400000 },
+    [HOBGOBLIN_CLIC] = { 0x00040000, 0x10000} ,
     [HOBGOBLIN_ID_REG] = { 0x10000000, 0x1000, "id_register", MEM_ROM },
     [HOBGOBLIN_CLINT] = { 0x10804000, 0x00010000 },   // moved...
     [HOBGOBLIN_ETHLITE] = { 0x10020000, 0x00010000 }, // moved
