@@ -89,7 +89,8 @@ struct HobgoblinState {
     DeviceState *timer;
     DeviceState *internal_cmu;
     DeviceState *ddr_cmu[MAX_DRAM];
-
+    DeviceState *clic;
+    bool have_clic;
     int fdt_size;
 };
 
