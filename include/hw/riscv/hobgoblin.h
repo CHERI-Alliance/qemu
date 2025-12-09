@@ -22,6 +22,11 @@
 
 #include "hw/riscv/riscv_hart.h"
 #include "hw/sysbus.h"
+#ifdef TARGET_RISCV32
+#define HOBGOBLIN_MAX_CPUS 1
+#else
+#define HOBGOBLIN_MAX_CPUS 4
+#endif
 
 #define TYPE_HOBGOBLIN_MACHINE               MACHINE_TYPE_NAME("hobgoblin")
 #define TYPE_HOBGOBLIN_GENESYS2V1_MACHINE    MACHINE_TYPE_NAME("hobgoblin-genesys2")
