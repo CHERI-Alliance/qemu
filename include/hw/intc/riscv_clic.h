@@ -52,6 +52,8 @@
 #include "hw/irq.h"
 #include "hw/sysbus.h"
 
+#define CODASIP_CLIC 1
+
 #define TYPE_RISCV_CLIC "riscv_clic"
 #define TYPE_RISCV_CLIC_VIEW "riscv_clic_view"
 #define RISCV_CLIC(obj) \
