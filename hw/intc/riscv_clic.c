@@ -530,6 +530,16 @@ riscv_clic_write(void *opaque, hwaddr addr, uint64_t value, unsigned size)
     CPURISCVState *env = cpu ? cpu->env_ptr : NULL;
     hwaddr clic_size = clic->clic_size;
     int mode = clicview->mode, irq;
+/*
+ * The Codasip CLIC doesn't use multiple Apertures for the memory mappeed regs
+ * Instead it uses the CPU privilege mode to ensure the access only touches
+ * the supported bits.
+ * Setting the aperture view mode to match the current privilege level
+ * should have the same effect when we only have the 1 aperture
+ */
+#if defined(CODASIP_CLIC)
+    mode = env->priv;
+#endif
     const char *current_mode_str = (PRV_M == env->priv) ? "PRV_M" :
                                    (PRV_S == env->priv) ? "PRV_S" :
                                    (PRV_U == env->priv) ? "PRV_U" :
@@ -640,6 +650,9 @@ riscv_clic_read(void *opaque, hwaddr addr, unsigned size)
     CPURISCVState *env = cpu ? cpu->env_ptr : NULL;
     hwaddr clic_size = clic->clic_size;
     int mode = clicview->mode, irq;
+#if defined(CODASIP_CLIC)
+    mode = env->priv;
+#endif
 
     assert(addr < clic_size);
 
@@ -989,13 +1002,27 @@ DeviceState *riscv_clic_create(hwaddr mclicbase, hwaddr sclicbase,
     qdev_prop_set_bit(dev, "jump-table", jump_table);
 
     s->prv_m = riscv_clic_view_create(s, mclicbase, PRV_M);
+#ifdef CODASIP_CLIC
+    /*
+     * The Codasip CLIC doesn't support multiple regions instead a single region
+     * is used and the privilege mode used to restrict access. The prv_s and
+     * prv_m pointers are still used to determine what access types are
+     * supported
+     */
+    if (sclicbase) {
+        s->prv_s = s->prv_m;
+    }
+    if (uclicbase) {
+        s->prv_u = s->prv_m;
+    }
+#else
     if (sclicbase) {
         s->prv_s = riscv_clic_view_create(s, sclicbase, PRV_S);
     }
     if (uclicbase) {
         s->prv_u = riscv_clic_view_create(s, uclicbase, PRV_U);
     }
-
+#endif
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     return dev;
 }
