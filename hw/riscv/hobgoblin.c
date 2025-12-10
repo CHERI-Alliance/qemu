@@ -238,7 +238,9 @@ uint8_t irqmap[2][HOBGOBLIN_IRQ_END] = {
 };
 
 // define a couple of helpers for the mmap and irqmap
-#define HIRQ(_hs_, _idx_) (irqmap[HOBGOBLIN_MACHINE_GET_CLASS(_hs_)->irq_map_version][_idx_])
+#define HIRQ(_hs_, _idx_)                                                      \
+    ((irqmap[HOBGOBLIN_MACHINE_GET_CLASS(_hs_)->irq_map_version][_idx_]) +     \
+     (_hs_->have_clic ? 1 : 0))
 #define MAPVERSION(_hs_) (HOBGOBLIN_MACHINE_GET_CLASS(_hs_)->map_version)
 
 #define V1_VIRTIO_TRANSPORTS 4
@@ -429,10 +431,9 @@ static void hobgoblin_add_interrupt_controller(HobgoblinState *s,
     uint64_t mclicbase = mem_clic->base;
     uint64_t sclicbase = mclicbase;
     uint64_t uclicbase = 0;
-    s->clic = riscv_clic_create(mclicbase, sclicbase, uclicbase, 0,
-                                HOBGOBLIN_PLIC_NUM_SOURCES,
+    s->clic = riscv_clic_create(mclicbase, sclicbase, uclicbase, 0, 128,
                                 HOBGOBLIN_CLIC_INTCL_BITS, "v0.9");
-
+    s->have_clic = true;
 #endif
     /* CLINT with SWI in M-Mode */
     riscv_aclint_swi_create(mem_clint->base, hartid_base, num_harts, false);
@@ -450,15 +451,11 @@ static void hobgoblin_add_interrupt_controller(HobgoblinState *s,
         true); /* provide_rdtime */
 }
 
+#define INTC_HOBGOBLIN(S) (s->have_clic ? s->clic : s->plic)
+
 static qemu_irq hobgoblin_make_intc_irq(HobgoblinState *s, int number)
 {
-    DeviceState *intc;
-    if (s->have_clic) {
-        intc = s->clic;
-    } else {
-        intc = s->plic;
-    }
-    return qdev_get_gpio_in(DEVICE(intc), number);
+    return qdev_get_gpio_in(DEVICE(INTC_HOBGOBLIN(s)), number);
 }
 
 static void hobgoblin_connect_intc_irq(HobgoblinState *s, SysBusDevice *busDev,
@@ -809,7 +806,8 @@ static void hobgoblin_add_timer(HobgoblinState *s)
     sysbus_realize_and_unref(ss, &error_fatal);
     sysbus_mmio_map(ss, 0, memmap[HOBGOBLIN_TIMER].base);
     sysbus_connect_irq(ss, 0,
-                       qdev_get_gpio_in(DEVICE(s->plic), HIRQ(s, HOBGOBLIN_TIMER_IRQ)));
+                       qdev_get_gpio_in(DEVICE(INTC_HOBGOBLIN(s)),
+                                        HIRQ(s, HOBGOBLIN_TIMER_IRQ)));
 }
 
 static void hobgoblin_add_virtio(HobgoblinState *s)
