@@ -355,6 +355,14 @@ static int riscv_clic_active_compare(const void *a, const void *b)
     return riscv_clic_encode_priority(b) - riscv_clic_encode_priority(a);
 }
 
+static void riscv_clic_sort_active(RISCVCLICState *clic)
+{
+    CLICActiveInterrupt *active_list = clic->active_list;
+    /* Sort list of active interrupts */
+    qsort(active_list, clic->active_count, sizeof(CLICActiveInterrupt),
+          riscv_clic_active_compare);
+}
+
 static void
 riscv_clic_update_intie(RISCVCLICState *clic, int mode,
                         int irq, uint64_t new_intie)
@@ -385,14 +393,28 @@ riscv_clic_update_intie(RISCVCLICState *clic, int mode,
         memmove(&result[0], &result[1], sz);
     }
 
-    /* Sort list of active interrupts */
-    qsort(active_list, clic->active_count,
-          sizeof(CLICActiveInterrupt),
-          riscv_clic_active_compare);
+    riscv_clic_sort_active(clic);
 
     riscv_clic_next_interrupt(clic);
 }
 
+/* Update the intctl */
+static void riscv_clic_update_intctl(RISCVCLICState *clic, int irq, int mode,
+                                     uint64_t new_intctl)
+{
+    CLICActiveInterrupt *active_list = clic->active_list;
+
+    clic->clicintctl[irq] = new_intctl;
+    for (int i = 0; i < clic->active_count; i++) {
+        if (active_list[i].irq == irq) {
+            uint16_t intcfg = (mode << CLIC_INTCFG_MODE_SHIFT) | new_intctl;
+            active_list[i].intcfg = intcfg;
+            riscv_clic_sort_active(clic);
+            break;
+        }
+    }
+    riscv_clic_next_interrupt(clic);
+}
 static void
 riscv_clic_hart_write(RISCVCLICState *clic, hwaddr addr,
                       uint64_t value, unsigned size,
@@ -457,7 +479,7 @@ riscv_clic_hart_write(RISCVCLICState *clic, hwaddr addr,
 
     case 3: /* clicintctl[i] */
         if (value != clic->clicintctl[irq]) {
-            clic->clicintctl[irq] = value;
+            riscv_clic_update_intctl(clic, irq, mode, value);
             riscv_clic_next_interrupt(clic);
         }
         break;
