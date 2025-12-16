@@ -68,7 +68,6 @@ static void riscv_aclint_mtimer_write_timecmp(RISCVAclintMTimerState *mtimer,
 
     /* Compute the relative hartid w.r.t the socket */
     hartid = hartid - mtimer->hartid_base;
-
     mtimer->timecmp[hartid] = value;
     if (mtimer->timecmp[hartid] <= rtc_r) {
         /*
@@ -348,10 +347,11 @@ static const TypeInfo riscv_aclint_mtimer_info = {
 /*
  * Create ACLINT MTIMER device.
  */
-DeviceState *riscv_aclint_mtimer_create(hwaddr addr, hwaddr size,
-    uint32_t hartid_base, uint32_t num_harts,
-    uint32_t timecmp_base, uint32_t time_base, uint32_t timebase_freq,
-    bool provide_rdtime)
+DeviceState *
+riscv_aclint_mtimer_create(hwaddr addr, hwaddr size, uint32_t hartid_base,
+                           uint32_t num_harts, uint32_t timecmp_base,
+                           uint32_t time_base, uint32_t timebase_freq,
+                           bool provide_rdtime, qemu_irq *irqs)
 {
     int i;
     DeviceState *dev = qdev_new(TYPE_RISCV_ACLINT_MTIMER);
@@ -362,6 +362,9 @@ DeviceState *riscv_aclint_mtimer_create(hwaddr addr, hwaddr size,
     assert(!(timecmp_base & 0x7));
     assert(!(time_base & 0x7));
 
+    if (irqs) {
+        assert(num_harts == 1);
+    }
     qdev_prop_set_uint32(dev, "hartid-base", hartid_base);
     qdev_prop_set_uint32(dev, "num-harts", num_harts);
     qdev_prop_set_uint32(dev, "timecmp-base", timecmp_base);
@@ -391,9 +394,14 @@ DeviceState *riscv_aclint_mtimer_create(hwaddr addr, hwaddr size,
         s->timers[i] = timer_new_ns(QEMU_CLOCK_VIRTUAL,
                                   &riscv_aclint_mtimer_cb, cb);
         s->timecmp[i] = 0;
+        if (irqs) {
+            qdev_connect_gpio_out(dev, i, *irqs);
 
-        qdev_connect_gpio_out(dev, i,
-                              qdev_get_gpio_in(DEVICE(rvcpu), IRQ_M_TIMER));
+        } else {
+
+            qdev_connect_gpio_out(dev, i,
+                                  qdev_get_gpio_in(DEVICE(rvcpu), IRQ_M_TIMER));
+        }
     }
 
     return dev;
@@ -530,7 +538,8 @@ static const TypeInfo riscv_aclint_swi_info = {
  * Create ACLINT [M|S]SWI device.
  */
 DeviceState *riscv_aclint_swi_create(hwaddr addr, uint32_t hartid_base,
-    uint32_t num_harts, bool sswi)
+                                     uint32_t num_harts, bool sswi,
+                                     qemu_irq *irqs)
 {
     int i;
     DeviceState *dev = qdev_new(TYPE_RISCV_ACLINT_SWI);
@@ -538,6 +547,9 @@ DeviceState *riscv_aclint_swi_create(hwaddr addr, uint32_t hartid_base,
     assert(num_harts <= RISCV_ACLINT_MAX_HARTS);
     assert(!(addr & 0x3));
 
+    if (irqs) {
+        assert(num_harts == 1);
+    }
     qdev_prop_set_uint32(dev, "hartid-base", hartid_base);
     qdev_prop_set_uint32(dev, "num-harts", num_harts);
     qdev_prop_set_uint32(dev, "sswi", sswi ? true : false);
@@ -548,9 +560,14 @@ DeviceState *riscv_aclint_swi_create(hwaddr addr, uint32_t hartid_base,
         CPUState *cpu = qemu_get_cpu(hartid_base + i);
         RISCVCPU *rvcpu = RISCV_CPU(cpu);
 
-        qdev_connect_gpio_out(dev, i,
-                              qdev_get_gpio_in(DEVICE(rvcpu),
-                                  (sswi) ? IRQ_S_SOFT : IRQ_M_SOFT));
+        if (irqs) {
+            qdev_connect_gpio_out(dev, i, *irqs);
+        } else {
+            qdev_connect_gpio_out(
+                dev, i,
+                qdev_get_gpio_in(DEVICE(rvcpu),
+                                 (sswi) ? IRQ_S_SOFT : IRQ_M_SOFT));
+        }
     }
 
     return dev;
