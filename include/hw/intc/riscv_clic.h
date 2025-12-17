@@ -210,6 +210,6 @@ void riscv_clic_clean_pending(void *opaque, int irq);
 bool riscv_clic_edge_triggered(void *opaque, int irq);
 bool riscv_clic_shv_interrupt(void *opaque, int irq);
 bool riscv_clic_use_jump_table(void *opaque);
-void riscv_clic_get_next_interrupt(void *opaque);
+bool riscv_clic_get_next_interrupt(void *opaque);
 bool riscv_clic_is_clic_mode(CPURISCVState *env);
 #endif

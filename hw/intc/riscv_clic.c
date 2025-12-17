@@ -121,7 +121,7 @@ riscv_clic_intcfg_decode(RISCVCLICState *clic, uint16_t intcfg,
     *priority = riscv_clic_get_interrupt_priority(clic, intcfg & 0xff);
 }
 
-static void riscv_clic_next_interrupt(void *opaque)
+static bool riscv_clic_next_interrupt(void *opaque)
 {
     /*
      * Scan active list for highest priority pending interrupts
@@ -131,19 +131,10 @@ static void riscv_clic_next_interrupt(void *opaque)
     RISCVCLICState *clic = (RISCVCLICState *)opaque;
     CPUState *cpu = cpu_by_arch_id(clic->hartid);
     CPURISCVState *env = cpu ? cpu->env_ptr : NULL;
-    bool locked = false;
     if (!env) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "aclint-swi: invalid hartid: %u", clic->hartid);
-        return;
-    }
-
-    /*
-     * Instead of BQL_LOCK_GUARD
-     */
-    if (!qemu_mutex_iothread_locked()) {
-        locked = true;
-        qemu_mutex_lock_iothread();
+        return false;
     }
 
     int il[4] = {
@@ -183,19 +174,13 @@ static void riscv_clic_next_interrupt(void *opaque)
             clic->exccode = active->irq |
                             mode << RISCV_EXCP_CLIC_MODE_SHIFT |
                             level << RISCV_EXCP_CLIC_LEVEL_SHIFT;
-            qemu_set_irq(clic->cpu_irq, 1);
-            if (locked) {
-                qemu_mutex_unlock_iothread();
-            }
-            return;
+            return true;
         }
         /* Check next enabled interrupt */
         active_count--;
         active++;
     }
-    if (locked) {
-        qemu_mutex_unlock_iothread();
-    }
+    return false;
 }
 
 /*
@@ -249,12 +234,27 @@ riscv_clic_validate_intip(RISCVCLICState *clic, int irq)
     return riscv_clic_is_edge_triggered(clic, irq);
 }
 
+static void do_setirq(RISCVCLICState *clic)
+{
+    bool locked = false;
+    if (!qemu_mutex_iothread_locked()) {
+        locked = true;
+        qemu_mutex_lock_iothread();
+    }
+    qemu_set_irq(clic->cpu_irq, 1);
+    if (locked) {
+        qemu_mutex_unlock_iothread();
+    }
+}
+
 static void
 riscv_clic_update_intip(RISCVCLICState *clic, int irq, uint64_t value)
 {
     clic->clicintip[irq] = !!value;
     if (clic->clicintip[irq]) {
-        riscv_clic_next_interrupt(clic);
+        if (riscv_clic_next_interrupt(clic)) {
+            do_setirq(clic);
+        }
     }
 }
 
@@ -397,7 +397,9 @@ riscv_clic_update_intie(RISCVCLICState *clic, int mode,
 
     riscv_clic_sort_active(clic);
 
-    riscv_clic_next_interrupt(clic);
+    if (riscv_clic_next_interrupt(clic)) {
+        do_setirq(clic);
+    }
 }
 
 /* Update the intctl */
@@ -415,7 +417,9 @@ static void riscv_clic_update_intctl(RISCVCLICState *clic, int irq, int mode,
             break;
         }
     }
-    riscv_clic_next_interrupt(clic);
+    if (riscv_clic_next_interrupt(clic)) {
+        do_setirq(clic);
+    }
 }
 static void
 riscv_clic_hart_write(RISCVCLICState *clic, hwaddr addr,
@@ -474,7 +478,9 @@ riscv_clic_hart_write(RISCVCLICState *clic, hwaddr addr,
         if (riscv_clic_validate_intattr(clic, value)) {
             if (clic->clicintattr[irq] != value) {
                 clic->clicintattr[irq] = value;
-                riscv_clic_next_interrupt(clic);
+                if (riscv_clic_next_interrupt(clic)) {
+                    do_setirq(clic);
+                }
             }
         }
         break;
@@ -482,7 +488,9 @@ riscv_clic_hart_write(RISCVCLICState *clic, hwaddr addr,
     case 3: /* clicintctl[i] */
         if (value != clic->clicintctl[irq]) {
             riscv_clic_update_intctl(clic, irq, mode, value);
-            riscv_clic_next_interrupt(clic);
+            if (riscv_clic_next_interrupt(clic)) {
+                do_setirq(clic);
+            }
         }
         break;
     }
@@ -1051,10 +1059,10 @@ DeviceState *riscv_clic_create(hwaddr mclicbase, hwaddr sclicbase,
     return dev;
 }
 
-void riscv_clic_get_next_interrupt(void *opaque)
+bool riscv_clic_get_next_interrupt(void *opaque)
 {
     RISCVCLICState *clic = opaque;
-    riscv_clic_next_interrupt(clic);
+    return riscv_clic_next_interrupt(clic);
 }
 
 bool riscv_clic_shv_interrupt(void *opaque, int irq)
