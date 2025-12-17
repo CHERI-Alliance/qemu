@@ -489,9 +489,23 @@ target_ulong helper_sret(CPURISCVState *env)
         env->mintstatus = set_field(env->mintstatus, MINTSTATUS_SIL, spil);
         env->scause = set_field(env->scause, SCAUSE_SPIE, 1);
         env->scause = set_field(env->scause, SCAUSE_SPP, PRV_U);
-        riscv_clic_get_next_interrupt(env->clic);
-    }
+        if (riscv_clic_get_next_interrupt(env->clic)) {
 
+            bool locked = false;
+            CPUState *cs = env_cpu(env);
+            if (!qemu_mutex_iothread_locked()) {
+                locked = true;
+                qemu_mutex_lock_iothread();
+            }
+            RISCVCLICState *clic = env->clic;
+            env->exccode = clic->exccode;
+            cs->interrupt_request |= CPU_INTERRUPT_CLIC;
+
+            if (locked) {
+                qemu_mutex_unlock_iothread();
+            }
+        }
+    }
     if (riscv_has_ext(env, RVH) && !riscv_cpu_virt_enabled(env)) {
         /* We support Hypervisor extensions and virtulisation is disabled */
         target_ulong hstatus = env->hstatus;
@@ -590,7 +604,23 @@ target_ulong helper_mret(CPURISCVState *env)
         env->mcause = set_field(env->mcause, MCAUSE_MPIE, 1);
         env->mcause = set_field(env->mcause, MCAUSE_MPP,
                                 riscv_has_ext(env, RVU) ? PRV_U : PRV_M);
-        riscv_clic_get_next_interrupt(env->clic);
+        if (riscv_clic_get_next_interrupt(env->clic)) {
+
+            bool locked = false;
+            CPUState *cs = env_cpu(env);
+            if (!qemu_mutex_iothread_locked()) {
+                locked = true;
+                qemu_mutex_lock_iothread();
+            }
+
+            RISCVCLICState *clic = env->clic;
+            env->exccode = clic->exccode;
+            cs->interrupt_request |= CPU_INTERRUPT_CLIC;
+
+            if (locked) {
+                qemu_mutex_unlock_iothread();
+            }
+        }
     }
 
     if (riscv_has_ext(env, RVH)) {
