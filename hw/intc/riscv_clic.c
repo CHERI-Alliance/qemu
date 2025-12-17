@@ -253,7 +253,9 @@ static void
 riscv_clic_update_intip(RISCVCLICState *clic, int irq, uint64_t value)
 {
     clic->clicintip[irq] = !!value;
-    riscv_clic_next_interrupt(clic);
+    if (clic->clicintip[irq]) {
+        riscv_clic_next_interrupt(clic);
+    }
 }
 
 /*
