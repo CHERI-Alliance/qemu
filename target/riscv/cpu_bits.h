@@ -178,6 +178,9 @@
 #define CSR_MTVECC          CSR_MTVEC
 #define CSR_MSCRATCHC       CSR_MSCRATCH
 #define CSR_MEPCC           CSR_MEPC
+#define CSR_MTVTSCADDRC     0x7f7
+#define CSR_MTVENTRY0C      0x7f8
+#define CSR_MTVTENTRY1C     0x7f9
 #endif
 
 /* Machine-Level Window to Indirectly Accessed Registers (AIA) */
@@ -226,6 +229,9 @@
 #define CSR_STVECC          CSR_STVEC
 #define CSR_SSCRATCHC       CSR_SSCRATCH
 #define CSR_SEPCC           CSR_SEPC
+#define CSR_STVTSCADDRC     0x5f7
+#define CSR_STVENTRY0C      0x5f8
+#define CSR_STVTENTRY1C     0x5f9
 #endif
 /* Sstc supervisor CSRs */
 #define CSR_STIMECMP        0x14D
