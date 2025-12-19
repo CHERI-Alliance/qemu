@@ -298,6 +298,9 @@ struct CPUArchState {
     cap_register_t mscratchc; // SCR 30 Machine scratch cap. (MScratchC)
     cap_register_t mepcc;     // SCR 31 Machine exception PC cap. (MEPCC)
     target_ulong mtvt; /* clic-spec */
+    cap_register_t mtvtentry0c;
+    cap_register_t mtvtentry1c;
+    cap_register_t mtvtscaddrc;
 #else
     target_ulong mtvec;
     target_ulong mtvt; /* clic-spec */
@@ -365,6 +368,9 @@ struct CPUArchState {
     cap_register_t stcc_hs;
     cap_register_t sepcc_hs;
     cap_register_t sscratchc_hs;
+    cap_register_t stvtentry0c;
+    cap_register_t stvtentry1c;
+    cap_register_t stvtscaddrc;
 
 #ifdef TARGET_CHERI_RISCV_STD_093
     target_ulong stval2;
