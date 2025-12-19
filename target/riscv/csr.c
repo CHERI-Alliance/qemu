@@ -1672,7 +1672,7 @@ static RISCVException write_mtvec(CPURISCVState *env, int csrno,
      * bits [1:0] encode mode; 0 = direct, 1 = vectored, 3 = CLIC,
      * others reserved
      */
-    /* Codasip clic implementation hardwires xtvec mode 000011b */
+    /* Codasip CLIC implementation hardwires xtvec mode 000011b */
 
     if (env->clic) {
         /* Codasip CLIC hardwires the tvec mode to vectored */
