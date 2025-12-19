@@ -94,13 +94,22 @@ void HELPER(csrrw_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
     check_csr_cap_permissions(env, csr, true, csr_cap_info, GETPC());
     /* Read rs1 first since it could be clobbered by writeback_csrrw */
     cap_register_t rs_cap = *get_readonly_capreg(env, rs1);
-    if (rd) {
-        cap_register_t csr_cap = csr_cap_info->read(env, csr_cap_info);
-        writeback_csrrw(env, csr_cap, rd, csr_cap_info);
+
+    if (csr_cap_info->flags & CSR_OP_IS_RMW) {
+        if (rd) {
+            csr_cap_info->rmw(env, csr_cap_info, &rs_cap, &rs_cap,
+                              cap_get_cursor(&rs_cap), true);
+            update_capreg(env, rd, &rs_cap);
+        }
+    } else {
+        if (rd) {
+            cap_register_t csr_cap = csr_cap_info->read(env, csr_cap_info);
+            writeback_csrrw(env, csr_cap, rd, csr_cap_info);
+        }
+        /* CSRRW always performs the write operation even for rs1=zero. */
+        csr_cap_info->write(env, csr_cap_info, rs_cap, cap_get_cursor(&rs_cap),
+                            cheri_in_capmode(env));
     }
-    /* CSRRW always performs the write operation even for rs1=zero. */
-    csr_cap_info->write(env, csr_cap_info, rs_cap, cap_get_cursor(&rs_cap),
-                        cheri_in_capmode(env));
 }
 
 static inline void do_csr_set_clear(CPUArchState *env, uint32_t csr,
