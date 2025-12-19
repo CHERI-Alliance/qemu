@@ -5259,6 +5259,18 @@ static riscv_csr_cap_ops csr_cap_ops[] = {
     { "vstvecc", CSR_VSTVECC, read_capcsr_reg, write_xtvecc,
       CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG |
           CSR_OP_IS_CODE_PTR },
+    { "mtvtentry0c", CSR_MTVTENTRY0C, read_capcsr_reg, write_cap_csr_reg,
+      CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG |
+          CSR_OP_IS_CODE_PTR | CSR_OP_REQUIRE_CRE },
+    { "mtvtentry1c", CSR_MTVTENTRY1C, read_capcsr_reg, write_cap_csr_reg,
+      CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG |
+          CSR_OP_IS_CODE_PTR | CSR_OP_REQUIRE_CRE },
+    { "stvtentry0c", CSR_STVTENTRY0C, read_capcsr_reg, write_cap_csr_reg,
+      CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG |
+          CSR_OP_IS_CODE_PTR | CSR_OP_REQUIRE_CRE },
+    { "stvtentry1c", CSR_STVTENTRY1C, read_capcsr_reg, write_cap_csr_reg,
+      CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG |
+          CSR_OP_IS_CODE_PTR | CSR_OP_REQUIRE_CRE },
 #ifdef TARGET_CHERI_RISCV_V9
     /* For backwards compatibility add the *tdc registers */
     { "mtdc", CSR_MTDC, read_capcsr_reg, write_cap_csr_reg,
