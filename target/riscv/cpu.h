@@ -1083,6 +1083,7 @@ typedef void (*riscv_csr_cap_rmw_fn)(CPURISCVState *env, riscv_csr_cap_ops *cap,
 #define CSR_OP_UPDATE_SCADDR (1 << 2)
 #define CSR_OP_EXTENDED_REG  (1 << 3)
 #define CSR_OP_IS_CODE_PTR   (1 << 4)
+#define CSR_OP_IS_RMW        (1 << 5)
 #define CSR_OP_DIRECT_WRITE  (0)
 
 struct _csr_cap_ops {
