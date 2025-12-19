@@ -3858,6 +3858,18 @@ cap_register_t *get_cap_csr(CPUArchState *env, uint32_t index)
         return &env->vsepcc;
     case CSR_VSTVECC:
         return &env->vstvecc;
+    case CSR_MTVTSCADDRC:
+        return &env->mtvtscaddrc;
+    case CSR_MTVTENTRY0C:
+        return &env->mtvtentry0c;
+    case CSR_MTVTENTRY1C:
+        return &env->mtvtentry1c;
+    case CSR_STVTSCADDRC:
+        return &env->stvtscaddrc;
+    case CSR_STVTENTRY0C:
+        return &env->stvtentry0c;
+    case CSR_STVTENTRY1C:
+        return &env->stvtentry1c;
 #ifdef TARGET_CHERI_RISCV_V9
     case CSR_MTDC:
         return &env->mtdc;
