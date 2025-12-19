@@ -1750,13 +1750,13 @@ static RISCVException write_mcounteren(CPURISCVState *env, int csrno,
 
 static int read_mtvt(CPURISCVState *env, int csrno, target_ulong *val)
 {
-    *val = env->mtvt;
+    *val = GET_SPECIAL_REG_ADDR(env, mtvt, mtvtc);
     return RISCV_EXCP_NONE;
 }
 
 static int write_mtvt(CPURISCVState *env, int csrno, target_ulong val)
 {
-    env->mtvt = val & XTVEC_NBASE;
+    SET_SPECIAL_REG(env, mtvt, mtvtc, val & XTVEC_NBASE);
     return RISCV_EXCP_NONE;
 }
 
@@ -2073,7 +2073,8 @@ static int rmw_mnxti(CPURISCVState *env, int csrno, target_ulong *ret_value,
             env->mcause = set_field(env->mcause, MCAUSE_EXCCODE, clic_irq);
         }
         if (ret_value) {
-            *ret_value = (env->mtvt & ~0x3f) + sizeof(target_ulong) * clic_irq;
+            *ret_value = (GET_SPECIAL_REG_ADDR(env, mtvt, mtvtc) & ~0x3f) +
+                         sizeof(target_ulong) * clic_irq;
         }
     } else {
         if (ret_value) {
@@ -2307,13 +2308,13 @@ static RISCVException write_scounteren(CPURISCVState *env, int csrno,
 
 static int read_stvt(CPURISCVState *env, int csrno, target_ulong *val)
 {
-    *val = env->stvt;
+    *val = GET_SPECIAL_REG_ADDR(env, stvt, stvtc);
     return RISCV_EXCP_NONE;
 }
 
 static int write_stvt(CPURISCVState *env, int csrno, target_ulong val)
 {
-    env->stvt = val & XTVEC_NBASE;
+    SET_SPECIAL_REG(env, stvt, stvtc, val & XTVEC_NBASE);
     return RISCV_EXCP_NONE;
 }
 
@@ -2548,7 +2549,8 @@ static int rmw_snxti(CPURISCVState *env, int csrno, target_ulong *ret_value,
             env->scause = set_field(env->scause, SCAUSE_EXCCODE, clic_irq);
         }
         if (ret_value) {
-            *ret_value = (env->stvt & ~0x3f) + sizeof(target_ulong) * clic_irq;
+            *ret_value = (GET_SPECIAL_REG_ADDR(env, stvt, stvtc) & ~0x3f) +
+                         sizeof(target_ulong) * clic_irq;
         }
     } else {
         if (ret_value) {

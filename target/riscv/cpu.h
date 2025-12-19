@@ -268,7 +268,7 @@ struct CPUArchState {
     cap_register_t stvecc;    // SCR 12 Supervisor trap code cap. (STCC)
     cap_register_t sscratchc; // SCR 14 Supervisor scratch cap. (SScratchC)
     cap_register_t sepcc;     // SCR 15 Supervisor exception PC cap. (SEPCC)
-    target_ulong stvt; /* clic-spec */
+    cap_register_t stvtc;     /* clic-spec */
 #else
     target_ulong stvec;
     target_ulong stvt; /* clic-spec */
@@ -282,7 +282,7 @@ struct CPUArchState {
     cap_register_t mtvecc;    // SCR 28 Machine trap code cap. (MTCC)
     cap_register_t mscratchc; // SCR 30 Machine scratch cap. (MScratchC)
     cap_register_t mepcc;     // SCR 31 Machine exception PC cap. (MEPCC)
-    target_ulong mtvt; /* clic-spec */
+    cap_register_t mtvtc;     /* clic-spec */
     cap_register_t mtvtentry0c;
     cap_register_t mtvtentry1c;
     cap_register_t mtvtscaddrc;
