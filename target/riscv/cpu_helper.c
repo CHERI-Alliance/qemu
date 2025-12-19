@@ -2121,6 +2121,12 @@ static target_ulong riscv_intr_pc(CPURISCVState *env, target_ulong tvec,
                         /*
                          * Standard CLIC: the vector entry is a function pointer
                          * so look up the destination.
+                         * Fetch the entry and use it as a tvtenry where the
+                         * bottom bit selects the authorizing capability, and
+                         * the remainig bits are applied with scaddr. First we
+                         * should fix these fetches to go through the correct
+                         * read path... so the tvt needs to be provided as a
+                         * capability too.
                          */
                         new_pc = ldn_p(host, size);
                         host = tlb_vaddr_to_host(env, new_pc,
@@ -2371,8 +2377,9 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         target_ulong stvec = GET_SPECIAL_REG_ADDR(env, stvec, stvecc);
         target_ulong new_pc = (stvec >> 2 << 2) +
             ((async && (stvec & 3) == 1) ? cause * 4 : 0);
-        new_pc = riscv_intr_pc(env, stvec, env->stvt, async,
-                                cause & SCAUSE_EXCCODE, PRV_S);
+        new_pc =
+            riscv_intr_pc(env, stvec, GET_SPECIAL_REG_ADDR(env, stvt, stvtc),
+                          async, cause & SCAUSE_EXCCODE, PRV_S);
         riscv_update_pc_for_exc_handler(env, &env->stvecc, new_pc);
         env->htinst = tinst;
         riscv_cpu_set_mode(env, PRV_S);
@@ -2431,8 +2438,9 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         target_ulong mtvec = GET_SPECIAL_REG_ADDR(env, mtvec, mtvecc);
         target_ulong new_pc = (mtvec >> 2 << 2) +
             ((async && (mtvec & 3) == 1) ? cause * 4 : 0);
-        new_pc = riscv_intr_pc(env, mtvec, env->mtvt, async,
-                                cause & MCAUSE_EXCCODE, PRV_M);
+        new_pc =
+            riscv_intr_pc(env, mtvec, GET_SPECIAL_REG_ADDR(env, mtvt, mtvtc),
+                          async, cause & MCAUSE_EXCCODE, PRV_M);
 
         /*
          * This checks that the exception handler is at the same address that
