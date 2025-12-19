@@ -4126,6 +4126,22 @@ static cap_register_t read_xepcc(CPURISCVState *env,
     return retval;
 }
 
+static void rmw_xtvtscaddrc(CPURISCVState *env, riscv_csr_cap_ops *cap,
+                            cap_register_t *src, cap_register_t *dst,
+                            target_ulong newval, bool clen)
+{
+    /*
+     * Handler for the xtvtscaddr registers
+     * takes the input tvtentry (in newval)
+     * The bottom bits and current regnumber are used to select the appropriate
+     * authorising register from the xtvtentryc registers and set the
+     * destination using scaddr
+     */
+    int auth_csrnum = cap->reg_num + 1 + (newval & 1);
+    cap_register_t retval = *get_cap_csr(env, auth_csrnum);
+    *dst = cap_scaddr(newval & ~1, retval);
+}
+
 #ifdef TARGET_CHERI_RISCV_V9
 static RISCVException read_ccsr(CPURISCVState *env, int csrno, target_ulong *val)
 {
@@ -5271,15 +5287,21 @@ static riscv_csr_cap_ops csr_cap_ops[] = {
     { "stvtentry1c", CSR_STVTENTRY1C, read_capcsr_reg, write_cap_csr_reg, NULL,
       CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG |
           CSR_OP_IS_CODE_PTR | CSR_OP_REQUIRE_CRE },
+    { "mtvtscaddrc", CSR_MTVTSCADDRC, NULL, NULL, rmw_xtvtscaddrc,
+      CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG |
+          CSR_OP_IS_CODE_PTR | CSR_OP_REQUIRE_CRE | CSR_OP_IS_RMW },
+    { "stvtscaddrc", CSR_STVTSCADDRC, NULL, NULL, rmw_xtvtscaddrc,
+      CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG |
+          CSR_OP_IS_CODE_PTR | CSR_OP_REQUIRE_CRE | CSR_OP_IS_RMW },
 #ifdef TARGET_CHERI_RISCV_V9
     /* For backwards compatibility add the *tdc registers */
-    { "mtdc", CSR_MTDC, read_capcsr_reg, write_cap_csr_reg,
+    { "mtdc", CSR_MTDC, read_capcsr_reg, write_cap_csr_reg, NULL,
       CSR_OP_REQUIRE_CRE },
-    { "stdc", CSR_STDC, read_capcsr_reg, write_cap_csr_reg,
+    { "stdc", CSR_STDC, read_capcsr_reg, write_cap_csr_reg, NULL,
       CSR_OP_REQUIRE_CRE },
-    { "vstdc", CSR_VSTDC, read_capcsr_reg, write_cap_csr_reg,
+    { "vstdc", CSR_VSTDC, read_capcsr_reg, write_cap_csr_reg, NULL,
       CSR_OP_REQUIRE_CRE },
-    { "pcc", CSR_PCC, read_capcsr_reg, /*write=*/NULL, CSR_OP_REQUIRE_CRE },
+    { "pcc", CSR_PCC, read_capcsr_reg, NULL, NULL, CSR_OP_REQUIRE_CRE },
 #endif
 };
 
