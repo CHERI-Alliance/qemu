@@ -986,6 +986,13 @@ static void riscv_cpu_reset(DeviceState *dev)
     env->mscratchc = make_null_capability(env);
     set_max_perms_capability(env, &env->mepcc, 0);
 
+    set_max_perms_capability(env, &env->mtvtentry0c, 0);
+    set_max_perms_capability(env, &env->mtvtentry1c, 0);
+    set_max_perms_capability(env, &env->mtvtscaddrc, 0);
+    set_max_perms_capability(env, &env->stvtentry0c, 0);
+    set_max_perms_capability(env, &env->stvtentry1c, 0);
+    set_max_perms_capability(env, &env->stvtscaddrc, 0);
+
     env->utidc = make_null_capability(env);
     env->stidc = make_null_capability(env);
     env->vstidc = make_null_capability(env);
