@@ -3799,6 +3799,8 @@ static RISCVException write_utid(CPURISCVState *env, int csrno,
 cap_register_t *get_cap_csr(CPUArchState *env, uint32_t index)
 {
     switch (index) {
+    case CSR_MSCRATCHCSW:
+    case CSR_MSCRATCHCSWL:
     case CSR_MSCRATCHC:
         return &env->mscratchc;
     case CSR_MTVECC:
@@ -3809,6 +3811,8 @@ cap_register_t *get_cap_csr(CPUArchState *env, uint32_t index)
         return &env->mepcc;
     case CSR_SEPCC:
         return &env->sepcc;
+    case CSR_SSCRATCHCSW:
+    case CSR_SSCRATCHCSWL:
     case CSR_SSCRATCHC:
         return &env->sscratchc;
     case CSR_DDC:
@@ -4109,6 +4113,61 @@ static void rmw_xtvtscaddrc(CPURISCVState *env, riscv_csr_cap_ops *cap,
     int auth_csrnum = cap->reg_num + 1 + (newval & 1);
     cap_register_t retval = *get_cap_csr(env, auth_csrnum);
     *dst = cap_scaddr(newval & ~1, retval);
+}
+
+static void rmw_xscratchcswc(CPURISCVState *env, riscv_csr_cap_ops *cap,
+                             cap_register_t *src, cap_register_t *dst,
+                             target_ulong newval, bool clen)
+{
+    target_ulong mode = get_field(env->mstatus, MSTATUS_MPP);
+    cap_register_t *xscratch = NULL;
+    /* Figure out which scratch register is needed */
+    if (env->priv == PRV_M) {
+        xscratch = &env->mscratchc;
+    } else if (env->priv == PRV_S) {
+        xscratch = &env->sscratchc;
+    } else {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "CSR: rmw xscratchcswl with unsupported mode\n");
+    }
+    if (env->priv == mode) {
+        *dst = *src;
+    } else {
+        *dst = *xscratch;
+        *xscratch = *src;
+    }
+}
+
+static void rmw_xscratchcswlc(CPURISCVState *env, riscv_csr_cap_ops *cap,
+                              cap_register_t *src, cap_register_t *dst,
+                              target_ulong newval, bool clen)
+{
+
+    cap_register_t *xscratch;
+    /* Figure out which scratch register is needed */
+    if (env->priv == PRV_M) {
+        xscratch = &env->mscratchc;
+    } else {
+        xscratch = &env->sscratchc;
+    }
+
+    int cause_pil, status_mil;
+    status_mil = get_field(env->mintstatus, MINTSTATUS_MIL);
+    if (env->priv == PRV_M) {
+        cause_pil = get_field(env->mcause, MCAUSE_MPIL);
+    } else if (env->priv == PRV_S) {
+        cause_pil = get_field(env->scause, SCAUSE_SPIL);
+    } else {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "CSR: rmw xscratchcswl with unsupported mode\n");
+        exit(1);
+    }
+    if ((cause_pil == 0) != (status_mil == 0)) {
+        *dst = *xscratch;
+        *xscratch = *src;
+    } else {
+        *dst = *src;
+    }
 }
 
 #ifdef TARGET_CHERI_RISCV_V9
@@ -5227,6 +5286,17 @@ static riscv_csr_cap_ops csr_cap_ops[] = {
       CSR_OP_REQUIRE_CRE },
     { "pcc", CSR_PCC, read_capcsr_reg, NULL, NULL, CSR_OP_REQUIRE_CRE },
 #endif
+    { "mscratchcsw", CSR_MSCRATCHCSW, NULL, NULL, rmw_xscratchcswc,
+      CSR_OP_EXTENDED_REG | CSR_OP_DIRECT_WRITE | CSR_OP_IS_RMW },
+
+    { "mscratchcswl", CSR_MSCRATCHCSWL, NULL, NULL, rmw_xscratchcswlc,
+      CSR_OP_EXTENDED_REG | CSR_OP_DIRECT_WRITE | CSR_OP_IS_RMW },
+
+    { "sscratchcsw", CSR_SSCRATCHCSW, NULL, NULL, rmw_xscratchcswc,
+      CSR_OP_EXTENDED_REG | CSR_OP_DIRECT_WRITE | CSR_OP_IS_RMW },
+
+    { "sscratchcswl", CSR_SSCRATCHCSWL, NULL, NULL, rmw_xscratchcswlc,
+      CSR_OP_EXTENDED_REG | CSR_OP_DIRECT_WRITE | CSR_OP_IS_RMW },
 };
 
 riscv_csr_cap_ops *get_csr_cap_info(uint32_t csrnum)
