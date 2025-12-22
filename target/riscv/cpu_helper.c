@@ -2065,6 +2065,7 @@ static target_ulong riscv_transformed_insn(CPURISCVState *env,
 #endif /* !CONFIG_USER_ONLY */
 
 #ifdef TARGET_CHERI
+typedef cap_register_t cap_or_tulong;
 /* TODO(am2419): do we log PCC as a changed register? */
 #define riscv_update_pc_for_exc_handler(env, src_cap, new_pc)           \
     do {                                                                \
@@ -2072,6 +2073,7 @@ static target_ulong riscv_transformed_insn(CPURISCVState *env,
         qemu_log_instr_dbg_cap(env, "PCC", &env->pcc);                  \
     } while (false)
 #else
+typedef target_ulong cap_or_tulong;
 /*
  * TODO(am2419): We don't have a register ID for pc, move to a separate
  * logging helper that maps hwreg id to names for extra registers.
@@ -2086,8 +2088,9 @@ static target_ulong riscv_transformed_insn(CPURISCVState *env,
 #endif /* TARGET_CHERI */
 
 static target_ulong riscv_intr_pc(CPURISCVState *env, target_ulong tvec,
-                                  target_ulong tvt, bool async,
-                                  int cause, int mode)
+                                  target_ulong tvt, bool async, int cause,
+                                  int mode, cap_or_tulong *xtvtentry,
+                                  cap_or_tulong *auth_cap)
 {
     int mode1 = tvec & XTVEC_MODE;
     int mode2 = tvec & XTVEC_FULL_MODE;
@@ -2377,10 +2380,22 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         target_ulong stvec = GET_SPECIAL_REG_ADDR(env, stvec, stvecc);
         target_ulong new_pc = (stvec >> 2 << 2) +
             ((async && (stvec & 3) == 1) ? cause * 4 : 0);
-        new_pc =
-            riscv_intr_pc(env, stvec, GET_SPECIAL_REG_ADDR(env, stvt, stvtc),
-                          async, cause & SCAUSE_EXCCODE, PRV_S);
-        riscv_update_pc_for_exc_handler(env, &env->stvecc, new_pc);
+        cap_or_tulong *tvtentry = NULL;
+#ifdef TARGET_CHERI
+        tvtentry = &env->stvtentryc[0];
+        cap_register_t auth_cap = env->stvecc;
+#else
+        target_ulong auth_cap = 0;
+#endif
+
+        new_pc = riscv_intr_pc(
+            env, stvec, GET_SPECIAL_REG_ADDR(env, stvt, stvtc), async,
+            cause & SCAUSE_EXCCODE, PRV_S, tvtentry, &auth_cap);
+        /*
+         * need to update here so that we return a capability and use it for
+         * the update
+         */
+        riscv_update_pc_for_exc_handler(env, &auth_cap, new_pc);
         env->htinst = tinst;
         riscv_cpu_set_mode(env, PRV_S);
     } else {
@@ -2438,9 +2453,17 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         target_ulong mtvec = GET_SPECIAL_REG_ADDR(env, mtvec, mtvecc);
         target_ulong new_pc = (mtvec >> 2 << 2) +
             ((async && (mtvec & 3) == 1) ? cause * 4 : 0);
-        new_pc =
-            riscv_intr_pc(env, mtvec, GET_SPECIAL_REG_ADDR(env, mtvt, mtvtc),
-                          async, cause & MCAUSE_EXCCODE, PRV_M);
+        cap_or_tulong *tvtentry = NULL;
+
+#ifdef TARGET_CHERI
+        tvtentry = &env->mtvtentryc[0];
+        cap_register_t auth_cap = env->mtvecc;
+#else
+        target_ulong auth_cap = 0;
+#endif
+        new_pc = riscv_intr_pc(
+            env, mtvec, GET_SPECIAL_REG_ADDR(env, mtvt, mtvtc), async,
+            cause & MCAUSE_EXCCODE, PRV_M, tvtentry, &auth_cap);
 
         /*
          * This checks that the exception handler is at the same address that
@@ -2459,7 +2482,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
             exit(EXIT_FAILURE);
         }
 
-        riscv_update_pc_for_exc_handler(env, &env->mtvecc, new_pc);
+        riscv_update_pc_for_exc_handler(env, &auth_cap, new_pc);
         env->mtinst = tinst;
         riscv_cpu_set_mode(env, PRV_M);
     }
