@@ -170,6 +170,8 @@
 #define CSR_MTVAL           0x343
 #define CSR_MIP             0x344
 #define CSR_MNXTI           0x345 /* clic-spec-draft */
+#define CSR_MSCRATCHCSW     0x348 /* codasip-clic */
+#define CSR_MSCRATCHCSWL    0x349 /* codasip-clic */
 #define CSR_MINTSTATUS      0xfb1 /* clic-spec-draft */
 #define CSR_MINTTHRESH      0x347 /* clic-spec-draft */
 
@@ -221,6 +223,8 @@
 #define CSR_STVAL           0x143
 #define CSR_SIP             0x144
 #define CSR_SNXTI           0x145 /* clic-spec-draft */
+#define CSR_SSCRATCHCSW     0x112 /* codasip-clic */
+#define CSR_SSCRATCHCSWL    0x113 /* codasip-clic */
 #define CSR_SINTSTATUS      0xdb1 /* clic-spec-draft */
 #define CSR_SINTTHRESH      0x147 /* clic-spec-draft */
 
