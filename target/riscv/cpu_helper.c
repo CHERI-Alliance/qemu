@@ -2132,6 +2132,9 @@ static target_ulong riscv_intr_pc(CPURISCVState *env, target_ulong tvec,
                          * capability too.
                          */
                         new_pc = ldn_p(host, size);
+#ifdef TARGET_CHERI
+                        *auth_cap = xtvtentry[new_pc & 1];
+#endif
                         host = tlb_vaddr_to_host(env, new_pc,
                                                  MMU_INST_FETCH, mode);
                     }
