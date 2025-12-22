@@ -2353,6 +2353,66 @@ static RISCVException write_sscratch(CPURISCVState *env, int csrno,
     return RISCV_EXCP_NONE;
 }
 
+static RISCVException rmw_xscratchcsw(CPURISCVState *env, int csrno,
+                                      target_ulong *ret_val,
+                                      target_ulong new_val,
+                                      target_ulong wr_mask)
+{
+    target_ulong mode = get_field(env->mstatus, MSTATUS_MPP);
+    target_ulong *xscratch = NULL;
+#ifndef TARGET_CHERI
+    /* Figure out which scratch register is needed */
+    if (env->priv == PRV_M) {
+        xscratch = &env->mscratch;
+    } else {
+        xscratch = &env->sscratch;
+    }
+#endif
+    if (env->priv == mode) {
+        *ret_val = new_val;
+    } else {
+        *ret_val = *xscratch;
+        *xscratch = new_val;
+    }
+
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException rmw_xscratchcswl(CPURISCVState *env, int csrno,
+                                       target_ulong *ret_val,
+                                       target_ulong new_val,
+                                       target_ulong wr_mask)
+{
+    target_ulong *xscratch = NULL;
+#ifndef TARGET_CHERI
+    /* Figure out which scratch register is needed */
+    if (env->priv == PRV_M) {
+        xscratch = &env->mscratch;
+    } else {
+        xscratch = &env->sscratch;
+    }
+#endif
+
+    int cause_pil, status_mil;
+    status_mil = get_field(env->mintstatus, MINTSTATUS_MIL);
+    if (env->priv == PRV_M) {
+        cause_pil = get_field(env->mcause, MCAUSE_MPIL);
+    } else if (env->priv == PRV_S) {
+        cause_pil = get_field(env->scause, SCAUSE_SPIL);
+    } else {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "CSR: rmw xscratchcswl with unsupported mode\n");
+        exit(1);
+    }
+    if ((cause_pil == 0) != (status_mil == 0)) {
+        *ret_val = *xscratch;
+        *xscratch = new_val;
+    } else {
+        *ret_val = new_val;
+    }
+    return RISCV_EXCP_NONE;
+}
+
 static RISCVException read_sepc(CPURISCVState *env, int csrno,
                                 target_ulong *val)
 {
@@ -4531,7 +4591,8 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_MCAUSE]   = { "mcause",   any,  read_mcause,   write_mcause   },
     [CSR_MTVAL]    = { "mtval",    any,  read_mtval,    write_mtval    },
     [CSR_MIP]      = { "mip",      any,  NULL,    NULL, rmw_mip        },
-
+    [CSR_MSCRATCHCSW] = { "mscratchcsw" , any, NULL, NULL, rmw_xscratchcsw },
+    [CSR_MSCRATCHCSWL] = { "mscratchcswl" , any, NULL, NULL, rmw_xscratchcswl },
     /* Machine-Level Window to Indirectly Accessed Registers (AIA) */
     [CSR_MISELECT] = { "miselect", aia_any,   NULL, NULL,    rmw_xiselect },
     [CSR_MIREG]    = { "mireg",    aia_any,   NULL, NULL,    rmw_xireg },
@@ -4569,6 +4630,8 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_SIE]        = { "sie",        smode, NULL,   NULL,    rmw_sie          },
     [CSR_STVEC]      = { "stvec",      smode, read_stvec,      write_stvec      },
     [CSR_SCOUNTEREN] = { "scounteren", smode, read_scounteren, write_scounteren },
+    [CSR_SSCRATCHCSW] = { "sscratchcsw" , any, NULL, NULL, rmw_xscratchcsw },
+    [CSR_SSCRATCHCSWL] = { "sscratchcswl" , any, NULL, NULL, rmw_xscratchcswl },
 
     /* Supervisor Trap Handling */
     [CSR_SSCRATCH] = { "sscratch", smode, read_sscratch, write_sscratch, NULL,
