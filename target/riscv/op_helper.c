@@ -392,12 +392,16 @@ void helper_cbo_inval_cap(CPURISCVState *env, uint32_t addr_reg)
 {
     uintptr_t _host_return_address = GETPC();
     RISCVCPU *cpu = env_archcpu(env);
-    uint32_t perms_req = CAP_PERM_STORE | CAP_PERM_LOAD | CAP_ACCESS_SYS_REGS;
+    uint32_t perms_req = CAP_PERM_STORE | CAP_PERM_LOAD;
 
     /* Note: Capability checks are performed even when treated as flush */
     check_zicbo_envcfg(env, MENVCFG_CBIE, _host_return_address);
     uint32_t auth_reg = cheri_in_capmode(env) ? addr_reg : CHERI_EXC_REGNUM_DDC;
     const cap_register_t *auth_cap = get_capreg_or_special(env, auth_reg);
+    if (!cheri_have_access_sysregs(env)) {
+        raise_cheri_exception(env, CapEx_AccessSystemRegsViolation,
+                              CHERI_EXC_REGNUM_PCC);
+    }
     if (!auth_cap->cr_tag) {
         raise_cheri_exception(env, CapEx_TagViolation, auth_reg);
     }
