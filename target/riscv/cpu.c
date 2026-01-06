@@ -1383,7 +1383,12 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
 #endif
 
     riscv_cpu_register_gdb_regs_for_features(cs);
-
+    if (!cpu->cfg.ext_smclic &&
+        (cpu->cfg.ext_ssclic || cpu->cfg.ext_smclicconfig ||
+         cpu->cfg.ext_smclicshv)) {
+        error_setg(errp, "required smclic is not enabled");
+        return;
+    }
     qemu_init_vcpu(cs);
 #ifdef CONFIG_DEBUG_TCG
     env->_pc_is_current = true;
@@ -1571,6 +1576,12 @@ static Property riscv_cpu_extensions[] = {
 
     /* Vendor-specific custom extensions */
     DEFINE_PROP_BOOL("xventanacondops", RISCVCPU, cfg.ext_XVentanaCondOps, false),
+
+    /* clic - not yet ratified */
+    DEFINE_PROP_BOOL("smclic", RISCVCPU, cfg.ext_smclic, false),
+    DEFINE_PROP_BOOL("ssclic", RISCVCPU, cfg.ext_ssclic, false),
+    DEFINE_PROP_BOOL("smclicshv", RISCVCPU, cfg.ext_smclicshv, false),
+    DEFINE_PROP_BOOL("smclicconfig", RISCVCPU, cfg.ext_smclicconfig, false),
 
     /* These are experimental so mark with 'x-' */
     DEFINE_PROP_BOOL("x-j", RISCVCPU, cfg.ext_j, false),
