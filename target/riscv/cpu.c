@@ -411,8 +411,13 @@ static void rv32_codasip_l730_cpu_init(Object *obj)
     cpu->cfg.ext_zcf = true;
     cpu->cfg.ext_zbkb = true;
     cpu->cfg.ext_zihintpause = true;
+
+    cpu->cfg.ext_smclic = true;
+    cpu->cfg.ext_ssclic =true;
+    cpu->cfg.ext_smclicshv =true;
+    cpu->cfg.ext_smclicconfig =true;
 }
-#endif
+#endif 
 
 #if defined(CONFIG_KVM)
 static void riscv_host_cpu_init(Object *obj)
