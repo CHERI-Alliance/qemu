@@ -379,12 +379,36 @@ static RISCVException epmp(CPURISCVState *env, int csrno)
 
     return RISCV_EXCP_ILLEGAL_INST;
 }
+
+/*
+ * clic predicate function, validate both the presence of a clic as well
+ * as extension support against the requested register
+ */
 static int clic(CPURISCVState *env, int csrno)
 {
-    if (env->clic) {
-        return RISCV_EXCP_NONE;
-    }
+    bool smclic = env_archcpu(env)->cfg.ext_smclic;
+    bool ssclic = env_archcpu(env)->cfg.ext_ssclic;
 
+    if ((!env->clic) || (!smclic)) {
+        return RISCV_EXCP_ILLEGAL_INST;
+    }
+    switch (csrno) {
+    case CSR_MTVT:
+    case CSR_MNXTI:
+    case CSR_MINTSTATUS:
+    case CSR_MINTTHRESH:
+        return RISCV_EXCP_NONE;
+    case CSR_STVT:
+    case CSR_SNXTI:
+    case CSR_SINTSTATUS:
+    case CSR_SINTTHRESH:
+        if (ssclic) {
+            return RISCV_EXCP_NONE;
+        }
+        break;
+    default:
+        return RISCV_EXCP_ILLEGAL_INST;
+    }
     return RISCV_EXCP_ILLEGAL_INST;
 }
 
