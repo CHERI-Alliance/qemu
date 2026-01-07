@@ -1698,7 +1698,8 @@ static RISCVException write_mtvec(CPURISCVState *env, int csrno,
      */
     /* Codasip CLIC implementation hardwires xtvec mode 000011b */
 
-    if (env->clic) {
+    RISCVCPU *cpu = env_archcpu(env);
+    if (cpu->cfg.ext_smclic && env->clic) {
         /* Codasip CLIC hardwires the tvec mode to vectored */
         val &= (~0x3f);
         val |= 0x3;
@@ -1708,7 +1709,7 @@ static RISCVException write_mtvec(CPURISCVState *env, int csrno,
     /* bits [1:0] encode mode; 0 = direct, 1 = vectored, 2 >= reserved */
     if (mode <= XTVEC_CLINT_VECTORED) {
         SET_SPECIAL_REG(env, mtvec, mtvecc, val);
-    } else if (XTVEC_CLIC == fullmode && env->clic) {
+    } else if (XTVEC_CLIC == fullmode && cpu->cfg.ext_smclic && env->clic) {
         /*
          * CLIC mode hardwires xtvec bits 2-5 to zero.
          * Layout:
@@ -2071,6 +2072,9 @@ static int rmw_mnxti(CPURISCVState *env, int csrno, target_ulong *ret_value,
     bool ready;
     bool locked = false;
 
+    RISCVCPU *cpu = env_archcpu(env);
+
+    assert(cpu->cfg.ext_smclic && "mnxti regs are clic only");
     if (write_mask) {
         env->mstatus |= new_value & (write_mask & MSTATUS_WRITE_MASK);
     }
@@ -2291,6 +2295,12 @@ static RISCVException read_stvec(CPURISCVState *env, int csrno,
 static RISCVException write_stvec(CPURISCVState *env, int csrno,
                                   target_ulong val)
 {
+    RISCVCPU *cpu = env_archcpu(env);
+    if (cpu->cfg.ext_smclic && env->clic) {
+        /* Codasip CLIC hardwires the tvec mode to vectored */
+        val &= (~0x3f);
+        val |= 0x3;
+    }
     /*
      * bits [1:0] encode mode; 0 = direct, 1 = vectored, 3 = CLIC,
      * others reserved
@@ -2299,7 +2309,7 @@ static RISCVException write_stvec(CPURISCVState *env, int csrno,
     target_ulong fullmode = val & XTVEC_FULL_MODE;
     if (mode <= XTVEC_CLINT_VECTORED) {
         SET_SPECIAL_REG(env, stvec, stvecc, val);
-    } else if (XTVEC_CLIC == fullmode && env->clic) {
+    } else if (XTVEC_CLIC == fullmode && cpu->cfg.ext_smclic && env->clic) {
         /*
          * If only CLIC mode is supported, writes to bit 1 are also ignored and
          * it is always set to one. CLIC mode hardwires xtvec bits 2-5 to zero.
@@ -2606,6 +2616,13 @@ static int rmw_snxti(CPURISCVState *env, int csrno, target_ulong *ret_value,
     int clic_priv, clic_il, clic_irq;
     bool ready;
     bool locked = false;
+    RISCVCPU *cpu = env_archcpu(env);
+
+    assert(cpu->cfg.ext_smclic && "mnxti regs are clic only");
+    if (write_mask) {
+        env->mstatus |= new_value & (write_mask & MSTATUS_WRITE_MASK);
+    }
+
     if (write_mask) {
         env->mstatus |= new_value & (write_mask & MSTATUS_WRITE_MASK);
     }
@@ -4036,9 +4053,10 @@ static void write_xtvecc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
 {
     bool valid = true;
     cap_register_t *csr = get_cap_csr(env, csr_cap_info->reg_num);
-    /* The low two bits encode the mode, but only 0 and 1 are valid. */
+    RISCVCPU *cpu = env_archcpu(env);
 
-    if (env->clic) {
+    /* The low two bits encode the mode, but only 0 and 1 are valid. */
+    if (cpu->cfg.ext_smclic && env->clic) {
         /* Codasip CLIC hardwires the tvec mode to vectored */
         new_tvec &= (~0x3f);
         new_tvec |= 0x3;

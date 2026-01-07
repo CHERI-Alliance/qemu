@@ -1098,7 +1098,10 @@ bool riscv_clic_is_clic_mode(CPURISCVState *env)
     target_ulong xtvec = (env->priv == PRV_M) ?
         GET_SPECIAL_REG_ARCH(env, mtvec, mtvecc) :
         GET_SPECIAL_REG_ARCH(env, stvec, stvecc);
-    return env->clic && ((xtvec & XTVEC_MODE) == XTVEC_CLIC);
+
+    RISCVCPU *cpu = env_archcpu(env);
+    return cpu->cfg.ext_smclic && env->clic &&
+           ((xtvec & XTVEC_MODE) == XTVEC_CLIC);
 }
 
 void riscv_clic_decode_exccode(uint32_t exccode, int *mode,

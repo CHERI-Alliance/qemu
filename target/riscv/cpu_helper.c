@@ -1868,6 +1868,8 @@ static target_ulong riscv_intr_pc(CPURISCVState *env, target_ulong tvec,
     int mode1 = tvec & XTVEC_MODE;
     int mode2 = tvec & XTVEC_FULL_MODE;
 
+    RISCVCPU *cpu = env_archcpu(env);
+
     if (!async) {
         return tvec & XTVEC_OBASE;
     }
@@ -1878,9 +1880,10 @@ static target_ulong riscv_intr_pc(CPURISCVState *env, target_ulong tvec,
     case XTVEC_CLINT_VECTORED:
         return (tvec & XTVEC_OBASE) + cause * 4;
     default:
-        if (env->clic && (mode2 == XTVEC_CLIC)) {
+        if (cpu->cfg.ext_smclic && env->clic && (mode2 == XTVEC_CLIC)) {
             /* Non-vectored, clicintattr[i].shv = 0 || cliccfg.nvbits = 0 */
-            if (!riscv_clic_shv_interrupt(env->clic, cause)) {
+            if ((!cpu->cfg.ext_smclicshv) ||
+                (!riscv_clic_shv_interrupt(env->clic, cause))) {
                 /* NBASE = mtvec[XLEN-1:6]<<6 */
                 return tvec & XTVEC_NBASE;
             } else {
