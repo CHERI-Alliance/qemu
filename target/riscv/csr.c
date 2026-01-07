@@ -4143,18 +4143,29 @@ static void write_xtvecc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
     bool valid = true;
     cap_register_t *csr = get_cap_csr(env, csr_cap_info->reg_num);
     RISCVCPU *cpu = env_archcpu(env);
-
-    /* The low two bits encode the mode, but only 0 and 1 are valid. */
     if (cpu->cfg.ext_smclic && env->clic) {
         /* Codasip CLIC hardwires the tvec mode to vectored */
         new_tvec &= (~0x3f);
         new_tvec |= 0x3;
+    }
+    target_ulong mode = get_field(new_tvec, XTVEC_MODE);
+    target_ulong fullmode = new_tvec & XTVEC_FULL_MODE;
+    /* bits [1:0] encode mode; 0 = direct, 1 = vectored, 2 >= reserved */
+    if (mode <= XTVEC_CLINT_VECTORED) {
+        /* Do nothing */
+    } else if (XTVEC_CLIC == fullmode && cpu->cfg.ext_smclic && env->clic) {
+        new_tvec = (new_tvec & XTVEC_NBASE) | XTVEC_CLIC;
+        /*
+         * CLIC mode hardwires xtvec bits 2-5 to zero.
+         * Layout:
+         *   XLEN-1:6   base (WARL)
+         *   5:2        submode (WARL)  - 0000 for CLIC
+         *   1:0        mode (WARL)     - 11 for CLIC
+         */
     } else {
-        if ((new_tvec & 3) > 1) {
-            /* Invalid mode, keep the old one. */
-            new_tvec &= ~(target_ulong)3;
-            new_tvec |= cap_get_cursor(csr) & 3;
-        }
+        new_tvec &= ~(target_ulong)3;
+        new_tvec |= cap_get_cursor(csr) & 3;
+        qemu_log_mask(LOG_UNIMP, "CSR_XTVECC: reserved mode not supported\n");
     }
 
     // the function needs to know if if it using the src capability or the csr's
