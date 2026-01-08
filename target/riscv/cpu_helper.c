@@ -1861,7 +1861,7 @@ typedef target_ulong cap_or_tulong;
 #endif /* TARGET_CHERI */
 
 static target_ulong riscv_intr_pc(CPURISCVState *env, target_ulong tvec,
-                                  target_ulong tvt, bool async, int cause,
+                                  cap_or_tulong tvt, bool async, int cause,
                                   int mode, cap_or_tulong *xtvtentry,
                                   cap_or_tulong *auth_cap)
 {
@@ -1892,7 +1892,12 @@ static target_ulong riscv_intr_pc(CPURISCVState *env, target_ulong tvec,
                  * TBASE = mtvt[XLEN-1:6]<<6
                  */
                 int size = TARGET_LONG_BITS / 8;
+#ifdef TARGET_CHERI
+                target_ulong tbase =
+                    (cap_get_cursor(&tvt) & XTVEC_NBASE) + size * cause;
+#else
                 target_ulong tbase = (tvt & XTVEC_NBASE) + size * cause;
+#endif
                 void *host = tlb_vaddr_to_host(env, tbase, MMU_DATA_LOAD, mode);
                 if (host != NULL) {
                     target_ulong new_pc = tbase;
@@ -2142,13 +2147,14 @@ void riscv_cpu_do_interrupt(CPUState *cs)
 #ifdef TARGET_CHERI
         tvtentry = &env->stvtentryc[0];
         cap_register_t auth_cap = env->stvecc;
+        cap_register_t stvt = env->stvtc;
 #else
         target_ulong auth_cap = 0;
+        target_ulong stvt = env->stvt;
 #endif
 
-        new_pc = riscv_intr_pc(
-            env, stvec, GET_SPECIAL_REG_ADDR(env, stvt, stvtc), async,
-            cause & SCAUSE_EXCCODE, PRV_S, tvtentry, &auth_cap);
+        new_pc = riscv_intr_pc(env, stvec, stvt, async, cause & SCAUSE_EXCCODE,
+                               PRV_S, tvtentry, &auth_cap);
         /* need to update here so that we return a capability and use it for
         the update */
         riscv_update_pc_for_exc_handler(env, &auth_cap, new_pc);
@@ -2213,12 +2219,14 @@ void riscv_cpu_do_interrupt(CPUState *cs)
 #ifdef TARGET_CHERI
         tvtentry = &env->mtvtentryc[0];
         cap_register_t auth_cap = env->mtvecc;
+        cap_register_t mtvt = env->mtvtc;
 #else
         target_ulong auth_cap = 0;
+        target_ulong mtvt = env->mtvt;
 #endif
-        new_pc = riscv_intr_pc(
-            env, mtvec, GET_SPECIAL_REG_ADDR(env, mtvt, mtvtc), async,
-            cause & MCAUSE_EXCCODE, PRV_M, tvtentry, &auth_cap);
+
+        new_pc = riscv_intr_pc(env, mtvec, mtvt, async, cause & MCAUSE_EXCCODE,
+                               PRV_M, tvtentry, &auth_cap);
 
         /*
          * This checks that the exception handler is at the same address that
