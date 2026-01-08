@@ -1860,6 +1860,12 @@ typedef target_ulong cap_or_tulong;
     } while (false)
 #endif /* TARGET_CHERI */
 
+#ifdef TARGET_RISCV64
+#define cpu_ldtl_mmuidx_ra cpu_ldq_mmuidx_ra
+#else
+#define cpu_ldtl_mmuidx_ra cpu_ldl_mmuidx_ra
+#endif
+
 static target_ulong riscv_intr_pc(CPURISCVState *env, target_ulong tvec,
                                   cap_or_tulong tvt, bool async, int cause,
                                   int mode, cap_or_tulong *xtvtentry,
@@ -1895,37 +1901,44 @@ static target_ulong riscv_intr_pc(CPURISCVState *env, target_ulong tvec,
 #ifdef TARGET_CHERI
                 target_ulong tbase =
                     (cap_get_cursor(&tvt) & XTVEC_NBASE) + size * cause;
+                /*
+                 * We expect the new PC will be inspected for cheri flags
+                 * when it is installed.
+                 * so we only need to check the vector table itself here.
+                 * */
+                tvt = cap_scaddr(tbase, tvt);
+                uintptr_t _host_return_address = GETPC();
+                if (!tvt.cr_tag) {
+                    raise_cheri_exception(env, CapEx_TagViolation, tbase);
+                } else if (!cap_is_unsealed(&tvt)) {
+                    raise_cheri_exception(env, CapEx_SealViolation, tbase);
+                } else if (!cap_has_perms(&tvt, CAP_PERM_LOAD)) {
+                    raise_cheri_exception(env, CapEx_PermitLoadViolation,
+                                          tbase);
+                } else if (!cap_has_perms(&tvt, CAP_PERM_EXECUTE)) {
+                    raise_cheri_exception(env, CapEx_PermitExecuteViolation,
+                                          tbase);
+                }
+                if (!cap_is_in_bounds(&tvt, tbase, size)) {
+                    qemu_log_instr_or_mask_msg(
+                        env, CPU_LOG_INT,
+                        "Failed capability bounds check: addr=" TARGET_FMT_ld
+                        " base=" TARGET_FMT_lx " top=" TARGET_FMT_lx "\n",
+                        tbase, cap_get_cursor(&tvt), cap_get_top(&tvt));
+                    raise_cheri_exception(env, CapEx_LengthViolation, tbase);
+                }
 #else
                 target_ulong tbase = (tvt & XTVEC_NBASE) + size * cause;
 #endif
-                void *host = tlb_vaddr_to_host(env, tbase, MMU_DATA_LOAD, mode);
-                if (host != NULL) {
-                    target_ulong new_pc = tbase;
-                    if (!riscv_clic_use_jump_table(env->clic)) {
-                        /*
-                         * Standard CLIC: the vector entry is a function pointer
-                         * so look up the destination.
-                         * Fetch the entry and use it as a tvtenry where the
-                         * bottom bit selects the authorizing capability, and
-                         * the remainig bits are applied with scaddr. First we
-                         * should fix these fetches to go through the correct
-                         * read path... so the tvt needs to be provided as a
-                         * capability too.
-                         */
-                        new_pc = ldn_p(host, size);
+                target_ulong new_pc = tbase;
+                if (!riscv_clic_use_jump_table(env->clic)) {
+                    int mmu_idx = cpu_mmu_index(&cpu->env, false);
+                    new_pc = cpu_ldtl_mmuidx_ra(env, tbase, mmu_idx, GETPC());
 #ifdef TARGET_CHERI
-                        *auth_cap = xtvtentry[new_pc & 1];
+                    *auth_cap = xtvtentry[new_pc & 1];
 #endif
-                        host = tlb_vaddr_to_host(env, new_pc,
-                                                 MMU_INST_FETCH, mode);
-                    }
-                    if (host) {
-                        return new_pc;
-                    }
                 }
-                qemu_log_mask(LOG_GUEST_ERROR,
-                              "CLIC: load trap handler error!\n");
-                exit(1);
+                return new_pc;
             }
         }
         g_assert_not_reached();
