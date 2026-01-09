@@ -799,7 +799,7 @@ typedef enum RISCVException {
 #define RISCV_EXCP_CLIC_MODE               (3 << RISCV_EXCP_CLIC_MODE_SHIFT)
 #define RISCV_EXCP_CLIC_IRQ                0x00000fff
 #define RISCV_EXCP_INT_MASK                0x7fffffff
-
+#define RISCV_CAUSE_INHV                   0x40000000
 /* Interrupt causes */
 #define IRQ_U_SOFT                         0
 #define IRQ_S_SOFT                         1

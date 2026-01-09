@@ -1515,6 +1515,17 @@ static void raise_mmu_exception(CPURISCVState *env, target_ulong address,
     default:
         g_assert_not_reached();
     }
+    /*
+     * At this point we should now check if we were performing a CLIC vector
+     * table lookup and if so set the inhv bit in the execption index...
+     */
+    RISCVCPU *cpu = RISCV_CPU(cs);
+    if (cpu->cfg.ext_smclic) {
+        if (env->xtvt_fetch) {
+            cs->exception_index |= RISCV_CAUSE_INHV;
+            env->xtvt_fetch = false;
+        }
+    }
     if (pmp_violation) {
         /* CHERI and MMU checks passed, so we update mem_addr to match sail. */
         rvfi_dii_update_mem_addr(env, access_type, address);
@@ -1906,7 +1917,9 @@ static target_ulong riscv_intr_pc(CPURISCVState *env, target_ulong tvec,
                  * when it is installed.
                  * so we only need to check the vector table itself here.
                  * */
+                env->xtvt_fetch = true;
                 tvt = cap_scaddr(tbase, tvt);
+
                 uintptr_t _host_return_address = GETPC();
                 if (!tvt.cr_tag) {
                     raise_cheri_exception(env, CapEx_TagViolation, tbase);
@@ -1928,12 +1941,14 @@ static target_ulong riscv_intr_pc(CPURISCVState *env, target_ulong tvec,
                     raise_cheri_exception(env, CapEx_LengthViolation, tbase);
                 }
 #else
+                env->xtvt_fetch = true;
                 target_ulong tbase = (tvt & XTVEC_NBASE) + size * cause;
 #endif
                 target_ulong new_pc = tbase;
                 if (!riscv_clic_use_jump_table(env->clic)) {
                     int mmu_idx = cpu_mmu_index(&cpu->env, false);
                     new_pc = cpu_ldtl_mmuidx_ra(env, tbase, mmu_idx, GETPC());
+                    env->xtvt_fetch = false;
 #ifdef TARGET_CHERI
                     *auth_cap = xtvtentry[new_pc & 1];
 #endif
@@ -1967,7 +1982,10 @@ void riscv_cpu_do_interrupt(CPUState *cs)
      */
     bool clic = !!(cs->exception_index & RISCV_EXCP_CLIC);
     bool async = !!(cs->exception_index & RISCV_EXCP_INT_FLAG) || clic;
-    target_ulong cause = cs->exception_index & RISCV_EXCP_INT_MASK;
+    target_ulong cause =
+        cs->exception_index & (RISCV_EXCP_INT_MASK & ~RISCV_CAUSE_INHV);
+    uint32_t xinhv =
+        (cs->exception_index & cpu->cfg.ext_smclic) ? RISCV_CAUSE_INHV : 0;
     uint64_t deleg = async ? env->mideleg : env->medeleg;
     target_ulong tval = 0;
     target_ulong htval = 0;
@@ -2112,7 +2130,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
                 htval = env->guest_phys_fault_addr;
 
                 riscv_cpu_set_virt_enabled(env, 0);
-            } else {
+
                 /* Trap into HS mode */
                 env->hstatus = set_field(env->hstatus, HSTATUS_SPV, false);
                 htval = env->guest_phys_fault_addr;
@@ -2130,7 +2148,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         if (async) {
             cause = cause | SCAUSE_INT;
         }
-        env->scause = cause;
+        env->scause = cause | xinhv;
         riscv_log_instr_csr_changed(env, CSR_SCAUSE);
 
         COPY_SPECIAL_REG(env, sepc, sepcc, pc, pcc);
@@ -2199,7 +2217,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         if (async) {
             cause = cause | MCAUSE_INT;
         }
-        env->mcause = cause;
+        env->mcause = cause | xinhv;
         riscv_log_instr_csr_changed(env, CSR_MCAUSE);
 
         COPY_SPECIAL_REG(env, mepc, mepcc, pc, pcc);
