@@ -476,6 +476,9 @@ struct CPUArchState {
     /* True if in debugger mode.  */
     bool debugger;
 
+    /* True if dereferencing a tvt table load */
+    bool xtvt_fetch;
+
     /*
      * CSRs for PointerMasking extension
      */
