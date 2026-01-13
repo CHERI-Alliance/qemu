@@ -183,7 +183,6 @@ typedef enum CheriExecMode {
 } CheriExecMode;
 #endif
 
-
 typedef enum CheriTbFlags {
     /* CHERI PCC is tagged, executable and unsealed */
     TB_FLAG_CHERI_PCC_EXECUTABLE = (1 << 0),
