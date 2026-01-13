@@ -176,8 +176,8 @@ typedef enum CheriPermissions {
 } CheriPermissions;
 
 typedef enum CheriExecMode {
-    CHERI_EXEC_INTMODE = 0,
-    CHERI_EXEC_CAPMODE = 1,
+    CHERI_EXEC_INTMODE = CAP_CC(MODE_CAP),
+    CHERI_EXEC_CAPMODE = CAP_CC(MODE_INT),
 } CheriExecMode;
 
 typedef enum CheriTbFlags {
