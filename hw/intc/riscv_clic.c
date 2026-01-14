@@ -468,11 +468,10 @@ riscv_clic_hart_write(RISCVCLICState *clic, hwaddr addr,
         }
         break;
 
-    case 2: /* clicintattr[i] */
+    case 2: { /* clicintattr[i] */
         uint8_t field_mode = riscv_clic_effective_mode(clic, value);
         if (PRV_H == field_mode) {
-            field_mode = get_field(clic->clicintattr[irq],
-                                   CLIC_INTATTR_MODE);
+            field_mode = get_field(clic->clicintattr[irq], CLIC_INTATTR_MODE);
         }
         value = set_field(value, CLIC_INTATTR_MODE, field_mode);
         if (riscv_clic_validate_intattr(clic, value)) {
@@ -483,7 +482,7 @@ riscv_clic_hart_write(RISCVCLICState *clic, hwaddr addr,
                 }
             }
         }
-        break;
+    } break;
 
     case 3: /* clicintctl[i] */
         if (value != clic->clicintctl[irq]) {
@@ -512,7 +511,7 @@ riscv_clic_hart_read(RISCVCLICState *clic, hwaddr addr, unsigned size,
     }
 
     switch (req) {
-    case 0: /* clicintip[i] */
+    case 0: { /* clicintip[i] */
         uint64_t retval = clic->clicintip[irq];
         if (size > 1) {
             /* Handle a multi-part read */
@@ -523,10 +522,10 @@ riscv_clic_hart_read(RISCVCLICState *clic, hwaddr addr, unsigned size,
             }
         }
         return retval;
-
+    }
     case 1: /* clicintie[i] */
         return clic->clicintie[irq];
-    case 2: /* clicintattr[i] */
+    case 2: { /* clicintattr[i] */
         /*
          * clicintattr register layout
          * Bits Field
@@ -539,7 +538,7 @@ riscv_clic_hart_read(RISCVCLICState *clic, hwaddr addr, unsigned size,
         int field_mode = riscv_clic_effective_mode(clic, intattr);
         intattr = set_field(intattr, CLIC_INTATTR_MODE, field_mode);
         return intattr;
-
+    }
     case 3: /* clicintctl[i] */
         /*
          * The implemented bits are kept left-justified in the most-significant
@@ -707,7 +706,7 @@ riscv_clic_read(void *opaque, hwaddr addr, unsigned size)
         assert(addr % 4 == 0);
         int index = addr / 4;
         switch (index) {
-        case 0:
+        case 0: {
             /*
              * cliccfg register layout
              *
@@ -731,8 +730,8 @@ riscv_clic_read(void *opaque, hwaddr addr, unsigned size)
                 cliccfg |= clic->unlbits << 24;
             }
             return cliccfg;
-
-        case CLIC_INTTRIG_START ... CLIC_INTTRIG_END: /* clicinttrig */
+        }
+        case CLIC_INTTRIG_START ... CLIC_INTTRIG_END: { /* clicinttrig */
             /*
              * clicinttrig register layout
              *
@@ -743,7 +742,7 @@ riscv_clic_read(void *opaque, hwaddr addr, unsigned size)
              */
             uint64_t inttrig = clic->clicinttrig[index - CLIC_INTTRIG_START];
             return inttrig & CLIC_INTTRIG_MASK;
-
+        }
         case 2: /* mintthresh - only in CLIC spec v0.8 */
             if (0 == strcmp(clic->version, "v0.8")) {
                 return clic->mintthresh;
