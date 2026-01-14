@@ -12,7 +12,8 @@ permissions:
 
 jobs:
   build-and-test:
-    runs-on: ubuntu-22.04
+    runs-on: the-capable-hub-aws-ci-amd64
+    container: capablehub/tch-ubuntu-24-builder
 
     steps:
       - uses: actions/checkout@v5
