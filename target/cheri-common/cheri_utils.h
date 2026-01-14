@@ -39,13 +39,14 @@
 
 #ifdef TARGET_CHERI
 #ifdef TARGET_AARCH64
-#define PRINT_CAP_MODE(cr) (unsigned)(cap_get_cursor(cr) & 1)
+#define PRINT_CAP_MODE(cr) (cap_get_cursor(cr) & 1) ? "CAP" : "INT"
 #else
-#define PRINT_CAP_MODE(cr) (unsigned)cap_get_exec_mode(cr)
+#define PRINT_CAP_MODE(cr)                                                     \
+    cap_get_exec_mode(cr) == CHERI_EXEC_CAPMODE ? "CAP" : "INT"
 #endif
 #define PRINT_CAP_FMTSTR                                                       \
-    "v:%d m:%d p:%2x ct:" TARGET_FMT_ld " b:" TARGET_FMT_lx                    \
-    " a:" TARGET_FMT_lx " t:" TARGET_FMT_lx " bv: %d"
+    "v:%d %s p:%2x ct:" TARGET_FMT_ld " b:" TARGET_FMT_lx " a:" TARGET_FMT_lx  \
+    " t:" TARGET_FMT_lx " bv: %d"
 #define PRINT_CAP_ARGS(cr)                                                     \
     (cr)->cr_tag, PRINT_CAP_MODE(cr), (unsigned)cap_get_all_perms(cr),         \
         cap_get_otype_signext(cr), cap_get_base(cr), cap_get_cursor(cr),       \
