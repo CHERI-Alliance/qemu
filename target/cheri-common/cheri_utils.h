@@ -241,22 +241,22 @@ static inline void cap_set_perms(CPUArchState *env, cap_register_t *c,
 }
 
 #ifndef TARGET_AARCH64
+
+/* Accessors handle mapping Arch specific CAP_CC mode to
+ * CHERI_EXEC_MODE
+ */
 static inline CheriExecMode cap_get_exec_mode(const cap_register_t *c)
 {
-    /*
-     * NB: For the RISC-V standard these values are inverted, but this will
-     * be handled by the next cheri-compressed-cap upgrade.
-     */
-    return CAP_cc(get_flags)(c) == 1 ? CHERI_EXEC_CAPMODE : CHERI_EXEC_INTMODE;
+    return CAP_cc(get_execution_mode)(c) == CAP_CC(MODE_CAP)
+               ? CHERI_EXEC_CAPMODE
+               : CHERI_EXEC_INTMODE;
 }
 
 static inline void cap_set_exec_mode(cap_register_t *c, CheriExecMode mode)
 {
-    /*
-     * NB: For the RISC-V standard these values are inverted, but this will
-     * be handled by the next cheri-compressed-cap upgrade.
-     */
-    CAP_cc(update_flags)(c, mode == CHERI_EXEC_CAPMODE ? 1 : 0);
+    bool ok = CAP_cc(set_execution_mode)(
+        c, mode == CHERI_EXEC_CAPMODE ? CAP_CC(MODE_CAP) : CAP_CC(MODE_INT));
+    assert(ok && "Setting execution mode on non-X capability?");
 }
 #endif
 
