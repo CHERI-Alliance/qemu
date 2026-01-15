@@ -86,7 +86,7 @@ static bool default_mttcg_enabled(void)
     if (icount_enabled() || TCG_OVERSIZED_GUEST) {
         return false;
     } else {
-#ifdef TARGET_SUPPORTS_MTTCG
+#if TARGET_SUPPORTS_MTTCG
         return check_tcg_memory_orders_compatible();
 #else
         return false;
@@ -154,7 +154,7 @@ static void tcg_set_thread(Object *obj, const char *value, Error **errp)
         } else if (icount_enabled()) {
             error_setg(errp, "No MTTCG when icount is enabled");
         } else {
-#ifndef TARGET_SUPPORTS_MTTCG
+#if TARGET_SUPPORTS_MTTCG != 1
             warn_report("Guest not yet converted to MTTCG - "
                         "you may get unexpected results");
 #endif
