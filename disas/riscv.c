@@ -2327,7 +2327,6 @@ const rv_opcode_data opcode_data[] = {
     [rv_op_csh] = { "sh", rv_codec_s, rv_fmt_rs2_offset_cs1, NULL, 0, 0, 0 },
     [rv_op_csw] = { "sw", rv_codec_s, rv_fmt_rs2_offset_cs1, NULL, 0, 0, 0 },
     [rv_op_csd] = { "sd", rv_codec_s, rv_fmt_rs2_offset_cs1, NULL, 0, 0, 0 },
-    [rv_op_csd] = { "csd", rv_codec_s, rv_fmt_rs2_offset_cs1, NULL, 0, 0, 0 },
 
     // compressed capmode loads
     [rv_op_c_lc] = { "lc", rv_codec_cl_lq, rv_fmt_cd_offset_cs1, NULL, 0, 0,
