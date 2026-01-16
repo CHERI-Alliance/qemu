@@ -175,10 +175,13 @@ typedef enum CheriPermissions {
 #endif
 } CheriPermissions;
 
+/* Morello has no explicit mode bit, we use the value of the C64 bit or LSB. */
+#ifndef TARGET_AARCH64
 typedef enum CheriExecMode {
-    CHERI_EXEC_INTMODE = 0,
-    CHERI_EXEC_CAPMODE = 1,
+    CHERI_EXEC_INTMODE = CAP_CC(MODE_INT),
+    CHERI_EXEC_CAPMODE = CAP_CC(MODE_CAP),
 } CheriExecMode;
+#endif
 
 typedef enum CheriTbFlags {
     /* CHERI PCC is tagged, executable and unsealed */

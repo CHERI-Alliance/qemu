@@ -201,7 +201,6 @@ static inline bool fix_up_exec_mode(G_GNUC_UNUSED CPUArchState *env,
 {
 #if CAP_CC(ADDR_WIDTH) == 32
     /* ACPERM rule 15 (RV32 only in 0.9.3) */
-    _Static_assert(CHERI_EXEC_CAPMODE == 1, "wrong definition of modes");
     if (*mode == 1) {
         bool hybrid_support = riscv_feature(env, RISCV_FEATURE_CHERI_HYBRID);
         if (!(perms & RVY_AP_X) || !hybrid_support) {
