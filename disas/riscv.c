@@ -574,7 +574,7 @@ typedef enum {
     rv_op_c_zext_w = 403,
     rv_op_c_not = 404,
     rv_op_c_mul = 405,
-    rv_op_c_lbu = 405,
+    rv_op_c_lbu = 406,
     rv_op_c_lhu = 407,
     rv_op_c_lh = 408,
     rv_op_c_sb = 409,
