@@ -413,9 +413,17 @@ static void rv32_codasip_l730_cpu_init(Object *obj)
     cpu->cfg.ext_zihintpause = true;
 
     cpu->cfg.ext_smclic = true;
-    cpu->cfg.ext_ssclic =true;
-    cpu->cfg.ext_smclicshv =true;
-    cpu->cfg.ext_smclicconfig =true;
+    cpu->cfg.ext_ssclic = true;
+    cpu->cfg.ext_smclicshv = true;
+    cpu->cfg.ext_smclicconfig = true;
+    cpu->cfg.ext_zfhmin = true;
+#if defined(TARGET_CHERI_RISCV_STD_093)
+    cpu->cfg.ext_zish4add = true;
+#endif
+
+    cpu->cfg.ext_zcb = true;
+    cpu->cfg.ext_zbkb = true;
+    cpu->cfg.ext_zihintpause = true;
 }
 #endif 
 
