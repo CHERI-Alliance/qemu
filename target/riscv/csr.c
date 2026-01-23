@@ -3894,6 +3894,10 @@ cap_register_t *get_cap_csr(CPUArchState *env, uint32_t index)
     case CSR_PCC:
         return &env->pcc;
 #endif
+    case CSR_MTVT:
+        return &env->mtvtc;
+    case CSR_STVT:
+        return &env->stvtc;
     default:
         assert(false && "Should have raised an invalid inst trap!");
     }
@@ -5310,12 +5314,18 @@ static riscv_csr_cap_ops csr_cap_ops[] = {
     { "vstvecc", CSR_VSTVECC, read_capcsr_reg, write_xtvecc, NULL,
       CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG |
           CSR_OP_IS_CODE_PTR },
+    { "mtvt", CSR_MTVT, read_capcsr_reg, write_cap_csr_reg, NULL,
+      CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG |
+          CSR_OP_IS_CODE_PTR },
     { "mtvtentry0c", CSR_MTVTENTRY0C, read_capcsr_reg, write_cap_csr_reg, NULL,
       CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG |
           CSR_OP_IS_CODE_PTR | CSR_OP_REQUIRE_CRE },
     { "mtvtentry1c", CSR_MTVTENTRY1C, read_capcsr_reg, write_cap_csr_reg, NULL,
       CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG |
           CSR_OP_IS_CODE_PTR | CSR_OP_REQUIRE_CRE },
+    { "stvt", CSR_STVT, read_capcsr_reg, write_cap_csr_reg, NULL,
+      CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG |
+          CSR_OP_IS_CODE_PTR },
     { "stvtentry0c", CSR_STVTENTRY0C, read_capcsr_reg, write_cap_csr_reg, NULL,
       CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG |
           CSR_OP_IS_CODE_PTR | CSR_OP_REQUIRE_CRE },
