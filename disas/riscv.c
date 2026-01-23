@@ -1676,11 +1676,16 @@ static const char *csr_name(int csrno)
     case 0x0104: return "sie";
     case 0x0105: return "stvec";
     case 0x0106: return "scounteren";
+    case 0x0107: return "stvt";
+    case 0x0112: return "sscratchcsw";
+    case 0x0113: return "sscratchcswl";
     case 0x0140: return "sscratch";
     case 0x0141: return "sepc";
     case 0x0142: return "scause";
     case 0x0143: return "stval";
     case 0x0144: return "sip";
+    case 0x0145: return "snxti";
+    case 0x0147: return "sintthresh";
     case 0x0180: return "satp";
     case 0x0200: return "hstatus";
     case 0x0202: return "hedeleg";
@@ -1699,6 +1704,7 @@ static const char *csr_name(int csrno)
     case 0x0304: return "mie";
     case 0x0305: return "mtvec";
     case 0x0306: return "mcounteren";
+    case 0x0307: return "mtvt";
     case 0x0320: return "mucounteren";
     case 0x0321: return "mscounteren";
     case 0x0322: return "mhcounteren";
@@ -1736,6 +1742,10 @@ static const char *csr_name(int csrno)
     case 0x0342: return "mcause";
     case 0x0343: return "mtval";
     case 0x0344: return "mip";
+    case 0x0345: return "mnxti";
+    case 0x0347: return "mintthresh";
+    case 0x0348: return "mscratchsw";
+    case 0x0349: return "mscratchswl";
     case 0x0380: return "mbase";
     case 0x0381: return "mbound";
     case 0x0382: return "mibase";
@@ -1759,6 +1769,9 @@ static const char *csr_name(int csrno)
     case 0x03bd: return "pmpaddr14";
     case 0x03be: return "pmpaddr13";
     case 0x03bf: return "pmpaddr15";
+    case 0x05f7: return "stvtscaddr";
+    case 0x05f8: return "stvtentry0c";
+    case 0x05f9: return "stvtentry1c";
     case 0x0747: return "mseccfg";
     case 0x030a: return "menvcfg";
     case 0x010a: return "senvcfg";
@@ -1774,6 +1787,9 @@ static const char *csr_name(int csrno)
     case 0x07b0: return "dcsr";
     case 0x07b1: return "dpc";
     case 0x07b2: return "dscratch";
+    case 0x07f7: return "mtvtscaddr";
+    case 0x07f8: return "mtvtentry0c";
+    case 0x07f9: return "mtvtentry1c";
     case 0x0b00: return "mcycle";
     case 0x0b01: return "mtime";
     case 0x0b02: return "minstret";
@@ -1850,6 +1866,7 @@ static const char *csr_name(int csrno)
     case 0x0d80: return "scycleh";
     case 0x0d81: return "stimeh";
     case 0x0d82: return "sinstreth";
+    case 0x0db1: return "sintstatus";
     case 0x0e00: return "hcycle";
     case 0x0e01: return "htime";
     case 0x0e02: return "hinstret";
@@ -1860,6 +1877,7 @@ static const char *csr_name(int csrno)
     case 0x0f12: return "marchid";
     case 0x0f13: return "mimpid";
     case 0x0f14: return "mhartid";
+    case 0x0fb1: return "mintstatus";
     default: return NULL;
     }
 }
