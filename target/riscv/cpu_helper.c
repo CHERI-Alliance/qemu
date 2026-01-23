@@ -2164,7 +2164,7 @@ static target_ulong riscv_intr_pc(CPURISCVState *env, target_ulong tvec,
                         env, CPU_LOG_INT,
                         "Failed capability bounds check: addr=" TARGET_FMT_ld
                         " base=" TARGET_FMT_lx " top=" TARGET_FMT_lx "\n",
-                        tbase, cap_get_cursor(&tvt), cap_get_top(&tvt));
+                        tbase, cap_get_base(&tvt), cap_get_top(&tvt));
                     raise_cheri_exception(env, CapEx_LengthViolation, tbase);
                 }
 #else
