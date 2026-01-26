@@ -180,6 +180,7 @@ static bool riscv_clic_next_interrupt(void *opaque)
         active_count--;
         active++;
     }
+    clic->exccode = RISCV_EXCP_NONE;
     return false;
 }
 
@@ -247,6 +248,19 @@ static void do_setirq(RISCVCLICState *clic)
     }
 }
 
+static void do_lowerirq(RISCVCLICState *clic)
+{
+    bool locked = false;
+    if (!qemu_mutex_iothread_locked()) {
+        locked = true;
+        qemu_mutex_lock_iothread();
+    }
+    qemu_set_irq(clic->cpu_irq, 0);
+    if (locked) {
+        qemu_mutex_unlock_iothread();
+    }
+}
+
 static void
 riscv_clic_update_intip(RISCVCLICState *clic, int irq, uint64_t value)
 {
@@ -254,8 +268,10 @@ riscv_clic_update_intip(RISCVCLICState *clic, int irq, uint64_t value)
     if (clic->clicintip[irq]) {
         if (riscv_clic_next_interrupt(clic)) {
             do_setirq(clic);
+            return;
         }
     }
+    do_lowerirq(clic);
 }
 
 /*
@@ -826,6 +842,8 @@ static void riscv_clic_cpu_irq_handler(void *opaque, int irq, int level)
     if (level) {
         env->exccode = clic->exccode;
         cpu_interrupt(env_cpu(env), CPU_INTERRUPT_CLIC);
+    } else {
+        env->exccode = RISCV_EXCP_NONE;
     }
 }
 
