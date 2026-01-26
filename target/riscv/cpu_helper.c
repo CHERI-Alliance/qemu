@@ -484,7 +484,7 @@ bool riscv_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
         CPURISCVState *env = &cpu->env;
         int mode = get_field(env->exccode, RISCV_EXCP_CLIC_MODE);
         int enabled = riscv_cpu_local_irq_mode_enabled(env, mode);
-        if (enabled) {
+        if (enabled && env->exccode != RISCV_EXCP_NONE) {
             cs->exception_index = RISCV_EXCP_CLIC | env->exccode;
             cs->interrupt_request = cs->interrupt_request & ~CPU_INTERRUPT_CLIC;
             riscv_cpu_do_interrupt(cs);
