@@ -12,7 +12,8 @@ permissions:
 
 jobs:
   build-and-test:
-    runs-on: ubuntu-22.04
+    runs-on: the-capable-hub-aws-ci-amd64
+    container: capablehub/tch-ubuntu-24-builder
 
     steps:
       - uses: actions/checkout@v5
@@ -24,6 +25,7 @@ jobs:
           sudo apt-get update
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
               python3 \
+              python-is-python3 \
               ninja-build \
               pkgconf \
               libglib2.0-dev \
@@ -54,7 +56,7 @@ jobs:
           git clone https://github.com/rems-project/morello-generated-tests.git
           pwd
           python -m venv .venv
-          source .venv/bin/activate
+          . .venv/bin/activate
           pip install pytest-xdist
           cd tests/morello && pytest \
             --morello-tests-dir=$GITHUB_WORKSPACE/morello-generated-tests \
