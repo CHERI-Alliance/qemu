@@ -199,8 +199,7 @@ static inline bool fix_up_exec_mode(G_GNUC_UNUSED CPUArchState *env,
                                     G_GNUC_UNUSED CheriExecMode *mode,
                                     G_GNUC_UNUSED target_ulong perms)
 {
-#if CAP_CC(ADDR_WIDTH) == 32
-    /* ACPERM rule 15 (RV32 only in 0.9.3) */
+    /* ACPERM rules M=1 X=0 reserved */
     if (*mode == 1) {
         bool hybrid_support = riscv_feature(env, RISCV_FEATURE_CHERI_HYBRID);
         if (!(perms & RVY_AP_X) || !hybrid_support) {
@@ -208,7 +207,6 @@ static inline bool fix_up_exec_mode(G_GNUC_UNUSED CPUArchState *env,
             return true;
         }
     }
-#endif
     return false;
 }
 
@@ -275,7 +273,8 @@ cap_has_invalid_perms_encoding(G_GNUC_UNUSED CPUArchState *env,
 {
 #ifdef TARGET_CHERI_RISCV_STD
     target_ulong perms = cap_get_all_perms(c);
-    return fix_up_ap(env, &perms) == true;
+    CheriExecMode mode = cap_get_exec_mode(c);
+    return fix_up_ap(env, &perms) || fix_up_exec_mode(env, &mode, perms);
 #else
     return false;
 #endif

@@ -699,8 +699,15 @@ void CHERI_HELPER_IMPL(cbuildcap(CPUArchState *env, uint32_t cd, uint32_t cb,
         cap_set_perms(env, &derived,
                       cap_get_all_perms(cbp) & cap_get_all_perms(ctp));
 #ifndef TARGET_AARCH64
-        cap_set_exec_mode(&derived, cap_get_exec_mode(ctp));
+        /*
+         * Only set the mode if the capability bears X permission, as
+         * it is otherwise disallowed by the RVY spec.
+         */
+        if (cap_get_all_perms(&derived) & CAP_PERM_EXECUTE) {
+            cap_set_exec_mode(&derived, cap_get_exec_mode(ctp));
+        }
 #endif
+
         if (cap_is_sealed_entry(ctp)) {
             cap_make_sealed_entry(&derived);
         }
