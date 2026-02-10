@@ -934,6 +934,8 @@ static void riscv_cpu_reset(DeviceState *dev)
     env->mepc = 0;
     env->sepc = 0;
 #else
+    // Force the extension on as some tests try and toggle it
+    cpu->cfg.ext_cheri = true;
     if (!cpu->cfg.ext_cheri) {
         error_report("CHERI extension can't be disabled yet!");
         exit(EXIT_FAILURE);
@@ -1295,9 +1297,12 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
         set_misa(env, env->misa_mxl, ext);
     }
 
-    CHK_BLK_POW2(cbom_blocksize);
-    CHK_BLK_POW2(cboz_blocksize);
-
+    if(cpu->cfg.ext_icbom){
+        CHK_BLK_POW2(cbom_blocksize);
+    }
+    if(cpu->cfg.ext_icboz){
+        CHK_BLK_POW2(cboz_blocksize);
+    }
 #ifdef TARGET_CHERI
     if (cpu->cfg.ext_cheri) {
         if (env->misa_ext & RVJ) {
