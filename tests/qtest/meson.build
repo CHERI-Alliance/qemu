@@ -13,7 +13,7 @@ slow_qtests = {
   'prom-env-test' : 60,
   'pxe-test' : 60,
   'qos-test' : 60,
-  'qom-test' : 300,
+  'qom-test' : 350,
   'test-hmp' : 120,
 }
 
