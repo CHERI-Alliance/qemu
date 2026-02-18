@@ -634,7 +634,7 @@ static inline uint64_t byte_unpack_64(uint8_t x)
 
 /**
  * byte_unpack_64:
- * @x Any 8-bit value
+ * @x: Any 8-bit value
  * @return A 64-bit value where each byte contains a single bit from x swapped.
  */
 static inline uint64_t byte_unpack_swap_64(uint8_t x)
@@ -662,7 +662,7 @@ static inline uint8_t byte_pack_64(uint64_t x)
 
 /**
  * byte_pack_64:
- * @x Any 64-bit value
+ * @x: Any 64-bit value
  * @return A byte that contains the lowest bit of each byte in x reversed
  */
 static inline uint8_t byte_pack_swap_64(uint64_t x)
@@ -689,7 +689,7 @@ static inline uint32_t byte_unpack_32(uint8_t x)
 
 /**
  * byte_unpack_32:
- * @x Any 8-bit value (top 4 bits ignored)
+ * @x: Any 8-bit value (top 4 bits ignored)
  * @return A 32-bit value where each byte contains a single bit from x reserved.
  */
 static inline uint32_t byte_unpack_swap_32(uint8_t x)
@@ -715,7 +715,7 @@ static inline uint8_t byte_pack_32(uint32_t x)
 
 /**
  * byte_pack_32:
- * @x Any 32-bit value
+ * @x: Any 32-bit value
  * @return A byte that contains the lowest bit of each byte in x reserved
  */
 static inline uint8_t byte_pack_swap_32(uint32_t x)
