@@ -299,6 +299,59 @@ static void riscv_any_cpu_init(Object *obj)
     register_cpu_props(DEVICE(obj));
 }
 
+/*
+ * A base set of extensions supported by most codeasip cores
+ * largely covering rva22 which we can then replace with official rva22 profile
+ * support when it is available from upstream
+ * that we can expect to replace with an official upstream
+ * one eventually.
+ * This should be called after configuring  MMU extension support
+ */
+static void codasip_base_configure_extensions(RISCVCPU *cpu)
+{
+    /* Extensions that form base of support */
+    cpu->cfg.ext_i = true;
+    cpu->cfg.ext_m = true;
+    cpu->cfg.ext_a = true;
+    cpu->cfg.ext_f = true;
+    cpu->cfg.ext_icsr = true;
+    cpu->cfg.ext_ifencei = true;
+#if defined(TARGET_RISCV64)
+    cpu->cfg.ext_d = true;
+    cpu->cfg.ext_u = true;
+    cpu->cfg.ext_s = true;
+
+#else
+    cpu->cfg.ext_zcf = true;
+
+#endif
+    cpu->cfg.ext_c = true; /* Implies zca,zcf/d depending on 32/64 bit */
+    /* also support zcb  as it is not implied by C*/
+    cpu->cfg.ext_zcb = true;
+    cpu->cfg.ext_zihintpause = true;
+
+    /* rva22 extensions */
+    cpu->cfg.ext_zba = true;
+    cpu->cfg.ext_zbb = true;
+    cpu->cfg.ext_zbs = true;
+    cpu->cfg.ext_icbom = true;
+    cpu->cfg.ext_icboz = true;
+    cpu->cfg.cbom_blocksize = 64;
+    cpu->cfg.cboz_blocksize = 64;
+    cpu->cfg.ext_zfhmin = true;
+    cpu->cfg.ext_zkt = true;
+
+    if (cpu->cfg.mmu) {
+        cpu->cfg.ext_svinval = true;
+#if !defined(TARGET_CHERI_RISCV_V9)
+        cpu->cfg.ext_svnapot = true;
+        cpu->cfg.ext_svpbmt = true;
+#endif
+    }
+    cpu->cfg.ext_sstc = true;
+    cpu->cfg.ext_sscofpmf = true;
+}
+
 #if defined(TARGET_RISCV64)
 static void rv64_base_cpu_init(Object *obj)
 {
@@ -327,28 +380,24 @@ static void rv64_sifive_e_cpu_init(Object *obj)
     cpu->cfg.mmu = false;
 }
 
-static void rv64_codasip_a730_cpu_init(Object *obj)
+#if defined(TARGET_CHERI)
+static void rv64_codasip_x730_lux_cpu_init(Object *obj)
 {
     CPURISCVState *env = &RISCV_CPU(obj)->env;
     RISCVCPU * cpu = RISCV_CPU(obj);
-    set_misa(env, MXL_RV64, RVI | RVM | RVA | RVF | RVD | RVC | RVS | RVU);
+    /*
+     * Instead of set_misa, set the mxl and then individual exts
+     * During CPU realise this will implement additional checking as
+     * well as deriving inferred extensions
+     * set_misa(env, MXL_RV64, RVI | RVM | RVA | RVF | RVD | RVC | RVS | RVU);
+     */
+    set_misa(env, MXL_RV64, 0);
 
     set_priv_version(env, PRIV_VERSION_1_12_0);
 
     cpu->cfg.mmu = true;
     cpu->cfg.pmp = false;
-    cpu->cfg.ext_icbom = true;
-    cpu->cfg.ext_icboz = true;
-    cpu->cfg.ext_zba =  true ;
-    cpu->cfg.ext_zbb = true;
-    cpu->cfg.ext_zbc = true;
-    cpu->cfg.ext_zbs =  true;
-    cpu->cfg.ext_zfhmin = true;
-#if !defined(TARGET_CHERI_RISCV_V9)
-    cpu->cfg.ext_svnapot = true;
-    cpu->cfg.ext_svpbmt = true;
-#endif
-    cpu->cfg.ext_svinval = true;
+    cpu->cfg.ext_zbkc = true;
 #if defined(TARGET_CHERI_RISCV_STD_093)
     cpu->cfg.ext_zish4add = true;
     cpu->cfg.ext_zylevels1 = true;
@@ -356,41 +405,151 @@ static void rv64_codasip_a730_cpu_init(Object *obj)
     cpu->cfg.ext_cheri = true;
     cpu->cfg.ext_zyhybrid = true;
 #endif
-
-    cpu->cfg.cbom_blocksize = 64;
-    cpu->cfg.cboz_blocksize = 64;
-    cpu->cfg.ext_zca = true;
-    cpu->cfg.ext_zcb = true;
-    cpu->cfg.ext_zcd = true;
-    cpu->cfg.ext_zcf = true;
-    cpu->cfg.ext_zbkb = true;
-    cpu->cfg.ext_zihintpause = true;
-    /*
-     * QEMU 6.x has no support for limiting the virtual addressing modes
-     * (later versions add support for filtering certain SvXX modes)
-     *
-     * Vendor id and architecture id are not supported in qemu 6.x
-     *
-     * The A730 supports a number of named general extensions (Zxxx), all of
-     * which are not supported by qemu 6.x
-     *
-     * For QEMU 6.x, Zicsr and Zifencei are still part of the base ISA
-     */
+    codasip_base_configure_extensions(cpu);
 }
 
-static void rv64_codasip_h730_cpu_init(Object *obj)
+/* CPU is a work in progress and specification subject to change */
+static void rv64_codasip_1110_apex_cpu_init(Object *obj)
 {
+    CPURISCVState *env = &RISCV_CPU(obj)->env;
     RISCVCPU *cpu = RISCV_CPU(obj);
-    /* use the a730 config as a base and then clear the mmu bits */
-    rv64_codasip_a730_cpu_init(obj);
-    cpu->cfg.mmu = false;
-#ifdef TARGET_CHERI
-    cpu->cfg.pmp = false;
-#else
-    cpu->cfg.pmp = true;
+    /*
+     * Instead of set_misa, set the mxl and then individual exts
+     * During CPU realise this will implement additional checking as
+     * well as deriving inferred extensions
+     * set_misa(env, MXL_RV64, RVI | RVM | RVA | RVF | RVD | RVC | RVS | RVU);
+     */
+    set_misa(env, MXL_RV64, 0);
+
+    set_priv_version(env, PRIV_VERSION_1_12_0);
+
+    cpu->cfg.mmu = true;
+    /* 1110 CPU is a work in progress and specification subject to change */
+
+    cpu->cfg.ext_zkr = true;
+    cpu->cfg.ext_zkn = true; /* Implies zb-kb,kc,kx,nd,ne,nh */
+    cpu->cfg.ext_zks = true; /* implies zb-kb,kc,kx,ksed,kh */
+    cpu->cfg.ext_zcb = true;
+    cpu->cfg.ext_v = false; /* Not compatible with CHERI yet */
+#if defined(TARGET_CHERI_RISCV_STD_093)
+    cpu->cfg.ext_zish4add = true;
+    cpu->cfg.ext_zylevels1 = true;
+    cpu->cfg.cheri_pte = true;
+    cpu->cfg.ext_cheri = true;
+    cpu->cfg.ext_zyhybrid = true;
 #endif
+    codasip_base_configure_extensions(cpu);
+}
+static void rv64_codasip_y730_quartz_cpu_init(Object *obj)
+{
+    CPURISCVState *env = &RISCV_CPU(obj)->env;
+    RISCVCPU *cpu = RISCV_CPU(obj);
+    /*
+     * Instead of set_misa, set the mxl and then individual exts
+     * During CPU realise this will implement additional checking as
+     * well as deriving inferred extensions
+     * set_misa(env, MXL_RV64, RVI | RVM | RVA | RVF | RVD | RVC | RVS | RVU);
+     */
+    set_misa(env, MXL_RV64, 0);
+
+    cpu->cfg.mmu = false;
+#if defined(TARGET_CHERI_RISCV_STD_093)
+    cpu->cfg.ext_zish4add = true;
+    cpu->cfg.ext_zylevels1 = true;
+    cpu->cfg.ext_cheri = true;
+    cpu->cfg.ext_zyhybrid = true;
+#endif
+    cpu->cfg.ext_zkr = true;
+    cpu->cfg.ext_zkn = true;
+    cpu->cfg.ext_zks = true;
+    set_priv_version(env, PRIV_VERSION_1_12_0);
+    codasip_base_configure_extensions(cpu);
+}
+#endif /* TARGET_CHERI */
+
+static void rv64_codasip_a730_flint_cpu_init(Object *obj)
+{
+    CPURISCVState *env = &RISCV_CPU(obj)->env;
+    RISCVCPU *cpu = RISCV_CPU(obj);
+    /*
+     * Instead of set_misa, set the mxl and then individual exts
+     * During CPU realise this will implement additional checking as
+     * well as deriving inferred extensions
+     * set_misa(env, MXL_RV64, RVI | RVM | RVA | RVF | RVD | RVC | RVS | RVU);
+     */
+    set_misa(env, MXL_RV64, 0);
+
+    cpu->cfg.mmu = true;
+    cpu->cfg.pmp = false;
+    cpu->cfg.ext_zbkc = true;
+
+    set_priv_version(env, PRIV_VERSION_1_12_0);
+    codasip_base_configure_extensions(cpu);
 }
 
+static void rv64_codasip_h730_garnet_cpu_init(Object *obj)
+{
+    CPURISCVState *env = &RISCV_CPU(obj)->env;
+    RISCVCPU *cpu = RISCV_CPU(obj);
+    /*
+     * Instead of set_misa, set the mxl and then individual exts
+     * During CPU realise this will implement additional checking as
+     * well as deriving inferred extensions
+     * set_misa(env, MXL_RV64, RVI | RVM | RVA | RVF | RVD | RVC | RVS | RVU);
+     */
+    set_misa(env, MXL_RV64, 0);
+
+    cpu->cfg.mmu = false;
+    codasip_base_configure_extensions(cpu);
+    set_priv_version(env, PRIV_VERSION_1_12_0);
+}
+static void rv64_codasip_1110_aria_cpu_init(Object *obj)
+{
+    CPURISCVState *env = &RISCV_CPU(obj)->env;
+    RISCVCPU *cpu = RISCV_CPU(obj);
+    /*
+     * Instead of set_misa, set the mxl and then individual exts
+     * During CPU realise this will implement additional checking as
+     * well as deriving inferred extensions
+     * set_misa(env, MXL_RV64, RVI | RVM | RVA | RVF | RVD | RVC | RVS | RVU);
+     */
+    set_misa(env, MXL_RV64, 0);
+
+    set_priv_version(env, PRIV_VERSION_1_12_0);
+
+    cpu->cfg.mmu = true;
+    /* 1110 CPU is a work in progress and specification subject to change */
+
+    cpu->cfg.ext_zkr = true;
+    cpu->cfg.ext_zkn = true; /* Implies zb-kb,kc,kx,nd,ne,nh */
+    cpu->cfg.ext_zks = true; /* implies zb-kb,kc,kx,ksed,kh */
+    cpu->cfg.ext_zcb = true;
+    cpu->cfg.ext_v = true;
+    codasip_base_configure_extensions(cpu);
+}
+
+static void rv64_codasip_1110_aster_cpu_init(Object *obj)
+{
+    CPURISCVState *env = &RISCV_CPU(obj)->env;
+    RISCVCPU *cpu = RISCV_CPU(obj);
+    /*
+     * Instead of set_misa, set the mxl and then individual exts
+     * During CPU realise this will implement additional checking as
+     * well as deriving inferred extensions
+     * set_misa(env, MXL_RV64, RVI | RVM | RVA | RVF | RVD | RVC | RVS | RVU);
+     */
+    set_misa(env, MXL_RV64, 0);
+
+    set_priv_version(env, PRIV_VERSION_1_12_0);
+
+    cpu->cfg.mmu = true;
+    /* 1110 CPU is a work in progress and specification subject to change */
+
+    cpu->cfg.ext_v = true;
+    cpu->cfg.ext_zkr = true;
+    cpu->cfg.ext_zcb = true;
+    codasip_base_configure_extensions(cpu);
+}
 static void rv128_base_cpu_init(Object *obj)
 {
     if (qemu_tcg_mttcg_enabled()) {
@@ -407,6 +566,7 @@ static void rv128_base_cpu_init(Object *obj)
     set_priv_version(env, PRIV_VERSION_1_12_0);
 }
 #else
+/*TARGET_RV32 */
 static void rv32_base_cpu_init(Object *obj)
 {
     CPURISCVState *env = &RISCV_CPU(obj)->env;
@@ -455,48 +615,92 @@ static void rv32_imafcu_nommu_cpu_init(Object *obj)
     cpu->cfg.mmu = false;
 }
 
-static void rv32_codasip_l730_cpu_init(Object *obj)
+#if defined(TARGET_CHERI)
+static void rv32_codasip_v739_spinel_cpu_init(Object *obj)
+
 {
     CPURISCVState *env = &RISCV_CPU(obj)->env;
 
     RISCVCPU *cpu = RISCV_CPU(obj);
     /*
-     * QEMU 6.x has no RVG definition
-     * RVG == RVI | RVM | RVA | RVF | RVD
+     * Instead of set_misa, set the mxl and then individual exts
+     * During CPU realise this will implement additional checking as
+     * well as deriving inferred extensions
+     8 set_misa(env, MXL_RV32, RVI | RVM | RVA | RVF | RVC | RVS | RVU);
      */
-    set_misa(env, MXL_RV32, RVI | RVM | RVA | RVF | RVD | RVC | RVS | RVU);
+    set_misa(env, MXL_RV32, 0);
 
     set_priv_version(env, PRIV_VERSION_1_12_0);
     cpu->cfg.mmu = false;
-#ifdef TARGET_CHERI
     cpu->cfg.pmp = false;
-#else
-    cpu->cfg.pmp = true;
-#endif
-    cpu->cfg.ext_icbom = true;
-    cpu->cfg.ext_icboz = true;
-    cpu->cfg.ext_zba =  true ;
-    cpu->cfg.ext_zbb = true;
-    cpu->cfg.ext_zbc = true;
-    cpu->cfg.ext_zbs =  true;
     cpu->cfg.ext_zfhmin = true;
 #if defined(TARGET_CHERI_RISCV_STD_093)
-    cpu->cfg.ext_zish4add = true;
     cpu->cfg.ext_zylevels1 = true;
     cpu->cfg.ext_cheri = true;
     cpu->cfg.ext_zyhybrid = true;
+    cpu->cfg.ext_zish4add = true;
 #endif
+    cpu->cfg.ext_zkr = true;
+    cpu->cfg.ext_zkn = true; /* Implies zb-kb,kc,kx,nd,ne,nh */
+    cpu->cfg.ext_zks = true; /* implies zb-kb,kc,kx,ksed,kh */
+    codasip_base_configure_extensions(cpu);
 
-    cpu->cfg.cbom_blocksize = 64;
-    cpu->cfg.cboz_blocksize = 64;
-    cpu->cfg.ext_zca = true;
     cpu->cfg.ext_zcb = true;
-    cpu->cfg.ext_zcd = true;
-    cpu->cfg.ext_zcf = true;
     cpu->cfg.ext_zbkb = true;
     cpu->cfg.ext_zihintpause = true;
 }
-#endif
+
+static void rv32_codasip_v730_shine_cpu_init(Object *obj)
+{
+    CPURISCVState *env = &RISCV_CPU(obj)->env;
+
+    RISCVCPU *cpu = RISCV_CPU(obj);
+    /*
+     * Instead of set_misa, set the mxl and then individual exts
+     * During CPU realise this will implement additional checking as
+     * well as deriving inferred extensions
+     8 set_misa(env, MXL_RV32, RVI | RVM | RVA | RVF | RVC | RVS | RVU);
+     */
+    set_misa(env, MXL_RV32, 0);
+
+    set_priv_version(env, PRIV_VERSION_1_12_0);
+    cpu->cfg.mmu = false;
+    cpu->cfg.pmp = false;
+    cpu->cfg.ext_zfhmin = true;
+    cpu->cfg.ext_zbkc = true;
+    codasip_base_configure_extensions(cpu);
+}
+#endif /* TARGET_CHERI */
+static void rv32_codasip_l730_glim_cpu_init(Object *obj)
+{
+    CPURISCVState *env = &RISCV_CPU(obj)->env;
+
+    RISCVCPU *cpu = RISCV_CPU(obj);
+    set_misa(env, MXL_RV32, RVI | RVM | RVA | RVF | RVC | RVS | RVU);
+
+    set_priv_version(env, PRIV_VERSION_1_12_0);
+    cpu->cfg.mmu = false;
+    cpu->cfg.pmp = true;
+    cpu->cfg.ext_zfhmin = true;
+    cpu->cfg.ext_zbkc = true;
+    codasip_base_configure_extensions(cpu);
+}
+static void rv32_codasip_l739_topaz_cpu_init(Object *obj)
+{
+
+    CPURISCVState *env = &RISCV_CPU(obj)->env;
+
+    RISCVCPU *cpu = RISCV_CPU(obj);
+    set_misa(env, MXL_RV32, RVI | RVM | RVA | RVF | RVC | RVS | RVU);
+
+    set_priv_version(env, PRIV_VERSION_1_12_0);
+    cpu->cfg.mmu = false;
+    cpu->cfg.pmp = true;
+    cpu->cfg.ext_zfhmin = true;
+    codasip_base_configure_extensions(cpu);
+}
+
+#endif /* RV32 */
 
 #if defined(CONFIG_KVM)
 static void riscv_host_cpu_init(Object *obj)
@@ -1917,35 +2121,49 @@ static const TypeInfo riscv_cpu_type_infos[] = {
         .class_size = sizeof(RISCVCPUClass),
         .class_init = riscv_cpu_class_init,
     },
-    DEFINE_CPU(TYPE_RISCV_CPU_ANY,              riscv_any_cpu_init),
+    DEFINE_CPU(TYPE_RISCV_CPU_ANY, riscv_any_cpu_init),
 #if defined(CONFIG_KVM)
-    DEFINE_CPU(TYPE_RISCV_CPU_HOST,             riscv_host_cpu_init),
+    DEFINE_CPU(TYPE_RISCV_CPU_HOST, riscv_host_cpu_init),
 #endif
 #if defined(TARGET_RISCV32)
-    DEFINE_CPU(TYPE_RISCV_CPU_BASE32,           rv32_base_cpu_init),
-    DEFINE_CPU(TYPE_RISCV_CPU_IBEX,             rv32_ibex_cpu_init),
-    DEFINE_CPU(TYPE_RISCV_CPU_SIFIVE_E31,       rv32_sifive_e_cpu_init),
-    DEFINE_CPU(TYPE_RISCV_CPU_SIFIVE_E34,       rv32_imafcu_nommu_cpu_init),
-    DEFINE_CPU(TYPE_RISCV_CPU_SIFIVE_U34,       rv32_sifive_u_cpu_init),
+    DEFINE_CPU(TYPE_RISCV_CPU_BASE32, rv32_base_cpu_init),
+    DEFINE_CPU(TYPE_RISCV_CPU_IBEX, rv32_ibex_cpu_init),
+    DEFINE_CPU(TYPE_RISCV_CPU_SIFIVE_E31, rv32_sifive_e_cpu_init),
+    DEFINE_CPU(TYPE_RISCV_CPU_SIFIVE_E34, rv32_imafcu_nommu_cpu_init),
+    DEFINE_CPU(TYPE_RISCV_CPU_SIFIVE_U34, rv32_sifive_u_cpu_init),
 #ifdef TARGET_CHERI
-    DEFINE_CPU(TYPE_RISCV_CPU_CODASIP_V730,     rv32_codasip_l730_cpu_init),
-    DEFINE_CPU(TYPE_RISCV_CPU_CODASIP_V739,     rv32_codasip_l730_cpu_init),
-#else
-    DEFINE_CPU(TYPE_RISCV_CPU_CODASIP_L730,     rv32_codasip_l730_cpu_init),
+    DEFINE_CPU(TYPE_RISCV_CPU_CODASIP_V730_SHINE,
+               rv32_codasip_v730_shine_cpu_init),
+    DEFINE_CPU(TYPE_RISCV_CPU_CODASIP_V739, rv32_codasip_v739_spinel_cpu_init),
+    DEFINE_CPU(TYPE_RISCV_CPU_CODASIP_V739_SPINEL,
+               rv32_codasip_v739_spinel_cpu_init),
 #endif
+    DEFINE_CPU(TYPE_RISCV_CPU_CODASIP_L730_GLIM,
+               rv32_codasip_l730_glim_cpu_init),
+    DEFINE_CPU(TYPE_RISCV_CPU_CODASIP_L739_TOPAZ,
+               rv32_codasip_l739_topaz_cpu_init),
 #elif defined(TARGET_RISCV64)
-    DEFINE_CPU(TYPE_RISCV_CPU_BASE64,           rv64_base_cpu_init),
-    DEFINE_CPU(TYPE_RISCV_CPU_SIFIVE_E51,       rv64_sifive_e_cpu_init),
-    DEFINE_CPU(TYPE_RISCV_CPU_SIFIVE_U54,       rv64_sifive_u_cpu_init),
-    DEFINE_CPU(TYPE_RISCV_CPU_SHAKTI_C,         rv64_sifive_u_cpu_init),
+    DEFINE_CPU(TYPE_RISCV_CPU_BASE64, rv64_base_cpu_init),
+    DEFINE_CPU(TYPE_RISCV_CPU_SIFIVE_E51, rv64_sifive_e_cpu_init),
+    DEFINE_CPU(TYPE_RISCV_CPU_SIFIVE_U54, rv64_sifive_u_cpu_init),
+    DEFINE_CPU(TYPE_RISCV_CPU_SHAKTI_C, rv64_sifive_u_cpu_init),
 #ifdef TARGET_CHERI
-    DEFINE_CPU(TYPE_RISCV_CPU_CODASIP_X730,     rv64_codasip_a730_cpu_init),
-    DEFINE_CPU(TYPE_RISCV_CPU_CODASIP_Y730,     rv64_codasip_h730_cpu_init),
-#else
-    DEFINE_CPU(TYPE_RISCV_CPU_CODASIP_A730,     rv64_codasip_a730_cpu_init),
-    DEFINE_CPU(TYPE_RISCV_CPU_CODASIP_H730,     rv64_codasip_h730_cpu_init),
+    DEFINE_CPU(TYPE_RISCV_CPU_CODASIP_X730, rv64_codasip_x730_lux_cpu_init),
+    DEFINE_CPU(TYPE_RISCV_CPU_CODASIP_X730_LUX, rv64_codasip_x730_lux_cpu_init),
+    DEFINE_CPU(TYPE_RISCV_CPU_CODASIP_Y730_QUARTZ,
+               rv64_codasip_y730_quartz_cpu_init),
+    DEFINE_CPU(TYPE_RISCV_CPU_CODASIP_1110_APEX,
+               rv64_codasip_1110_apex_cpu_init),
 #endif
-DEFINE_CPU(TYPE_RISCV_CPU_BASE128,          rv128_base_cpu_init),
+    DEFINE_CPU(TYPE_RISCV_CPU_CODASIP_1110_ASTER,
+               rv64_codasip_1110_aster_cpu_init),
+    DEFINE_CPU(TYPE_RISCV_CPU_CODASIP_1110_ARIA,
+               rv64_codasip_1110_aria_cpu_init),
+    DEFINE_CPU(TYPE_RISCV_CPU_CODASIP_A730_FLINT,
+               rv64_codasip_a730_flint_cpu_init),
+    DEFINE_CPU(TYPE_RISCV_CPU_CODASIP_H730_GARNET,
+               rv64_codasip_h730_garnet_cpu_init),
+    DEFINE_CPU(TYPE_RISCV_CPU_BASE128, rv128_base_cpu_init),
 #endif
 };
 
