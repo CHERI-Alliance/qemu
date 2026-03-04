@@ -56,13 +56,29 @@
 #define TYPE_RISCV_CPU_SIFIVE_E51       RISCV_CPU_TYPE_NAME("sifive-e51")
 #define TYPE_RISCV_CPU_SIFIVE_U34       RISCV_CPU_TYPE_NAME("sifive-u34")
 #define TYPE_RISCV_CPU_SIFIVE_U54       RISCV_CPU_TYPE_NAME("sifive-u54")
-#define TYPE_RISCV_CPU_CODASIP_A730     RISCV_CPU_TYPE_NAME("codasip-a730")
-#define TYPE_RISCV_CPU_CODASIP_L730     RISCV_CPU_TYPE_NAME("codasip-l730")
+#define TYPE_RISCV_CPU_CODASIP_A730_FLINT                                      \
+    RISCV_CPU_TYPE_NAME("codasip-a730-flint")
+#define TYPE_RISCV_CPU_CODASIP_L730_GLIM                                       \
+    RISCV_CPU_TYPE_NAME("codasip-l730-glim")
+#define TYPE_RISCV_CPU_CODASIP_L739_TOPAZ                                      \
+    RISCV_CPU_TYPE_NAME("codasip-l739-topaz")
+#define TYPE_RISCV_CPU_CODASIP_X730_LUX RISCV_CPU_TYPE_NAME("codasip-x730-lux")
 #define TYPE_RISCV_CPU_CODASIP_X730     RISCV_CPU_TYPE_NAME("codasip-x730")
-#define TYPE_RISCV_CPU_CODASIP_V730     RISCV_CPU_TYPE_NAME("codasip-v730")
-#define TYPE_RISCV_CPU_CODASIP_V739     RISCV_CPU_TYPE_NAME("codasip-v739")
-#define TYPE_RISCV_CPU_CODASIP_H730     RISCV_CPU_TYPE_NAME("codasip-h730")
-#define TYPE_RISCV_CPU_CODASIP_Y730     RISCV_CPU_TYPE_NAME("codasip-y730")
+#define TYPE_RISCV_CPU_CODASIP_V730_SHINE                                      \
+    RISCV_CPU_TYPE_NAME("codasip-v730-shine")
+#define TYPE_RISCV_CPU_CODASIP_V739_SPINEL                                     \
+    RISCV_CPU_TYPE_NAME("codasip-v739-spinel")
+#define TYPE_RISCV_CPU_CODASIP_V739 RISCV_CPU_TYPE_NAME("codasip-v739")
+#define TYPE_RISCV_CPU_CODASIP_H730_GARNET                                     \
+    RISCV_CPU_TYPE_NAME("codasip-h730-garnet")
+#define TYPE_RISCV_CPU_CODASIP_Y730_QUARTZ                                     \
+    RISCV_CPU_TYPE_NAME("codasip-y730-quartz")
+#define TYPE_RISCV_CPU_CODASIP_1110_ARIA                                       \
+    RISCV_CPU_TYPE_NAME("codasip-1110-aria")
+#define TYPE_RISCV_CPU_CODASIP_1110_ASTER                                      \
+    RISCV_CPU_TYPE_NAME("codasip-1110-aster")
+#define TYPE_RISCV_CPU_CODASIP_1110_APEX                                       \
+    RISCV_CPU_TYPE_NAME("codasip-1110-apex")
 #define TYPE_RISCV_CPU_HOST             RISCV_CPU_TYPE_NAME("host")
 
 #if defined(TARGET_RISCV32)

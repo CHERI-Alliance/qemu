@@ -2072,13 +2072,13 @@ static void hobgoblin_machine_class_init(ObjectClass *oc, void *data)
 #if defined(TARGET_RISCV64)
     mc->default_cpu_type = TYPE_RISCV_CPU_CODASIP_X730;
 #elif defined(TARGET_RISCV32)
-    mc->default_cpu_type = TYPE_RISCV_CPU_CODASIP_V730;
+    mc->default_cpu_type = TYPE_RISCV_CPU_CODASIP_V739_SPINEL;
 #endif
 #else
 #if defined(TARGET_RISCV64)
-    mc->default_cpu_type = TYPE_RISCV_CPU_CODASIP_A730;
+    mc->default_cpu_type = TYPE_RISCV_CPU_CODASIP_A730_FLINT;
 #elif defined(TARGET_RISCV32)
-    mc->default_cpu_type = TYPE_RISCV_CPU_CODASIP_L730;
+    mc->default_cpu_type = TYPE_RISCV_CPU_CODASIP_L730_GLIM;
 #endif
 #endif
 
