@@ -2224,7 +2224,7 @@ static RISCVException rmw_sip(CPURISCVState *env, int csrno,
                               target_ulong *ret_val,
                               target_ulong new_val, target_ulong wr_mask)
 {
-    uint64_t rval;
+    uint64_t rval = 0;
     RISCVException ret;
 
     ret = rmw_sip64(env, csrno, &rval, new_val, wr_mask);
