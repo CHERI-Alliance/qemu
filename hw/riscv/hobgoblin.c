@@ -262,6 +262,8 @@ static qemu_irq hobgoblin_make_intc_irq(HobgoblinState *s, int number);
 /* TIMEBASE_FREQ = 100MHz * CORE_PLATFORM_SCALING */
 #define CLINT_TIMEBASE_FREQ             (100000000 * CORE_PLATFORM_SCALING)
 
+#define AXI_BUS_FREQ                    (100 * 1000000)
+
 static int hobgoblin_load_images(HobgoblinState *s, const memmapEntry_t *dram)
 {
     MachineState *machine = &s->machine;
@@ -763,7 +765,7 @@ static void hobgoblin_add_axi_ethernet(HobgoblinState *s, int eth_num,
     cs = object_property_get_link(OBJECT(eth),
                                   "axistream-control-connected-target", NULL);
     assert(ds && cs);
-    qdev_prop_set_uint32(dma, "freqhz", 100 * 1000000);
+    qdev_prop_set_uint32(dma, "freqhz", AXI_BUS_FREQ);
     qdev_prop_set_bit(dma, "64bit", true);
     object_property_set_link(OBJECT(dma), "axistream-connected", ds,
                              &error_abort);
@@ -821,7 +823,7 @@ static void hobgoblin_add_timer(HobgoblinState *s)
 
     s->timer = qdev_new("xlnx.xps-timer");
     qdev_prop_set_uint32(s->timer, "one-timer-only", 1);
-    qdev_prop_set_uint32(s->timer, "clock-frequency", 100 * 1000000);
+    qdev_prop_set_uint32(s->timer, "clock-frequency", AXI_BUS_FREQ);
     ss = SYS_BUS_DEVICE(s->timer);
     sysbus_realize_and_unref(ss, &error_fatal);
     sysbus_mmio_map(ss, 0, memmap[HOBGOBLIN_TIMER].base);
@@ -1173,7 +1175,7 @@ static void create_fdt_clock(HobgoblinState *s, const memmapEntry_t *memmap,
     qemu_fdt_add_subnode(mc->fdt, name);
     qemu_fdt_setprop_cell(mc->fdt, name, "#clock-cells", 0);
     qemu_fdt_setprop_cell(mc->fdt, name, "clock-frequency",
-                          CLINT_TIMEBASE_FREQ);
+                          AXI_BUS_FREQ);
     qemu_fdt_setprop_string(mc->fdt, name, "compatible", "fixed-clock");
     qemu_fdt_setprop_cell(mc->fdt, name, "phandle", clock_phandle);
 
