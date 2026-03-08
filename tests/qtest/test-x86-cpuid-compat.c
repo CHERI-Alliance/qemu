@@ -94,8 +94,12 @@ static void test_cpuid_prop(const void *data)
 
 /* Parameters to a add_feature_test() test case */
 typedef struct FeatureTestArgs {
-    /* cmdline to start QEMU */
-    const char *cmdline;
+    /* Test name */
+    const char *name;
+    /* CPU type */
+    const char *cpu;
+    /* CPU features, may be NULL */
+    const char *cpufeat;
     /*
      * cpuid-input-eax and cpuid-input-ecx values to look for,
      * in "feature-words" and "filtered-features" properties.
@@ -140,10 +144,17 @@ static void test_feature_flag(const void *data)
 {
     const FeatureTestArgs *args = data;
     char *path;
+    char *cmdline;
     QList *present, *filtered;
     uint32_t value;
 
-    qtest_start(args->cmdline);
+    if (args->cpufeat) {
+        cmdline = g_strdup_printf("-cpu %s,%s", args->cpu, args->cpufeat);
+    } else {
+        cmdline = g_strdup_printf("-cpu %s", args->cpu);
+    }
+
+    qtest_start(cmdline);
     path = get_cpu0_qom_path();
     present = qobject_to(QList, qom_get(path, "feature-words"));
     filtered = qobject_to(QList, qom_get(path, "filtered-features"));
@@ -156,27 +167,7 @@ static void test_feature_flag(const void *data)
     qobject_unref(present);
     qobject_unref(filtered);
     g_free(path);
-}
-
-/*
- * Add test case to ensure that a given feature flag is set in
- * either "feature-words" or "filtered-features", when running QEMU
- * using cmdline
- */
-static FeatureTestArgs *add_feature_test(const char *name, const char *cmdline,
-                                         uint32_t eax, uint32_t ecx,
-                                         const char *reg, int bitnr,
-                                         bool expected_value)
-{
-    FeatureTestArgs *args = g_new0(FeatureTestArgs, 1);
-    args->cmdline = cmdline;
-    args->in_eax = eax;
-    args->in_ecx = ecx;
-    args->reg = reg;
-    args->bitnr = bitnr;
-    args->expected_value = expected_value;
-    qtest_add_data_func(name, args, test_feature_flag);
-    return args;
+    g_free(cmdline);
 }
 
 static void test_plus_minus_subprocess(void)
@@ -434,6 +425,56 @@ static const CpuidTestArgs cpuid_tests[] = {
     },
 };
 
+/*
+ * Test cases to ensure that a given feature flag is set in
+ * either "feature-words" or "filtered-features", when running QEMU
+ * using cmdline
+ */
+static const FeatureTestArgs feature_tests[] = {
+    /* Test feature parsing */
+    {
+        "x86/cpuid/features/plus",
+        "486", "+arat",
+        6, 0, "EAX", 2, true,
+    },
+    {
+        "x86/cpuid/features/minus",
+        "pentium", "-mmx",
+        1, 0, "EDX", 23, false,
+    },
+    {
+        "x86/cpuid/features/on",
+        "486", "arat=on",
+        6, 0, "EAX", 2, true,
+    },
+    {
+        "x86/cpuid/features/off",
+        "pentium", "mmx=off",
+        1, 0, "EDX", 23, false,
+    },
+
+    {
+        "x86/cpuid/features/max-plus-invtsc",
+        "max" , "+invtsc",
+        0x80000007, 0, "EDX", 8, true,
+    },
+    {
+        "x86/cpuid/features/max-invtsc-on",
+        "max", "invtsc=on",
+        0x80000007, 0, "EDX", 8, true,
+    },
+    {
+        "x86/cpuid/features/max-minus-mmx",
+        "max", "-mmx",
+        1, 0, "EDX", 23, false,
+    },
+    {
+        "x86/cpuid/features/max-invtsc-on,mmx=off",
+        "max", "mmx=off",
+        1, 0, "EDX", 23, false,
+    },
+};
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -451,31 +492,10 @@ int main(int argc, char **argv)
                             &cpuid_tests[i], test_cpuid_prop);
     }
 
-    /* Test feature parsing */
-    add_feature_test("x86/cpuid/features/plus",
-                     "-cpu 486,+arat",
-                     6, 0, "EAX", 2, true);
-    add_feature_test("x86/cpuid/features/minus",
-                     "-cpu pentium,-mmx",
-                     1, 0, "EDX", 23, false);
-    add_feature_test("x86/cpuid/features/on",
-                     "-cpu 486,arat=on",
-                     6, 0, "EAX", 2, true);
-    add_feature_test("x86/cpuid/features/off",
-                     "-cpu pentium,mmx=off",
-                     1, 0, "EDX", 23, false);
-    add_feature_test("x86/cpuid/features/max-plus-invtsc",
-                     "-cpu max,+invtsc",
-                     0x80000007, 0, "EDX", 8, true);
-    add_feature_test("x86/cpuid/features/max-invtsc-on",
-                     "-cpu max,invtsc=on",
-                     0x80000007, 0, "EDX", 8, true);
-    add_feature_test("x86/cpuid/features/max-minus-mmx",
-                     "-cpu max,-mmx",
-                     1, 0, "EDX", 23, false);
-    add_feature_test("x86/cpuid/features/max-invtsc-on,mmx=off",
-                     "-cpu max,mmx=off",
-                     1, 0, "EDX", 23, false);
+    for (int i = 0; i < ARRAY_SIZE(feature_tests); i++) {
+        qtest_add_data_func(feature_tests[i].name,
+                            &feature_tests[i], test_feature_flag);
+    }
 
     return g_test_run();
 }
