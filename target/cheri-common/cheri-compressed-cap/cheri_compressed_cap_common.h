@@ -165,6 +165,10 @@ struct _cc_N(cap) {
 #endif
     uint8_t cr_exp;   /* Exponent */
     uint8_t cr_extra; /* Additional data stored by the caller */
+#ifdef CONFIG_TAG_TRACE
+    _cc_addr_t tag_clear_pc;
+    uint32_t tag_clear_cause;
+#endif
 #ifdef __cplusplus
     inline _cc_addr_t base() const { return cr_base; }
     inline _cc_addr_t address() const { return _cr_cursor; }

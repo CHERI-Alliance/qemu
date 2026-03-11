@@ -75,16 +75,26 @@ static inline const char *cap_reg_state_string(CapRegState state)
                              "Decompressed"};
     return strings[(int)state];
 }
+#ifdef CONFIG_TAG_TRACE
 
+#if TARGET_LONG_BITS == 32
+#define TRACE_TAG_BYTES 8
+#else
+#define TRACE_TAG_BYTES 16
+#endif
+
+#else
+#define TRACE_TAG_BYTES 0
+#endif
 // Cap registers should be padded so they are easier to move.
 #if TARGET_LONG_BITS == 32
 #ifdef TARGET_CHERI_RISCV_STD
-_Static_assert(sizeof(cap_register_t) == 32, "");
+_Static_assert(sizeof(cap_register_t) == 32 + TRACE_TAG_BYTES, "");
 #else
-_Static_assert(sizeof(cap_register_t) == 24, "");
+_Static_assert(sizeof(cap_register_t) == 24 + TRACE_TAG_BYTES, "");
 #endif
 #else
-_Static_assert(sizeof(cap_register_t) == 48, "");
+_Static_assert(sizeof(cap_register_t) == 48 + TRACE_TAG_BYTES, "");
 #endif
 /*
  * pesbt should come directly before reg._cr_cursor, so that the two can be
