@@ -4234,6 +4234,7 @@ if config_all.has_key('CONFIG_TCG')
   summary_info += {'TCG plugins': config_host.has_key('CONFIG_PLUGIN')}
   summary_info += {'TCG debug enabled': config_host.has_key('CONFIG_DEBUG_TCG')}
   summary_info += {'TCG instruction logging': config_host.has_key('CONFIG_TCG_LOG_INSTR')}
+  summary_info += {'CHERI Tag tracing': config_host.has_key('CONFIG_TAG_TRACE')}
 endif
 summary_info += {'target list':       ' '.join(target_dirs)}
 if have_system
