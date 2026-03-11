@@ -251,6 +251,7 @@ git="git"
 debug_tcg="no"
 tcg_log_instr="yes"
 rvfi_dii="no"
+tag_trace="no"
 docs="auto"
 EXESUF=""
 prefix="/usr/local"
@@ -772,6 +773,10 @@ for opt do
   --enable-rvfi-dii) rvfi_dii="yes"
   ;;
   --disable-rvfi-dii) rvfi_dii="no"
+  ;;
+  --disable-tag-trace) tag_trace="no"
+  ;;
+  --enable-tag-trace) tag_trace="yes"
   ;;
   --enable-debug)
       # Enable debugging options that aren't excessively noisy
@@ -1760,6 +1765,9 @@ if test "$tcg_log_instr" = "yes" ; then
 fi
 if test "$rvfi_dii" = "yes" ; then
   echo "CONFIG_RVFI_DII=y" >> $config_host_mak
+fi
+if test "$tag_trace" = "yes" ; then
+  echo "CONFIG_TAG_TRACE=y" >> $config_host_mak
 fi
 if test "$mingw32" = "yes" ; then
   echo "CONFIG_WIN32=y" >> $config_host_mak
