@@ -52,6 +52,17 @@
         cap_get_otype_signext(cr), cap_get_base(cr), cap_get_cursor(cr),       \
         cap_get_top(cr), (cr)->cr_bounds_valid
 
+static inline bool cap_get_tag(const cap_register_t *cap)
+{
+    return CAP_cc(get_tag(cap));
+}
+
+static inline cap_register_t cap_set_tag(cap_register_t *cap, bool tag,
+                                         uint32_t cause)
+{
+    return CAP_cc(set_tag(cap, tag, cause));
+}
+
 static inline target_ulong cap_get_cursor(const cap_register_t *c)
 {
     return c->_cr_cursor;
