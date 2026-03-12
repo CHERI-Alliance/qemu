@@ -139,6 +139,8 @@ static inline bool _cc_N(has_permissions)(const _cc_cap_t* cap, _cc_addr_t permi
     return (_cc_N(get_all_permissions)(cap) & permissions) == permissions;
 }
 static inline bool _cc_N(set_permissions)(_cc_cap_t* cap, _cc_addr_t permissions);
+static inline _cc_cap_t _cc_N(set_tag)(_cc_cap_t* cap, bool tag, uint64_t cause);
+static inline bool _cc_N(get_tag)(const _cc_cap_t* cap);
 #ifndef CC_IS_MORELLO
 static inline _cc_mode _cc_N(get_execution_mode)(const _cc_cap_t* cap);
 static inline bool _cc_N(set_execution_mode)(_cc_cap_t* cap, _cc_mode new_mode);
@@ -1049,6 +1051,24 @@ static inline _cc_cap_t _cc_N(make_max_perms_cap)(_cc_addr_t base, _cc_addr_t cu
     return _cc_N(_make_max_perms_cap_common)(base, cursor, top, _CC_N(MAX_LEVEL_BITS));
 }
 #endif
+
+static inline bool _cc_N(get_tag)(const _cc_cap_t* cap) { return cap->cr_tag; }
+
+static inline _cc_cap_t _cc_N(set_tag)(_cc_cap_t* cap, bool tag, uint64_t cause) {
+#ifdef CONFIG_TAG_TRACE
+    if (tag) {
+        cap->tag_clear_cause = 0;
+        cap->tag_clear_pc = 0;
+    } else {
+        if (cap->cr_tag || cause == TAG_CAUSE_INITIALISATION) {
+            cap->tag_clear_cause = cause | TAG_CAUSE_UNTRACKED;
+        }
+    }
+#else
+#endif
+    cap->cr_tag = tag;
+    return *cap;
+}
 
 /* @return the mask that needs to be applied to base in order to get a precisely representable capability */
 static inline _cc_addr_t _cc_N(get_alignment_mask)(_cc_addr_t req_length) {
