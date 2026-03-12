@@ -412,7 +412,7 @@ void helper_branch_sealed_pair(CPUArchState *env, uint32_t cn, uint32_t cm,
         cap_set_unsealed(&target);
         cap_set_unsealed(&data);
     } else {
-        target.cr_tag = 0;
+        cap_set_tag(&target, false, TAG_CAUSE_UNSEALED);
     }
 
     update_capreg(env, CINVOKE_DATA_REGNUM, &data);

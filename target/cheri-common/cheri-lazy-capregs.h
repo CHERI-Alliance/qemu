@@ -343,7 +343,7 @@ static inline void update_capreg_cursor_from(CPUArchState *env, unsigned regnum,
     /* When updating in-place, we can avoid copying. */
     target->_cr_cursor = new_cursor;
     if (clear_tag) {
-        target->cr_tag = 0;
+        cap_set_tag(target, false, TAG_CAUSE_UNDEFINED);
     }
     cheri_debug_assert(get_capreg_state(gpcrs, regnum) ==
                        CREG_FULLY_DECOMPRESSED);

@@ -4690,7 +4690,7 @@ static cap_register_t read_xepcc(CPURISCVState *env,
             warn_report("Invalidating sealed %s (contained an unaligned "
                         "capability): " PRINT_CAP_FMTSTR,
                         csr_cap_info->name, PRINT_CAP_ARGS(&retval));
-            retval.cr_tag = false;
+            cap_set_tag(&retval, false, TAG_CAUSE_SEALED_UNALIGNED);
         }
 
         cap_set_cursor(&retval, val);
