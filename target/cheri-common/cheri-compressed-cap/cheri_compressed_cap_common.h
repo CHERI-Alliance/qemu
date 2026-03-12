@@ -199,7 +199,7 @@ struct _cc_N(cap) {
 };
 
 static inline bool _cc_N(exactly_equal)(const _cc_cap_t* a, const _cc_cap_t* b) {
-    return a->cr_tag == b->cr_tag && a->_cr_cursor == b->_cr_cursor && a->cr_pesbt == b->cr_pesbt;
+    return _cc_N(get_tag)(a) == _cc_N(get_tag)(b) && a->_cr_cursor == b->_cr_cursor && a->cr_pesbt == b->cr_pesbt;
 }
 
 static inline uint8_t _cc_N(get_lvbits)(_cc_maybe_unused const _cc_cap_t* cap) {
@@ -212,8 +212,9 @@ static inline uint8_t _cc_N(get_lvbits)(_cc_maybe_unused const _cc_cap_t* cap) {
 
 static inline bool _cc_N(raw_equal)(const _cc_cap_t* a, const _cc_cap_t* b) {
     return a->_cr_cursor == b->_cr_cursor && a->cr_pesbt == b->cr_pesbt && a->_cr_top == b->_cr_top &&
-           a->cr_base == b->cr_base && a->cr_tag == b->cr_tag && a->cr_bounds_valid == b->cr_bounds_valid &&
-           _cc_N(get_lvbits)(a) == _cc_N(get_lvbits)(b) && a->cr_exp == b->cr_exp && a->cr_extra == b->cr_extra;
+           a->cr_base == b->cr_base && _cc_N(get_tag)(a) == _cc_N(get_tag)(b) &&
+           a->cr_bounds_valid == b->cr_bounds_valid && _cc_N(get_lvbits)(a) == _cc_N(get_lvbits)(b) &&
+           a->cr_exp == b->cr_exp && a->cr_extra == b->cr_extra;
 }
 
 /* Returns the index of the most significant bit set in x */
@@ -312,7 +313,7 @@ static inline uint32_t _cc_N(get_level)(const _cc_cap_t* cap) {
 }
 static inline void _cc_N(update_level)(_cc_cap_t* cap, uint8_t level) {
     _cc_api_requirement(level <= _CC_N(MAX_LEVEL_VALUE), "invalid level");
-    _cc_api_requirement(!cap->cr_tag || !_cc_N(is_cap_sealed)(cap), "cannot update level on sealed caps");
+    _cc_api_requirement(!_cc_N(get_tag)(cap) || !_cc_N(is_cap_sealed)(cap), "cannot update level on sealed caps");
     _cc_addr_t perms = _cc_N(get_all_permissions)(cap);
     if (level)
         perms |= _CC_N(PERM_GLOBAL);
@@ -565,7 +566,7 @@ static inline void _cc_N(decompress_mem)(uint64_t pesbt, uint64_t cursor, bool t
 static inline bool _cc_N(pesbt_is_correct)(const _cc_cap_t* csp) {
     _cc_cap_t tmp;
     // NB: We use the unsafe decompression function here to handle non-derivable caps without asserting.
-    _cc_N(unsafe_decompress_raw)(csp->cr_pesbt, csp->_cr_cursor, csp->cr_tag, _cc_N(get_lvbits)(csp), &tmp);
+    _cc_N(unsafe_decompress_raw)(csp->cr_pesbt, csp->_cr_cursor, _cc_N(get_tag)(csp), _cc_N(get_lvbits)(csp), &tmp);
     tmp.cr_extra = csp->cr_extra; // raw_equal also compares, cr_extra but we don't care about that here.
     if (!_cc_N(raw_equal)(&tmp, csp)) {
         return false;
@@ -587,7 +588,7 @@ static inline void _cc_N(update_ebt)(_cc_cap_t* csp, _cc_addr_t new_ebt) {
 static inline _cc_addr_t _cc_N(compress_raw)(const _cc_cap_t* csp) {
 #ifndef CC_IS_MORELLO
     // Morello allows setting the tag on capabilities with malformed bounds so we can't use this assert there.
-    _cc_debug_assert((!csp->cr_tag || (csp->cr_bounds_valid && _cc_N(reserved_bits_valid)(csp))) &&
+    _cc_debug_assert((!_cc_N(get_tag)(csp) || (csp->cr_bounds_valid && _cc_N(reserved_bits_valid)(csp))) &&
                      "Malformed bounds or unknown reserved bits in tagged capability");
 #endif
     _cc_debug_assert(_cc_N(pesbt_is_correct)(csp) && "capability bounds were modified without updating pesbt");
@@ -605,7 +606,8 @@ static inline bool _cc_N(is_representable_cap_exact)(const _cc_cap_t* cap) {
     _cc_addr_t pesbt = _cc_N(compress_raw)(cap);
     _cc_cap_t decompressed_cap;
     // NB: We use the unsafe decompression function here to handle non-derivable caps without asserting.
-    _cc_N(unsafe_decompress_raw)(pesbt, cap->_cr_cursor, cap->cr_tag, _cc_N(get_lvbits)(cap), &decompressed_cap);
+    _cc_N(unsafe_decompress_raw)(pesbt, cap->_cr_cursor, _cc_N(get_tag)(cap), _cc_N(get_lvbits)(cap),
+                                 &decompressed_cap);
     // These fields must not change:
     _cc_debug_assert(decompressed_cap._cr_cursor == cap->_cr_cursor);
     _cc_debug_assert(decompressed_cap.cr_pesbt == cap->cr_pesbt);
@@ -826,7 +828,7 @@ static inline bool _cc_N(is_representable_with_addr)(const _cc_cap_t* cap, _cc_a
 /// Updates the address of a capability using semantics that match the hardware (i.e. using a fast approximate
 /// representability check rather than a precise one).
 static inline void _cc_N(set_addr)(_cc_cap_t* cap, _cc_addr_t new_addr) {
-    if (cap->cr_tag && _cc_N(is_cap_sealed)(cap)) {
+    if (_cc_N(get_tag)(cap) && _cc_N(is_cap_sealed)(cap)) {
 
         _cc_N(set_tag)(cap, false, TAG_CAUSE_UNSEALED);
     }
@@ -943,7 +945,7 @@ static inline bool _cc_N(setbounds_impl)(_cc_cap_t* cap, _cc_length_t req_len, _
         _cc_N(set_tag)(cap, false, TAG_CAUSE_BOUNDS_INVALID);
     }
 #endif
-    if (cap->cr_tag) {
+    if (_cc_N(get_tag)(cap)) {
         // For invalid inputs, new_top could have been larger than max_top and if it is sufficiently larger, it
         // will be truncated to zero, so we can only assert that we get top > base for tagged, valid inputs.
         // See https://github.com/CTSRD-CHERI/sail-cheri-riscv/pull/36 for a decoding change that guarantees
@@ -969,7 +971,7 @@ static inline bool _cc_N(setbounds)(_cc_cap_t* cap, _cc_length_t req_len) {
         _cc_N(cap_bounds_uses_value)(cap) ? _cc_N(cap_bounds_address)(cap->_cr_cursor) : cap->_cr_cursor;
     __attribute__((unused)) _cc_length_t req_top = req_len + req_base;
     bool exact = _cc_N(setbounds_impl)(cap, req_len, NULL);
-    if (cap->cr_tag) {
+    if (_cc_N(get_tag)(cap)) {
         // Assertions to check that we didn't break any invariants.
         _cc_debug_assert(!_cc_N(is_cap_sealed)(cap) && "result cannot be sealed and tagged");
         _cc_debug_assert(((cap->_cr_top - cap->cr_base) >> _CC_ADDR_WIDTH) <= 1 &&
@@ -999,7 +1001,7 @@ static inline bool _cc_N(checked_setbounds)(_cc_cap_t* cap, _cc_length_t req_len
     __attribute__((unused)) _cc_addr_t req_base =
         _cc_N(cap_bounds_uses_value)(cap) ? _cc_N(cap_bounds_address)(cap->_cr_cursor) : cap->_cr_cursor;
     __attribute__((unused)) _cc_length_t req_top = req_len + req_base;
-    if (cap->cr_tag) {
+    if (_cc_N(get_tag)(cap)) {
         // Assertions to detect API misuse - those checks should have been performed before calling setbounds.
         _cc_api_requirement(!_cc_N(is_cap_sealed)(cap), "cannot be used on tagged sealed capabilities");
         _cc_api_requirement(req_base >= cap->cr_base, "cannot decrease base on tagged capabilities");
