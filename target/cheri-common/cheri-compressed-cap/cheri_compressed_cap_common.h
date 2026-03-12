@@ -522,7 +522,7 @@ static inline bool _cc_N(compute_base_top)(_cc_bounds_bits bounds, _cc_addr_t cu
 static inline void _cc_N(unsafe_decompress_raw)(_cc_addr_t pesbt, _cc_addr_t cursor, bool tag,
                                                 _cc_maybe_unused uint8_t lvbits, _cc_cap_t* cdp) {
     memset(cdp, 0, sizeof(*cdp));
-    cdp->cr_tag = tag;
+    _cc_N(set_tag)(cdp, tag, TAG_CAUSE_DECOMPRESS);
     cdp->_cr_cursor = cursor;
     cdp->cr_pesbt = pesbt;
 #if _CC_N(MANDATORY_LEVEL_BITS) != _CC_N(MAX_LEVEL_BITS)
@@ -827,11 +827,12 @@ static inline bool _cc_N(is_representable_with_addr)(const _cc_cap_t* cap, _cc_a
 /// representability check rather than a precise one).
 static inline void _cc_N(set_addr)(_cc_cap_t* cap, _cc_addr_t new_addr) {
     if (cap->cr_tag && _cc_N(is_cap_sealed)(cap)) {
-        cap->cr_tag = false;
+
+        _cc_N(set_tag)(cap, false, TAG_CAUSE_UNSEALED);
     }
     if (!_cc_N(is_representable_with_addr)(cap, new_addr, /*precise_representable_check=*/false)) {
         // Detag and recompute the new bounds if the capability became unrepresentable.
-        cap->cr_tag = false;
+        _cc_N(set_tag)(cap, false, TAG_CAUSE_UNREPRESENTABLE);
         _cc_N(decompress_raw)(cap->cr_pesbt, new_addr, false, cap);
     } else {
         cap->_cr_cursor = new_addr;
@@ -884,11 +885,12 @@ static bool _cc_N(_fast_is_representable_new_addr)(const _cc_cap_t* cap, _cc_add
 static inline bool _cc_N(setbounds_impl)(_cc_cap_t* cap, _cc_length_t req_len, _cc_addr_t* alignment_mask) {
     uint64_t req_base = cap->_cr_cursor;
     if (_cc_N(is_cap_sealed)(cap)) {
-        cap->cr_tag = 0; // Detag sealed inputs to maintain invariants
+        // Detag sealed inputs to maintain invariants
+        _cc_N(set_tag)(cap, false, TAG_CAUSE_UNSEALED);
     }
 #ifdef CC_IS_MORELLO
     if (!cap->cr_bounds_valid) {
-        cap->cr_tag = 0;
+        _cc_N(set_tag)(cap, false, TAG_CAUSE_BOUNDS_INVALID);
     }
     bool from_large = !_cc_N(cap_bounds_uses_value)(cap);
     if (!from_large) {
@@ -902,7 +904,7 @@ static inline bool _cc_N(setbounds_impl)(_cc_cap_t* cap, _cc_length_t req_len, _
     _cc_debug_assert(req_base <= req_top && "Cannot invert base and top");
     // Clear the tag if the requested base or top are outside the bounds of the input capability.
     if (req_base < cap->cr_base || req_top > cap->_cr_top) {
-        cap->cr_tag = 0;
+        _cc_N(set_tag)(cap, false, TAG_CAUSE_BOUNDS_INVALID);
     }
 #if _CC_N(USES_LEN_MSB) != 0
     _CC_STATIC_ASSERT(_CC_EXP_LOW_WIDTH == 2, "expected 2 bits to be used by");
@@ -938,7 +940,7 @@ static inline bool _cc_N(setbounds_impl)(_cc_cap_t* cap, _cc_length_t req_len, _
     bool to_small = _cc_N(cap_bounds_uses_value_for_exp)(_cc_N(extract_bounds_bits)(new_ebt).E);
     // On morello we may end up with a length that could have been exact, but has changed the flag bits.
     if ((from_large && to_small) && _cc_N(cap_bounds_address)(cap->_cr_cursor) != cap->_cr_cursor) {
-        cap->cr_tag = 0;
+        _cc_N(set_tag)(cap, false, TAG_CAUSE_BOUNDS_INVALID);
     }
 #endif
     if (cap->cr_tag) {
@@ -1020,7 +1022,7 @@ static inline _cc_cap_t _cc_N(_make_max_perms_cap_common)(_cc_addr_t base, _cc_a
     creg.cr_bounds_valid = true;
     creg._cr_top = top;
     creg.cr_pesbt = _CC_N(ENCODED_INFINITE_PERMS)(lvbits) | _CC_ENCODE_FIELD(_CC_N(OTYPE_UNSEALED), OTYPE);
-    creg.cr_tag = true;
+    _cc_N(set_tag)(&creg, true, 0);
     creg.cr_exp = _CC_N(RESET_EXP);
     _cc_debug_assert(lvbits <= _CC_N(MAX_LEVEL_BITS) && "We only support local-global levels.");
 #if _CC_N(MANDATORY_LEVEL_BITS) != _CC_N(MAX_LEVEL_BITS)
