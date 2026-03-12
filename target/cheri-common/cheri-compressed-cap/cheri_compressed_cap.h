@@ -45,6 +45,23 @@
 #include <stdint.h>
 #include <string.h>
 
+#define TAG_CAUSE_UNTRACKED (1 << 31)
+#define TAG_CAUSE_UNSEALED (1 << 0)
+#define TAG_CAUSE_UNREPRESENTABLE (1 << 1)
+#define TAG_CAUSE_BOUNDS_INVALID (1 << 2)
+#define TAG_CAUSE_DECOMPRESS (1 << 3)
+#define TAG_CAUSE_SEALED_TRAP_VECTOR (1 << 4)
+#define TAG_CAUSE_SENTRY_MISMATCH (1 << 5)
+#define TAG_CAUSE_SEALED_UNALIGNED (1 << 6)
+#define TAG_CAUSE_NULL_AUTH (1 << 7)
+#define TAG_CAUSE_SEAL_INVALID (1 << 8)
+#define TAG_CAUSE_CLEAR_TAG (1 << 9)
+#define TAG_CAUSE_PERMS (1 << 10)
+#define TAG_CAUSE_NON_CANONICAL (1 << 11)
+#define TAG_CAUSE_UNDEFINED (1 << 12)
+#define TAG_CAUSE_INITIALISATION (1 << 13)
+#define TAG_CAUSE_INTEGER_OP (1 << 14)
+
 // clang-format off
 #include "cheri_compressed_cap_64.h"
 #include "cheri_compressed_cap_64r.h"
