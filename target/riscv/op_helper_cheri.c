@@ -554,7 +554,7 @@ void HELPER(scmode)(CPUArchState *env, uint32_t cd, uint32_t cs1,
 {
     cap_register_t result = *get_readonly_capreg(env, cs1);
     if (result.cr_tag && !cap_is_unsealed(&result)) {
-        result.cr_tag = 0;
+        cap_set_tag(&result, 0, TAG_CAUSE_UNSEALED);
     }
     /* Mode is only updated if X is present and the permissions are valid. */
     if (cap_has_perms(&result, CAP_PERM_EXECUTE) &&

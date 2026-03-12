@@ -430,7 +430,7 @@ void CHERI_HELPER_IMPL(ccleartag(CPUArchState *env, uint32_t cd, uint32_t cb))
     // TODO: could do this without decompressing.
     const cap_register_t *cbp = get_readonly_capreg(env, cb);
     cap_register_t result = *cbp;
-    result.cr_tag = 0;
+    cap_set_tag(&result, false, TAG_CAUSE_CLEAR_TAG);
     update_capreg(env, cd, &result);
 }
 
@@ -459,7 +459,7 @@ void cheri_jump_and_link(CPUArchState *env, const cap_register_t *target,
                        "\n  Target cap: " PRINT_CAP_FMTSTR  "\n",
                        PRINT_CAP_ARGS(cheri_get_recent_pcc(env)),
                        PRINT_CAP_ARGS(target));
-        next_pcc.cr_tag = 0;
+        cap_set_tag(&next_pcc, false, TAG_CAUSE_SENTRY_MISMATCH);
     } else {
         /*
          * For RISC-V This can never create an unrepresentable capability since
@@ -645,7 +645,7 @@ void CHERI_HELPER_IMPL(csealentry(CPUArchState *env, uint32_t cd, uint32_t cs))
 #endif
     cap_register_t result = *csp;
     if (!RESULT_VALID) {
-        result.cr_tag = 0;
+        cap_set_tag(&result, false, TAG_CAUSE_PERMS);
     }
     /* NB: Not using `cap_make_sealed_entry` since the input can be untagged. */
     CAP_cc(update_otype)(&result, CAP_OTYPE_SENTRY);
@@ -738,7 +738,7 @@ void CHERI_HELPER_IMPL(cbuildcap(CPUArchState *env, uint32_t cd, uint32_t cb,
     /* New behaviour in the RISC-V standard (no longer reads ddc): */
     if (cb == 0) {
         /* If cs1 is the NULL register, we copy cs2 to cd and clear cd's tag. */
-        result.cr_tag = false;
+        cap_set_tag(&result, false, TAG_CAUSE_NULL_AUTH);
         update_capreg(env, cd, &result);
         return;
     }
@@ -768,13 +768,13 @@ void CHERI_HELPER_IMPL(cbuildcap(CPUArchState *env, uint32_t cd, uint32_t cb,
     }
 
     if (!RESULT_VALID) {
-        result.cr_tag = 0; /* Not a valid subset. */
+        cap_set_tag(&result, false, TAG_CAUSE_PERMS);
     } else {
         /* Check if the capability bounds are canonical by deriving. */
         cap_register_t derived = *cbp;
         assert(!cap_has_reserved_bits_set(&derived));
         if (!cap_is_unsealed(&derived)) {
-            derived.cr_tag = 0;
+            cap_set_tag(&derived, false, TAG_CAUSE_UNSEALED);
         }
         cap_set_cursor(&derived, cap_get_base(&result));
         CAP_cc(setbounds)(&derived, cap_get_length_full(&result));
@@ -795,7 +795,8 @@ void CHERI_HELPER_IMPL(cbuildcap(CPUArchState *env, uint32_t cd, uint32_t cb,
         if (cap_is_sealed_entry(ctp)) {
             cap_make_sealed_entry(&derived);
         }
-        result.cr_tag = 1; /* Set tag to true for comparison with derived. */
+        cap_set_tag(&result, true,
+                    0); /* Set tag to true for comparison with derived. */
         if (cap_exactly_equal(&result, &derived)) {
             /*
              * If this was a valid derivation sequence return that to ensure
@@ -804,7 +805,7 @@ void CHERI_HELPER_IMPL(cbuildcap(CPUArchState *env, uint32_t cd, uint32_t cb,
             result = derived;
         } else {
             /* Valid subset but not canonical -> return the untagged input. */
-            result.cr_tag = 0;
+            cap_set_tag(&result, false, TAG_CAUSE_NON_CANONICAL);
         }
     }
     update_capreg(env, cd, &result);
@@ -841,7 +842,7 @@ void CHERI_HELPER_IMPL(ccopytype(CPUArchState *env, uint32_t cd, uint32_t cb,
     }
     cap_register_t result = *cbp;
     if (!RESULT_VALID) {
-        result.cr_tag = 0;
+        cap_set_tag(&result, false, TAG_CAUSE_PERMS);
     }
     try_set_cap_cursor(env, &result, cb, cd, cap_get_otype_signext(ctp),
                        /*precise_repr_check=*/true, GETPC(),
@@ -893,7 +894,7 @@ static void cseal_common(CPUArchState *env, uint32_t cd, uint32_t cs,
     }
     cap_register_t result = *csp;
     if (!RESULT_VALID) {
-        result.cr_tag = false;
+        cap_set_tag(&result, false, TAG_CAUSE_SEAL_INVALID);
         uint32_t new_otype = (uint32_t)ct_base_plus_offset;
         new_otype &= CAP_OTYPE_ALL_BITS;
         CAP_cc(update_otype)(&result, new_otype);
@@ -969,7 +970,8 @@ void CHERI_HELPER_IMPL(cunseal(CPUArchState *env, uint32_t cd, uint32_t cs,
     if (RESULT_VALID) {
         cap_set_unsealed(&result);
     } else {
-        result.cr_tag = 0; /* Detag on invalid input/argument. */
+        cap_set_tag(&result, false,
+                    TAG_CAUSE_PERMS); /* Detag on invalid input/argument. */
         CAP_cc(update_otype)(&result, CAP_OTYPE_UNSEALED);
     }
     update_capreg(env, cd, &result);
@@ -1030,7 +1032,7 @@ void CHERI_HELPER_IMPL(candperm(CPUArchState *env, uint32_t cd, uint32_t cb,
 
     cap_register_t result = *cbp;
     if (!RESULT_VALID) {
-        result.cr_tag = 0;
+        cap_set_tag(&result, false, TAG_CAUSE_PERMS);
     }
     target_ulong new_perms = cap_get_all_perms(cbp) & rt;
     /* Ensure that the permission can be encoded */
@@ -1116,7 +1118,8 @@ void CHERI_HELPER_IMPL(cfromptr(CPUArchState *env, uint32_t cd, uint32_t cb,
     }
     cap_register_t result = *cbp;
     if (!RESULT_VALID) {
-        result.cr_tag = 0; /* Detag sealed inputs  */
+        cap_set_tag(&result, false,
+                    TAG_CAUSE_UNSEALED); /* Detag sealed inputs  */
     }
     target_ulong new_addr = cbp->cr_base + rt;
     if (!is_representable_cap_with_addr(cbp, new_addr)) {
@@ -1184,7 +1187,7 @@ static void do_setbounds(bool must_be_exact, CPUArchState *env, uint32_t cd,
         assert(cap_get_top_full(&result) <= cap_get_top_full(cbp) &&
                "CSetBounds broke monotonicity (top)");
     } else {
-        result.cr_tag = 0;
+        cap_set_tag(&result, false, TAG_CAUSE_BOUNDS_INVALID);
     }
 
     update_capreg(env, cd, &result);
@@ -1228,7 +1231,7 @@ void CHERI_HELPER_IMPL(csetflags(CPUArchState *env, uint32_t cd, uint32_t cb,
     }
     cap_register_t result = *cbp;
     if (!RESULT_VALID) {
-        result.cr_tag = 0;
+        cap_set_tag(&result, false, TAG_CAUSE_PERMS);
     }
     flags &= CAP_FLAGS_ALL_BITS;
     _Static_assert(CAP_FLAGS_ALL_BITS == 1, "Only one flag should exist");
@@ -2014,7 +2017,7 @@ void helper_capreg_state_debug(CPUArchState *env, uint32_t regnum,
 cap_register_t cap_scaddr(target_ulong addr, cap_register_t dest)
 {
     if (is_cap_sealed(&dest)) {
-        dest.cr_tag = false;
+        cap_set_tag(&dest, false, TAG_CAUSE_UNSEALED);
     }
     // cap_set_cursor checks the representable range
     cap_set_cursor(&dest, addr);

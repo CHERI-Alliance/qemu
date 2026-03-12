@@ -550,7 +550,7 @@ static inline cap_register_t *cap_mark_unrepresentable(target_ulong addr,
 {
     // Clear the tag and update the address:
     cr->_cr_cursor = addr;
-    cr->cr_tag = false;
+    cap_set_tag(cr, false, TAG_CAUSE_UNREPRESENTABLE);
     /*
      * Recompute the decompressed bounds relative to the new address. In most
      * cases they will refer to a different region of memory now.

@@ -178,7 +178,7 @@ static inline void cheri_update_pcc_for_exc_handler(cap_register_t *pcc,
         error_report("Sealed PCC set for exception"
                      " handler, detagging: " PRINT_CAP_FMTSTR "\r",
                      PRINT_CAP_ARGS(pcc));
-        pcc->cr_tag = false;
+        cap_set_tag(pcc, false, TAG_CAUSE_SEALED_TRAP_VECTOR);
     }
     if (!pcc->cr_tag) {
         error_report("Invalid PCC in exception handler: " PRINT_CAP_FMTSTR "\r",
@@ -210,7 +210,7 @@ static inline void cheri_update_pcc_for_exc_return(cap_register_t *pcc,
             error_report("Sentry PCC in exception return with different target "
                          "addr: " PRINT_CAP_FMTSTR "\r",
                          PRINT_CAP_ARGS(pcc));
-            pcc->cr_tag = false;
+            cap_set_tag(pcc, false, TAG_CAUSE_SENTRY_MISMATCH);
         }
     } else if (pcc->cr_tag && !cap_is_unsealed(pcc)) {
         if (new_cursor == cap_get_cursor(pcc)) {
@@ -219,7 +219,7 @@ static inline void cheri_update_pcc_for_exc_return(cap_register_t *pcc,
         } else {
             error_report("Sealed target PCC in exception return" PRINT_CAP_FMTSTR "\r",
                          PRINT_CAP_ARGS(pcc));
-            pcc->cr_tag = false;
+            cap_set_tag(pcc, false, TAG_CAUSE_SEALED_TRAP_VECTOR);
         }
     }
     cheri_update_pcc(pcc, new_cursor, /*can_be_unrepresentable=*/true);

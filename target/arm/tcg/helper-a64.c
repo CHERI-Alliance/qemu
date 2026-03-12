@@ -847,11 +847,11 @@ void HELPER(exception_return)(CPUARMState *env, uint64_t new_pc)
         if (cap_return) {
             env->pc = env->elr_el[cur_el];
             if (no_system)
-                env->pc.cap.cr_tag = 0;
+                cap_set_tag(&(env->pc.cap), false, TAG_CAUSE_PERMS);
         }
 
         if (!cap_is_unsealed(&env->pc.cap)) {
-            env->pc.cap.cr_tag = 0;
+            cap_set_tag(&env->pc.cap, false, TAG_CAUSE_UNSEALED);
         }
 #endif
 
