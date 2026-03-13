@@ -67,8 +67,9 @@ static inline void derive_cap_from_pcc(CPUArchState *env, uint32_t cd,
     const cap_register_t *pccp = cheri_get_recent_pcc(env);
     cap_register_t result = *pccp;
     if (!is_representable_cap_with_addr(pccp, new_addr)) {
-        if (pccp->cr_tag)
+        if (cap_get_tag(pccp)) {
             became_unrepresentable(env, cd, oob_info, retpc);
+        }
         cap_mark_unrepresentable(new_addr, &result);
     } else {
         result._cr_cursor = new_addr;
@@ -95,7 +96,7 @@ static inline void check_cap(CPUArchState *env, const cap_register_t *cr,
      * CapEx_PermitLoadViolation, or CapEx_PermitStoreViolation Violation). (4)
      * <addr> must be within bounds (CapEx_LengthViolation Violation).
      */
-    if (!cr->cr_tag) {
+    if (!cap_get_tag(cr)) {
         cause = CapEx_TagViolation;
         // qemu_log("CAP Tag VIOLATION: ");
         goto do_exception;
@@ -164,7 +165,7 @@ static inline void cheri_update_pcc_for_exc_handler(cap_register_t *pcc,
                                                     target_ulong new_pc)
 {
     if (cap_exactly_equal(pcc, src_cap) && new_pc == cap_get_cursor(pcc)) {
-        if (!pcc->cr_tag || !cap_has_perms(pcc, CAP_PERM_EXECUTE) ||
+        if (!cap_get_tag(pcc) || !cap_has_perms(pcc, CAP_PERM_EXECUTE) ||
             !cap_cursor_in_bounds(pcc)) {
             /* Warn about infinite trap loops instead of silently freezing. */
             error_report_once("Detected infinite trap loop due to invalid "
@@ -180,7 +181,7 @@ static inline void cheri_update_pcc_for_exc_handler(cap_register_t *pcc,
                      PRINT_CAP_ARGS(pcc));
         cap_set_tag(pcc, false, TAG_CAUSE_SEALED_TRAP_VECTOR);
     }
-    if (!pcc->cr_tag) {
+    if (!cap_get_tag(pcc)) {
         error_report("Invalid PCC in exception handler: " PRINT_CAP_FMTSTR "\r",
                      PRINT_CAP_ARGS(pcc));
     }
@@ -202,7 +203,7 @@ static inline void cheri_update_pcc_for_exc_return(cap_register_t *pcc,
      * On exception return we unseal sentry capabilities (if the address
      * matches).
      */
-    if (pcc->cr_tag && cap_is_sealed_entry(pcc)) {
+    if (cap_get_tag(pcc) && cap_is_sealed_entry(pcc)) {
         if (new_cursor == cap_get_cursor(pcc)) {
             cap_unseal_entry(pcc);
             return;
@@ -212,7 +213,7 @@ static inline void cheri_update_pcc_for_exc_return(cap_register_t *pcc,
                          PRINT_CAP_ARGS(pcc));
             cap_set_tag(pcc, false, TAG_CAUSE_SENTRY_MISMATCH);
         }
-    } else if (pcc->cr_tag && !cap_is_unsealed(pcc)) {
+    } else if (cap_get_tag(pcc) && !cap_is_unsealed(pcc)) {
         if (new_cursor == cap_get_cursor(pcc)) {
             // Don't detag, we should get a seal violation on the next inst fetch
             return;
@@ -339,7 +340,7 @@ static inline QEMU_ALWAYS_INLINE target_ulong cap_check_common_reg(
     bool is_load = (required_perms & CAP_PERM_LOAD) != 0;
     bool in_bounds = cap_is_in_bounds(cbp, addr, size);
 
-    if (!cbp->cr_tag) {
+    if (!cap_get_tag(cbp)) {
         raise_cheri_exception_addr_wnr(env, CapEx_TagViolation, cb, addr,
                                        !is_load);
     } else if (!cap_is_unsealed(cbp)) {

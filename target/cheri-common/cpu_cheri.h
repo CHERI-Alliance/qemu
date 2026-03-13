@@ -76,10 +76,10 @@ static inline void cheri_update_pcc(cap_register_t *pcc, target_ulong pc_addr,
     // exception handler entry/return. For jumps/branches an out-of-bounds PCC
     // value should raise a trap on the branch/jump so we can't get an
     // unrpresentable value here.
-    cheri_debug_assert(!pcc->cr_tag || cap_is_unsealed(pcc) ||
+    cheri_debug_assert(!cap_get_tag(pcc) || cap_is_unsealed(pcc) ||
                        pcc->_cr_cursor == pc_addr);
     if (can_be_unrepresenable) {
-        if (pcc->cr_tag && !is_representable_cap_with_addr(pcc, pc_addr)) {
+        if (cap_get_tag(pcc) && !is_representable_cap_with_addr(pcc, pc_addr)) {
             error_report(
                 "Attempting to set unrepresentable cursor (0x" TARGET_FMT_lx
                 ") on PCC: " PRINT_CAP_FMTSTR "\r",
@@ -130,7 +130,7 @@ static inline bool cheri_cap_perms_valid_for_exec(const cap_register_t *pcc)
 {
     // When executing, PCC must be tagged, executable and unsealed (and
     // in-bounds).
-    return pcc->cr_tag && cap_has_perms(pcc, CAP_PERM_EXECUTE) &&
+    return cap_get_tag(pcc) && cap_has_perms(pcc, CAP_PERM_EXECUTE) &&
            cap_is_unsealed(pcc);
 }
 
@@ -154,7 +154,7 @@ cheri_cpu_get_tb_cpu_state(CPUArchState *env, const cap_register_t *pcc,
     if (cheri_cap_perms_valid_for_exec(pcc))
         *cheri_flags |= TB_FLAG_CHERI_PCC_EXECUTABLE;
 
-    if (pcc->cr_tag && cap_is_unsealed(pcc)) {
+    if (cap_get_tag(pcc) && cap_is_unsealed(pcc)) {
         if (cap_has_perms(pcc, CAP_PERM_LOAD))
             *cheri_flags |= TB_FLAG_CHERI_PCC_READABLE;
     }
@@ -164,7 +164,7 @@ cheri_cpu_get_tb_cpu_state(CPUArchState *env, const cap_register_t *pcc,
     if (cap_get_top_full(pcc) == CAP_MAX_TOP)
         *cheri_flags |= TB_FLAG_CHERI_PCC_TOP_MAX;
 
-    if (ddc->cr_tag && cap_is_unsealed(ddc)
+    if (cap_get_tag(ddc) && cap_is_unsealed(ddc)
 #ifdef TARGET_AARCH64
         && ddc->cr_bounds_valid
 #endif

@@ -2190,7 +2190,7 @@ static target_ulong riscv_intr_pc(CPURISCVState *env, target_ulong tvec,
                 tvt = cap_scaddr(tbase, tvt);
 
                 uintptr_t _host_return_address = GETPC();
-                if (!tvt.cr_tag) {
+                if (!cap_get_tag(&tvt)) {
                     raise_cheri_exception(env, CapEx_TagViolation, tbase);
                 } else if (!cap_is_unsealed(&tvt)) {
                     raise_cheri_exception(env, CapEx_SealViolation, tbase);

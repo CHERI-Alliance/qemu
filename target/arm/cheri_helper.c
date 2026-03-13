@@ -347,7 +347,7 @@ void helper_load_pair_and_branch_and_link(CPUArchState *env, uint32_t cn,
 
     target_ulong addr = base._cr_cursor;
 
-    if (base.cr_tag && ct == CINVOKE_DATA_REGNUM &&
+    if (cap_get_tag(&base) && ct == CINVOKE_DATA_REGNUM &&
         cap_get_otype_unsigned(&base) == CAP_OTYPE_LOAD_PAIR_BRANCH) {
         cap_unseal_reserved_otype(&base);
     }
@@ -375,7 +375,7 @@ void helper_load_and_branch_and_link(CPUArchState *env, uint32_t cn,
 
     cap_register_t base = *get_capreg_or_special(env, cn);
 
-    if (base.cr_tag && cn == CINVOKE_DATA_REGNUM &&
+    if (cap_get_tag(&base) && cn == CINVOKE_DATA_REGNUM &&
         cap_get_otype_unsigned(&base) == CAP_OTYPE_LOAD_BRANCH) {
         cap_unseal_reserved_otype(&base);
     }
@@ -402,8 +402,8 @@ void helper_branch_sealed_pair(CPUArchState *env, uint32_t cn, uint32_t cm,
     cap_register_t target = *get_capreg_or_special(env, cn);
     cap_register_t data = *get_capreg_or_special(env, cm);
 
-    if (target.cr_tag && data.cr_tag && cap_is_sealed_with_type(&target) &&
-        cap_is_sealed_with_type(&data) &&
+    if (cap_get_tag(&target) && cap_get_tag(&data) &&
+        cap_is_sealed_with_type(&target) && cap_is_sealed_with_type(&data) &&
         (cap_get_otype_unsigned(&target) == cap_get_otype_unsigned(&data)) &&
         cap_has_perms(&target, CAP_PERM_BRANCH_SEALED_PAIR) &&
         cap_has_perms(&data, CAP_PERM_BRANCH_SEALED_PAIR) &&

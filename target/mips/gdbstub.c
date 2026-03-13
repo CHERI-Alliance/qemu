@@ -215,22 +215,32 @@ int mips_gdb_get_cheri_reg(CPUMIPSState *env, GByteArray *mem_buf, int n)
         int i;
 
         cap_valid = 0;
-        if (env->active_tc.CHWR.DDC.cr_tag)
+        if (cap_get_tag(&(env->active_tc.CHWR.DDC))) {
             cap_valid |= 1;
+        }
         for (i = 1; i < 32; i++) {
             if (get_capreg_tag(env, i))
                 cap_valid |= ((uint64_t)1 << i);
         }
-        if (cheri_get_recent_pcc(env)->cr_tag)
+        if (cap_get_tag(cheri_get_recent_pcc(env))) {
             cap_valid |= ((uint64_t)1 << 32);
-        cap_valid |= ((uint64_t)env->active_tc.CHWR.UserTlsCap.cr_tag << 33);
-        cap_valid |= ((uint64_t)env->active_tc.CHWR.PrivTlsCap.cr_tag << 34);
-        cap_valid |= ((uint64_t)env->active_tc.CHWR.KR1C.cr_tag << 35);
-        cap_valid |= ((uint64_t)env->active_tc.CHWR.KR2C.cr_tag << 36);
-        cap_valid |= ((uint64_t)env->active_tc.CHWR.KCC.cr_tag << 37);
-        cap_valid |= ((uint64_t)env->active_tc.CHWR.KDC.cr_tag << 38);
-        cap_valid |= ((uint64_t)env->active_tc.CHWR.EPCC.cr_tag << 39);
-        cap_valid |= ((uint64_t)env->active_tc.CHWR.ErrorEPCC.cr_tag << 40);
+        }
+        cap_valid |=
+            ((uint64_t)(cap_get_tag(&(env->active_tc.CHWR.UserTlsCap))) << 33);
+        cap_valid |=
+            ((uint64_t)(cap_get_tag(&(env->active_tc.CHWR.PrivTlsCap))) << 34);
+        cap_valid |=
+            ((uint64_t)(cap_get_tag(&(env->active_tc.CHWR.KR1C))) << 35);
+        cap_valid |=
+            ((uint64_t)(cap_get_tag(&(env->active_tc.CHWR.KR2C))) << 36);
+        cap_valid |=
+            ((uint64_t)(cap_get_tag(&(env->active_tc.CHWR.KCC))) << 37);
+        cap_valid |=
+            ((uint64_t)(cap_get_tag(&(env->active_tc.CHWR.KDC))) << 38);
+        cap_valid |=
+            ((uint64_t)(cap_get_tag(&(env->active_tc.CHWR.EPCC))) << 39);
+        cap_valid |=
+            ((uint64_t)(cap_get_tag(&(env->active_tc.CHWR.ErrorEPCC))) << 40);
         return gdb_get_regl(mem_buf, cap_valid);
     }
     }

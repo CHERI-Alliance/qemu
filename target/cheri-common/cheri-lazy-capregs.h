@@ -72,7 +72,7 @@ static inline void sanity_check_capreg(GPCapRegs *gpcrs, unsigned regnum)
         // Check that the compressed and decompressed caps are in sync
         cheri_debug_assert(CAP_cc(compress_raw)(c) ==
                            get_cap_in_gpregs(gpcrs, regnum)->cr_pesbt);
-        cheri_debug_assert((c->cr_tag == 0 || c->cr_tag == 1) &&
+        cheri_debug_assert((cap_get_tag(c) == 0 || cap_get_tag(c) == 1) &&
                            "Unitialized value used?");
     } else {
         /*
@@ -175,7 +175,7 @@ get_without_decompress_tag(CPUArchState *env, unsigned regnum)
     GPCapRegs *gpcrs = cheri_get_gpcrs(env);
     CapRegState state = get_capreg_state(gpcrs, regnum);
     bool tag = (state == CREG_FULLY_DECOMPRESSED) &&
-               get_cap_in_gpregs(gpcrs, regnum)->cr_tag;
+               cap_get_tag(get_cap_in_gpregs(gpcrs, regnum));
     tag |= (state == CREG_TAGGED_CAP);
     return tag;
 }
@@ -421,7 +421,7 @@ static inline target_ulong get_capreg_tag(CPUArchState *env, unsigned regnum)
     // state we simply read the cr_tag member.
     switch (get_capreg_state(gpcrs, regnum)) {
     case CREG_FULLY_DECOMPRESSED:
-        return get_cap_in_gpregs(gpcrs, regnum)->cr_tag;
+        return cap_get_tag(get_cap_in_gpregs(gpcrs, regnum));
     case CREG_INTEGER:
         return false;
     case CREG_TAGGED_CAP:
