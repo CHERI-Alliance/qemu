@@ -277,7 +277,7 @@ void helper_cbo_zero_cap(CPURISCVState *env, uint32_t addr_reg)
     check_zicbo_envcfg(env, MENVCFG_CBZE, _host_return_address);
     uint32_t auth_reg = cheri_in_capmode(env) ? addr_reg : CHERI_EXC_REGNUM_DDC;
     const cap_register_t *auth_cap = get_capreg_or_special(env, auth_reg);
-    if (!auth_cap->cr_tag) {
+    if (!cap_get_tag(auth_cap)) {
         raise_cheri_exception(env, CapEx_TagViolation, auth_reg);
     } else if (!cap_is_unsealed(auth_cap)) {
         raise_cheri_exception(env, CapEx_SealViolation, auth_reg);
@@ -368,7 +368,7 @@ void helper_cbo_clean_flush_cap(CPURISCVState *env, uint32_t addr_reg)
 
     uint32_t auth_reg = cheri_in_capmode(env) ? addr_reg : CHERI_EXC_REGNUM_DDC;
     const cap_register_t *auth_cap = get_capreg_or_special(env, auth_reg);
-    if (!auth_cap->cr_tag) {
+    if (!cap_get_tag(auth_cap)) {
         raise_cheri_exception(env, CapEx_TagViolation, auth_reg);
     }
     if (!cap_is_unsealed(auth_cap)) {
@@ -421,7 +421,7 @@ void helper_cbo_inval_cap(CPURISCVState *env, uint32_t addr_reg)
         raise_cheri_exception(env, CapEx_AccessSystemRegsViolation,
                               CHERI_EXC_REGNUM_PCC);
     }
-    if (!auth_cap->cr_tag) {
+    if (!cap_get_tag(auth_cap)) {
         raise_cheri_exception(env, CapEx_TagViolation, auth_reg);
     }
     if (!cap_is_unsealed(auth_cap)) {

@@ -93,8 +93,9 @@ struct oob_stats_info {
                                              const cap_register_t *cr,
                                              const char *name, uintptr_t retpc)
 {
-    if (!cr->cr_tag)
+    if (!cap_get_tag(cr)) {
         return 0;  // We don't care about arithmetic on untagged things
+    }
 
     const cap_offset_t offset = cap_get_offset(cr);
     const target_ulong addr = cap_get_cursor(cr);

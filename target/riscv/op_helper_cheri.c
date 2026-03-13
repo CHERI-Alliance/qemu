@@ -297,7 +297,7 @@ void HELPER(amoswap_cap)(CPUArchState *env, uint32_t dest_reg,
     }
     const cap_register_t *cbp = get_load_store_base_cap(env, addr_reg);
 
-    if (!cbp->cr_tag) {
+    if (!cap_get_tag(cbp)) {
         raise_cheri_exception(env, CapEx_TagViolation, addr_reg);
     } else if (!cap_is_unsealed(cbp)) {
         raise_cheri_exception(env, CapEx_SealViolation, addr_reg);
@@ -358,7 +358,7 @@ static void lr_c_impl(CPUArchState *env, uint32_t dest_reg, uint32_t auth_reg,
                       target_ulong addr, uintptr_t _host_return_address)
 {
     const cap_register_t *cbp = get_load_store_base_cap(env, auth_reg);
-    if (!cbp->cr_tag) {
+    if (!cap_get_tag(cbp)) {
         raise_cheri_exception(env, CapEx_TagViolation, auth_reg);
     } else if (!cap_is_unsealed(cbp)) {
         raise_cheri_exception(env, CapEx_SealViolation, auth_reg);
@@ -429,7 +429,7 @@ static target_ulong sc_c_impl(CPUArchState *env, uint32_t addr_reg,
 {
     const cap_register_t *auth_cap = get_load_store_base_cap(env, addr_reg);
 
-    if (!auth_cap->cr_tag) {
+    if (!cap_get_tag(auth_cap)) {
         raise_cheri_exception(env, CapEx_TagViolation, addr_reg);
     } else if (!cap_is_unsealed(auth_cap)) {
         raise_cheri_exception(env, CapEx_SealViolation, addr_reg);
@@ -553,7 +553,7 @@ void HELPER(scmode)(CPUArchState *env, uint32_t cd, uint32_t cs1,
                     target_ulong imm)
 {
     cap_register_t result = *get_readonly_capreg(env, cs1);
-    if (result.cr_tag && !cap_is_unsealed(&result)) {
+    if (cap_get_tag(&result) && !cap_is_unsealed(&result)) {
         cap_set_tag(&result, 0, TAG_CAUSE_UNSEALED);
     }
     /* Mode is only updated if X is present and the permissions are valid. */
@@ -579,7 +579,7 @@ target_ulong HELPER(scss)(CPUArchState *env, uint32_t cs1, uint32_t cs2)
     if (cap_has_reserved_bits_set(cs1p) || cap_has_reserved_bits_set(cs2p)) {
         return 0;
     }
-    if (cs1p->cr_tag != cs2p->cr_tag) {
+    if (cap_get_tag(cs1p) != cap_get_tag(cs2p)) {
         return 0;
     }
     /*

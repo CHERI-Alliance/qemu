@@ -1573,7 +1573,7 @@ void mips_cpu_do_interrupt(CPUState *cs)
     // disabled it by installing a $pcc without the Access_Sys_Regs flag
     update_cp0_access_for_pc(env);
     assert(can_access_cp0(env) && "Installing $pcc without ASR in exception?");
-    assert(!cheri_get_current_pcc(env)->cr_tag ||
+    assert(!cap_get_tag(cheri_get_current_pcc(env)) ||
            cap_is_representable(cheri_get_current_pcc(env)));
 #endif /* TARGET_CHERI */
 

@@ -56,7 +56,7 @@ int gdb_get_capreg(GByteArray *buf, const cap_register_t *cap)
     // If the capability has a valid tag bit we must recompress since the
     // pesbt value might not match the current value (csetbounds could have
     // changed the bounds).
-    append_tag(buf, cap->cr_tag);
+    append_tag(buf, cap_get_tag(cap));
 #if CHERI_MEM_OFFSET_METADATA == 0
     append(buf, CAP_cc(compress_mem)(cap));
     append(buf, cap_get_cursor(cap));

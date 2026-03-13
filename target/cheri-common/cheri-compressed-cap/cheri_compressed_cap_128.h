@@ -173,12 +173,12 @@ __attribute__((deprecated("Use cc128_compress_mem"))) static inline uint64_t com
 
 __attribute__((deprecated("Use cc128_decompress_raw"))) static inline void
 decompress_128cap_already_xored(uint64_t pesbt, uint64_t cursor, cc128_cap_t* cdp) {
-    cc128_decompress_raw(pesbt, cursor, cdp->cr_tag, cdp);
+    cc128_decompress_raw(pesbt, cursor, cc128_get_tag(cdp), cdp);
 }
 
 __attribute__((deprecated("Use cc128_decompress_mem"))) static inline void
 decompress_128cap(uint64_t pesbt, uint64_t cursor, _cc_cap_t* cdp) {
-    cc128_decompress_mem(pesbt, cursor, cdp->cr_tag, cdp);
+    cc128_decompress_mem(pesbt, cursor, cc128_get_tag(cdp), cdp);
 }
 
 #undef CC_FORMAT_LOWER

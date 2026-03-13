@@ -271,9 +271,9 @@ static inline void emit_text_ldst(log_meminfo_t *minfo, const char *direction)
                "Capability memory access without CHERI support");
 #else
     if (minfo->flags & LMI_CAP) {
-        qemu_log("    Cap Memory %s [" TARGET_FMT_lx "] = v:%d PESBT:"
-                 TARGET_FMT_lx " Cursor:" TARGET_FMT_lx "\n",
-                 direction, minfo->addr, minfo->cap.cr_tag,
+        qemu_log("    Cap Memory %s [" TARGET_FMT_lx
+                 "] = v:%d PESBT:" TARGET_FMT_lx " Cursor:" TARGET_FMT_lx "\n",
+                 direction, minfo->addr, cap_get_tag(&minfo->cap),
                  CAP_cc(compress_mem)(&minfo->cap),
                  cap_get_cursor(&minfo->cap));
     } else
@@ -492,7 +492,7 @@ static void emit_cvtrace_entry(CPUArchState *env, cpu_log_instr_info_t *iinfo)
                 intcap = make_capability_from_int(env, rinfo->gpr);
                 cr = &intcap;
             }
-            uint64_t metadata = (((uint64_t)cr->cr_tag << 63) |
+            uint64_t metadata = (((uint64_t)cap_get_tag(cr) << 63) |
                                  ((uint64_t)cap_get_otype_signext(cr) << 32) |
                                  ((uint64_t)cap_get_all_perms(cr) << 1) |
                                  (uint64_t)(cap_is_unsealed(cr) ? 0 : 1));

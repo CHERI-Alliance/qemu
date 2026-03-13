@@ -48,7 +48,7 @@
     "v:%d %s p:%2x ct:" TARGET_FMT_ld " b:" TARGET_FMT_lx " a:" TARGET_FMT_lx  \
     " t:" TARGET_FMT_lx " bv: %d"
 #define PRINT_CAP_ARGS(cr)                                                     \
-    (cr)->cr_tag, PRINT_CAP_MODE(cr), (unsigned)cap_get_all_perms(cr),         \
+    cap_get_tag(cr), PRINT_CAP_MODE(cr), (unsigned)cap_get_all_perms(cr),      \
         cap_get_otype_signext(cr), cap_get_base(cr), cap_get_cursor(cr),       \
         cap_get_top(cr), (cr)->cr_bounds_valid
 
@@ -307,7 +307,7 @@ static inline cap_length_t cap_get_length_full(const cap_register_t *c)
 static inline target_ulong cap_get_length_sat(const cap_register_t *c)
 {
 #ifndef TARGET_AARCH64
-    cheri_debug_assert((!c->cr_tag || c->_cr_top >= c->cr_base) &&
+    cheri_debug_assert((!cap_get_tag(c) || c->_cr_top >= c->cr_base) &&
                        "Tagged capabilities must be in bounds!");
 #endif
     cap_length_t length = cap_get_length_full(c);
@@ -345,7 +345,8 @@ static inline target_long cap_get_otype_signext(const cap_register_t *c)
     target_ulong result = cap_get_otype_unsigned(c);
     if (result > CAP_MAX_REPRESENTABLE_OTYPE) {
         // raw bits loaded from memory
-        assert(!c->cr_tag && "Capabilities with otype > max cannot be tagged!");
+        assert(!cap_get_tag(c) &&
+               "Capabilities with otype > max cannot be tagged!");
         return result;
     }
 #if defined(TARGET_AARCH64) || defined(TARGET_CHERI_RISCV_STD)
@@ -391,7 +392,7 @@ static inline bool cap_is_unsealed(const cap_register_t *c)
 
 static inline void cap_set_sealed(cap_register_t *c, uint32_t type)
 {
-    assert(c->cr_tag);
+    assert(cap_get_tag(c));
     assert(cap_is_unsealed(c) && "Should only use this with unsealed caps");
     assert(!cap_otype_is_reserved(type) &&
            "Can't use this to set reserved otypes");
@@ -400,7 +401,7 @@ static inline void cap_set_sealed(cap_register_t *c, uint32_t type)
 
 static inline void cap_set_unsealed(cap_register_t *c)
 {
-    assert(c->cr_tag);
+    assert(cap_get_tag(c));
     assert(cap_is_sealed_with_type(c) &&
            "should not use this to unseal reserved types");
     CAP_cc(update_otype)(c, CAP_OTYPE_UNSEALED);
@@ -413,21 +414,21 @@ static inline bool cap_is_sealed_entry(const cap_register_t *c)
 
 static inline void cap_unseal_reserved_otype(cap_register_t *c)
 {
-    assert(c->cr_tag && cap_is_sealed_with_reserved_otype(c) &&
+    assert(cap_get_tag(c) && cap_is_sealed_with_reserved_otype(c) &&
            "Should only be used with reserved object types");
     CAP_cc(update_otype)(c, CAP_OTYPE_UNSEALED);
 }
 
 static inline void cap_unseal_entry(cap_register_t *c)
 {
-    assert(c->cr_tag && cap_is_sealed_entry(c) &&
+    assert(cap_get_tag(c) && cap_is_sealed_entry(c) &&
            "Should only be used with sentry capabilities");
     CAP_cc(update_otype)(c, CAP_OTYPE_UNSEALED);
 }
 
 static inline void cap_make_sealed_entry(cap_register_t *c)
 {
-    assert(c->cr_tag && cap_is_unsealed(c) &&
+    assert(cap_get_tag(c) && cap_is_unsealed(c) &&
            "Should only be used with unsealed capabilities");
     CAP_cc(update_otype)(c, CAP_OTYPE_SENTRY);
 }
@@ -456,7 +457,7 @@ static inline bool cap_is_in_bounds(const cap_register_t *c, target_ulong addr,
         if (cap_get_top_full(c) >= (cap_length_t)addr + num_bytes) {
             return true;
         }
-        if (c->cr_tag)
+        if (cap_get_tag(c))
             warn_report("Found capability access that wraps around: 0x" TARGET_FMT_lx
                         " + %zd. Authorizing cap: " PRINT_CAP_FMTSTR,
                         addr, num_bytes, PRINT_CAP_ARGS(c));
@@ -496,7 +497,7 @@ static inline void assert_valid_jump_target(const cap_register_t *target)
     // All of these properties should have been checked in the helper:
     cheri_debug_assert(cap_is_unsealed(target));
     cheri_debug_assert(cap_has_perms(target, CAP_PERM_EXECUTE));
-    cheri_debug_assert(target->cr_tag);
+    cheri_debug_assert(cap_get_tag(target));
     cheri_debug_assert(cap_cursor_in_bounds(target));
 }
 

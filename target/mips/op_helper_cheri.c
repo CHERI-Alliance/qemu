@@ -184,7 +184,7 @@ target_ulong CHERI_HELPER_IMPL(cbts(CPUArchState *env, uint32_t cb, uint32_t off
     /*
      * CBTS: Branch if tag is set
      */
-    return (target_ulong)cbp->cr_tag;
+    return (target_ulong)cap_get_tag(cbp);
 }
 
 target_ulong CHERI_HELPER_IMPL(cbtu(CPUArchState *env, uint32_t cb, uint32_t offset))
@@ -193,7 +193,7 @@ target_ulong CHERI_HELPER_IMPL(cbtu(CPUArchState *env, uint32_t cb, uint32_t off
     /*
      * CBTU: Branch if tag is unset
      */
-    return (target_ulong)!cbp->cr_tag;
+    return (target_ulong)!cap_get_tag(cbp);
 }
 
 static target_ulong ccall_common(CPUArchState *env, uint32_t cs, uint32_t cb, uint32_t selector, uintptr_t _host_return_address)
@@ -209,9 +209,9 @@ static target_ulong ccall_common(CPUArchState *env, uint32_t cs, uint32_t cb, ui
     /*
      * CCall: Call into a new security domain
      */
-    if (!csp->cr_tag) {
+    if (!cap_get_tag(csp)) {
         raise_cheri_exception(env, CapEx_TagViolation, cs);
-    } else if (!cbp->cr_tag && !allow_unsealed) {
+    } else if (!cap_get_tag(cbp) && !allow_unsealed) {
         raise_cheri_exception(env, CapEx_TagViolation, cb);
     } else if (cap_is_sealed_with_type(csp) == allow_unsealed) {
         raise_cheri_exception(env, CapEx_SealViolation, cs);
@@ -341,7 +341,7 @@ target_ulong CHERI_HELPER_IMPL(cjr(CPUArchState *env, uint32_t cb))
     /*
      * CJR: Jump Capability Register
      */
-    if (!cbp->cr_tag) {
+    if (!cap_get_tag(cbp)) {
         raise_cheri_exception(env, CapEx_TagViolation, cb);
     } else if (cap_is_sealed_with_type(cbp)) {
         // Note: "sentry" caps can be called using cjalr
@@ -592,7 +592,7 @@ target_ulong CHERI_HELPER_IMPL(cloadlinked(CPUArchState *env, uint32_t cb, uint3
     const cap_register_t *cbp = get_capreg_0_is_ddc(env, cb);
     uint64_t addr = cap_get_cursor(cbp);
 
-    if (!cbp->cr_tag) {
+    if (!cap_get_tag(cbp)) {
         raise_cheri_exception(env, CapEx_TagViolation, cb);
     } else if (is_cap_sealed(cbp)) {
         raise_cheri_exception(env, CapEx_SealViolation, cb);
@@ -627,7 +627,7 @@ target_ulong CHERI_HELPER_IMPL(cstorecond(CPUArchState *env, uint32_t cb, uint32
     const cap_register_t *cbp = get_capreg_0_is_ddc(env, cb);
     uint64_t addr = cap_get_cursor(cbp);
 
-    if (!cbp->cr_tag) {
+    if (!cap_get_tag(cbp)) {
         raise_cheri_exception(env, CapEx_TagViolation, cb);
     } else if (is_cap_sealed(cbp)) {
         raise_cheri_exception(env, CapEx_SealViolation, cb);
@@ -660,7 +660,7 @@ static inline target_ulong get_cscc_addr(CPUArchState *env, uint32_t cs, uint32_
     const cap_register_t *csp = get_readonly_capreg(env, cs);
     uint64_t addr = cap_get_cursor(cbp);
 
-    if (!cbp->cr_tag) {
+    if (!cap_get_tag(cbp)) {
         raise_cheri_exception(env, CapEx_TagViolation, cb);
         return (target_ulong)0;
     } else if (is_cap_sealed(cbp)) {
@@ -672,7 +672,7 @@ static inline target_ulong get_cscc_addr(CPUArchState *env, uint32_t cs, uint32_
     } else if (!cap_has_perms(cbp, CAP_PERM_STORE_CAP)) {
         raise_cheri_exception(env, CapEx_PermitStoreCapViolation, cb);
         return (target_ulong)0;
-    } else if (!cap_has_perms(cbp, CAP_PERM_STORE_LOCAL) && csp->cr_tag &&
+    } else if (!cap_has_perms(cbp, CAP_PERM_STORE_LOCAL) && cap_get_tag(csp) &&
                !cap_has_perms(csp, CAP_PERM_GLOBAL)) {
         raise_cheri_exception(env, CapEx_PermitStoreLocalCapViolation, cb);
         return (target_ulong)0;
@@ -750,7 +750,7 @@ void CHERI_HELPER_IMPL(cllc_without_tcg(CPUArchState *env, uint32_t cd, uint32_t
     uint64_t addr = cap_get_cursor(cbp);
 
     /* Clear linked state */
-    if (!cbp->cr_tag) {
+    if (!cap_get_tag(cbp)) {
         raise_cheri_exception(env, CapEx_TagViolation, cb);
     } else if (is_cap_sealed(cbp)) {
         raise_cheri_exception(env, CapEx_SealViolation, cb);
@@ -847,7 +847,7 @@ static void cheri_dump_creg(const cap_register_t *crp, const char *name,
     cpu_fprintf(f,
                 "DEBUG CAP %s t:%d s:%d perms:0x%08x type:0x%016" PRIx64 " "
                 "offset:0x%016lx base:0x%016lx length:0x%016lx\n",
-                name, crp->cr_tag, is_cap_sealed(crp),
+                name, cap_get_tag(crp), is_cap_sealed(crp),
                 (unsigned)cap_get_all_perms(crp),
                 /* testsuite wants -1 for unsealed */
                 (uint64_t)cap_get_otype_signext(crp),
@@ -900,9 +900,9 @@ void CHERI_HELPER_IMPL(cchecktype(CPUArchState *env, uint32_t cs, uint32_t cb))
     /*
      * CCheckType: Raise exception if otypes don't match
      */
-    if (!csp->cr_tag) {
+    if (!cap_get_tag(csp)) {
         raise_cheri_exception(env, CapEx_TagViolation, cs);
-    } else if (!cbp->cr_tag) {
+    } else if (!cap_get_tag(cbp)) {
         raise_cheri_exception(env, CapEx_TagViolation, cb);
     } else if (cap_is_unsealed(csp)) {
         raise_cheri_exception(env, CapEx_SealViolation, cs);
