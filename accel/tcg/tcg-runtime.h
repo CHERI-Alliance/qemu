@@ -373,6 +373,9 @@ DEF_HELPER_FLAGS_5(qemu_log_instr_reg, TCG_CALL_NO_WG, void, env, cptr, tl, i32,
 #ifdef TARGET_CHERI
 DEF_HELPER_FLAGS_5(qemu_log_instr_cap, TCG_CALL_NO_WG, void, env, cptr, cptr,
                    i32, i32)
+#ifdef CONFIG_TAG_TRACE
+DEF_HELPER_FLAGS_3(qemu_update_tag_cause, TCG_CALL_NO_WG, void, env, ptr, i32)
+#endif
 #endif
 DEF_HELPER_FLAGS_3(log_value, TCG_CALL_NO_WG, void, env, cptr, i64)
 #endif /* CONFIG_TCG_LOG_INSTR */
