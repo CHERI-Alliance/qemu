@@ -1838,6 +1838,14 @@ static inline void gen_cap_untag_if_sealed(DisasContext *ctx, int regnum)
         gen_set_label(l1);
     }
 
+    /*
+     * We know at this point that if the cap is untagged it is due to unsealing
+     * so call the helper to set the cause
+     */
+#ifdef CONFIG_TRACE_TAG
+    gen_helper_qemu_update_tag_cause(ctx, gp_register_offset(regnum),
+                                     TAG_CAUSE_UNSEALED);
+#endif
 }
 
 // Returns a boolean if rx and ry have equal pesbt/tag/cursor.
