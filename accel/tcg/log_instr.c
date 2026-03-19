@@ -1020,9 +1020,11 @@ void qemu_log_instr_cap_int(CPUArchState *env, const char *reg_name,
  * NOTE: It is important that this is only used when the tag is explicitly
  * set/cleared, else it can override a previous case.
  */
-void helper_qemu_update_tag_cause(CPUArchState *env, void *cr, uint32_t cause)
+void helper_qemu_update_tag_cause(CPUArchState *env, uint32_t regnum,
+                                  uint32_t cause)
 {
-    cap_register_t *capreg = cr;
+    GPCapRegs *gpcrs = cheri_get_gpcrs(env);
+    cap_register_t *capreg = get_cap_in_gpregs(gpcrs, regnum);
     if (capreg->cr_tag) {
         capreg->tag_clear_cause = 0;
         capreg->tag_clear_pc = 0;

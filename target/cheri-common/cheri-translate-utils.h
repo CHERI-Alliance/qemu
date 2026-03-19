@@ -1848,9 +1848,13 @@ static inline void gen_cap_untag_if_sealed(DisasContext *ctx, int regnum)
      * We know at this point that if the cap is untagged it is due to unsealing
      * so call the helper to set the cause
      */
-#ifdef CONFIG_TRACE_TAG
-    gen_helper_qemu_update_tag_cause(ctx, gp_register_offset(regnum),
-                                     TAG_CAUSE_UNSEALED);
+#ifdef CONFIG_TAG_TRACE
+    /*
+     * In this case we are grouping the possible causes to be UNSEALED
+     * more granularity may be desirable
+     */
+    gen_helper_qemu_update_tag_cause(cpu_env, tcg_constant_i32(regnum),
+                                     tcg_constant_i32(TAG_CAUSE_UNSEALED));
 #endif
 }
 
@@ -2065,6 +2069,14 @@ static inline void gen_cap_unseal(DisasContext *ctx, int regnum,
 
     gen_cap_set_tag(ctx, regnum, tag_result, false);
 
+#ifdef CONFIG_TAG_TRACE
+    /*
+     * In this case we are grouping the possible causes to be UNSEALED
+     * more granularity may be desirable
+     */
+    gen_helper_qemu_update_tag_cause(cpu_env, tcg_constant_i32(regnum),
+                                     tcg_constant_i32(TAG_CAUSE_UNSEALED));
+#endif
 }
 
 #if CHERI_CAP_BITS == 128
