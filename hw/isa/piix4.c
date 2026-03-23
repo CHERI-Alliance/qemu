@@ -46,6 +46,7 @@ struct PIIX4State {
     PCIDevice dev;
     qemu_irq cpu_intr;
     qemu_irq *isa;
+    IRQState i8259_irq;
 
     RTCState rtc;
     PCIIDEState ide;
@@ -214,7 +215,6 @@ static void piix4_realize(PCIDevice *dev, Error **errp)
     PIIX4State *s = PIIX4_PCI_DEVICE(dev);
     PCIBus *pci_bus = pci_get_bus(dev);
     ISABus *isa_bus;
-    qemu_irq *i8259_out_irq;
 
     isa_bus = isa_bus_new(DEVICE(dev), pci_address_space(dev),
                           pci_address_space_io(dev), errp);
@@ -233,8 +233,9 @@ static void piix4_realize(PCIDevice *dev, Error **errp)
                                         PIIX_RCR_IOPORT, &s->rcr_mem, 1);
 
     /* initialize i8259 pic */
-    i8259_out_irq = qemu_allocate_irqs(piix4_request_i8259_irq, s, 1);
-    s->isa = i8259_init(isa_bus, *i8259_out_irq);
+    qemu_init_irq_child(OBJECT(dev), "i8259-irq", &s->i8259_irq,
+                        piix4_request_i8259_irq, s, 0);
+    s->isa = i8259_init(isa_bus, &s->i8259_irq);
 
     /* initialize ISA irqs */
     isa_bus_irqs(isa_bus, s->isa);
