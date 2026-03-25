@@ -1697,7 +1697,7 @@ probe_access_internal(CPUArchState *env, target_ulong addr, int fault_size,
     return flags;
 }
 
-int probe_access_flags(CPUArchState *env, target_ulong addr,
+int probe_access_flags(CPUArchState *env, target_ulong addr, size_t len,
                        MMUAccessType access_type, int mmu_idx,
                        bool nonfault, void **phost, uintptr_t retaddr)
 {
@@ -1711,7 +1711,10 @@ int probe_access_flags(CPUArchState *env, target_ulong addr,
         uintptr_t index = tlb_index(env, mmu_idx, addr);
         CPUIOTLBEntry *iotlbentry = &env_tlb(env)->d[mmu_idx].iotlb[index];
 
-        notdirty_write(env_cpu(env), addr, 1, iotlbentry, retaddr);
+        if (len == 0) {
+            len = 1;
+        }
+        notdirty_write(env_cpu(env), addr, len, iotlbentry, retaddr);
         flags &= ~TLB_NOTDIRTY;
     }
 

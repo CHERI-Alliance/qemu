@@ -124,7 +124,7 @@ static uint8_t *allocation_tag_mem(CPUARMState *env, int ptr_mmu_idx,
      * valid.  Indicate to probe_access_flags no-fault, then assert that
      * we received a valid page.
      */
-    flags = probe_access_flags(env, ptr, ptr_access, ptr_mmu_idx,
+    flags = probe_access_flags(env, ptr, ptr_size, ptr_access, ptr_mmu_idx,
                                ra == 0, &host, ra);
     assert(!(flags & TLB_INVALID_MASK));
 
@@ -171,7 +171,7 @@ static uint8_t *allocation_tag_mem(CPUARMState *env, int ptr_mmu_idx,
     in_page = -(ptr | TARGET_PAGE_MASK);
     if (unlikely(ptr_size > in_page)) {
         void *ignore;
-        flags |= probe_access_flags(env, ptr + in_page, ptr_access,
+        flags |= probe_access_flags(env, ptr + in_page, ptr_size, ptr_access,
                                     ptr_mmu_idx, ra == 0, &ignore, ra);
         assert(!(flags & TLB_INVALID_MASK));
     }

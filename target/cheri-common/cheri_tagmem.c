@@ -767,7 +767,7 @@ static void invalidate_from_locktag(lock_tag *lock, CPUArchState *env,
             error_report("%s", buffer);
             void *host_addr = NULL;
             int access_flags = probe_access_flags(
-                env, vaddr, MMU_DATA_STORE, mmu_idx, true, &host_addr, pc);
+                env, vaddr, 1, MMU_DATA_STORE, mmu_idx, true, &host_addr, pc);
             error_report(
                 "Probe access returns access_flags = 0x%x and host_addr %p",
                 access_flags, host_addr);
@@ -880,8 +880,8 @@ static void *cheri_tag_invalidate_one(CPUArchState *env, target_ulong vaddr,
      * lock value which can be tested later
      * */
     void *host_addr;
-    int access_flags = probe_access_flags(env, vaddr, MMU_DATA_STORE, mmu_idx,
-                                          lock_only, &host_addr, pc);
+    int access_flags = probe_access_flags(env, vaddr, size, MMU_DATA_STORE,
+                                          mmu_idx, lock_only, &host_addr, pc);
 
     if (access_flags & TLB_INVALID_MASK) {
         if (lock) {
