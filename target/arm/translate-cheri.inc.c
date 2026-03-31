@@ -1335,6 +1335,7 @@ TRANS_F(BUILD_CSEAL_CPYE)
         TCGv_i64 temp0 = tcg_temp_new_i64();
         tcg_gen_movi_i64(temp0, 0);
         TCGv_i64 temp1 = tcg_temp_new_i64();
+        TCGv_i32 tcg_cause = tcg_constant_i32(TAG_CAUSE_DEFERRED);
 
         gen_cap_get_unsealed(ctx, cd_temp, result);
         // Set type to unsealed
@@ -1355,10 +1356,7 @@ TRANS_F(BUILD_CSEAL_CPYE)
         tcg_gen_and_i64(temp1, temp1, temp0);
         tcg_gen_or_i64(result, result, temp1);
 
-        gen_cap_set_tag(ctx, cd_temp, result, false);
-
-
-
+        gen_cap_set_tag(ctx, cd_temp, result, false, tcg_cause);
 
         break;
     }
@@ -1433,7 +1431,8 @@ TRANS_F(SCG)
 
     // Then set state
     if (!isTagSettingDisabled(ctx) && cheri_is_system_ctx(ctx)) {
-        gen_cap_set_tag(ctx, a->Cd, tcgrm, true);
+        gen_cap_set_tag(ctx, a->Cd, tcgrm, true,
+                        tcg_constant_i32(TAG_CAUSE_DEFERRED));
     } else {
         gen_lazy_cap_set_state(ctx, a->Cd, CREG_UNTAGGED_CAP);
     }
