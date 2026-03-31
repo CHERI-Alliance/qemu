@@ -1145,7 +1145,7 @@ WRAP_PESBT_ALL(FLAGS)
 
 // Set the tag bit of register to the lowest bit of tagbit
 static inline void gen_cap_set_tag(DisasContext *ctx, int regnum, TCGv tagbit,
-                                   bool canonicalise)
+                                   bool canonicalise, TCGv_i32 tcg_cause)
 {
 
     TCGv one = tcg_constant_tl(1);
@@ -1177,6 +1177,10 @@ static inline void gen_cap_set_tag(DisasContext *ctx, int regnum, TCGv tagbit,
         disas_capreg_state_include(ctx, regnum, CREG_TAGGED_CAP);
     }
 
+#ifdef CONFIG_TAG_TRACE
+    gen_helper_qemu_update_tag_cause(cpu_env, tcg_constant_i32(regnum),
+                                     tcg_cause);
+#endif
 }
 
 static inline void gen_cap_clear_tag(DisasContext *ctx, int regnum)
@@ -1609,6 +1613,14 @@ static inline void gen_cap_set_cursor(DisasContext *ctx, int regnum,
         gen_cap_set_cursor_unsafe(ctx, regnum, new_val_local);
     }
 
+#ifdef CONFIG_TAG_TRACE
+    /*
+     * In this case we are grouping the possible causes to be UNSEALED
+     * more granularity may be desirable
+     */
+    gen_helper_qemu_update_tag_cause(cpu_env, tcg_constant_i32(regnum),
+                                     tcg_constant_i32(TAG_CAUSE_UNSEALED));
+#endif
 }
 
 #endif
@@ -1792,6 +1804,14 @@ static inline void gen_cap_add_fast(DisasContext *ctx, int regnum,
                  CHERI_GPCAPREGS_MEMBER.decompressed[regnum].cap.cr_extra));
     disas_capreg_state_include(ctx, regnum, CREG_UNTAGGED_CAP);
 
+#ifdef CONFIG_TAG_TRACE
+    /*
+     * In this case we are grouping the possible causes to be UNSEALED
+     * more granularity may be desirable
+     */
+    gen_helper_qemu_update_tag_cause(cpu_env, tcg_constant_i32(regnum),
+                                     tcg_constant_i32(TAG_CAUSE_UNSEALED));
+#endif
 }
 
 static inline void gen_cap_set_cursor_fast(DisasContext *ctx, int regnum,
@@ -1821,6 +1841,7 @@ static inline void gen_cap_untag_if_sealed(DisasContext *ctx, int regnum)
     gen_cap_get_type(ctx, regnum, type);
 
     TCGv type_unsealed = tcg_constant_tl(CAP_OTYPE_UNSEALED);
+    TCGv_i32 tcg_cause = tcg_constant_i32(TAG_CAUSE_UNSEALED);
 
     if (disas_capreg_state_must_be(ctx, regnum, CREG_FULLY_DECOMPRESSED)) {
         // If decompressed perform an and with the existing tagbit to avoid a
@@ -1832,6 +1853,14 @@ static inline void gen_cap_untag_if_sealed(DisasContext *ctx, int regnum)
         tcg_gen_ld8u_tl(tag, cpu_env, offset);
         tcg_gen_and_tl(type, type, tag);
         tcg_gen_st8_tl(type, cpu_env, offset);
+#ifdef CONFIG_TAG_TRACE
+        /*
+         * In this case we are grouping the possible causes to be UNSEALED
+         * more granularity may be desirable
+         */
+        gen_helper_qemu_update_tag_cause(cpu_env, tcg_constant_i32(regnum),
+                                         tcg_cause);
+#endif
     } else {
         // If not fully decompressed its probably just worth branching over a
         // generic tag clear
@@ -1839,23 +1868,10 @@ static inline void gen_cap_untag_if_sealed(DisasContext *ctx, int regnum)
         // if(type != unsealed)
         tcg_gen_brcond_tl(TCG_COND_EQ, type, type_unsealed, l1);
         // set tag 0
-        gen_cap_set_tag(ctx, regnum, tcg_constant_tl(0), false);
+        gen_cap_set_tag(ctx, regnum, tcg_constant_tl(0), false, tcg_cause);
         // else
         gen_set_label(l1);
     }
-
-    /*
-     * We know at this point that if the cap is untagged it is due to unsealing
-     * so call the helper to set the cause
-     */
-#ifdef CONFIG_TAG_TRACE
-    /*
-     * In this case we are grouping the possible causes to be UNSEALED
-     * more granularity may be desirable
-     */
-    gen_helper_qemu_update_tag_cause(cpu_env, tcg_constant_i32(regnum),
-                                     tcg_constant_i32(TAG_CAUSE_UNSEALED));
-#endif
 }
 
 // Returns a boolean if rx and ry have equal pesbt/tag/cursor.
@@ -2013,7 +2029,8 @@ static inline void gen_cap_seal(DisasContext *ctx, int regnum, int auth_regnum,
         gen_cap_set_type_unchecked(ctx, regnum, temp0);
         tcg_gen_or_tl(success, success, tag_result);
     } else {
-        gen_cap_set_tag(ctx, regnum, tag_result, false);
+        gen_cap_set_tag(ctx, regnum, tag_result, false,
+                        tcg_constant_i32(TAG_CAUSE_DEFERRED));
     }
 
 }
@@ -2067,16 +2084,8 @@ static inline void gen_cap_unseal(DisasContext *ctx, int regnum,
     gen_cap_has_perms(ctx, auth_regnum, CAP_PERM_UNSEAL, temp0);
     tcg_gen_and_tl(tag_result, tag_result, temp0);
 
-    gen_cap_set_tag(ctx, regnum, tag_result, false);
-
-#ifdef CONFIG_TAG_TRACE
-    /*
-     * In this case we are grouping the possible causes to be UNSEALED
-     * more granularity may be desirable
-     */
-    gen_helper_qemu_update_tag_cause(cpu_env, tcg_constant_i32(regnum),
-                                     tcg_constant_i32(TAG_CAUSE_UNSEALED));
-#endif
+    gen_cap_set_tag(ctx, regnum, tag_result, false,
+                    tcg_constant_i32(TAG_CAUSE_UNSEALED));
 }
 
 #if CHERI_CAP_BITS == 128
