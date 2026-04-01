@@ -981,8 +981,7 @@ static inline void gen_sp_set_decompressed_int(DisasContext *ctx, size_t offset)
     tcg_gen_movi_tl(temp, CAP_CC(NULL_EXP));
     tcg_gen_st8_tl(temp, cpu_env, offset + offsetof(cap_register_t, cr_exp));
 #ifdef CONFIG_TAG_TRACE
-    TCGv_i32 cause =
-        tcg_constant_i32(TAG_CAUSE_INTEGER_OP | TAG_CAUSE_UNTRACKED);
+    TCGv_i32 cause = tcg_constant_i32(TAG_CAUSE_INTEGER_OP);
     tcg_gen_st_i32(cause, cpu_env,
                    offset + offsetof(cap_register_t, tag_clear_cause));
 #endif

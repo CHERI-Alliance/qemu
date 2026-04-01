@@ -1061,11 +1061,11 @@ static inline bool _cc_N(get_tag)(const _cc_cap_t* cap) { return cap->cr_tag; }
 static inline _cc_cap_t _cc_N(set_tag)(_cc_cap_t* cap, bool tag, uint64_t cause) {
 #ifdef CONFIG_TAG_TRACE
     if (tag) {
-        cap->tag_clear_cause = 0;
-        cap->tag_clear_pc = 0;
+        cap->tag_clear_cause = TAG_CAUSE_IS_TAGGED;
+        cap->tag_clear_pc = -1;
     } else {
         if (cap->cr_tag || cause == TAG_CAUSE_INITIALISATION) {
-            cap->tag_clear_cause = cause | TAG_CAUSE_UNTRACKED;
+            cap->tag_clear_cause = cause;
         }
     }
 #else

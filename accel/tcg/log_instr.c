@@ -1026,10 +1026,10 @@ void helper_qemu_update_tag_cause(CPUArchState *env, uint32_t regnum,
     GPCapRegs *gpcrs = cheri_get_gpcrs(env);
     cap_register_t *capreg = get_cap_in_gpregs(gpcrs, regnum);
     if (capreg->cr_tag) {
-        capreg->tag_clear_cause = 0;
-        capreg->tag_clear_pc = 0;
+        capreg->tag_clear_cause = TAG_CAUSE_IS_TAGGED;
+        capreg->tag_clear_pc = -1;
     } else {
-        capreg->tag_clear_cause = cause | TAG_CAUSE_UNTRACKED;
+        capreg->tag_clear_cause = cause;
     }
 }
 #endif

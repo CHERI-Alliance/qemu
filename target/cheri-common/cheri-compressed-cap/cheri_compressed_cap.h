@@ -45,7 +45,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#define TAG_CAUSE_UNTRACKED (1 << 31)
+#define TAG_CAUSE_IS_TAGGED (1 << 31)
 #define TAG_CAUSE_UNSEALED (1 << 0)
 #define TAG_CAUSE_UNREPRESENTABLE (1 << 1)
 #define TAG_CAUSE_BOUNDS_INVALID (1 << 2)
