@@ -1193,6 +1193,14 @@ static inline void gen_cap_clear_tag(DisasContext *ctx, int regnum)
     } else {
         gen_lazy_cap_set_state(ctx, regnum, CREG_UNTAGGED_CAP);
     }
+#ifdef CONFIG_TAG_TRACE
+    /*
+     * In this case we are grouping the possible causes to be UNSEALED
+     * more granularity may be desirable
+     */
+    gen_helper_qemu_update_tag_cause(cpu_env, tcg_constant_i32(regnum),
+                                     tcg_constant_i32(TAG_CAUSE_DEFERRED));
+#endif
 }
 
 static inline void gen_cap_get_tag_i32(DisasContext *ctx, int regnum,
