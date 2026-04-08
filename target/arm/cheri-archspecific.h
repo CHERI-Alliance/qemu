@@ -201,7 +201,7 @@ static inline void update_target_for_jump(CPUARMState *env,
                                PRINT_CAP_FMTSTR "\n",
                                PRINT_CAP_ARGS(cheri_get_recent_pcc(env)),
                                PRINT_CAP_ARGS(target));
-        cap_set_tag(target, false, TAG_CAUSE_PERMS);
+        cap_set_tag(target, false, TAG_CAUSE_PERMS, cpu_get_recent_pc(env));
     }
 }
 
@@ -217,7 +217,7 @@ static inline void update_next_pcc_for_tcg(CPUARMState *env,
                                "\n  Target cap: " PRINT_CAP_FMTSTR  "\n",
                                PRINT_CAP_ARGS(cheri_get_recent_pcc(env)),
                                PRINT_CAP_ARGS(target));
-        cap_set_tag(target, false, TAG_CAUSE_UNSEALED);
+        cap_set_tag(target, false, TAG_CAUSE_UNSEALED, cpu_get_recent_pc(env));
     }
 
     // TODO: Reading BranchAddr in the arm ARM it looks like there is some

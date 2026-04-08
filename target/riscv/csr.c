@@ -4657,7 +4657,7 @@ static void write_xtvecc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
         // caution this directly modifies the tareget csr register in integer
         // mode this should be ok, as it is invalidating the tag which is the
         // intended action
-        cap_mark_unrepresentable(new_tvec, auth);
+        cap_mark_unrepresentable(new_tvec, auth, GETPC());
     }
 
     write_cap_csr_reg(env, csr_cap_info, src, new_tvec, clen);
@@ -4690,10 +4690,10 @@ static cap_register_t read_xepcc(CPURISCVState *env,
             warn_report("Invalidating sealed %s (contained an unaligned "
                         "capability): " PRINT_CAP_FMTSTR,
                         csr_cap_info->name, PRINT_CAP_ARGS(&retval));
-            cap_set_tag(&retval, false, TAG_CAUSE_SEALED_UNALIGNED);
+            cap_set_tag(&retval, false, TAG_CAUSE_SEALED_UNALIGNED, GETPC());
         }
 
-        cap_set_cursor(&retval, val);
+        cap_set_cursor(&retval, val, GETPC());
     }
 
     return retval;

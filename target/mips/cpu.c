@@ -811,12 +811,12 @@ static inline void set_epc_or_error_epc(CPUMIPSState *env, cap_register_t* epc_o
             "Attempting to modify sealed EPCC/ErrorEPCC: "
             PRINT_CAP_FMTSTR "\r", PRINT_CAP_ARGS(epc_or_error_epc));
         // Clear the tag bit and update the cursor:
-        cap_mark_unrepresentable(new_cursor, epc_or_error_epc);
+        cap_mark_unrepresentable(new_cursor, epc_or_error_epc, GETPC());
     } else if (!is_representable_cap_with_addr(epc_or_error_epc, new_cursor)) {
         error_report("Attempting to set unrepresentable cursor(0x" TARGET_FMT_lx
                     ") on EPCC/ErrorEPCC: " PRINT_CAP_FMTSTR "\r", new_cursor,
                      PRINT_CAP_ARGS(epc_or_error_epc));
-        cap_mark_unrepresentable(new_cursor, epc_or_error_epc);
+        cap_mark_unrepresentable(new_cursor, epc_or_error_epc, GETPC());
     } else {
         epc_or_error_epc->_cr_cursor = new_cursor;
     }
