@@ -45,6 +45,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#define TAG_CAUSE_INITIALISATION (0)
 #define TAG_CAUSE_IS_TAGGED (1 << 31)
 #define TAG_CAUSE_UNSEALED (1 << 0)
 #define TAG_CAUSE_UNREPRESENTABLE (1 << 1)
@@ -59,9 +60,8 @@
 #define TAG_CAUSE_PERMS (1 << 10)
 #define TAG_CAUSE_NON_CANONICAL (1 << 11)
 #define TAG_CAUSE_UNDEFINED (1 << 12)
-#define TAG_CAUSE_INITIALISATION (1 << 13)
-#define TAG_CAUSE_INTEGER_OP (1 << 14)
-#define TAG_CAUSE_DEFERRED (1 << 15)
+#define TAG_CAUSE_INTEGER_OP (1 << 13)
+#define TAG_CAUSE_DEFERRED (1 << 14)
 
 // clang-format off
 #include "cheri_compressed_cap_64.h"

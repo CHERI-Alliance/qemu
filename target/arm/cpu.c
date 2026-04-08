@@ -79,7 +79,7 @@ static void arm_cpu_set_pc(CPUState *cs, vaddr value)
     CPUARMState *env = &cpu->env;
 
     if (is_a64(env)) {
-        set_aarch_reg_value(&env->pc, value);
+        set_aarch_reg_value(&env->pc, value, GETPC());
         env->thumb = false;
     } else {
         env->regs[15] = value & ~1;
@@ -112,7 +112,7 @@ void arm_cpu_synchronize_from_tb(CPUState *cs,
          */
         if (is_a64(env)) {
             // LETODO: I dont know if this needs bounds checking
-            set_aarch_reg_value(&env->pc, tb->pc);
+            set_aarch_reg_value(&env->pc, tb->pc, GETPC());
         } else {
             env->regs[15] = tb->pc;
         }

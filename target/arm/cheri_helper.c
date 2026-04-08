@@ -412,7 +412,7 @@ void helper_branch_sealed_pair(CPUArchState *env, uint32_t cn, uint32_t cm,
         cap_set_unsealed(&target);
         cap_set_unsealed(&data);
     } else {
-        cap_set_tag(&target, false, TAG_CAUSE_UNSEALED);
+        cap_set_tag(&target, false, TAG_CAUSE_UNSEALED, GETPC());
     }
 
     update_capreg(env, CINVOKE_DATA_REGNUM, &data);
@@ -465,7 +465,7 @@ void helper_store_tags(CPUArchState *env, uint64_t tags, uint32_t cn,
 
 void helper_set_pcc(CPUArchState *env, target_ulong addr)
 {
-    set_aarch_reg_value(&env->pc, addr);
+    set_aarch_reg_value(&env->pc, addr, env->pc.cap._cr_cursor);
 }
 
 void G_NORETURN

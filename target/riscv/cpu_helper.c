@@ -2645,7 +2645,7 @@ void update_special_register(CPURISCVState *env, cap_register_t *scr,
         qemu_log_instr_extra(env, "Attempting to modify sealed %s: "
             PRINT_CAP_FMTSTR "\n", name, PRINT_CAP_ARGS(scr));
         // Clear the tag bit and update the cursor:
-        cap_mark_unrepresentable(new_cursor, scr);
+        cap_mark_unrepresentable(new_cursor, scr, GETPC());
     } else if (!is_representable_cap_with_addr(scr, new_cursor)) {
         error_report(
             "Attempting to set unrepresentable cursor (0x" TARGET_FMT_lx
@@ -2654,7 +2654,7 @@ void update_special_register(CPURISCVState *env, cap_register_t *scr,
         qemu_log_instr_extra(env, "Attempting to set unrepresentable cursor (0x"
             TARGET_FMT_lx ") on %s: " PRINT_CAP_FMTSTR "\r\n", new_cursor,
             name, PRINT_CAP_ARGS(scr));
-        cap_mark_unrepresentable(new_cursor, scr);
+        cap_mark_unrepresentable(new_cursor, scr, GETPC());
     } else {
         scr->_cr_cursor = new_cursor;
     }

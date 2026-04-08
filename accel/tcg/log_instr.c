@@ -1025,12 +1025,44 @@ void helper_qemu_update_tag_cause(CPUArchState *env, uint32_t regnum,
 {
     GPCapRegs *gpcrs = cheri_get_gpcrs(env);
     cap_register_t *capreg = get_cap_in_gpregs(gpcrs, regnum);
-    if (capreg->cr_tag) {
+    /*
+     * We expect that a caller that has updated a tag will either have done it
+     * in the lazy capreg i.e. turning a TAGGED_CAP into UNTAGGED_CAP or INTEGER
+     * Or the capreg will be decompressed in which case we look at the cr_tag
+     * field
+     * We have the special case where the cause == 0. This indicates a cap that
+     * has been created but hasn't has any tag logic applied.
+     */
+
+    switch (capreg->cr_extra) {
+    case CREG_INTEGER:
+    case CREG_UNTAGGED_CAP:
+        if (capreg->tag_clear_cause == TAG_CAUSE_IS_TAGGED ||
+            capreg->tag_clear_cause == TAG_CAUSE_INITIALISATION) {
+            capreg->tag_clear_cause = cause;
+            capreg->tag_clear_pc = GETPC();
+        }
+        return;
+        break;
+    case CREG_TAGGED_CAP:
         capreg->tag_clear_cause = TAG_CAUSE_IS_TAGGED;
         capreg->tag_clear_pc = -1;
-    } else {
-        capreg->tag_clear_cause = cause;
+        return;
+        break;
+    case CREG_FULLY_DECOMPRESSED:
+        if (capreg->cr_tag) {
+            capreg->tag_clear_cause = TAG_CAUSE_IS_TAGGED;
+            capreg->tag_clear_pc = -1;
+        } else {
+            capreg->tag_clear_cause = cause;
+        }
+        return;
+        break;
+    default:
+        g_assert_not_reached();
+        break;
     }
+    g_assert_not_reached();
 }
 #endif
 #endif

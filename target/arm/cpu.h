@@ -3186,7 +3186,7 @@ static inline void increment_aarch_reg(AARCH_REG_TYPE *aarch_reg,
                                        target_ulong inc)
 {
 #ifdef TARGET_CHERI
-    cap_increment_offset(&aarch_reg->cap, inc);
+    cap_increment_offset(&aarch_reg->cap, inc, aarch_reg->cap._cr_cursor);
 #else
     *aarch_reg += inc;
 #endif
@@ -3194,10 +3194,10 @@ static inline void increment_aarch_reg(AARCH_REG_TYPE *aarch_reg,
 
 // Set a registers value preserving any other fields.
 static inline void set_aarch_reg_value(AARCH_REG_TYPE *aarch_reg,
-                                       target_ulong val)
+                                       target_ulong val, target_ulong pc)
 {
 #ifdef TARGET_CHERI
-    cap_set_cursor(&aarch_reg->cap, val);
+    cap_set_cursor(&aarch_reg->cap, val, pc);
 #else
     *aarch_reg = val;
 #endif

@@ -1062,7 +1062,7 @@ static inline _cc_cap_t _cc_N(set_tag)(_cc_cap_t* cap, bool tag, uint64_t cause)
 #ifdef CONFIG_TAG_TRACE
     if (tag) {
         cap->tag_clear_cause = TAG_CAUSE_IS_TAGGED;
-        cap->tag_clear_pc = -1;
+        cap->tag_clear_pc = -1; /* Need to pass down a PC to this function */
     } else {
         if (cap->cr_tag || cause == TAG_CAUSE_INITIALISATION) {
             cap->tag_clear_cause = cause;

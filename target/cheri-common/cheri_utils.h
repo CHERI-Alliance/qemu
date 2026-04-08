@@ -58,8 +58,9 @@ static inline bool cap_get_tag(const cap_register_t *cap)
 }
 
 static inline cap_register_t cap_set_tag(cap_register_t *cap, bool tag,
-                                         uint32_t cause)
+                                         uint32_t cause, target_ulong pcval)
 {
+
     return CAP_cc(set_tag(cap, tag, cause));
 }
 
@@ -546,12 +547,12 @@ static inline bool is_null_capability(CPUArchState *env,
  * Previous behaviour was to create a NULL-derived capability instead
  *
  */
-static inline cap_register_t *cap_mark_unrepresentable(target_ulong addr,
-                                                       cap_register_t *cr)
+static inline cap_register_t *
+cap_mark_unrepresentable(target_ulong addr, cap_register_t *cr, target_ulong pc)
 {
     // Clear the tag and update the address:
     cr->_cr_cursor = addr;
-    cap_set_tag(cr, false, TAG_CAUSE_UNREPRESENTABLE);
+    cap_set_tag(cr, false, TAG_CAUSE_UNREPRESENTABLE, pc);
     /*
      * Recompute the decompressed bounds relative to the new address. In most
      * cases they will refer to a different region of memory now.
@@ -645,19 +646,21 @@ int gdb_get_general_purpose_capreg(GByteArray *buf, CPUArchState *env,
     raise_cheri_exception_impl(env, cause, reg, addr, true, retpc)
 #endif
 
-static inline void cap_set_cursor(cap_register_t *cap, uint64_t new_addr)
+static inline void cap_set_cursor(cap_register_t *cap, uint64_t new_addr,
+                                  target_ulong pc)
 {
     if (!is_representable_cap_with_addr(cap, new_addr)) {
-        cap_mark_unrepresentable(new_addr, cap);
+        cap_mark_unrepresentable(new_addr, cap, pc);
     } else {
         cap->_cr_cursor = new_addr;
     }
 }
 
-static inline void cap_increment_offset(cap_register_t *cap, uint64_t offset)
+static inline void cap_increment_offset(cap_register_t *cap, uint64_t offset,
+                                        target_ulong pc)
 {
     uint64_t new_addr = cap->_cr_cursor + offset;
-    return cap_set_cursor(cap, new_addr);
+    return cap_set_cursor(cap, new_addr, pc);
 }
 
 #ifndef TARGET_CHERI_RISCV_STD

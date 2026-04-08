@@ -84,7 +84,7 @@ static inline void cheri_update_pcc(cap_register_t *pcc, target_ulong pc_addr,
                 "Attempting to set unrepresentable cursor (0x" TARGET_FMT_lx
                 ") on PCC: " PRINT_CAP_FMTSTR "\r",
                 pc_addr, PRINT_CAP_ARGS(pcc));
-            cap_mark_unrepresentable(pc_addr, pcc);
+            cap_mark_unrepresentable(pc_addr, pcc, pcc->_cr_cursor);
         }
     } else {
         // TODO: once we do bounds checks in the translator, this can assert
