@@ -1231,28 +1231,48 @@ static inline bool riscv_cpu_mode_cre(CPURISCVState *env)
     }
 
     if (env->mseccfg & MSECCFG_CRE) {
-        /* CRE bits allow cheri in M mode */
+        /*
+         * MSECCFG_CRE controls general cheri register enable access.
+         * The XENVCFG_CRE bits delegate CHERI register permission to lesser
+         * privilege modes.
+         * When virtualisation is enabled the PRV_H mode exists between
+         * M and S modes, so need to handle the hierarchy differently
+         */
         if (env->priv == PRV_M)
             return true;
-
         if (env->menvcfg & MENVCFG_CRE) {
-            /* CRE bits allow cheri in S mode (and in M mode) */
-            if (env->priv == PRV_S)
-                return true;
-
-            if (env->senvcfg & SENVCFG_CRE) {
-                /* CRE bits allow cheri in U mode (and in M, S modes) */
-                if (env->priv == PRV_U)
+            if (riscv_cpu_virt_enabled(env)) {
+                if (env->priv == PRV_H) {
                     return true;
+                }
+
+                if (env->henvcfg & HENVCFG_CRE) {
+                    /* CRE bits allow cheri in S mode (and in M, H modes) */
+                    if (env->priv == PRV_S) {
+                        return true;
+                    }
+                    if (env->senvcfg & SENVCFG_CRE) {
+                        /* CRE bits allow cheri in U mode (and in M, S modes) */
+                        if (env->priv == PRV_U) {
+                            return true;
+                        }
+                    }
+                }
+            } else {
+                /* CRE bits allow cheri in S mode (and in M mode) */
+                if (env->priv == PRV_S) {
+                    return true;
+                }
+
+                if (env->senvcfg & SENVCFG_CRE) {
+                    /* CRE bits allow cheri in U mode (and in M, S modes) */
+                    if (env->priv == PRV_U) {
+                        return true;
+                    }
+                }
             }
         }
     }
-
-    /*
-     * For now, we do not support the hypervisor extension. It'll probably
-     * have another CRE bit for H mode.
-     */
-
     return false;
 #endif
 }
