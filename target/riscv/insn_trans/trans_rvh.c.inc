@@ -236,3 +236,18 @@ static bool trans_hfence_vvma(DisasContext *ctx, arg_sfence_vma *a)
 #endif
     return false;
 }
+
+#ifdef TARGET_CHERI_RISCV_STD
+static bool trans_hsvc(DisasContext *ctx, arg_hsvc *a)
+{
+    REQUIRE_EXT(ctx, RVH);
+    return false;
+}
+
+static bool trans_hlvc(DisasContext *ctx, arg_hlvc *a)
+{
+    REQUIRE_EXT(ctx, RVH);
+    return false;
+}
+
+#endif

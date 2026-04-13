@@ -46,9 +46,10 @@
 @ccc .......   ..... ..... ... ..... ....... &ccc %cd %cs1 %cs2
 
 &rc rd cs1
+&c2 cs1 cs2
 @rc .......  ..... ..... ... ..... ....... &rc %rd %cs1
 @cc .......  ..... ..... ... ..... ....... &cc %cd %cs1
-
+@c2 .......  ..... ..... ... ..... ....... &c2 %cs1 %cs2
 
 ### Three operand instructions
 {
@@ -103,3 +104,7 @@ sc_c      00011 . . ..... ..... 100 ..... 0101111 @atom_st ?pred_cre
 # Pre-0.9.6 mode-dependent sh4add instructions (sh4addy starting in 0.9.6)
 sh4add     0010000 .......... 111 ..... 0110011 @r
 sh4add_uw  0010000 .......... 111 ..... 0111011 @r
+
+# Hypervisor Cheri instructions
+hlvc    0111000 00000 ..... 100 ..... 1110011 @cc ?pred_cre
+hsvc    0111001 ..... ..... 100 00000 1110011 @c2 ?pred_cre
