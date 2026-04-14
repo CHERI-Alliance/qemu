@@ -156,3 +156,7 @@ DEF_HELPER_2(debug_cap, void, env, i32)
 
 // Check that static optimisation is correct
 DEF_HELPER_4(capreg_state_debug, void, env, i32, i64, i64)
+
+// Helpers for ARM and RiscV Std
+DEF_HELPER_5(load_cap_via_cap_mmu_idx, void, env, i32, i32, tl, i32)
+DEF_HELPER_5(store_cap_via_cap_mmu_idx, void, env, i32, i32, tl, i32)

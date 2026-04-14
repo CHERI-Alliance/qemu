@@ -2170,3 +2170,38 @@ cap_register_t cap_scaddr(target_ulong addr, cap_register_t dest,
     cap_set_cursor(&dest, addr, pc);
     return dest;
 }
+
+void helper_load_cap_via_cap_mmu_idx(CPUArchState *env, uint32_t cd,
+                                     uint32_t cb, target_ulong addr,
+                                     uint32_t mmu_idx)
+{
+    GET_HOST_RETPC();
+    const cap_register_t *cbp = get_capreg_or_special(env, cb);
+
+    cap_check_common_reg(min_perms_for_load(), env, cb, addr, CHERI_CAP_SIZE,
+                         _host_return_address, cbp, CHERI_CAP_SIZE,
+                         raise_unaligned_load_exception);
+
+    target_ulong pesbt;
+    target_ulong cursor;
+    bool tag = load_cap_from_memory_raw_tag_mmu_idx(
+        env, &pesbt, &cursor, cb, cbp, addr, _host_return_address, NULL, true,
+        NULL, mmu_idx, /* all_raw */ false);
+    update_compressed_capreg(env, cd, pesbt, tag, cursor);
+}
+
+void helper_store_cap_via_cap_mmu_idx(CPUArchState *env, uint32_t cd,
+                                      uint32_t cb, target_ulong addr,
+                                      uint32_t mmu_idx)
+{
+    GET_HOST_RETPC();
+
+    const cap_register_t *cbp = get_capreg_or_special(env, cb);
+
+    cap_check_common_reg(min_perms_for_store(env, cd), env, cb, addr,
+                         CHERI_CAP_SIZE, _host_return_address, cbp,
+                         CHERI_CAP_SIZE, raise_unaligned_store_exception);
+
+    store_cap_to_memory_mmu_index(env, cd, cb, addr, _host_return_address,
+                                  mmu_idx, true);
+}
