@@ -238,30 +238,37 @@ static bool trans_hfence_vvma(DisasContext *ctx, arg_sfence_vma *a)
 }
 
 #ifdef TARGET_CHERI_RISCV_STD
+/* Store cs2 via cs1 */
 static bool trans_hsvc(DisasContext *ctx, arg_hsvc *a)
 {
     REQUIRE_EXT(ctx, RVH);
-    return false;
+    decode_save_opc(ctx);
+    gen_helper_hyp_check_access(cpu_env);
+
+    TCGv_i32 tcg_idx = tcg_constant_i32(ctx->mem_idx | MMU_2STAGE_BIT);
+    TCGv addr = get_gpr(ctx, a->cs1, EXT_NONE);
+    TCGv_i32 tcg_cs1 = tcg_constant_i32(a->cs1);
+    TCGv_i32 tcg_cs2 = tcg_constant_i32(a->cs2);
+
+    gen_helper_store_cap_via_cap_mmu_idx(cpu_env, tcg_cs2, tcg_cs1, addr,
+                                         tcg_idx);
+    return true;
 }
 
 static bool trans_hlvc(DisasContext *ctx, arg_hlvc *a)
 {
     REQUIRE_EXT(ctx, RVH);
-    if (check_access(ctx)) {
-        TCGv_i32 tcg_idx =
-            tcg_const_i32(ctx->mem_idx | TB_FLAGS_PRIV_HYP_ACCESS_MASK);
-        TCGv addr = get_gpr(ctx, a->cs1, EXT_NONE);
-        TCGv_i32 tcg_cs1 = tcg_const_i32(a->cs1);
-        TCGv_i32 tcg_cd = tcg_const_i32(a->cd);
+    decode_save_opc(ctx);
+    gen_helper_hyp_check_access(cpu_env);
 
-        gen_helper_load_cap_via_cap_mmu_idx(cpu_env, tcg_cd, tcg_cs1, addr,
-                                            tcg_idx);
-        tcg_temp_free_i32(tcg_idx);
-        tcg_temp_free_i32(tcg_cs1);
-        tcg_temp_free_i32(tcg_cd);
-        return true;
-    }
-    return false;
+    TCGv_i32 tcg_idx = tcg_constant_i32(ctx->mem_idx | MMU_2STAGE_BIT);
+    TCGv addr = get_gpr(ctx, a->cs1, EXT_NONE);
+    TCGv_i32 tcg_cs1 = tcg_constant_i32(a->cs1);
+    TCGv_i32 tcg_cd = tcg_constant_i32(a->cd);
+
+    gen_helper_load_cap_via_cap_mmu_idx(cpu_env, tcg_cd, tcg_cs1, addr,
+                                        tcg_idx);
+    return true;
 }
 
 #endif
