@@ -247,6 +247,20 @@ static bool trans_hsvc(DisasContext *ctx, arg_hsvc *a)
 static bool trans_hlvc(DisasContext *ctx, arg_hlvc *a)
 {
     REQUIRE_EXT(ctx, RVH);
+    if (check_access(ctx)) {
+        TCGv_i32 tcg_idx =
+            tcg_const_i32(ctx->mem_idx | TB_FLAGS_PRIV_HYP_ACCESS_MASK);
+        TCGv addr = get_gpr(ctx, a->cs1, EXT_NONE);
+        TCGv_i32 tcg_cs1 = tcg_const_i32(a->cs1);
+        TCGv_i32 tcg_cd = tcg_const_i32(a->cd);
+
+        gen_helper_load_cap_via_cap_mmu_idx(cpu_env, tcg_cd, tcg_cs1, addr,
+                                            tcg_idx);
+        tcg_temp_free_i32(tcg_idx);
+        tcg_temp_free_i32(tcg_cs1);
+        tcg_temp_free_i32(tcg_cd);
+        return true;
+    }
     return false;
 }
 
