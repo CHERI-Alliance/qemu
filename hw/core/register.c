@@ -326,6 +326,11 @@ void register_finalize_block(RegisterInfoArray *r_array)
 {
 }
 
+DeviceState *register_array_get_owner(const RegisterInfoArray *reg_array)
+{
+    return DEVICE(OBJECT(reg_array)->parent);
+}
+
 static const TypeInfo register_array_info = {
     .name  = TYPE_REGISTER_ARRAY,
     .parent = TYPE_OBJECT,
