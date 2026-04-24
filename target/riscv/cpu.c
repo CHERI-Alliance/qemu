@@ -1194,12 +1194,15 @@ static void riscv_cpu_reset(DeviceState *dev)
     // Supervisor mode trap handling
     set_max_perms_capability(env, &env->stvecc, 0);
     env->sscratchc = make_null_capability(env);
+    set_max_perms_capability(env, &env->sepcc_hs, 0);
     set_max_perms_capability(env, &env->sepcc, 0);
+    set_max_perms_capability(env, &env->vsepcc, 0);
     // Machine mode trap handling
     set_max_perms_capability(env, &env->mtvecc, 0);
     env->mscratchc = make_null_capability(env);
     set_max_perms_capability(env, &env->mepcc, 0);
 
+    env->vsscratchc = make_null_capability(env);
     set_max_perms_capability(env, &env->mtvtentryc[0], 0);
     set_max_perms_capability(env, &env->mtvtentryc[1], 0);
     set_max_perms_capability(env, &env->mtvtscaddrc, 0);
@@ -1213,6 +1216,7 @@ static void riscv_cpu_reset(DeviceState *dev)
     env->stidc = make_null_capability(env);
     env->vstidc = make_null_capability(env);
     env->mtidc = make_null_capability(env);
+    env->vsepcc = make_null_capability(env);
 #ifdef TARGET_CHERI_RISCV_V9
     env->mtdc = make_null_capability(env);
     env->stdc = make_null_capability(env);
