@@ -452,6 +452,7 @@ target_ulong helper_sret(CPURISCVState *env)
         raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
                                    CHERI_EXC_REGNUM_PCC, 0, true, GETPC());
     }
+    cap_register_t retpc_cap = env->sepcc;
 #endif
 
     target_ulong retpc = GET_SPECIAL_REG_ADDR(env, sepc, sepcc);
@@ -509,7 +510,7 @@ target_ulong helper_sret(CPURISCVState *env)
     riscv_cpu_set_mode(env, prev_priv);
 
 #ifdef TARGET_CHERI
-    cheri_update_pcc_for_exc_return(&env->pcc, &env->sepcc, retpc);
+    cheri_update_pcc_for_exc_return(&env->pcc, &retpc_cap, retpc);
     /* TODO(am2419): do we log PCC as a changed register? */
     qemu_log_instr_dbg_cap(env, "PCC", &env->pcc);
 #endif
@@ -526,6 +527,7 @@ target_ulong helper_mret(CPURISCVState *env)
         raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
                                    CHERI_EXC_REGNUM_PCC, 0, true, GETPC());
     }
+    cap_register_t retpc_cap = env->mepcc;
 #endif
 
     target_ulong retpc = GET_SPECIAL_REG_ADDR(env, mepc, mepcc);
@@ -571,7 +573,7 @@ target_ulong helper_mret(CPURISCVState *env)
 #endif
 
 #ifdef TARGET_CHERI
-    cheri_update_pcc_for_exc_return(&env->pcc, &env->mepcc, retpc);
+    cheri_update_pcc_for_exc_return(&env->pcc, &retpc_cap, retpc);
     /* TODO(am2419): do we log PCC as a changed register? */
     qemu_log_instr_dbg_cap(env, "PCC", &env->pcc);
 #endif
