@@ -1375,7 +1375,7 @@ static void decode_opc(CPURISCVState *env, DisasContext *ctx, uint16_t opcode)
          * The Zca extension is added as way to refer to instructions in the C
          * extension that do not include the floating-point loads and stores
          */
-        if (!has_ext(ctx, RVC) || !ctx->cfg_ptr->ext_zca) {
+        if (!has_ext(ctx, RVC) && !ctx->cfg_ptr->ext_zca) {
             gen_exception_illegal(ctx);
         } else {
             ctx->opcode = opcode;
