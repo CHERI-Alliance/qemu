@@ -1,0 +1,3 @@
+
+export CODASIP_X730="rv64,i=on,m=on,a=on,f=on,d=on,c=on,s=on,h=off,mmu=on,pmp=off,Zyhybrid=on,Svucrg=on,y=on,u=on,zicbom=on,zicboz=on,zba=on,zbb=on,zbc=on,zbs=on,Zfhmin=on,svinval=on,zish4add=on,zca=on,zcd=on,zcf=off,zbkb=on,Zihintpause=on,sstc=on,sscofpmf=on,priv_spec=v1.12.0,zcb=on,svpbmt=on,Zylevels1=on,svinval=true,svnapot=true"
+
