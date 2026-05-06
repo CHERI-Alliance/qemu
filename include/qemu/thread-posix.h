@@ -6,6 +6,7 @@
 
 #ifdef __FreeBSD__
 #include <pthread_np.h>
+#undef FSCALE
 #endif
 
 struct QemuMutex {
