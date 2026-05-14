@@ -586,6 +586,22 @@
 /* Crypto Extension */
 #define CSR_SEED            0x015
 
+/* Codasip Custom CSRs */
+#define CSR_MFG_CTRL      0x7e0
+#define CSR_MCACHESTATUS  0xfe4
+#define CSR_MDCACHECTRL   0x7e5
+#define CSR_MICACHECTRL   0x7e6
+#define CSR_MLCACHECTRL   0x7e7
+#define CSR_MTLBCTRL      0x7e8
+#define CSR_MTCMCFG       0x7e9
+#define CSR_MITCMBASEADDR 0xfea
+#define CSR_MDTCMBASEADDR 0xfeb
+#define CSR_SBPREDCTRL    0x5e8
+#define CSR_SCBICSR       0x5e9
+#define CSR_SCBIGS        0x5f0
+#define CSR_MCBICSR       0xbe9
+#define CSR_MCBIGS        0xbf0
+
 /* mstatus CSR bits */
 #define MSTATUS_UIE         0x00000001
 #define MSTATUS_SIE         0x00000002
