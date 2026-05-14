@@ -4902,6 +4902,26 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_SCOUNTOVF]      = { "scountovf", sscofpmf,  read_scountovf,
                              .min_priv_ver = PRIV_VERSION_1_12_0 },
 
+    /* Codasip Custom CSRs */
+    /* It might be nice to add a predicate to only expose these for Codasip
+     * CPUs but that wouldn't prevent collision with other custom CSRs
+     * Instead keep these as they are until we can pull in the custom csr
+     * support from upstream */
+    [CSR_MFG_CTRL]      = { "mfg_ctrl",  any, read_zero, write_ignore },
+    [CSR_MCACHESTATUS]  = { "mcachestatus",  any, read_zero, write_ignore },
+    [CSR_MDCACHECTRL]   = { "mdcachectrl",  any, read_zero, write_ignore },
+    [CSR_MICACHECTRL]   = { "micachectrl",  any, read_zero, write_ignore },
+    [CSR_MLCACHECTRL]   = { "mlcachectrl",  any, read_zero, write_ignore },
+    [CSR_MTLBCTRL]      = { "mtlbctrl",  any, read_zero, write_ignore },
+    [CSR_MTCMCFG]       = { "mtcmcfg",  any, read_zero, write_ignore },
+    [CSR_MITCMBASEADDR] = { "mitcmbaseaddr",  any, read_zero, write_ignore },
+    [CSR_MDTCMBASEADDR] = { "mdtcmbaseaddr",  any, read_zero, write_ignore },
+    [CSR_SBPREDCTRL]    = { "sbpredctrl",  any, read_zero, write_ignore },
+    [CSR_SCBICSR]       = { "scbicsr",  any, read_zero, write_ignore },
+    [CSR_SCBIGS]        = { "scbigs",  any, read_zero, write_ignore },
+    [CSR_MCBICSR]       = { "mcbicsr",  any, read_zero, write_ignore },
+    [CSR_MCBIGS]        = { "mcbigs",  any, read_zero, write_ignore },
+
 #endif /* !CONFIG_USER_ONLY */
 };
 
