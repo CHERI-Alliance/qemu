@@ -587,6 +587,12 @@ target_ulong helper_mret(CPURISCVState *env)
     mstatus = set_field(mstatus, MSTATUS_MPIE, 1);
     mstatus = set_field(mstatus, MSTATUS_MPP, PRV_U);
     mstatus = set_field(mstatus, MSTATUS_MPV, 0);
+    if (prev_priv != PRV_M) {
+        mstatus = set_field(mstatus, MSTATUS_MPRV, 0);
+        mstatus = set_field(mstatus, MSTATUS_TSR, 0);
+        mstatus = set_field(mstatus, MSTATUS_TVM, 0);
+        mstatus = set_field(mstatus, MSTATUS_TW,  0);
+    }
     env->mstatus = mstatus;
     riscv_cpu_set_mode(env, prev_priv);
 
