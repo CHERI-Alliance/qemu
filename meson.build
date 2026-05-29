@@ -59,6 +59,7 @@ if cpu in ['riscv32', 'riscv64']
 endif
 
 targetos = host_machine.system()
+host_os = targetos
 
 target_dirs = config_host['TARGET_DIRS'].split()
 have_linux_user = false
