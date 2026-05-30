@@ -599,3 +599,17 @@ target_ulong HELPER(scss)(CPUArchState *env, uint32_t cs1, uint32_t cs2)
 
     return cap_is_subset(cs1p, cs2p) ? 1 : 0;
 }
+
+#ifdef TARGET_CHERI_RISCV_RVY
+void HELPER(ypermc)(CPUArchState *env, uint32_t cd, uint32_t cs1,
+                    target_ulong mask)
+{
+    helper_candperm(env, cd, cs1, ~mask);
+}
+
+void HELPER(yhiw)(CPUArchState *env, uint32_t cd, target_ulong rs1,
+                  target_ulong rs2)
+{
+    update_compressed_capreg(env, cd, rs2 ^ CAP_MEM_XOR_MASK, false, rs1);
+}
+#endif

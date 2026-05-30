@@ -52,7 +52,7 @@
 
 ### Three operand instructions
 {
-  cmv   0000110  00000 ..... 000 ..... 0110011 @cc  ?pred_cre
+  ymv   0000110  00000 ..... 000 ..... 0110011 @cc  ?pred_cre
   cadd  0000110  ..... ..... 000 ..... 0110011 @ccr ?pred_cre
 }
 scaddr  0000110  ..... ..... 001 ..... 0110011 @ccr ?pred_cre
@@ -82,7 +82,7 @@ modesw_int 0001010 00000 00000 001 00000 0110011 ?pred_hybrid ?pred_cre
 
 ### Instructions with immediate operands
 @cci ............    ..... ... ..... ....... &cci %cd %cs1 imm=%imm_i
-caddi         ............   ..... 010 ..... 0011011 @cci ?pred_cre
+yaddi         ............   ..... 010 ..... 0011011 @cci ?pred_cre
 
 # The RISC-V CHERI spec adds a new R format with a scaled unsigned immediate for scbndsi
 %imm5_unsigned 20:5
@@ -92,13 +92,13 @@ scbndsi       000001 . ..... ..... 101 ..... 0010011 @is_unsigned ?pred_cre
 
 
 # Loads and stores
-lc       ............   ..... 100 ..... 0001111 @i ?pred_cre
-sc       ....... .....  ..... 100 ..... 0100011 @s ?pred_cre
+ly       ............   ..... 100 ..... 0001111 @i ?pred_cre
+sy       ....... .....  ..... 100 ..... 0100011 @s ?pred_cre
 
 # Atomic instructions
-amoswap_c 00001 . . ..... ..... 100 ..... 0101111 @atom_st ?pred_cre
-lr_c      00010 . . 00000 ..... 100 ..... 0101111 @atom_ld ?pred_cre
-sc_c      00011 . . ..... ..... 100 ..... 0101111 @atom_st ?pred_cre
+amoswap_y 00001 . . ..... ..... 100 ..... 0101111 @atom_st ?pred_cre
+lr_y      00010 . . 00000 ..... 100 ..... 0101111 @atom_ld ?pred_cre
+sc_y      00011 . . ..... ..... 100 ..... 0101111 @atom_st ?pred_cre
 
 # Pre-0.9.6 mode-dependent sh4add instructions (sh4addy starting in 0.9.6)
 sh4add     0010000 .......... 111 ..... 0110011 @r

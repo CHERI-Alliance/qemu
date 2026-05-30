@@ -15,7 +15,7 @@ fake_dep = custom_target('fake-cheri-insn-dep', command: [find_program('cat'), '
                          output: 'fake-output.decode', capture: true,
                          input: ['insn32.decode', 'insn32-cheri-std.decode',
                                  'insn32-cheri-v9.decode', 'insn32-cheri-v9-32.decode',
-                                 'insn32-cheri-v9-64.decode'])
+                                 'insn32-cheri-v9-64.decode', 'insn32-cheri-rvy.decode'])
 decodetree_w_cheri_deps = generator(
   decodetree_py,
   output: 'decode-@BASENAME@.c.inc',
@@ -37,11 +37,17 @@ gen_stdcheri = [
   decodetree_w_cheri_deps.process('insn32.decode', extra_args: [dir / 'insn32-cheri-std.decode', '--static-decode=decode_insn32']),
   decodetree.process('XVentanaCondOps.decode', extra_args: '--static-decode=decode_XVentanaCodeOps'),
 ]
+gen_rvycheri = [
+  decodetree.process('insn16.decode', extra_args: ['--static-decode=decode_insn16', '--insnwidth=16']),
+  decodetree_w_cheri_deps.process('insn32.decode', extra_args: [dir / 'insn32-cheri-rvy.decode', '--static-decode=decode_insn32']),
+  decodetree.process('XVentanaCondOps.decode', extra_args: '--static-decode=decode_XVentanaCodeOps'),
+]
 
 cheri_ss = ss.source_set()
 cheri_ss.add(when: ['TARGET_CHERI_RISCV_V9', 'TARGET_RISCV32'], if_true: gen_xcheri32)
 cheri_ss.add(when: ['TARGET_CHERI_RISCV_V9', 'TARGET_RISCV64'], if_true: gen_xcheri64)
-cheri_ss.add(when: 'TARGET_CHERI_RISCV_STD', if_true: gen_stdcheri)
+cheri_ss.add(when: 'TARGET_CHERI_RISCV_STD_093', if_true: gen_stdcheri)
+cheri_ss.add(when: 'TARGET_CHERI_RISCV_RVY', if_true: gen_rvycheri)
 
 riscv_ss = ss.source_set()
 riscv_ss.add(when: 'TARGET_CHERI', if_false: gen_nocheri)
