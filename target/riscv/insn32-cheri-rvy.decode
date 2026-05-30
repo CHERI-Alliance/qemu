@@ -24,8 +24,8 @@
 &crr cd rs1 rs2
 @crr .......   ..... ..... ... ..... ....... &crr %cd %rs1 %rs2
 
-# TODO: &crc cd rs1 cs2
-# TODO: @crc .......   ..... ..... ... ..... ....... &crc %cd %rs1 %cs2
+&crc cd rs1 cs2
+@crc .......   ..... ..... ... ..... ....... &crc %cd %rs1 %cs2
 
 &rci rd cs1 imm
 
@@ -52,14 +52,14 @@ ybndsrw         0100011 ..... ..... 000 ..... 1111011 @ccr ?pred_rvy
   ymodeswi        0101011 00001 00000 000 00000 1111011 ?pred_hybrid ?pred_rvy
   ymodew          0101011 ..... ..... 000 ..... 1111011 @ccr ?pred_hybrid ?pred_rvy
 }
-# TODO: ysh1add         0000101 ..... ..... 000 ..... 1111011 @crc ?pred_rvy
-# TODO: ysh2add         0001101 ..... ..... 000 ..... 1111011 @crc ?pred_rvy
-# TODO: ysh3add         0010101 ..... ..... 000 ..... 1111011 @crc ?pred_rvy
-# TODO: ysh4add         0011101 ..... ..... 000 ..... 1111011 @crc ?pred_rvy
-# TODO: ysh1add_uw      0100101 ..... ..... 000 ..... 1111011 @crc ?pred_rvy
-# TODO: ysh2add_uw      0101101 ..... ..... 000 ..... 1111011 @crc ?pred_rvy
-# TODO: ysh3add_uw      0110101 ..... ..... 000 ..... 1111011 @crc ?pred_rvy
-# TODO: ysh4add_uw      0111101 ..... ..... 000 ..... 1111011 @crc ?pred_rvy
+ysh1add         0000101 ..... ..... 000 ..... 1111011 @crc ?pred_rvy
+ysh2add         0001101 ..... ..... 000 ..... 1111011 @crc ?pred_rvy
+ysh3add         0010101 ..... ..... 000 ..... 1111011 @crc ?pred_rvy
+ysh4add         0011101 ..... ..... 000 ..... 1111011 @crc ?pred_rvy
+ysh1add_uw      0100101 ..... ..... 000 ..... 1111011 @crc ?pred_rvy
+ysh2add_uw      0101101 ..... ..... 000 ..... 1111011 @crc ?pred_rvy
+ysh3add_uw      0110101 ..... ..... 000 ..... 1111011 @crc ?pred_rvy
+ysh4add_uw      0111101 ..... ..... 000 ..... 1111011 @crc ?pred_rvy
 yeq             0000110 ..... ..... 000 ..... 1111011 @rcc ?pred_rvy
 yss             0001110 ..... ..... 000 ..... 1111011 @rcc ?pred_rvy
 ysunseal        0000111 ..... ..... 000 ..... 1111011 @ccc ?pred_rvy

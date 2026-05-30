@@ -774,6 +774,51 @@ static bool trans_srliy(DisasContext *ctx, arg_rci *a)
     tcg_temp_free(result);
     return true;
 }
+
+static bool gen_yshadd_impl(DisasContext *ctx, int cd, int rs1, int cs2,
+                            int shamt, bool unsigned_word)
+{
+    if (!ctx->cfg_ptr->ext_zba) {
+        return false;
+    }
+    if (shamt == 4 || unsigned_word) {
+        REQUIRE_64BIT(ctx);
+    }
+    if (cd == 0) {
+        return true;
+    }
+    TCGv offset = tcg_temp_new();
+    gen_get_gpr(ctx, offset, rs1);
+    if (unsigned_word) {
+        tcg_gen_ext32u_tl(offset, offset);
+    }
+    if (shamt > 0) {
+        tcg_gen_shli_tl(offset, offset, shamt);
+    }
+    TCGv_i32 tcg_cd = tcg_constant_i32(cd);
+    TCGv_i32 tcg_cs2 = tcg_constant_i32(cs2);
+    gen_helper_cincoffset(cpu_env, tcg_cd, tcg_cs2, offset);
+    tcg_temp_free(offset);
+    return true;
+}
+
+#define GEN_TRANS_YSHADD(name, shamt, uw)                                      \
+static bool trans_##name(DisasContext *ctx, arg_crc *a)                        \
+{                                                                              \
+    return gen_yshadd_impl(ctx, a->cd, a->rs1, a->cs2, shamt, uw);             \
+}
+
+GEN_TRANS_YSHADD(ysh1add, 1, false)
+GEN_TRANS_YSHADD(ysh2add, 2, false)
+GEN_TRANS_YSHADD(ysh3add, 3, false)
+GEN_TRANS_YSHADD(ysh4add, 4, false)
+
+GEN_TRANS_YSHADD(ysh1add_uw, 1, true)
+GEN_TRANS_YSHADD(ysh2add_uw, 2, true)
+GEN_TRANS_YSHADD(ysh3add_uw, 3, true)
+GEN_TRANS_YSHADD(ysh4add_uw, 4, true)
+
+#undef GEN_TRANS_YSHADD
 #else
 static bool trans_scbndsi(DisasContext *ctx, arg_scbndsi *a)
 {
