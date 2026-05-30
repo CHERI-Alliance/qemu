@@ -363,6 +363,21 @@
 #define CSR_DPCC            CSR_DPC
 #define CSR_DSCRATCH0C      CSR_DSCRATCH0
 #define CSR_DSCRATCH1C      CSR_DSCRATCH1
+#ifdef TARGET_CHERI_RISCV_RVY
+#define CSR_DROOTCSEL       0x7bd
+#define CSR_DROOTC          0x7be
+#define CSR_DINFC           CSR_DROOTC
+#define CSR_DDDC            0x7bf
+
+/* CHERI default data capability */
+#define CSR_DDC             0x03f
+
+/* CHERI thread ID registers */
+#define CSR_UTIDC           0x07f
+#define CSR_STIDC           0x17f
+#define CSR_VSTIDC          0x27f
+#define CSR_MTIDC           0x37f
+#else
 #define CSR_DDDC            0x7bc
 #define CSR_DINFC           0x7bd
 
@@ -374,6 +389,7 @@
 #define CSR_STIDC           0x580
 #define CSR_VSTIDC          0xa80
 #define CSR_UTIDC           0x480
+#endif
 
 #ifdef TARGET_CHERI_RISCV_V9
 /* Fake CSR numbers for the legacy *TDC registers */
@@ -708,7 +724,7 @@ typedef enum {
 #define PTE_CR              0x4000000000000000 /* Cap Read */
 #define PTE_CW              0x8000000000000000 /* Cap Write */
 #define PTE_RESERVED 0x07C0000000000000ULL /* Reserved bits */
-#elif defined(TARGET_CHERI_RISCV_STD_093) && !defined(TARGET_RISCV32)
+#elif defined(TARGET_CHERI_RISCV_STD) && !defined(TARGET_RISCV32)
 #define PTE_CRG BIT_ULL(59) /* Cap Read Generation */
 #define PTE_CW  BIT_ULL(60) /* Cap Write */
 #define PTE_RESERVED 0x040000000000000ULL /* Reserved bits */
@@ -752,7 +768,7 @@ typedef enum RISCVException {
     RISCV_EXCP_VIRT_INSTRUCTION_FAULT = 0x16,
     RISCV_EXCP_STORE_GUEST_AMO_ACCESS_FAULT = 0x17,
 #ifdef TARGET_CHERI
-#if defined(TARGET_CHERI_RISCV_V9) && !defined(TARGET_RISCV32)
+#if !defined(TARGET_CHERI_RISCV_STD_093) && !defined(TARGET_RISCV32)
     RISCV_EXCP_LOAD_CAP_PAGE_FAULT = 0x1a,
     RISCV_EXCP_STORE_AMO_CAP_PAGE_FAULT = 0x1b,
 #endif
