@@ -337,6 +337,15 @@ target_ulong CHERI_HELPER_IMPL(cgettype(CPUArchState *env, uint32_t cb))
     return otype;
 }
 
+target_ulong CHERI_HELPER_IMPL(cgettop(CPUArchState *env, uint32_t cb))
+{
+    const cap_register_t *cbp = get_readonly_capreg(env, cb);
+    if (!cbp->cr_bounds_valid) {
+        return 0;
+    }
+    return cap_get_top(cbp);
+}
+
 /// Two operands (both capabilities)
 
 void CHERI_HELPER_IMPL(ccleartag(CPUArchState *env, uint32_t cd, uint32_t cb))
