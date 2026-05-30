@@ -165,12 +165,12 @@ csrrci   ............     ..... 111 ..... 1110011 @csr
 lwu      ............   ..... 110 ..... 0000011 @i
 {
   # CHERI-V9 RV32: We reuse the ld/sd opcodes for lc/sc
-  lc       ............   ..... 011 ..... 0000011 @i ?pred_xcheri_rv32
+  ly       ............   ..... 011 ..... 0000011 @i ?pred_xcheri_rv32
   ld       ............   ..... 011 ..... 0000011 @i
 }
 {
   # CHERI-V9 RV32: We reuse the ld/sd opcodes for lc/sc
-  sc       ....... .....  ..... 011 ..... 0100011 @s ?pred_xcheri_rv32
+  sy       ....... .....  ..... 011 ..... 0100011 @s ?pred_xcheri_rv32
   sd       ....... .....  ..... 011 ..... 0100011 @s
 }
 addiw    ............   ..... 000 ..... 0011011 @i
@@ -187,7 +187,7 @@ sraw     0100000 .....  ..... 101 ..... 0111011 @r
   # RV128 lq conflicts with the CMO instructions
   lq       ............   ..... 010 ..... 0001111 @i
   # The V9 previous encoding of LC conflicts with the cbo instructions.
-  lc       ............   ..... 010 ..... 0001111 @i ?pred_xcheri
+  ly       ............   ..... 010 ..... 0001111 @i ?pred_xcheri
   [
     # *** RV32 Zicbom Standard Extension ***
     cbo_clean  0000000 00001 ..... 010 00000 0001111 @sfence_vm
@@ -234,17 +234,17 @@ amominu_w  11000 . . ..... ..... 010 ..... 0101111 @atom_st
 amomaxu_w  11100 . . ..... ..... 010 ..... 0101111 @atom_st
 
 # *** RV64A Standard Extension (in addition to RV32A) ***
-# CHERI RV32: We reuse the lr_d/sc_d/swap_d opcodes for lr_c/sc_c/swap_c
+# CHERI RV32: We reuse the lr_d/sc_d/swap_d opcodes for lr_y/sc_y/amoswap_y
 {
-  lr_c       00010 . . 00000 ..... 011 ..... 0101111 @atom_ld ?pred_xcheri_rv32
+  lr_y       00010 . . 00000 ..... 011 ..... 0101111 @atom_ld ?pred_xcheri_rv32
   lr_d       00010 . . 00000 ..... 011 ..... 0101111 @atom_ld
 }
 {
-  sc_c       00011 . . ..... ..... 011 ..... 0101111 @atom_st ?pred_xcheri_rv32
+  sc_y       00011 . . ..... ..... 011 ..... 0101111 @atom_st ?pred_xcheri_rv32
   sc_d       00011 . . ..... ..... 011 ..... 0101111 @atom_st
 }
 {
-  amoswap_c  00001 . . ..... ..... 011 ..... 0101111 @atom_st ?pred_xcheri_rv32
+  amoswap_y  00001 . . ..... ..... 011 ..... 0101111 @atom_st ?pred_xcheri_rv32
   amoswap_d  00001 . . ..... ..... 011 ..... 0101111 @atom_st
 }
 amoadd_d   00000 . . ..... ..... 011 ..... 0101111 @atom_st

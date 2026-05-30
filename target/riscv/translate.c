@@ -910,8 +910,13 @@ static bool pred_hybrid(DisasContext *ctx)
 }
 #endif
 
-#ifdef TARGET_CHERI_RISCV_STD
+#ifdef TARGET_CHERI_RISCV_STD_093
 static bool pred_cre(DisasContext *ctx)
+{
+    return ctx->cre;
+}
+#elif defined(TARGET_CHERI_RISCV_RVY)
+static bool pred_rvy(DisasContext *ctx)
 {
     return ctx->cre;
 }
@@ -1341,13 +1346,13 @@ static bool trans_c_hint(DisasContext *ctx, arg_c_hint *a)
     }
 
 /* Stubs needed for mode-dependent compressed instructions */
-TRANS_STUB(lc)
-TRANS_STUB(sc)
-TRANS_STUB(caddi)
-TRANS_STUB(cmv)
-TRANS_STUB(lr_c)
-TRANS_STUB(sc_c)
-TRANS_STUB(amoswap_c)
+TRANS_STUB(ly)
+TRANS_STUB(sy)
+TRANS_STUB(yaddi)
+TRANS_STUB(ymv)
+TRANS_STUB(lr_y)
+TRANS_STUB(sc_y)
+TRANS_STUB(amoswap_y)
 #else
 static bool trans_sq(DisasContext *ctx, arg_sq *a) { return false; }
 #endif

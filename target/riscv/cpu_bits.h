@@ -682,7 +682,7 @@ typedef enum {
 #define PTE_CR              0x4000000000000000 /* Cap Read */
 #define PTE_CW              0x8000000000000000 /* Cap Write */
 #define PTE_RESERVED 0x07C0000000000000ULL /* Reserved bits */
-#elif defined(TARGET_CHERI_RISCV_STD_093) && !defined(TARGET_RISCV32)
+#elif defined(TARGET_CHERI_RISCV_STD) && !defined(TARGET_RISCV32)
 #define PTE_CRG BIT_ULL(59) /* Cap Read Generation */
 #define PTE_CW  BIT_ULL(60) /* Cap Write */
 #define PTE_RESERVED 0x040000000000000ULL /* Reserved bits */
@@ -726,7 +726,7 @@ typedef enum RISCVException {
     RISCV_EXCP_VIRT_INSTRUCTION_FAULT = 0x16,
     RISCV_EXCP_STORE_GUEST_AMO_ACCESS_FAULT = 0x17,
 #ifdef TARGET_CHERI
-#if defined(TARGET_CHERI_RISCV_V9) && !defined(TARGET_RISCV32)
+#if !defined(TARGET_CHERI_RISCV_STD_093) && !defined(TARGET_RISCV32)
     RISCV_EXCP_LOAD_CAP_PAGE_FAULT = 0x1a,
     RISCV_EXCP_STORE_AMO_CAP_PAGE_FAULT = 0x1b,
 #endif

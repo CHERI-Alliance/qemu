@@ -33,14 +33,14 @@
  * SUCH DAMAGE.
  */
 
-#define DO_TRANSLATE_HELPER(name, gen_helper, helper_name, ...)                \
-    static bool trans_##name(DisasContext *ctx, arg_##name *a)                 \
+#define DO_TRANSLATE_HELPER(name, gen_helper, helper_name, arg_type, ...)      \
+    static bool trans_##name(DisasContext *ctx, arg_type *a)                   \
     {                                                                          \
         return gen_helper(ctx, __VA_ARGS__, &gen_helper_##helper_name);        \
     }
 
 #define DO_TRANSLATE(name, gen_helper, ...)                                    \
-    DO_TRANSLATE_HELPER(name, gen_helper, name, __VA_ARGS__)
+    DO_TRANSLATE_HELPER(name, gen_helper, name, arg_##name, __VA_ARGS__)
 
 typedef void(cheri_int_cap_helper)(TCGv, TCGv_env, TCGv_i32);
 static inline bool gen_cheri_int_cap(DisasContext *ctx, arg_rc *a,
@@ -54,7 +54,7 @@ static inline bool gen_cheri_int_cap(DisasContext *ctx, arg_rc *a,
 }
 
 #define TRANSLATE_INT_CAP_HELPER(name, helper)                                 \
-    DO_TRANSLATE_HELPER(name, gen_cheri_int_cap, helper, a)
+    DO_TRANSLATE_HELPER(name, gen_cheri_int_cap, helper, arg_rc, a)
 #define TRANSLATE_INT_CAP(name) TRANSLATE_INT_CAP_HELPER(name, name)
 
 typedef void(cheri_cap_cap_helper)(TCGv_env, TCGv_i32, TCGv_i32);
@@ -65,7 +65,7 @@ static inline bool gen_cheri_cap_cap(DisasContext *ctx G_GNUC_UNUSED, arg_cc *a,
     return true;
 }
 #define TRANSLATE_CAP_CAP_HELPER(name, helper)                                 \
-    DO_TRANSLATE_HELPER(name, gen_cheri_cap_cap, helper, a)
+    DO_TRANSLATE_HELPER(name, gen_cheri_cap_cap, helper, arg_cc, a)
 #define TRANSLATE_CAP_CAP(name) TRANSLATE_CAP_CAP_HELPER(name, name)
 
 typedef void(cheri_cap_int_helper)(TCGv_env, TCGv_i32, TCGv);
@@ -106,7 +106,7 @@ static inline bool gen_cheri_cap_cap_cap(DisasContext *ctx G_GNUC_UNUSED,
 }
 // We assume that all these instructions can trap (e.g. seal violation)
 #define TRANSLATE_CAP_CAP_CAP_HELPER(name, helper)                             \
-    DO_TRANSLATE_HELPER(name, gen_cheri_cap_cap_cap, helper, a)
+    DO_TRANSLATE_HELPER(name, gen_cheri_cap_cap_cap, helper, arg_ccc, a)
 #define TRANSLATE_CAP_CAP_CAP(name) TRANSLATE_CAP_CAP_CAP_HELPER(name, name)
 
 typedef void(cheri_cap_cap_int_helper)(TCGv_env, TCGv_i32, TCGv_i32, TCGv);
@@ -121,7 +121,7 @@ static inline bool gen_cheri_cap_cap_int(DisasContext *ctx, arg_ccr *a,
     return true;
 }
 #define TRANSLATE_CAP_CAP_INT_HELPER(name, helper)                             \
-    DO_TRANSLATE_HELPER(name, gen_cheri_cap_cap_int, helper, a)
+    DO_TRANSLATE_HELPER(name, gen_cheri_cap_cap_int, helper, arg_ccr, a)
 #define TRANSLATE_CAP_CAP_INT(name) TRANSLATE_CAP_CAP_INT_HELPER(name, name)
 
 typedef void(cheri_cap_loadstore_helper)(TCGv_env, TCGv_i32, TCGv, TCGv_i32);
@@ -151,7 +151,7 @@ static inline bool gen_cheri_int_cap_cap(DisasContext *ctx, arg_rcc *a,
     return true;
 }
 #define TRANSLATE_INT_CAP_CAP_HELPER(name, helper)                             \
-    DO_TRANSLATE_HELPER(name, gen_cheri_int_cap_cap, helper, a)
+    DO_TRANSLATE_HELPER(name, gen_cheri_int_cap_cap, helper, arg_rcc, a)
 #define TRANSLATE_INT_CAP_CAP(name) TRANSLATE_INT_CAP_CAP_HELPER(name, name)
 
 typedef void(cheri_cap_cap_imm_helper)(TCGv_env, TCGv_i32, TCGv_i32, TCGv);
@@ -371,14 +371,13 @@ static inline bool trans_ld_c_cap(DisasContext *ctx, arg_ld_c_cap *a)
 }
 #endif /* TARGET_CHERI_RISCV_V9 */
 
-static inline bool trans_lc(DisasContext *ctx, arg_lc *a)
+static bool trans_ly(DisasContext *ctx, arg_i *a)
 {
     if (!ctx->capmode) {
-        // Without capmode we load relative to DDC (lc instructions)
         return gen_cheri_cap_int_plus_imm(ctx, a->rd, a->rs1, a->imm,
                                           &gen_helper_load_cap_via_ddc);
     }
-    return gen_cheri_cap_loadstore(ctx, a->rd, a->rs1, /*offset=*/a->imm,
+    return gen_cheri_cap_loadstore(ctx, a->rd, a->rs1, a->imm,
                                    &gen_helper_load_cap_via_cap);
 }
 
@@ -455,11 +454,9 @@ static inline bool trans_st_c_cap(DisasContext *ctx, arg_st_c_cap *a)
 }
 #endif /* TARGET_CHERI_RISCV_V9 */
 
-static inline bool trans_sc(DisasContext *ctx, arg_sc *a)
+static bool trans_sy(DisasContext *ctx, arg_s *a)
 {
-    // RS2 is the value, RS1 is the capability
     if (!ctx->capmode) {
-        // Without capmode we store relative to DDC (sc instructions)
         return gen_cheri_cap_int_plus_imm(ctx, a->rs2, a->rs1, a->imm,
                                           &gen_helper_store_cap_via_ddc);
     }
@@ -468,8 +465,8 @@ static inline bool trans_sc(DisasContext *ctx, arg_sc *a)
 }
 
 // Atomic ops
-static inline bool trans_lr_c_impl(DisasContext *ctx, arg_atomic *a,
-                                   cheri_cap_cap_helper *helper)
+static inline bool lr_y_impl(DisasContext *ctx, arg_atomic *a,
+                             cheri_cap_cap_helper *helper)
 {
     REQUIRE_EXT(ctx, RVA);
     if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
@@ -486,27 +483,27 @@ static inline bool trans_lr_c_impl(DisasContext *ctx, arg_atomic *a,
     return true;
 }
 
-static inline bool trans_lr_c(DisasContext *ctx, arg_lr_c *a)
+static inline bool trans_lr_y(DisasContext *ctx, arg_atomic *a)
 {
     // Note: The capmode dependent address interpretation happens in the
     // helper and not during translation.
-    return trans_lr_c_impl(ctx, a, &gen_helper_lr_c_modedep);
+    return lr_y_impl(ctx, a, &gen_helper_lr_c_modedep);
 }
 
 #ifdef TARGET_CHERI_RISCV_V9
 static inline bool trans_lr_c_ddc(DisasContext *ctx, arg_lr_c_ddc *a)
 {
-    return trans_lr_c_impl(ctx, a, &gen_helper_lr_c_ddc);
+    return lr_y_impl(ctx, a, &gen_helper_lr_c_ddc);
 }
 
 static inline bool trans_lr_c_cap(DisasContext *ctx, arg_lr_c_cap *a)
 {
-    return trans_lr_c_impl(ctx, a, &gen_helper_lr_c_cap);
+    return lr_y_impl(ctx, a, &gen_helper_lr_c_cap);
 }
 #endif /* TARGET_CHERI_RISCV_V9 */
 
-static inline bool trans_sc_c_impl(DisasContext *ctx, arg_atomic *a,
-                                   cheri_int_cap_cap_helper *helper)
+static inline bool sc_y_impl(DisasContext *ctx, arg_atomic *a,
+                             cheri_int_cap_cap_helper *helper)
 {
     REQUIRE_EXT(ctx, RVA);
     if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
@@ -522,28 +519,28 @@ static inline bool trans_sc_c_impl(DisasContext *ctx, arg_atomic *a,
     return true;
 }
 
-static inline bool trans_sc_c(DisasContext *ctx, arg_sc_c *a)
+static inline bool trans_sc_y(DisasContext *ctx, arg_atomic *a)
 {
     // Note: The capmode dependent address interpretation happens in the
     // helper and not during translation.
-    return trans_sc_c_impl(ctx, a, &gen_helper_sc_c_modedep);
+    return sc_y_impl(ctx, a, &gen_helper_sc_c_modedep);
 }
 
 #ifdef TARGET_CHERI_RISCV_V9
 static inline bool trans_sc_c_ddc(DisasContext *ctx, arg_sc_c_ddc *a)
 {
     a->rd = a->rs2; /* Not enough encoding space for explicit rd */
-    return trans_sc_c_impl(ctx, a, &gen_helper_sc_c_ddc);
+    return sc_y_impl(ctx, a, &gen_helper_sc_c_ddc);
 }
 
 static inline bool trans_sc_c_cap(DisasContext *ctx, arg_sc_c_cap *a)
 {
     a->rd = a->rs2; /* Not enough encoding space for explicit rd */
-    return trans_sc_c_impl(ctx, a, &gen_helper_sc_c_cap);
+    return sc_y_impl(ctx, a, &gen_helper_sc_c_cap);
 }
 #endif /* TARGET_CHERI_RISCV_V9 */
 
-static inline bool trans_amoswap_c(DisasContext *ctx, arg_amoswap_c *a)
+static inline bool trans_amoswap_y(DisasContext *ctx, arg_atomic *a)
 {
     REQUIRE_EXT(ctx, RVA);
     if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
@@ -594,14 +591,19 @@ static inline bool do_trans_modesw(DisasContext *ctx, bool to_capmode)
     return true;
 }
 
-static inline bool trans_modesw_cap(DisasContext *ctx, arg_modesw_cap *a)
+static bool trans_ymodeswy(DisasContext *ctx, arg_empty *a)
 {
     return do_trans_modesw(ctx, /*to_capmode=*/true);
 }
 
-static inline bool trans_modesw_int(DisasContext *ctx, arg_modesw_int *a)
+static bool trans_ymodeswi(DisasContext *ctx, arg_empty *a)
 {
     return do_trans_modesw(ctx, /*to_capmode=*/false);
+}
+
+static bool trans_yamask(DisasContext *ctx, arg_r2 *a)
+{
+    return gen_cheri_int_int(ctx, a, &gen_helper_cram);
 }
 
 #ifdef TARGET_CHERI_RISCV_V9
@@ -670,38 +672,109 @@ TRANSLATE_SC_EXPLICIT(sc_d, MO_ALIGN | MO_UQ);
 #endif
 #endif /* TARGET_CHERI_RISCV_V9 */
 
+#define RVY_RENAMED(new_name, old_name)                                        \
+    static bool trans_##old_name(DisasContext *ctx, arg_##old_name *a)     \
+    {                                                                          \
+        return trans_##new_name(ctx, a);                                       \
+    }
+
 #ifdef TARGET_CHERI_RISCV_STD
 /*
  * Instructions from the RISC-V CHERI standard.
  */
 
-TRANSLATE_INT_CAP_HELPER(gctag, cgettag)
-TRANSLATE_INT_CAP_HELPER(gcperm, cgetperm)
-TRANSLATE_INT_CAP_HELPER(gctype, cgettype)
-TRANSLATE_INT_CAP(gcmode)
-TRANSLATE_INT_CAP_HELPER(gchi, cgethigh)
-TRANSLATE_INT_CAP_HELPER(gcbase, cgetbase)
-TRANSLATE_INT_CAP_HELPER(gclen, cgetlen)
+TRANSLATE_INT_CAP_HELPER(ytagr, cgettag)
+TRANSLATE_INT_CAP_HELPER(ypermr, cgetperm)
+TRANSLATE_INT_CAP_HELPER(ytyper, cgettype)
+TRANSLATE_INT_CAP_HELPER(ymoder, gcmode)
+TRANSLATE_INT_CAP_HELPER(ybaser, cgetbase)
+TRANSLATE_INT_CAP_HELPER(ylenr, cgetlen)
+#if !defined(TARGET_CHERI_RISCV_STD_093)
+TRANSLATE_INT_CAP_HELPER(ytopr, cgettop)
+#endif
 
-TRANSLATE_CAP_CAP_HELPER(sentry, csealentry)
+/* TODO: Ysentry needs the zysentry extension enabled */
+TRANSLATE_CAP_CAP_HELPER(ysentry, csealentry)
 
-static bool trans_cadd(DisasContext *ctx, arg_cadd *a)
+static bool trans_yadd(DisasContext *ctx, arg_ccr *a)
 {
     assert(a->rs2 != 0 && "This encoding is reserved");
     return gen_cheri_cap_cap_int(ctx, a, &gen_helper_cincoffset);
 }
 
-TRANSLATE_CAP_CAP_INT_HELPER(acperm, candperm)
-TRANSLATE_CAP_CAP_INT_HELPER(scaddr, csetaddr)
-TRANSLATE_CAP_CAP_INT_HELPER(scbnds, csetboundsexact)
-TRANSLATE_CAP_CAP_INT_HELPER(scbndsr, csetbounds)
-TRANSLATE_CAP_CAP_INT_HELPER(schi, csethigh)
-TRANSLATE_CAP_CAP_INT(scmode)
-TRANSLATE_CAP_CAP_CAP_HELPER(cbld, cbuildcap)
+TRANSLATE_CAP_CAP_INT_HELPER(yaddrw, csetaddr)
+TRANSLATE_CAP_CAP_INT_HELPER(ybndsw, csetboundsexact)
+TRANSLATE_CAP_CAP_INT_HELPER(ybndsrw, csetbounds)
+TRANSLATE_CAP_CAP_INT_HELPER(ymodew, scmode)
+TRANSLATE_CAP_CAP_CAP_HELPER(ybld, cbuildcap)
 
-TRANSLATE_INT_CAP_CAP_HELPER(sceq, cseqx)
-TRANSLATE_INT_CAP_CAP(scss)
+TRANSLATE_INT_CAP_CAP_HELPER(yeq, cseqx)
+TRANSLATE_INT_CAP_CAP_HELPER(yss, scss)
 
+#ifdef TARGET_CHERI_RISCV_RVY
+static bool trans_ysunseal(DisasContext *ctx, arg_ccc *a)
+{
+    /* TODO: implement ysunseal */
+    return false;
+}
+TRANSLATE_CAP_CAP_INT(ypermc)
+
+static bool trans_packy(DisasContext *ctx, arg_crr *a)
+{
+    if (a->cd == 0) {
+        return true;
+    }
+    TCGv_i32 cd = tcg_constant_i32(a->cd);
+    TCGv rs1 = tcg_temp_new();
+    TCGv rs2 = tcg_temp_new();
+    gen_get_gpr(ctx, rs1, a->rs1);
+    gen_get_gpr(ctx, rs2, a->rs2);
+
+    gen_helper_packy(cpu_env, cd, rs1, rs2);
+
+    tcg_temp_free(rs1);
+    tcg_temp_free(rs2);
+    return true;
+}
+static target_ulong decode_ybndswi_imm(uint32_t imm)
+{
+    uint32_t imm9 = imm & 0x1ff;
+    if (imm9 == 0) {
+        return 4096;
+    }
+    if ((imm9 & 0x100) == 0) {
+        return imm9 & 0xff;
+    }
+    uint32_t imm7_5 = (imm9 >> 5) & 0x7;
+    if (imm7_5 == 0) {
+        uint32_t imm3_0 = imm9 & 0xf;
+        uint32_t imm4 = (imm9 >> 4) & 0x1;
+        return 256 | (imm3_0 << 4) | (imm4 << 3);
+    }
+    uint32_t imm7_0 = imm9 & 0xff;
+    return imm7_0 << 4;
+}
+
+static bool trans_ybndswi(DisasContext *ctx, arg_cci *a)
+{
+    target_ulong decoded_imm = decode_ybndswi_imm(a->imm);
+    return gen_cheri_cap_cap_imm(a->cd, a->cs1, decoded_imm,
+                                 &gen_helper_csetboundsexact);
+}
+
+static bool trans_srliy(DisasContext *ctx, arg_rci *a)
+{
+    /* Only a shift by the current XLEN (i.e. reading the metadata) is valid. */
+    if (a->imm != get_xlen(ctx)) {
+        return false;
+    }
+    TCGv result = tcg_temp_new();
+    gen_helper_cgethigh(result, cpu_env, tcg_constant_i32(a->cs1));
+    gen_set_gpr(ctx, a->rd, result);
+    tcg_temp_free(result);
+    return true;
+}
+#else
 static bool trans_scbndsi(DisasContext *ctx, arg_scbndsi *a)
 {
     if (a->scale == 1 && a->imm <= 1) {
@@ -712,20 +785,42 @@ static bool trans_scbndsi(DisasContext *ctx, arg_scbndsi *a)
     return gen_cheri_cap_cap_imm(a->cd, a->cs1, imm,
                                  &gen_helper_csetboundsexact);
 }
+RVY_RENAMED(ytagr, gctag)
+RVY_RENAMED(ypermr, gcperm)
+RVY_RENAMED(ytyper, gctype)
+RVY_RENAMED(ymoder, gcmode)
+RVY_RENAMED(ybaser, gcbase)
+RVY_RENAMED(ylenr, gclen)
+
+RVY_RENAMED(ysentry, sentry)
+RVY_RENAMED(yadd, cadd)
+RVY_RENAMED(yaddrw, scaddr)
+RVY_RENAMED(ybndsw, scbnds)
+RVY_RENAMED(ybndsrw, scbndsr)
+RVY_RENAMED(ymodew, scmode)
+RVY_RENAMED(ybld, cbld)
+RVY_RENAMED(yeq, sceq)
+RVY_RENAMED(yss, scss)
+
+TRANSLATE_INT_CAP_HELPER(gchi, cgethigh)
+TRANSLATE_CAP_CAP_INT_HELPER(acperm, candperm)
+TRANSLATE_CAP_CAP_INT_HELPER(schi, csethigh)
+#endif
 #endif
 
 // Common for V9 and standard CHERI:
-static inline bool trans_cram(DisasContext *ctx, arg_cram *a)
-{
-    return gen_cheri_int_int(ctx, a, &gen_helper_cram);
-}
+#if !defined(TARGET_CHERI_RISCV_RVY)
+RVY_RENAMED(yamask, cram)
+RVY_RENAMED(ymodeswi, modesw_int)
+RVY_RENAMED(ymodeswy, modesw_cap)
+#endif
 
-static bool trans_caddi(DisasContext *ctx, arg_caddi *a)
+static bool trans_yaddi(DisasContext *ctx, arg_cci *a)
 {
     return gen_cheri_cap_cap_imm(a->cd, a->cs1, a->imm, &gen_helper_cincoffset);
 }
 
-static bool trans_cmv(DisasContext *ctx, arg_cc *a)
+static bool trans_ymv(DisasContext *ctx, arg_cc *a)
 {
     return gen_cmv(ctx, a);
 }

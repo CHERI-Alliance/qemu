@@ -81,7 +81,8 @@ static void print_pte(Monitor *mon, int va_bits, target_ulong vaddr,
                    attr & PTE_G ? 'g' : '-',
                    attr & PTE_A ? 'a' : '-',
                    attr & PTE_D ? 'd' : '-'
-#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
+#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32) && \
+    !defined(TARGET_CHERI_RISCV_RVY)
                    ,
                    attr & PTE_CRG ? 'G' : '-',
 #if defined(TARGET_CHERI_RISCV_V9)

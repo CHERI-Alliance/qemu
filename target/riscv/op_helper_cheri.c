@@ -599,3 +599,20 @@ target_ulong HELPER(scss)(CPUArchState *env, uint32_t cs1, uint32_t cs2)
 
     return 1;
 }
+
+#ifdef TARGET_CHERI_RISCV_RVY
+void HELPER(ypermc)(CPUArchState *env, uint32_t cd, uint32_t cs1,
+                    target_ulong mask)
+{
+    helper_candperm(env, cd, cs1, ~mask);
+}
+
+void HELPER(packy)(CPUArchState *env, uint32_t cd, target_ulong rs1,
+                   target_ulong rs2)
+{
+    cap_register_t result;
+    CAP_cc(decompress_mem)(rs2, rs1, false, &result);
+    result.cr_extra = CREG_FULLY_DECOMPRESSED;
+    update_capreg(env, cd, &result);
+}
+#endif

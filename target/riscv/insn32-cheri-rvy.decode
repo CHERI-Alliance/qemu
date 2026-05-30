@@ -1,0 +1,93 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright 2026 Alex Richardson
+
+# This is concatenated with insn32.decode for risc64 targets.
+# Most of the fields and formats are there.
+
+%cs2       20:5
+%cs1       15:5
+%cd         7:5
+
+&ccr cd cs1 rs2
+@ccr .......   ..... ..... ... ..... ....... &ccr %cd %cs1 %rs2
+
+&rcc rd cs1 cs2
+@rcc .......   ..... ..... ... ..... ....... &rcc %rd %cs1 %cs2
+
+&ccc cd cs1 cs2
+@ccc .......   ..... ..... ... ..... ....... &ccc %cd %cs1 %cs2
+
+&rc rd cs1
+@rc .......  ..... ..... ... ..... ....... &rc %rd %cs1
+@cc .......  ..... ..... ... ..... ....... &cc %cd %cs1
+
+&crr cd rs1 rs2
+@crr .......   ..... ..... ... ..... ....... &crr %cd %rs1 %rs2
+
+# TODO: &crc cd rs1 cs2
+# TODO: @crc .......   ..... ..... ... ..... ....... &crc %cd %rs1 %cs2
+
+&rci rd cs1 imm
+
+@cci ............    ..... ... ..... ....... &cci %cd %cs1 imm=%imm_i
+
+%imm_ybndswi 20:9
+@ybndswi 111.........  ..... ... ..... ....... &cci %cd %cs1 imm=%imm_ybndswi
+
+%shamt_rvy 20:7
+@rci_shamt 00000.......  ..... ... ..... ....... &rci %rd %cs1 imm=%shamt_rvy
+
+### Three operand instructions
+packy           0000001 ..... ..... 000 ..... 1111011 @crr ?pred_rvy
+{
+  ymv             0000011 00000 ..... 000 ..... 1111011 @cc ?pred_rvy
+  yadd            0000011 ..... ..... 000 ..... 1111011 @ccr ?pred_rvy
+}
+yaddrw          0001011 ..... ..... 000 ..... 1111011 @ccr ?pred_rvy
+ypermc          0010011 ..... ..... 000 ..... 1111011 @ccr ?pred_rvy
+ybndsw          0011011 ..... ..... 000 ..... 1111011 @ccr ?pred_rvy
+ybndsrw         0100011 ..... ..... 000 ..... 1111011 @ccr ?pred_rvy
+{
+  ymodeswy        0101011 00000 00000 000 00000 1111011 ?pred_hybrid ?pred_rvy
+  ymodeswi        0101011 00001 00000 000 00000 1111011 ?pred_hybrid ?pred_rvy
+  ymodew          0101011 ..... ..... 000 ..... 1111011 @ccr ?pred_hybrid ?pred_rvy
+}
+# TODO: ysh1add         0000101 ..... ..... 000 ..... 1111011 @crc ?pred_rvy
+# TODO: ysh2add         0001101 ..... ..... 000 ..... 1111011 @crc ?pred_rvy
+# TODO: ysh3add         0010101 ..... ..... 000 ..... 1111011 @crc ?pred_rvy
+# TODO: ysh4add         0011101 ..... ..... 000 ..... 1111011 @crc ?pred_rvy
+# TODO: ysh1add_uw      0100101 ..... ..... 000 ..... 1111011 @crc ?pred_rvy
+# TODO: ysh2add_uw      0101101 ..... ..... 000 ..... 1111011 @crc ?pred_rvy
+# TODO: ysh3add_uw      0110101 ..... ..... 000 ..... 1111011 @crc ?pred_rvy
+# TODO: ysh4add_uw      0111101 ..... ..... 000 ..... 1111011 @crc ?pred_rvy
+yeq             0000110 ..... ..... 000 ..... 1111011 @rcc ?pred_rvy
+yss             0001110 ..... ..... 000 ..... 1111011 @rcc ?pred_rvy
+ysunseal        0000111 ..... ..... 000 ..... 1111011 @ccc ?pred_rvy
+ybld            0001111 ..... ..... 000 ..... 1111011 @ccc ?pred_rvy
+
+### Two operand instructions
+yamask          1111000 00000 ..... 000 ..... 1111011 @r2 ?pred_rvy
+ybaser          1111010 00000 ..... 000 ..... 1111011 @rc ?pred_rvy
+ypermr          1111010 00001 ..... 000 ..... 1111011 @rc ?pred_rvy
+ytopr           1111010 00010 ..... 000 ..... 1111011 @rc ?pred_rvy
+ylenr           1111010 00011 ..... 000 ..... 1111011 @rc ?pred_rvy
+ytagr           1111010 00100 ..... 000 ..... 1111011 @rc ?pred_rvy
+ytyper          1111010 00101 ..... 000 ..... 1111011 @rc ?pred_rvy
+ymoder          1111010 00110 ..... 000 ..... 1111011 @rc ?pred_hybrid ?pred_rvy
+ysentry         1111011 00000 ..... 000 ..... 1111011 @cc ?pred_rvy
+
+### Instructions with immediate operands
+yaddi           ....... ..... ..... 100 ..... 1111011 @cci ?pred_rvy
+ybndswi         ....... ..... ..... 101 ..... 1111011 @ybndswi ?pred_rvy
+
+### Loads and stores
+ly              ....... ..... ..... 001 ..... 1111011 @i ?pred_rvy
+sy              ....... ..... ..... 010 ..... 1111011 @s ?pred_rvy
+
+### Atomic instructions
+lr_y            00010.. 00000 ..... 011 ..... 1111011 @atom_ld ?pred_rvy
+amoswap_y       00001.. ..... ..... 011 ..... 1111011 @atom_st ?pred_rvy
+sc_y            00011.. ..... ..... 011 ..... 1111011 @atom_st ?pred_rvy
+
+### Shifts
+srliy           ....... ..... ..... 101 ..... 1111011 @rci_shamt ?pred_rvy
