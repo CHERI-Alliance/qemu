@@ -309,6 +309,22 @@ static inline cap_length_t cap_get_top_full(const cap_register_t *c)
     return c->_cr_top;
 }
 
+static inline bool cap_is_subset(const cap_register_t *superset,
+                                 const cap_register_t *subset)
+{
+    /*
+     * Assert that we are comparing capabilities of the same tag state.
+     * Comparing capabilities with different tag states is confusing and
+     * likely a logical bug in the caller.
+     */
+    cheri_debug_assert(superset->cr_tag == subset->cr_tag);
+
+    return cap_get_base(superset) <= cap_get_base(subset) &&
+           cap_get_top_full(subset) <= cap_get_top_full(superset) &&
+           (cap_get_all_perms(superset) & cap_get_all_perms(subset)) ==
+               cap_get_all_perms(subset);
+}
+
 static inline bool cap_otype_is_reserved(target_ulong otype)
 {
     cheri_debug_assert(otype <= CAP_MAX_REPRESENTABLE_OTYPE &&

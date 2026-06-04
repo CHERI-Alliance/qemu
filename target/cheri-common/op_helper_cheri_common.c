@@ -1204,19 +1204,13 @@ target_ulong CHERI_HELPER_IMPL(ctestsubset(CPUArchState *env, uint32_t cb,
 {
     const cap_register_t *cbp = get_capreg_0_is_ddc(env, cb);
     const cap_register_t *ctp = get_readonly_capreg(env, ct);
-    bool is_subset = false;
     /*
      * CTestSubset: Test if capability is a subset of another
      */
-    if (cbp->cr_tag == ctp->cr_tag &&
-        /* is_cap_sealed(cbp) == is_cap_sealed(ctp) && */
-        cap_get_base(cbp) <= cap_get_base(ctp) &&
-        cap_get_top_full(ctp) <= cap_get_top_full(cbp) &&
-        (cap_get_all_perms(cbp) & cap_get_all_perms(ctp)) ==
-            cap_get_all_perms(ctp)) {
-        is_subset = true;
+    if (cbp->cr_tag == ctp->cr_tag) {
+        return (target_ulong)cap_is_subset(cbp, ctp);
     }
-    return (target_ulong)is_subset;
+    return (target_ulong)0;
 }
 
 target_ulong CHERI_HELPER_IMPL(cseqx(CPUArchState *env, uint32_t cb,
