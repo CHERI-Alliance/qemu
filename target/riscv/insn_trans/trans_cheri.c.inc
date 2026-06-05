@@ -693,8 +693,13 @@ TRANSLATE_INT_CAP_HELPER(ylenr, cgetlen)
 TRANSLATE_INT_CAP_HELPER(ytopr, cgettop)
 #endif
 
-/* TODO: Ysentry needs the zysentry extension enabled */
-TRANSLATE_CAP_CAP_HELPER(ysentry, csealentry)
+static bool trans_ysentry(DisasContext *ctx, arg_cc *a)
+{
+    if (!ctx->cfg_ptr->ext_zysentry) {
+        return false;
+    }
+    return gen_cheri_cap_cap(ctx, a, &gen_helper_csealentry);
+}
 
 static bool trans_yadd(DisasContext *ctx, arg_ccr *a)
 {

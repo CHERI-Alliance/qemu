@@ -1203,8 +1203,8 @@ restart:
             return TRANSLATE_FAIL;
 #if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
         } else if (access_type == MMU_DATA_CAP_STORE && !(pte & PTE_CW)
-#if defined(TARGET_CHERI_RISCV_STD_093)
-                   && cpu->cfg.cheri_pte
+#if defined(TARGET_CHERI_RISCV_STD)
+                   && cpu->cfg.ext_svyrg
 #endif
         ) {
             /* CW inhibited */
@@ -1354,7 +1354,7 @@ restart:
             bool pte_crg = (pte & PTE_CRG);
             bool status_ucrg = (env->mstatus & SSTATUS64_UCRG);
             /* TODO: Probably shouldn't update the TLB if we are trapping */
-            if (cpu->cfg.cheri_pte) {
+            if (cpu->cfg.ext_svyrg) {
                 if (!(pte & PTE_CW)) {
                     /* CW inhibited */
                     *prot |= PAGE_LC_CLEAR;

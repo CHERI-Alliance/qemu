@@ -260,12 +260,15 @@ static void rv64_codasip_a730_cpu_init(Object *obj)
     cpu->cfg.ext_svpbmt = true;
 #endif
     cpu->cfg.ext_svinval = true;
-#if defined(TARGET_CHERI_RISCV_STD_093)
-    cpu->cfg.ext_zish4add = true;
+#if defined(TARGET_CHERI_RISCV_STD)
     cpu->cfg.ext_zylevels1 = true;
-    cpu->cfg.cheri_pte = true;
+    cpu->cfg.ext_svyrg = true;
     cpu->cfg.ext_cheri = true;
     cpu->cfg.ext_zyhybrid = true;
+    cpu->cfg.ext_zysentry = true;
+#if defined(TARGET_CHERI_RISCV_STD_093)
+    cpu->cfg.ext_zish4add = true;
+#endif
 #endif
 
     cpu->cfg.cbom_blocksize = 64;
@@ -379,11 +382,14 @@ static void rv32_codasip_l730_cpu_init(Object *obj)
     cpu->cfg.ext_zbc = true;
     cpu->cfg.ext_zbs =  true;
     cpu->cfg.ext_zfhmin = true;
-#if defined(TARGET_CHERI_RISCV_STD_093)
-    cpu->cfg.ext_zish4add = true;
+#if defined(TARGET_CHERI_RISCV_STD)
     cpu->cfg.ext_zylevels1 = true;
     cpu->cfg.ext_cheri = true;
     cpu->cfg.ext_zyhybrid = true;
+    cpu->cfg.ext_zysentry = true;
+#if defined(TARGET_CHERI_RISCV_STD_093)
+    cpu->cfg.ext_zish4add = true;
+#endif
 #endif
 
     cpu->cfg.cbom_blocksize = 64;
@@ -1321,6 +1327,7 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
         if (cpu->cfg.ext_zyhybrid) {
             riscv_set_feature(env, RISCV_FEATURE_CHERI_HYBRID);
         }
+#ifdef TARGET_CHERI_RISCV_STD_093
         /* Temporary compatibility for scripts that uses cheri_levels=2 */
         if (cpu->cfg._compat_cheri_levels != 0) {
             if (cpu->cfg._compat_cheri_levels == 1) {
@@ -1332,6 +1339,8 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
                 return;
             }
         }
+        cpu->cfg.ext_zysentry = true;
+#endif
         /* When Zylevels1 is enabled we have 1 level bits (local/global). */
         cpu->cfg.lvbits = (uint8_t)cpu->cfg.ext_zylevels1;
 #endif
@@ -1474,11 +1483,15 @@ static Property riscv_cpu_extensions[] = {
     DEFINE_PROP_BOOL("y", RISCVCPU, cfg.ext_cheri, true),
     DEFINE_PROP_BOOL("Zyhybrid", RISCVCPU, cfg.ext_zyhybrid, true),
     DEFINE_PROP_BOOL("Zylevels1", RISCVCPU, cfg.ext_zylevels1, false),
+#if defined(TARGET_CHERI_RISCV_RVY)
+    DEFINE_PROP_BOOL("Zysentry", RISCVCPU, cfg.ext_zysentry, true),
+    DEFINE_PROP_BOOL("Svyrg", RISCVCPU, cfg.ext_svyrg, false),
+#elif defined(TARGET_CHERI_RISCV_STD_093)
     DEFINE_PROP_UINT8("cheri_levels", RISCVCPU, cfg._compat_cheri_levels, 0),
-    DEFINE_PROP_BOOL("cheri_pte", RISCVCPU, cfg.cheri_pte, false),
-    DEFINE_PROP_BOOL("Svucrg", RISCVCPU, cfg.cheri_pte, false),
+    DEFINE_PROP_BOOL("cheri_pte", RISCVCPU, cfg.ext_svyrg, false),
+    DEFINE_PROP_BOOL("Svucrg", RISCVCPU, cfg.ext_svyrg, false),
 #endif
-
+#endif
     DEFINE_PROP_STRING("priv_spec", RISCVCPU, cfg.priv_spec),
     DEFINE_PROP_STRING("vext_spec", RISCVCPU, cfg.vext_spec),
     DEFINE_PROP_UINT16("vlen", RISCVCPU, cfg.vlen, 128),
@@ -1725,11 +1738,17 @@ static void riscv_isa_string_ext(RISCVCPU *cpu, char **isa_str, int max_str_len)
         ISA_EDATA_ENTRY(svnapot, ext_svnapot),
         ISA_EDATA_ENTRY(svpbmt, ext_svpbmt),
 #endif
-#ifdef TARGET_CHERI_RISCV_STD_093
+#if defined(TARGET_CHERI_RISCV_RVY)
+        {"zyhybrid", cpu->cfg.ext_zyhybrid},
+        {"zypurecap", cpu->cfg.ext_cheri},
+        {"zylevels1", cpu->cfg.ext_zylevels1 },
+        {"zysentry", cpu->cfg.ext_zysentry},
+        {"svyrg", cpu->cfg.ext_svyrg},
+#elif defined(TARGET_CHERI_RISCV_STD_093)
         {"zcherihybrid", cpu->cfg.ext_zyhybrid},
         {"zcheripurecap", cpu->cfg.ext_cheri},
         ISA_EDATA_ENTRY(zihintpause, ext_zihintpause),
-        {"zcheripte", cpu->cfg.cheri_pte },
+        {"zcheripte", cpu->cfg.ext_svyrg },
         {"zcherilevels", cpu->cfg.lvbits > 0 },
         ISA_EDATA_ENTRY(zish4add, ext_zish4add),
 #endif
