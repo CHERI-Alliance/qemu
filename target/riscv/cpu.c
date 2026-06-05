@@ -86,6 +86,9 @@ struct isa_ext_data {
 static const struct isa_ext_data isa_edata_arr[] = {
     ISA_EXT_DATA_ENTRY(h, false, PRIV_VERSION_1_12_0, ext_h),
     ISA_EXT_DATA_ENTRY(v, false, PRIV_VERSION_1_12_0, ext_v),
+#ifdef TARGET_CHERI_RISCV_RVY
+    ISA_EXT_DATA_ENTRY(y, false, PRIV_VERSION_1_12_0, ext_cheri),
+#endif
     ISA_EXT_DATA_ENTRY(zicbom, true, PRIV_VERSION_1_12_0, ext_icbom),
     ISA_EXT_DATA_ENTRY(zicboz, true, PRIV_VERSION_1_12_0, ext_icboz),
     ISA_EXT_DATA_ENTRY(zicsr, true, PRIV_VERSION_1_10_0, ext_icsr),
@@ -104,8 +107,8 @@ static const struct isa_ext_data isa_edata_arr[] = {
     ISA_EXT_DATA_ENTRY(zcf, true, PRIV_VERSION_1_12_0, ext_zcf),
 #ifdef TARGET_CHERI_RISCV_STD_093
     ISA_EXT_DATA_ENTRY(zcherihybrid, true, PRIV_VERSION_1_12_0, ext_zyhybrid),
-    ISA_EXT_DATA_ENTRY(zcherilevels, true, PRIV_VERSION_1_12_0, ext_zylevels1),
-    ISA_EXT_DATA_ENTRY(zcheripte, true, PRIV_VERSION_1_12_0, cheri_pte),
+    ISA_EXT_DATA_ENTRY(zcherilevels, true, PRIV_VERSION_1_12_0, ext_zylg),
+    ISA_EXT_DATA_ENTRY(zcheripte, true, PRIV_VERSION_1_12_0, ext_svyrg),
     ISA_EXT_DATA_ENTRY(zcheripurecap, true, PRIV_VERSION_1_12_0, ext_cheri),
 #endif
     ISA_EXT_DATA_ENTRY(zba, true, PRIV_VERSION_1_12_0, ext_zba),
@@ -129,6 +132,10 @@ static const struct isa_ext_data isa_edata_arr[] = {
     ISA_EXT_DATA_ENTRY(zve64f, true, PRIV_VERSION_1_12_0, ext_zve64f),
     ISA_EXT_DATA_ENTRY(zhinx, true, PRIV_VERSION_1_12_0, ext_zhinx),
     ISA_EXT_DATA_ENTRY(zhinxmin, true, PRIV_VERSION_1_12_0, ext_zhinxmin),
+#ifdef TARGET_CHERI_RISCV_RVY
+    ISA_EXT_DATA_ENTRY(zyhybrid, true, PRIV_VERSION_1_12_0, ext_zyhybrid),
+    ISA_EXT_DATA_ENTRY(zylg, true, PRIV_VERSION_1_12_0, ext_zylg),
+#endif
     ISA_EXT_DATA_ENTRY(smaia, true, PRIV_VERSION_1_12_0, ext_smaia),
     ISA_EXT_DATA_ENTRY(ssaia, true, PRIV_VERSION_1_12_0, ext_ssaia),
     ISA_EXT_DATA_ENTRY(sscofpmf, true, PRIV_VERSION_1_12_0, ext_sscofpmf),
@@ -137,6 +144,9 @@ static const struct isa_ext_data isa_edata_arr[] = {
 #if !defined(TARGET_CHERI_RISCV_V9)
     ISA_EXT_DATA_ENTRY(svnapot, true, PRIV_VERSION_1_12_0, ext_svnapot),
     ISA_EXT_DATA_ENTRY(svpbmt, true, PRIV_VERSION_1_12_0, ext_svpbmt),
+#endif
+#ifdef TARGET_CHERI_RISCV_RVY
+    ISA_EXT_DATA_ENTRY(svyrg, true, PRIV_VERSION_1_12_0, ext_svyrg),
 #endif
     ISA_EXT_DATA_ENTRY(xventanacondops, true, PRIV_VERSION_1_12_0, ext_XVentanaCondOps),
 };
@@ -350,12 +360,14 @@ static void rv64_codasip_a730_cpu_init(Object *obj)
     cpu->cfg.ext_svpbmt = true;
 #endif
     cpu->cfg.ext_svinval = true;
-#if defined(TARGET_CHERI_RISCV_STD_093)
-    cpu->cfg.ext_zish4add = true;
-    cpu->cfg.ext_zylevels1 = true;
-    cpu->cfg.cheri_pte = true;
+#if defined(TARGET_CHERI_RISCV_STD)
+    cpu->cfg.ext_zylg = true;
+    cpu->cfg.ext_svyrg = true;
     cpu->cfg.ext_cheri = true;
     cpu->cfg.ext_zyhybrid = true;
+#if defined(TARGET_CHERI_RISCV_STD_093)
+    cpu->cfg.ext_zish4add = true;
+#endif
 #endif
 
     cpu->cfg.cbom_blocksize = 64;
@@ -468,11 +480,13 @@ static void rv32_codasip_l730_cpu_init(Object *obj)
     cpu->cfg.ext_zbc = true;
     cpu->cfg.ext_zbs =  true;
     cpu->cfg.ext_zfhmin = true;
-#if defined(TARGET_CHERI_RISCV_STD_093)
-    cpu->cfg.ext_zish4add = true;
-    cpu->cfg.ext_zylevels1 = true;
+#if defined(TARGET_CHERI_RISCV_STD)
+    cpu->cfg.ext_zylg = true;
     cpu->cfg.ext_cheri = true;
     cpu->cfg.ext_zyhybrid = true;
+#if defined(TARGET_CHERI_RISCV_STD_093)
+    cpu->cfg.ext_zish4add = true;
+#endif
 #endif
 
     cpu->cfg.cbom_blocksize = 64;
@@ -1187,19 +1201,21 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
         if (cpu->cfg.ext_zyhybrid) {
             riscv_set_feature(env, RISCV_FEATURE_CHERI_HYBRID);
         }
+#ifdef TARGET_CHERI_RISCV_STD_093
         /* Temporary compatibility for scripts that uses cheri_levels=2 */
         if (cpu->cfg._compat_cheri_levels != 0) {
             if (cpu->cfg._compat_cheri_levels == 1) {
-                cpu->cfg.ext_zylevels1 = false;
+                cpu->cfg.ext_zylg = false;
             } else if (cpu->cfg._compat_cheri_levels == 2) {
-                cpu->cfg.ext_zylevels1 = true;
+                cpu->cfg.ext_zylg = true;
             } else {
                 error_setg(errp, "cheri_levels must be 1 or 2");
                 return;
             }
         }
-        /* When Zylevels1 is enabled we have 1 level bits (local/global). */
-        cpu->cfg.lvbits = (uint8_t)cpu->cfg.ext_zylevels1;
+#endif
+        /* When Zylg is enabled we have 1 level bits (local/global). */
+        cpu->cfg.lvbits = (uint8_t)cpu->cfg.ext_zylg;
 #endif
     }
 #endif
@@ -1348,10 +1364,15 @@ static Property riscv_cpu_extensions[] = {
 #elif defined(TARGET_CHERI_RISCV_STD)
     DEFINE_PROP_BOOL("y", RISCVCPU, cfg.ext_cheri, true),
     DEFINE_PROP_BOOL("Zyhybrid", RISCVCPU, cfg.ext_zyhybrid, true),
-    DEFINE_PROP_BOOL("Zylevels1", RISCVCPU, cfg.ext_zylevels1, false),
+    DEFINE_PROP_BOOL("Zylg", RISCVCPU, cfg.ext_zylg, false),
+    DEFINE_PROP_BOOL("Zylevels1", RISCVCPU, cfg.ext_zylg, false),
+#if defined(TARGET_CHERI_RISCV_RVY)
+    DEFINE_PROP_BOOL("Svyrg", RISCVCPU, cfg.ext_svyrg, false),
+#elif defined(TARGET_CHERI_RISCV_STD_093)
     DEFINE_PROP_UINT8("cheri_levels", RISCVCPU, cfg._compat_cheri_levels, 0),
-    DEFINE_PROP_BOOL("cheri_pte", RISCVCPU, cfg.cheri_pte, false),
-    DEFINE_PROP_BOOL("Svucrg", RISCVCPU, cfg.cheri_pte, false),
+    DEFINE_PROP_BOOL("cheri_pte", RISCVCPU, cfg.ext_svyrg, false),
+    DEFINE_PROP_BOOL("Svucrg", RISCVCPU, cfg.ext_svyrg, false),
+#endif
 #endif
 
     DEFINE_PROP_STRING("priv_spec", RISCVCPU, cfg.priv_spec),
