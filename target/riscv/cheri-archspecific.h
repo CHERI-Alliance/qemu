@@ -158,11 +158,13 @@ static inline bool validate_jump_target(CPUArchState *env,
                                         target_ulong addr,
                                         unsigned regnum, uintptr_t retpc)
 {
+#if !defined(TARGET_CHERI_RISCV_RVY)
     unsigned min_insn_size = riscv_has_ext(env, RVC) ? 2 : 4;
     if (!cap_is_in_bounds(cap, addr, min_insn_size)) {
         raise_cheri_exception_branch_impl(env, CapEx_LengthViolation, regnum,
                                           addr, retpc);
     }
+#endif
 #ifndef TARGET_CHERI_RISCV_STD
     target_ulong base = cap_get_base(cap);
     if (!QEMU_IS_ALIGNED(base, min_insn_size)) {
