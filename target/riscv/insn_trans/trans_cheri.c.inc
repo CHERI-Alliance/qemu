@@ -719,11 +719,7 @@ TRANSLATE_INT_CAP_CAP_HELPER(yeq, cseqx)
 TRANSLATE_INT_CAP_CAP_HELPER(yss, scss)
 
 #ifdef TARGET_CHERI_RISCV_RVY
-static bool trans_yunseals(DisasContext *ctx, arg_ccc *a)
-{
-    /* TODO: implement yunseals */
-    return false;
-}
+TRANSLATE_CAP_CAP_CAP(yunseals)
 TRANSLATE_CAP_CAP_INT(ypermc)
 
 TRANSLATE_INT_CAP_HELPER(yhir, cgethigh)

@@ -612,4 +612,33 @@ void HELPER(yhiw)(CPUArchState *env, uint32_t cd, target_ulong rs1,
 {
     update_compressed_capreg(env, cd, rs2 ^ CAP_MEM_XOR_MASK, false, rs1);
 }
+
+void HELPER(yunseals)(CPUArchState *env, uint32_t cd,
+                      uint32_t cs1, uint32_t cs2)
+{
+    const cap_register_t *auth = get_readonly_capreg(env, cs1);
+    const cap_register_t *input = get_readonly_capreg(env, cs2);
+    cap_register_t result = *input;
+
+    /*
+     * yunseals unconditionally clears the otype to unsealed.
+     * We use the raw update_otype helper directly to avoid assertion checks
+     * in the wrappers (which fail if the input is unsealed or untagged).
+     */
+    CAP_cc(update_otype)(&result, CAP_OTYPE_UNSEALED);
+
+    if (auth->cr_tag && cap_check_integrity(env, auth) &&
+        cap_is_unsealed(auth) && input->cr_tag &&
+        cap_check_integrity(env, input) && !cap_is_unsealed(input) &&
+        cap_is_subset(auth, &result)) {
+        /*
+         * The spec says "Set rd.tag=1 if ...", but since one of the conditions
+         * is rs2.tag == 1, this is a no-op and we just assert.
+         */
+        assert(result.cr_tag);
+    } else {
+        result.cr_tag = false;
+    }
+    update_capreg(env, cd, &result);
+}
 #endif
