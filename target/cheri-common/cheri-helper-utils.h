@@ -222,6 +222,12 @@ static inline void cheri_update_pcc_for_exc_return(cap_register_t *pcc,
             pcc->cr_tag = false;
         }
     }
+#ifdef TARGET_CHERI_RISCV_RVY
+    /* RVY 0.9.10 MRET, SRET: unseal sentries even if untagged. */
+    if (cap_is_sealed_entry(pcc) && new_cursor == cap_get_cursor(pcc)) {
+        cap_unseal_entry_ignoring_tag(pcc);
+    }
+#endif
     cheri_update_pcc(pcc, new_cursor, /*can_be_unrepresentable=*/true);
 }
 

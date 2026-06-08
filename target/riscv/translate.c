@@ -659,7 +659,9 @@ static void gen_jal(DisasContext *ctx, int rd, target_ulong imm)
 
     /* check misaligned: */
     next_pc = ctx->base.pc_next + imm;
+#if !CHERI_CONTROLFLOW_CHECK_AT_TARGET
     gen_check_branch_target(ctx, next_pc);
+#endif
     if (!has_ext(ctx, RVC) && !ctx->cfg_ptr->ext_zca) {
         if ((next_pc & 0x3) != 0) {
             gen_exception_inst_addr_mis(ctx, tcg_constant_tl(next_pc));
@@ -685,25 +687,31 @@ static void gen_jalr(DisasContext *ctx, int rd, int rs1, target_ulong imm)
     /* For CHERI ISAv8 the destination is an offset relative to PCC.base. */
     tcg_gen_addi_tl(t0, t0, imm + pcc_reloc(ctx));
     tcg_gen_andi_tl(t0, t0, (target_ulong)-2);
+#if !CHERI_CONTROLFLOW_CHECK_AT_TARGET
     gen_check_branch_target_dynamic(ctx, t0);
+#endif
+    if (!has_ext(ctx, RVC) && !ctx->cfg_ptr->ext_zca) {
+        TCGv t1 = tcg_temp_new();
+        misaligned = gen_new_label();
+        tcg_gen_andi_tl(t1, t0, 0x2);
+        tcg_gen_brcondi_tl(TCG_COND_NE, t1, 0x0, misaligned);
+        tcg_temp_free(t1);
+    }
+    /* For CHERI ISAv8 the result is an offset relative to PCC.base */
+    gen_set_gpri(ctx, rd, ctx->pc_succ_insn - pcc_reloc(ctx));
+#if CHERI_CONTROLFLOW_CHECK_AT_TARGET
+    gen_check_branch_target_dynamic(ctx, t0);
+#endif
     // Note: Only update cpu_pc after a successful bounds check to avoid
     // representability issues caused by directly modifying PCC.cursor.
     gen_set_pc(ctx, t0);
 
-    if (!has_ext(ctx, RVC) && !ctx->cfg_ptr->ext_zca) {
-        misaligned = gen_new_label();
-        tcg_gen_andi_tl(t0, cpu_pc, 0x2);
-        tcg_gen_brcondi_tl(TCG_COND_NE, t0, 0x0, misaligned);
-    }
-
-    /* For CHERI ISAv8 the result is an offset relative to PCC.base */
-    gen_set_gpri(ctx, rd, ctx->pc_succ_insn - pcc_reloc(ctx));
     /* No chaining with JALR. */
     tcg_gen_lookup_and_goto_ptr();
 
     if (misaligned) {
         gen_set_label(misaligned);
-        gen_exception_inst_addr_mis(ctx, cpu_pc);
+        gen_exception_inst_addr_mis(ctx, t0);
     }
     ctx->base.is_jmp = DISAS_NORETURN;
 

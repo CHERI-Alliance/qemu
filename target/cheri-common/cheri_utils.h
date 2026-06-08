@@ -442,11 +442,17 @@ static inline void cap_unseal_reserved_otype(cap_register_t *c)
     CAP_cc(update_otype)(c, CAP_OTYPE_UNSEALED);
 }
 
-static inline void cap_unseal_entry(cap_register_t *c)
+static inline void cap_unseal_entry_ignoring_tag(cap_register_t *c)
 {
-    assert(c->cr_tag && cap_is_sealed_entry(c) &&
+    assert(cap_is_sealed_entry(c) &&
            "Should only be used with sentry capabilities");
     CAP_cc(update_otype)(c, CAP_OTYPE_UNSEALED);
+}
+
+static inline void cap_unseal_entry(cap_register_t *c)
+{
+    assert(c->cr_tag && "Should only be used with tagged capabilities");
+    cap_unseal_entry_ignoring_tag(c);
 }
 
 static inline void cap_make_sealed_entry(cap_register_t *c)

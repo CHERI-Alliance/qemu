@@ -363,11 +363,36 @@ void cheri_jump_and_link(CPUArchState *env, const cap_register_t *target,
     cheri_debug_assert(cap_is_unsealed(target) || cap_is_sealed_entry(target));
 #endif
 
-    if (next_pcc.cr_tag && cap_is_sealed_entry(&next_pcc)) {
-        // If we are calling a "sentry" cap, remove the sealed flag
-        cap_unseal_entry(&next_pcc);
-        assert(cap_get_cursor(&next_pcc) == addr &&
-               "Should have raised an exception");
+    bool can_unseal_sentry = cap_get_cursor(&next_pcc) == addr;
+#ifdef TARGET_RISCV
+    /*
+     * RVY 0.9.10 JALR: only unseal a sentry if rs1.address[0] is zero and the
+     * I-immediate is zero. Otherwise YADDRW semantics leave it sealed and
+     * clear the tag.
+     */
+    can_unseal_sentry &= !(addr & 1);
+    addr &= ~(target_ulong)1;
+#endif
+#ifndef TARGET_CHERI_RISCV_RVY
+    can_unseal_sentry &= next_pcc.cr_tag;
+#endif
+    if (cap_is_sealed_entry(&next_pcc)) {
+        if (can_unseal_sentry) {
+            /*
+             * If we are calling a "sentry" cap, remove the sealed flag.
+             * When CHERI_CONTROLFLOW_CHECK_AT_TARGET is set, the target has
+             * not been checked for a valid tag, and the spec unseals sentries
+             * based on the CT field even if untagged.
+             */
+            cheri_debug_assert(CHERI_CONTROLFLOW_CHECK_AT_TARGET ||
+                               next_pcc.cr_tag);
+            cap_unseal_entry_ignoring_tag(&next_pcc);
+        } else {
+            cheri_debug_assert(CHERI_CONTROLFLOW_CHECK_AT_TARGET &&
+                               "Should have raised an exception");
+            next_pcc.cr_tag = 0;
+        }
+        cap_set_cursor(&next_pcc, addr);
     } else if (cjalr_flags & CJALR_MUST_BE_SENTRY) {
         qemu_log_mask_and_addr(CPU_LOG_INSTR | LOG_GUEST_ERROR,
                        cpu_get_recent_pc(env),
@@ -431,17 +456,19 @@ void cheri_jump_and_link_checked(CPUArchState *env, uint32_t link_reg,
                                  target_ulong target_addr, uint32_t flags,
                                  uintptr_t _host_return_address)
 {
+    target_ulong aligned_target_addr = target_addr;
 #ifdef TARGET_RISCV
     /* On RISC-V we mask the LSB of the target to match JALR behaviour. */
-    target_addr &= ~(target_ulong)1;
+    aligned_target_addr &= ~(target_ulong)1;
 #endif
-    /* Morello takes the exception at the target. */
+    /* Morello and RVY take capability faults at the target. */
 #if !CHERI_CONTROLFLOW_CHECK_AT_TARGET
     if (!target->cr_tag) {
         raise_cheri_exception_branch(env, CapEx_TagViolation, target_reg);
     } else if (cap_is_sealed_with_type(target) ||
                (!cap_is_unsealed(target) &&
-                target_addr != cap_get_cursor(target))) {
+                (target_addr != cap_get_cursor(target) ||
+                 aligned_target_addr != cap_get_cursor(target)))) {
         /*
          * Note: "sentry" caps can be called using cjalr, but only if the
          * immediate offset is 0, i.e. target_addr==target.address.
@@ -450,11 +477,12 @@ void cheri_jump_and_link_checked(CPUArchState *env, uint32_t link_reg,
     } else if (!cap_has_perms(target, CAP_PERM_EXECUTE)) {
         raise_cheri_exception_branch(env, CapEx_PermitExecuteViolation,
                                      target_reg);
-    } else if (!validate_jump_target(env, target, target_addr, target_reg,
-                                     _host_return_address)) {
-        assert(false && "Should have raised an exception");
     }
 #endif
+    if (!validate_jump_target(env, target, aligned_target_addr, target_reg,
+                              _host_return_address)) {
+        assert(false && "Should have raised an exception");
+    }
     cheri_jump_and_link(env, target, target_addr, link_reg, link_pc, flags);
 }
 
@@ -1794,6 +1822,10 @@ void CHERI_HELPER_IMPL(raise_exception_pcc_bounds(CPUArchState *env,
     // helpful).
     cheri_debug_assert(!cap_is_in_bounds(cheri_get_current_pcc(env), addr,
                                          num_bytes == 0 ? 1 : num_bytes));
+#if CHERI_CONTROLFLOW_CHECK_AT_TARGET
+    cheri_update_pcc((cap_register_t *)_cheri_get_pcc_unchecked(env), addr,
+                     /*can_be_unrep=*/true);
+#endif
     raise_pcc_fault(env, CapEx_LengthViolation, addr);
 }
 
