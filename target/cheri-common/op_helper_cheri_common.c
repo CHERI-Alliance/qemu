@@ -958,10 +958,8 @@ void CHERI_HELPER_IMPL(candperm(CPUArchState *env, uint32_t cd, uint32_t cb,
     }
 
     cap_register_t result = *cbp;
-    if (!RESULT_VALID) {
-        result.cr_tag = 0;
-    }
-    target_ulong new_perms = cap_get_all_perms(cbp) & rt;
+    target_ulong old_perms = cap_get_all_perms(cbp);
+    target_ulong new_perms = old_perms & rt;
     /* Ensure that the permission can be encoded */
     cap_legalize_perms(env, &result, &new_perms);
 #ifdef TARGET_CHERI_RISCV_STD
@@ -972,6 +970,21 @@ void CHERI_HELPER_IMPL(candperm(CPUArchState *env, uint32_t cd, uint32_t cb,
     }
 #endif
     cap_set_perms(env, &result, new_perms);
+    if (!RESULT_VALID) {
+#ifdef TARGET_CHERI_RISCV_RVY
+        /*
+         * RVY 0.9.10 Section 13.3: The G flag "is not subject to the sealed
+         * check, and so YPERMC can produce a new capability with its G flag
+         * cleared, even if the source capability is sealed."
+         */
+        if (!cbp->cr_tag ||
+            ((old_perms ^ cap_get_all_perms(&result)) & ~CAP_PERM_GLOBAL) != 0) {
+            result.cr_tag = 0;
+        }
+#else
+        result.cr_tag = 0;
+#endif
+    }
     update_capreg(env, cd, &result);
 }
 
