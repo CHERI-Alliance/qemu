@@ -1129,7 +1129,7 @@ restart:
 #endif
         } else if (!(pte & (PTE_R | PTE_W | PTE_X))) {
             /* Inner PTE, continue walking */
-#if defined(TARGET_CHERI_RISCV_STD_093) && !defined(TARGET_RISCV32)
+#if defined(TARGET_CHERI_RISCV_STD) && !defined(TARGET_RISCV32)
             if (pte & PTE_CW) {
                 /* This bit on a leaf node is illegal regardless of cheripte */
                 qemu_log_mask(CPU_LOG_MMU,
@@ -1221,7 +1221,7 @@ restart:
             return TRANSLATE_FAIL;
 #endif
 #if RISCV_PTE_TRAPPY
-        } else if ((access_type == MMU_DATA_STORE) && !(pte & PTE_D)) {
+        } else if (access_type == MMU_DATA_STORE && !(pte & PTE_D)) {
             /* PTE not marked as dirty */
             qemu_log_mask(CPU_LOG_MMU, "%s Translate fail: D not set\n",
                           __func__);
@@ -1327,7 +1327,8 @@ restart:
                  (access_type == MMU_DATA_CAP_STORE) || (pte & PTE_D))) {
                 *prot |= PAGE_WRITE;
             }
-#if defined(TARGET_CHERI_RISCV_V9) && !defined(TARGET_RISCV32)
+#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
+#if defined(TARGET_CHERI_RISCV_V9)
             if ((pte & PTE_CR) == 0) {
                 if ((pte & PTE_CRM) == 0) {
                     *prot |= PAGE_LC_CLEAR;
@@ -1349,6 +1350,68 @@ restart:
             }
             if ((pte & PTE_CW) == 0) {
                 *prot |= PAGE_SC_TRAP;
+            }
+#elif defined(TARGET_CHERI_RISCV_RVY) && !defined(TARGET_RISCV32)
+            /*
+             * Svyrg 1.0 Exception Priority Order (Table 52 of RVY Spec):
+             * 1. Check base write access (PTE_W) -> Store/AMO Page Fault.
+             * 2. Check cap write access (PTE_CW/PTE_YW) -> CHERI Store Page
+             * Fault.
+             * 3. Check dirty bit (PTE_D) -> Store/AMO Page Fault to update PTE.
+             * 4. Check cap-dirty (PTE_YD) -> Deferred to TLB memory access
+             * helper execution time (only traps if stored capability tag is 1).
+             */
+            {
+                bool yrge = cpu->cfg.ext_svyrg &&
+                            (env->mstatus & SSTATUS64_YRGE);
+
+                if (yrge) {
+                    bool pte_yr = (pte & PTE_YR);
+                    bool pte_yrg = (pte & PTE_YRG);
+                    bool pte_yw = (pte & PTE_YW);
+                    bool pte_yd = (pte & PTE_YD);
+
+                    if (!pte_yr) {
+                        if (!pte_yrg) {
+                            *prot |= PAGE_LC_CLEAR;
+                        }
+                    } else {
+                        bool uyrg = (env->mstatus & SSTATUS64_UYRG);
+                        bool syrg = (env->mstatus & SSTATUS64_SYRG);
+                        bool xyrg = (pte & PTE_U) ? uyrg : syrg;
+                        if (pte_yrg != xyrg) {
+                            *prot |= PAGE_LC_TRAP;
+                        }
+                    }
+
+                    /*
+                     * Svyrg 1.0 Capability Dirty Tracking (Table 52/Sec 11.2):
+                     * If pte.yw=1 but pte.yd=0, storing a capability with a
+                     * valid tag (tag=1) must trigger a CHERI Store Page Fault
+                     * (cause 36). Since we do not know the tag at page walk
+                     * time, we mark PAGE_SC_TRAP in the TLB entry. The TCG
+                     * memory helper will trap at access time only if the
+                     * tag being stored is 1.
+                     */
+                    if (!pte_yw || !pte_yd) {
+                        *prot |= PAGE_SC_TRAP;
+                    }
+                } else {
+                    /*
+                     * Default RVY VM behavior (Section 10.3):
+                     * pte.rvy[3] is pte.y.
+                     * If pte.y = 0: load clears tag, store tag=1 traps.
+                     * If pte.y = 1: normal operation.
+                     *
+                     * This applies if Svyrg is not present, or present
+                     * but disabled.
+                     */
+                    bool pte_y = (pte & PTE_YD); /* pte.rvy[3] is PTE_YD */
+                    if (!pte_y) {
+                        *prot |= PAGE_LC_CLEAR;
+                        *prot |= PAGE_SC_TRAP;
+                    }
+                }
             }
 #elif defined(TARGET_CHERI_RISCV_STD_093) && !defined(TARGET_RISCV32)
             bool pte_crg = (pte & PTE_CRG);
@@ -1375,6 +1438,7 @@ restart:
                     }
                 }
             }
+#endif
 #endif
             return TRANSLATE_SUCCESS;
         }
@@ -1757,6 +1821,14 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     if (ret == TRANSLATE_PMP_FAIL) {
         pmp_violation = true;
     }
+
+#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
+    if (ret == TRANSLATE_SUCCESS &&
+        access_type == MMU_DATA_CAP_STORE &&
+        (prot & PAGE_SC_TRAP)) {
+        ret = TRANSLATE_CHERI_FAIL;
+    }
+#endif
 
     if (ret == TRANSLATE_SUCCESS) {
         MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
