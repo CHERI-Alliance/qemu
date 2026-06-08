@@ -161,11 +161,13 @@ static inline bool validate_jump_target(CPUArchState *env,
                                         target_ulong addr,
                                         unsigned regnum, uintptr_t retpc)
 {
+#if !CHERI_CONTROLFLOW_CHECK_AT_TARGET
     unsigned min_insn_size = riscv_has_ext(env, RVC) ? 2 : 4;
     if (!cap_is_in_bounds(cap, addr, min_insn_size)) {
         raise_cheri_exception_branch_impl(env, CapEx_LengthViolation, regnum,
                                           addr, retpc);
     }
+#endif
 #ifndef TARGET_CHERI_RISCV_STD
     target_ulong base = cap_get_base(cap);
     if (!QEMU_IS_ALIGNED(base, min_insn_size)) {
@@ -182,11 +184,22 @@ static inline bool validate_jump_target(CPUArchState *env,
     return true;
 }
 
+#if CHERI_CONTROLFLOW_CHECK_AT_TARGET
+static inline void update_target_for_jump(CPUArchState *env,
+                                          G_GNUC_UNUSED cap_register_t *target,
+                                          G_GNUC_UNUSED uint32_t cjalr_flags)
+{
+    /* Target PCC is checked on instruction fetch. */
+}
+#endif
+
 static inline void update_next_pcc_for_tcg(CPUArchState *env,
                                            cap_register_t *target,
                                            uint32_t cjalr_flags)
 {
+#if !CHERI_CONTROLFLOW_CHECK_AT_TARGET
     assert_valid_jump_target(target);
+#endif
     // On return to TCG we will jump there immediately, so update env->pcc now.
     env->pcc = *target;
 #ifdef CONFIG_DEBUG_TCG

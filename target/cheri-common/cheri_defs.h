@@ -244,5 +244,6 @@ typedef enum CheriTbFlags {
 #else // !TARGET_CHERI
 
 #define ASSERT_IF_CHERI()
+#define CHERI_CONTROLFLOW_CHECK_AT_TARGET 0
 
 #endif // TARGET_CHERI
