@@ -81,7 +81,7 @@ static inline target_ulong cap_get_all_perms(const cap_register_t *c)
 #define RVY_AP_X   CAP_CC(PERM_EXECUTE)
 #define RVY_AP_ASR CAP_CC(PERM_ACCESS_SYS_REGS)
 #define RVY_AP_LM  CAP_CC(PERM_LOAD_MUTABLE)
-#define RVY_AP_EL  CAP_CC(PERM_ELEVATE_LEVEL)
+#define RVY_AP_LG  CAP_CC(PERM_ELEVATE_LEVEL)
 #define RVY_AP_SL  CAP_CC(PERM_STORE_LEVEL)
 #define PERM_RULE(bit, cond)                                                   \
     do {                                                                       \
@@ -117,7 +117,7 @@ static inline bool fix_up_ap(CPUArchState *env, target_ulong *perms_result)
         target_ulong non_asr_perms = RVY_AP_C | RVY_AP_R | RVY_AP_W | RVY_AP_X;
         non_asr_perms |= RVY_AP_LM;
         if (lvbits > 0) {
-            non_asr_perms |= RVY_AP_EL | RVY_AP_SL;
+            non_asr_perms |= RVY_AP_LG | RVY_AP_SL;
         }
 
         /* rule 1 */
@@ -144,14 +144,14 @@ static inline bool fix_up_ap(CPUArchState *env, target_ulong *perms_result)
 
     /* rule 7 */
     if (lvbits > 0) {
-        PERM_RULE(RVY_AP_EL,
+        PERM_RULE(RVY_AP_LG,
                   (perms & (RVY_AP_C | RVY_AP_R)) == (RVY_AP_C | RVY_AP_R));
     }
 
 #if CAP_CC(ADDR_WIDTH) == 32
     /* rule 8 */
     if (lvbits > 0) {
-        PERM_RULE(RVY_AP_EL, perms & RVY_AP_LM);
+        PERM_RULE(RVY_AP_LG, perms & RVY_AP_LM);
     }
 #endif
 
@@ -162,13 +162,17 @@ static inline bool fix_up_ap(CPUArchState *env, target_ulong *perms_result)
 #if CAP_CC(ADDR_WIDTH) == 32
     /* rule 10 */
     if (lvbits > 0) {
-        PERM_RULE(RVY_AP_LM, perms & (RVY_AP_W | RVY_AP_EL));
+        PERM_RULE(RVY_AP_LM, perms & (RVY_AP_W | RVY_AP_LG));
     }
 #endif
 
-    /* rule 11 */
+    /* rule 11 (RVY 0.9.10 Section 13.3.1, Table 44: Zylg-2 adds W) */
     if (lvbits > 0) {
+#ifdef TARGET_CHERI_RISCV_RVY
+        PERM_RULE(RVY_AP_SL, (perms & RVY_AP_C) && (perms & RVY_AP_W));
+#else
         PERM_RULE(RVY_AP_SL, perms & RVY_AP_C);
+#endif
     }
 
 #if CAP_CC(ADDR_WIDTH) == 32
@@ -182,7 +186,7 @@ static inline bool fix_up_ap(CPUArchState *env, target_ulong *perms_result)
     /* rule 13 */
     target_ulong cmp_mask = RVY_AP_C | RVY_AP_LM;
     if (lvbits > 0) {
-        cmp_mask |= (RVY_AP_EL | RVY_AP_SL);
+        cmp_mask |= (RVY_AP_LG | RVY_AP_SL);
     }
     PERM_RULE(RVY_AP_X,
               ((perms & cmp_mask) == 0) || ((perms & cmp_mask) == cmp_mask));
