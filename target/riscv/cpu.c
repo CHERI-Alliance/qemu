@@ -1328,6 +1328,10 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
         set_misa(env, env->misa_mxl, env->misa_ext | RV('X'));
         riscv_set_feature(env, RISCV_FEATURE_CHERI_HYBRID);
 #elif defined(TARGET_CHERI_RISCV_STD)
+#ifdef TARGET_CHERI_RISCV_RVY
+        /* RVY is supported, so enable it by default */
+        set_misa(env, env->misa_mxl, env->misa_ext | RVY);
+#endif
         if (cpu->cfg.ext_zyhybrid) {
             riscv_set_feature(env, RISCV_FEATURE_CHERI_HYBRID);
         }

@@ -1156,6 +1156,26 @@ static RISCVException read_misa(CPURISCVState *env, int csrno,
 static RISCVException write_misa(CPURISCVState *env, int csrno,
                                  target_ulong val)
 {
+#if defined(TARGET_CHERI_RISCV_RVY)
+    /*
+     * We only support writing the Y bit (if Zyhybrid is supported).
+     * MISA writes are otherwise completely broken until we update to a newer
+     * version of QEMU.
+     */
+    bool valid_change = false;
+    if (riscv_feature(env, RISCV_FEATURE_CHERI_HYBRID)) {
+        valid_change = (env->misa_ext & ~RVY) == (val & ~RVY);
+        target_ulong old_y = env->misa_ext & RVY;
+        target_ulong new_y = val & RVY;
+        if (old_y == new_y) {
+            return RISCV_EXCP_NONE; /* No change */
+        }
+    }
+    if (!valid_change) {
+        /* drop invalid write to misa */
+        return RISCV_EXCP_NONE;
+    }
+#else
     if (!riscv_feature(env, RISCV_FEATURE_MISA)) {
         /* drop write to misa */
         return RISCV_EXCP_NONE;
@@ -1219,6 +1239,7 @@ static RISCVException write_misa(CPURISCVState *env, int csrno,
         env->mstatus &= ~MSTATUS_FS;
     }
 
+#endif
     /* flush translation cache */
     tb_flush(env_cpu(env));
     env->misa_ext = val;
