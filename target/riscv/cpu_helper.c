@@ -1103,10 +1103,6 @@ restart:
 
         if (riscv_cpu_sxl(env) == MXL_RV32) {
             ppn = pte >> PTE_PPN_SHIFT;
-#if !defined(TARGET_CHERI_RISCV_V9)
-        } else if (cpu->cfg.ext_svpbmt || cpu->cfg.ext_svnapot) {
-            ppn = (pte & (target_ulong)PTE_PPN_MASK) >> PTE_PPN_SHIFT;
-#endif
         } else {
             if (pte & PTE_RESERVED) {
                 qemu_log_mask(
@@ -1133,9 +1129,11 @@ restart:
                           __func__);
             return TRANSLATE_FAIL;
 #if !defined(TARGET_CHERI_RISCV_V9)
-        } else if (!cpu->cfg.ext_svpbmt && (pte & PTE_PBMT)) {
-            qemu_log_mask(CPU_LOG_MMU, "%s Translate fail: PBMT not set\n",
-              __func__);
+        } else if ((!cpu->cfg.ext_svpbmt && (pte & PTE_PBMT)) ||
+                   (!cpu->cfg.ext_svnapot && (pte & PTE_N))) {
+            qemu_log_mask(CPU_LOG_MMU,
+                          "%s Translate fail: reserved PBMT/N bits set\n",
+                          __func__);
             return TRANSLATE_FAIL;
 #endif
         } else if (!(pte & (PTE_R | PTE_W | PTE_X))) {
