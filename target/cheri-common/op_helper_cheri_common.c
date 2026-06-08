@@ -1431,7 +1431,7 @@ static void update_loaded_cap_perms(CPUArchState *env, target_ulong *pesbt,
         }
     }
 
-#if defined(TARGET_CHERI_RISCV_STD_093)
+#if defined(TARGET_CHERI_RISCV_STD)
     /*
      * Any unsealed capability with its tag set to 1 that is loaded from memory
      * has its EL-permission cleared and its Capability Level (CL) restricted to
@@ -1442,15 +1442,20 @@ static void update_loaded_cap_perms(CPUArchState *env, target_ulong *pesbt,
      * the loaded capability it restricts the CL field.
      */
     if (source->cr_lvbits > 0 &&
-        !cap_has_perms(source, CAP_PERM_ELEVATE_LEVEL)) {
+        !cap_has_perms(source, CAP_PERM_LOAD_GLOBAL)) {
         cheri_debug_assert(source->cr_lvbits == 1 && "Only 0 and 1 supported");
         qemu_maybe_log_instr_extra(env, "Squashing elevate level perms\n");
+#if defined(TARGET_CHERI_RISCV_RVY)
+        /* In RVY (LG), loading without LG always makes the result local. */
+        perms &= ~CAP_PERM_GLOBAL;
+#else
         if (!cap_has_perms(source, CAP_PERM_GLOBAL)) {
             /* Note: CL is always modified, even for sealed capabilities. */
             perms &= ~CAP_PERM_GLOBAL;
         }
+#endif
         if (cap_is_unsealed(&tmp)) {
-            perms &= ~CAP_PERM_ELEVATE_LEVEL;
+            perms &= ~CAP_PERM_LOAD_GLOBAL;
         }
     }
 #endif
