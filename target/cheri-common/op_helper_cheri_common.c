@@ -1422,7 +1422,24 @@ static void update_loaded_cap_perms(CPUArchState *env, target_ulong *pesbt,
         }
     }
 
-#if defined(TARGET_CHERI_RISCV_STD_093)
+#if defined(TARGET_CHERI_RISCV_RVY)
+    /*
+     * Zylevels1 (1.0 standard) Load Global (LG) squashing rules: loading via
+     * a capability without LG makes the result local, and additionally drops
+     * LG if the result is unsealed. Note: LG is cleared even if the loaded
+     * capability was already local, otherwise it could still be used to load
+     * global capabilities.
+     */
+    if (source->cr_lvbits > 0 &&
+        !cap_has_perms(source, CAP_PERM_LOAD_GLOBAL)) {
+        qemu_maybe_log_instr_extra(
+            env, "Zylevels1: Squashing GL flag and LG permission\n");
+        perms &= ~CAP_PERM_GLOBAL;
+        if (cap_is_unsealed(&tmp)) {
+            perms &= ~CAP_PERM_LOAD_GLOBAL;
+        }
+    }
+#elif defined(TARGET_CHERI_RISCV_STD_093)
     /*
      * Any unsealed capability with its tag set to 1 that is loaded from memory
      * has its EL-permission cleared and its Capability Level (CL) restricted to
