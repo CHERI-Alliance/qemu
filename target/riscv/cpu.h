@@ -1128,6 +1128,7 @@ struct _csr_cap_ops {
     riscv_csr_cap_read_fn read;
     riscv_csr_cap_write_fn write;
     uint8_t flags;
+    riscv_csr_predicate_fn predicate;
 };
 riscv_csr_cap_ops *get_csr_cap_info(uint32_t csrnum);
 cap_register_t *get_cap_csr(CPUArchState *env, uint32_t index);

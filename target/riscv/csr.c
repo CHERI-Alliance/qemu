@@ -4023,8 +4023,15 @@ RISCVException riscv_csrrw_check(CPURISCVState *env, int csrno,
 #ifdef TARGET_CHERI
         /* CHERI-extended or added CSRs might not be in the predicates table */
         /* TODO: merge the two tables */
-        if (get_csr_cap_info(csrno) == NULL) {
+        riscv_csr_cap_ops *cap_ops = get_csr_cap_info(csrno);
+        if (cap_ops == NULL) {
             return RISCV_EXCP_ILLEGAL_INST;
+        }
+        if (cap_ops->predicate) {
+            RISCVException ret = cap_ops->predicate(env, csrno);
+            if (ret != RISCV_EXCP_NONE) {
+                return ret;
+            }
         }
 #else
         return RISCV_EXCP_ILLEGAL_INST;
@@ -4914,6 +4921,14 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
  * table for now.
  */
 
+static RISCVException cheri_hybrid(CPURISCVState *env, int csrno)
+{
+    if (riscv_feature(env, RISCV_FEATURE_CHERI_HYBRID)) {
+        return RISCV_EXCP_NONE;
+    }
+    return RISCV_EXCP_ILLEGAL_INST;
+}
+
 static riscv_csr_cap_ops csr_cap_ops[] = {
     { "mscratchc", CSR_MSCRATCHC, read_capcsr_reg, write_cap_csr_reg,
       CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
@@ -4930,7 +4945,7 @@ static riscv_csr_cap_ops csr_cap_ops[] = {
     { "sscratchc", CSR_SSCRATCHC, read_capcsr_reg, write_cap_csr_reg,
       CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
     { "ddc", CSR_DDC, read_capcsr_reg, write_cap_csr_reg,
-      CSR_OP_REQUIRE_CRE | CSR_OP_IA_CONVERSION },
+      CSR_OP_REQUIRE_CRE | CSR_OP_IA_CONVERSION, cheri_hybrid },
     { "mtidc", CSR_MTIDC, read_capcsr_reg, write_cap_csr_reg,
       CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
     { "stidc", CSR_STIDC, read_capcsr_reg, write_cap_csr_reg,
