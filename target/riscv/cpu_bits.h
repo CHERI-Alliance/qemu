@@ -604,7 +604,11 @@
 #define MSTATUS64_SD        0x8000000000000000ULL
 #define MSTATUSH128_SD      0x8000000000000000ULL
 
-#if defined(TARGET_CHERI_RISCV_STD_093)
+#if defined(TARGET_CHERI_RISCV_RVY)
+#define MSTATUS64_UYRG      BIT_ULL(61)
+#define MSTATUS64_SYRG      BIT_ULL(60)
+#define MSTATUS64_YRGE      BIT_ULL(59)
+#elif defined(TARGET_CHERI_RISCV_STD_093)
 #define MSTATUS64_UCRG      BIT_ULL(61)
 #endif
 
@@ -639,7 +643,11 @@ typedef enum {
 #define SSTATUS32_SD        0x80000000
 #define SSTATUS64_SD        0x8000000000000000ULL
 
-#if defined(TARGET_CHERI_RISCV_STD_093)
+#if defined(TARGET_CHERI_RISCV_RVY)
+#define SSTATUS64_UYRG      BIT_ULL(61)
+#define SSTATUS64_SYRG      BIT_ULL(60)
+#define SSTATUS64_YRGE      BIT_ULL(59)
+#elif defined(TARGET_CHERI_RISCV_STD_093)
 #define SSTATUS64_UCRG      BIT_ULL(61)
 #endif
 
@@ -724,12 +732,28 @@ typedef enum {
 #define PTE_CR              0x4000000000000000 /* Cap Read */
 #define PTE_CW              0x8000000000000000 /* Cap Write */
 #define PTE_RESERVED 0x07C0000000000000ULL /* Reserved bits */
-#elif defined(TARGET_CHERI_RISCV_STD) && !defined(TARGET_RISCV32)
-#define PTE_CRG BIT_ULL(59) /* Cap Read Generation */
-#define PTE_CW  BIT_ULL(60) /* Cap Write */
-#define PTE_RESERVED 0x040000000000000ULL /* Reserved bits */
+#elif defined(TARGET_CHERI_RISCV_RVY) && !defined(TARGET_RISCV32)
+/*
+ * RVY 0.9.10 Section 19.2, Table 63 & Section 21, Table 65:
+ * 4-bit pte.rvy field (bits 58:55). With Svyrg enabled (sstatus.YRGE=1) all
+ * four bits are used. Otherwise only pte.rvy[3] (pte.y) is used and
+ * pte.rvy[2:0] are reserved.
+ */
+#define PTE_YR              BIT_ULL(55) /* Capability readable */
+#define PTE_YRG             BIT_ULL(56) /* Capability read generation */
+#define PTE_YW              BIT_ULL(57) /* Capability writable */
+#define PTE_YD              BIT_ULL(58) /* Capability dirty */
+#define PTE_Y               PTE_YD /* Capability read/write (sstatus.YRGE=0) */
+#define PTE_RVY_FIELD       (PTE_YR | PTE_YRG | PTE_YW | PTE_YD)
+/* pte.rvy[2:0] are only defined while Svyrg is enabled, reserved otherwise. */
+#define PTE_RVY_RESERVED    (PTE_YR | PTE_YRG | PTE_YW)
+#define PTE_RESERVED        (BIT_ULL(54) | BIT_ULL(59) | BIT_ULL(60))
+#elif defined(TARGET_CHERI_RISCV_STD_093) && !defined(TARGET_RISCV32)
+#define PTE_CRG             BIT_ULL(59) /* Cap Read Generation */
+#define PTE_CW              BIT_ULL(60) /* Cap Write */
+#define PTE_RESERVED        0x040000000000000ULL /* Reserved bits */
 #else
-#define PTE_RESERVED 0x1FC0000000000000ULL /* Reserved bits */
+#define PTE_RESERVED        0x1FC0000000000000ULL /* Reserved bits */
 #endif
 
 /* Page table PPN shift amount */
