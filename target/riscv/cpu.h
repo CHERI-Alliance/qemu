@@ -79,6 +79,7 @@
 #define RVU RV('U')
 #define RVH RV('H')
 #define RVJ RV('J')
+#define RVY RV('Y')
 
 /* S extension denotes that Supervisor mode exists, however it is possible
    to have a core that support S mode but does not have an MMU and there
@@ -1134,27 +1135,35 @@ static inline bool riscv_cpu_mode_y(CPURISCVState *env)
     return env_archcpu(env)->cfg.ext_cheri;
 #else
     /*
-     * Y bits are defined only if Zcherihybrid is supported.
-     * For Zcheripurecap, cheri register access is always allowed.
+     * Y bits are defined only if Zcherihybrid/Zyhybrid is supported.
+     * For purecap, cheri register access is always allowed.
      */
     if (!riscv_feature(env, RISCV_FEATURE_CHERI_HYBRID)) {
         return true;
     }
 
-    if (env->mseccfg & MSECCFG_CRE) {
-        /* Y bits allow cheri in M mode */
-        if (env->priv == PRV_M)
-            return true;
+#if defined(TARGET_CHERI_RISCV_RVY)
+    /* The Y extension bit in misa is the dynamic M-mode capability enable. */
+    bool m_y = riscv_has_ext(env, RVY);
+#else
+    /* Y bits allow cheri in M mode */
+    bool m_y = (env->mseccfg & MSECCFG_CRE) != 0;
+#endif
 
+    if (m_y) {
+        if (env->priv == PRV_M) {
+            return true;
+        }
         if (env->menvcfg & MENVCFG_Y) {
             /* Y bits allow cheri in S mode (and in M mode) */
-            if (env->priv == PRV_S)
+            if (env->priv == PRV_S) {
                 return true;
-
+            }
             if (env->senvcfg & SENVCFG_Y) {
                 /* Y bits allow cheri in U mode (and in M, S modes) */
-                if (env->priv == PRV_U)
+                if (env->priv == PRV_U) {
                     return true;
+                }
             }
         }
     }
