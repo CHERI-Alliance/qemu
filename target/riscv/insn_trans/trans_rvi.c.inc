@@ -186,7 +186,8 @@ static bool gen_branch(DisasContext *ctx, arg_b *a, TCGCond cond)
     if (!has_ext(ctx, RVC) && !ctx->cfg_ptr->ext_zca &&
         ((ctx->base.pc_next + a->imm) & 0x3)) {
         /* misaligned */
-        gen_exception_inst_addr_mis(ctx);
+        gen_exception_inst_addr_mis(
+            ctx, tcg_constant_tl(ctx->base.pc_next + a->imm));
     } else {
         /* Branch taken -> check if PCC bounds allow for this jump. */
         gen_goto_tb(ctx, 0, ctx->base.pc_next + a->imm, /*bounds_check=*/true);
