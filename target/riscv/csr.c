@@ -1887,10 +1887,29 @@ static RISCVException write_mtval(CPURISCVState *env, int csrno,
 }
 
 /* Execution environment configuration setup */
+static bool xenvcfg_y_enabled(CPURISCVState *env)
+{
+#ifdef TARGET_CHERI_RISCV_RVY
+    return riscv_has_ext(env, RVY);
+#else
+    return true;
+#endif
+}
+
+static bool xenvcfg_y_writable(CPURISCVState *env)
+{
+#ifdef TARGET_CHERI_RISCV_RVY
+    return riscv_feature(env, RISCV_FEATURE_CHERI_HYBRID) &&
+           riscv_has_ext(env, RVY);
+#else
+    return true;
+#endif
+}
+
 static RISCVException read_menvcfg(CPURISCVState *env, int csrno,
                                  target_ulong *val)
 {
-    *val = env->menvcfg;
+    *val = env->menvcfg & ~(xenvcfg_y_enabled(env) ? 0 : MENVCFG_Y);
     return RISCV_EXCP_NONE;
 }
 
@@ -1898,7 +1917,7 @@ static RISCVException write_menvcfg(CPURISCVState *env, int csrno,
                                   target_ulong val)
 {
     uint64_t mask = MENVCFG_FIOM | MENVCFG_CBIE | MENVCFG_CBCFE | MENVCFG_CBZE |
-                    MENVCFG_Y;
+                    (xenvcfg_y_writable(env) ? MENVCFG_Y : 0);
 
     if (riscv_cpu_mxl(env) == MXL_RV64) {
         mask |= MENVCFG_PBMTE | MENVCFG_STCE;
@@ -1929,7 +1948,7 @@ static RISCVException write_menvcfgh(CPURISCVState *env, int csrno,
 static RISCVException read_senvcfg(CPURISCVState *env, int csrno,
                                  target_ulong *val)
 {
-    *val = env->senvcfg;
+    *val = env->senvcfg & ~(xenvcfg_y_enabled(env) ? 0 : SENVCFG_Y);
     return RISCV_EXCP_NONE;
 }
 
@@ -1937,7 +1956,7 @@ static RISCVException write_senvcfg(CPURISCVState *env, int csrno,
                                   target_ulong val)
 {
     uint64_t mask = SENVCFG_FIOM | SENVCFG_CBIE | SENVCFG_CBCFE | SENVCFG_CBZE |
-                    SENVCFG_Y;
+                    (xenvcfg_y_writable(env) ? SENVCFG_Y : 0);
 
     env->senvcfg = (env->senvcfg & ~mask) | (val & mask);
 
@@ -1947,7 +1966,7 @@ static RISCVException write_senvcfg(CPURISCVState *env, int csrno,
 static RISCVException read_henvcfg(CPURISCVState *env, int csrno,
                                  target_ulong *val)
 {
-    *val = env->henvcfg;
+    *val = env->henvcfg & ~(xenvcfg_y_enabled(env) ? 0 : HENVCFG_Y);
     return RISCV_EXCP_NONE;
 }
 
@@ -1955,7 +1974,7 @@ static RISCVException write_henvcfg(CPURISCVState *env, int csrno,
                                   target_ulong val)
 {
     uint64_t mask = HENVCFG_FIOM | HENVCFG_CBIE | HENVCFG_CBCFE | HENVCFG_CBZE |
-                    HENVCFG_Y;
+                    (xenvcfg_y_writable(env) ? HENVCFG_Y : 0);
 
     if (riscv_cpu_mxl(env) == MXL_RV64) {
         mask |= HENVCFG_PBMTE | HENVCFG_STCE;
