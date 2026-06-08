@@ -85,6 +85,7 @@ DEF_HELPER_3(scss, tl, env, i32, i32)
 #ifdef TARGET_CHERI_RISCV_RVY
 DEF_HELPER_4(ypermc, void, env, i32, i32, tl)
 DEF_HELPER_4(packy, void, env, i32, tl, tl)
+DEF_HELPER_4(ysunseal, void, env, i32, i32, i32)
 #endif
 #endif
 
