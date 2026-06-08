@@ -273,9 +273,9 @@ static void gen_exception_illegal(DisasContext *ctx)
     generate_exception(ctx, RISCV_EXCP_ILLEGAL_INST);
 }
 
-static void gen_exception_inst_addr_mis(DisasContext *ctx)
+static void gen_exception_inst_addr_mis(DisasContext *ctx, TCGv target)
 {
-    tcg_gen_st_tl(cpu_pc, cpu_env, offsetof(CPURISCVState, badaddr));
+    tcg_gen_st_tl(target, cpu_env, offsetof(CPURISCVState, badaddr));
     generate_exception(ctx, RISCV_EXCP_INST_ADDR_MIS);
 }
 
@@ -662,7 +662,7 @@ static void gen_jal(DisasContext *ctx, int rd, target_ulong imm)
     gen_check_branch_target(ctx, next_pc);
     if (!has_ext(ctx, RVC) && !ctx->cfg_ptr->ext_zca) {
         if ((next_pc & 0x3) != 0) {
-            gen_exception_inst_addr_mis(ctx);
+            gen_exception_inst_addr_mis(ctx, tcg_constant_tl(next_pc));
             return;
         }
     }
@@ -703,7 +703,7 @@ static void gen_jalr(DisasContext *ctx, int rd, int rs1, target_ulong imm)
 
     if (misaligned) {
         gen_set_label(misaligned);
-        gen_exception_inst_addr_mis(ctx);
+        gen_exception_inst_addr_mis(ctx, cpu_pc);
     }
     ctx->base.is_jmp = DISAS_NORETURN;
 
