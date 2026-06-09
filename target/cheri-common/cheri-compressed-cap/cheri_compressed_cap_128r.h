@@ -200,6 +200,7 @@ static inline bool _cc_N(set_permissions)(_cc_cap_t* cap, _cc_addr_t permissions
                         "invalid permissions");
     // TODO: legalize permissions or reject invalid requests
     _cc_addr_t sw_perms = (permissions >> _CC_N(UPERMS_SHFT)) & _CC_N(UPERMS_ALL);
+    _cc_mode mode = (_cc_mode)_CC_EXTRACT_FIELD(cap->cr_pesbt, MODE);
     // See "Encoding of architectural permissions for MXLEN=64" in the spec
     _cc_addr_t result = 0;
     if (permissions & CC128R_PERM_CAPABILITY)
@@ -224,6 +225,10 @@ static inline bool _cc_N(set_permissions)(_cc_cap_t* cap, _cc_addr_t permissions
     }
     cap->cr_pesbt = _CC_DEPOSIT_FIELD(cap->cr_pesbt, result, AP);
     cap->cr_pesbt = _CC_DEPOSIT_FIELD(cap->cr_pesbt, sw_perms, SDP);
+    if ((permissions & CC128R_PERM_EXECUTE) == 0 && mode == _CC_N(MODE_INT)) {
+        cap->cr_pesbt = _CC_DEPOSIT_FIELD(cap->cr_pesbt, (unsigned)_CC_N(MODE_CAP), MODE);
+        return false;
+    }
     return true; // all permissions are representable
 }
 

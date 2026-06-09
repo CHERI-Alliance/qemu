@@ -236,6 +236,10 @@ TEST_CASE("set zero and almighty permissions", "[perms]") {
     CHECK(max_cap.all_permissions() > 1);
     CHECK((max_cap.all_permissions() & _CC_N(PERM_SW_ALL)) == _CC_N(PERM_SW_ALL));
     CHECK((max_cap.all_permissions() & _CC_N(PERMS_MASK)) == _CC_N(PERMS_MASK));
+#ifndef TEST_CC_IS_MORELLO
+    // Clearing permission may also modify mode bit, preemptively set cap mode
+    CHECK(_cc_N(set_execution_mode)(&max_cap, _CC_N(MODE_CAP)) == true);
+#endif
     // Should be able to clear all permissions
     CHECK(_cc_N(set_permissions)(&max_cap, 0) == true);
     CHECK(max_cap.has_permissions(_CC_N(PERM_EXECUTE)) == false);
@@ -329,6 +333,14 @@ TEST_CASE("test mode API", "[perms]") {
             CHECK(_cc_N(set_execution_mode)(&cap, _CC_N(MODE_CAP)) == false);
             CHECK(_cc_N(get_execution_mode)(&cap) == _CC_N(MODE_CAP));
         }
+    }
+    if (!is_isa_v9) {
+        // For the RISC-V standard version, clearing PERM_EXECUTE will enter MODE_CAP
+        auto cap = max_cap;
+        CHECK(_cc_N(set_execution_mode)(&cap, _CC_N(MODE_INT)));
+        CHECK(_cc_N(get_execution_mode)(&cap) == _CC_N(MODE_INT));
+        CHECK(_cc_N(set_permissions)(&cap, _CC_N(PERMS_MASK) & ~_CC_N(PERM_EXECUTE)) == false);
+        CHECK(_cc_N(get_execution_mode)(&cap) == _CC_N(MODE_CAP));
     }
 }
 
