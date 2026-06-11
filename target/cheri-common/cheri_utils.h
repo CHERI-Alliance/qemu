@@ -280,6 +280,18 @@ cap_has_invalid_perms_encoding(G_GNUC_UNUSED CPUArchState *env,
 #endif
 }
 
+/**
+ * Check that the capability is valid (i.e. bounds are valid, no reserved bits
+ * are set, and permissions are validly encoded).
+ */
+static inline bool cap_check_integrity(CPUArchState *env,
+                                       const cap_register_t *cap)
+{
+    return cap->cr_bounds_valid &&
+           !cap_has_reserved_bits_set(cap) &&
+           !cap_has_invalid_perms_encoding(env, cap);
+}
+
 // The top of the capability (exclusive -- i.e., one past the end)
 static inline target_ulong cap_get_top(const cap_register_t *c)
 {

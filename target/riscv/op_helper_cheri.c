@@ -565,18 +565,12 @@ target_ulong HELPER(scss)(CPUArchState *env, uint32_t cs1, uint32_t cs2)
      */
     const cap_register_t *cs1p = get_readonly_capreg(env, cs1);
     const cap_register_t *cs2p = get_readonly_capreg(env, cs2);
-    if (!cs1p->cr_bounds_valid || !cs2p->cr_bounds_valid) {
-        return 0;
-    }
-    if (cap_has_reserved_bits_set(cs1p) || cap_has_reserved_bits_set(cs2p)) {
-        return 0;
-    }
+
     if (cs1p->cr_tag != cs2p->cr_tag) {
         return 0;
     }
-    /* Explicitly verify that the permissions are valid. */
-    if (cap_has_invalid_perms_encoding(env, cs1p) ||
-        cap_has_invalid_perms_encoding(env, cs2p)) {
+    /* Explicitly verify that the permissions/reserved bits are valid. */
+    if (!cap_check_integrity(env, cs1p) || !cap_check_integrity(env, cs2p)) {
         return 0;
     }
 
