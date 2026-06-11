@@ -89,8 +89,8 @@ DEF_HELPER_FLAGS_2(crap, TCG_CALL_NO_RWG_SE, tl, env, tl)
 DEF_HELPER_FLAGS_2(cram, TCG_CALL_NO_RWG_SE, tl, env, tl)
 
 // Three operands (cap cap cap)
-DEF_HELPER_4(cbuildcap, void, env, i32, i32, i32)
 #ifndef TARGET_CHERI_RISCV_STD
+DEF_HELPER_4(cbuildcap, void, env, i32, i32, i32)
 DEF_HELPER_4(ccopytype, void, env, i32, i32, i32)
 DEF_HELPER_4(ccseal, void, env, i32, i32, i32)
 DEF_HELPER_4(cseal, void, env, i32, i32, i32)

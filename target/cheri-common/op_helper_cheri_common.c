@@ -665,6 +665,7 @@ target_ulong CHERI_HELPER_IMPL(cram(CPUArchState *env, target_ulong len))
 
 /// Three operands (capability capability capability)
 
+#ifndef TARGET_CHERI_RISCV_STD
 void CHERI_HELPER_IMPL(cbuildcap(CPUArchState *env, uint32_t cd, uint32_t cb,
                                  uint32_t ct))
 {
@@ -673,15 +674,6 @@ void CHERI_HELPER_IMPL(cbuildcap(CPUArchState *env, uint32_t cd, uint32_t cb,
     const cap_register_t *ctp = get_readonly_capreg(env, ct);
     cap_register_t result = *ctp;
 
-#ifdef TARGET_CHERI_RISCV_STD
-    /* New behaviour in the RISC-V standard (no longer reads ddc): */
-    if (cb == 0) {
-        /* If cs1 is the NULL register, we copy cs2 to cd and clear cd's tag. */
-        result.cr_tag = false;
-        update_capreg(env, cd, &result);
-        return;
-    }
-#endif
     const cap_register_t *cbp = get_capreg_0_is_ddc(env, cb);
     if (!cbp->cr_tag) {
         raise_cheri_exception_or_invalidate(env, CapEx_TagViolation, cb);
@@ -748,6 +740,7 @@ void CHERI_HELPER_IMPL(cbuildcap(CPUArchState *env, uint32_t cd, uint32_t cb,
     }
     update_capreg(env, cd, &result);
 }
+#endif
 
 #if CHERI_HAS_OTYPE_SEALING
 void CHERI_HELPER_IMPL(ccopytype(CPUArchState *env, uint32_t cd, uint32_t cb,
