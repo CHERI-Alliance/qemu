@@ -321,6 +321,16 @@ static inline cap_length_t cap_get_top_full(const cap_register_t *c)
     return c->_cr_top;
 }
 
+/* In general cap_is_subset should be used, this is just for ybld */
+static inline bool cap_is_subset_ignoring_tag(const cap_register_t *superset,
+                                              const cap_register_t *subset)
+{
+    return cap_get_base(superset) <= cap_get_base(subset) &&
+           cap_get_top_full(subset) <= cap_get_top_full(superset) &&
+           (cap_get_all_perms(superset) & cap_get_all_perms(subset)) ==
+               cap_get_all_perms(subset);
+}
+
 static inline bool cap_is_subset(const cap_register_t *superset,
                                  const cap_register_t *subset)
 {
@@ -330,12 +340,9 @@ static inline bool cap_is_subset(const cap_register_t *superset,
      * likely a logical bug in the caller.
      */
     cheri_debug_assert(superset->cr_tag == subset->cr_tag);
-
-    return cap_get_base(superset) <= cap_get_base(subset) &&
-           cap_get_top_full(subset) <= cap_get_top_full(superset) &&
-           (cap_get_all_perms(superset) & cap_get_all_perms(subset)) ==
-               cap_get_all_perms(subset);
+    return cap_is_subset_ignoring_tag(superset, subset);
 }
+
 
 static inline bool cap_otype_is_reserved(target_ulong otype)
 {

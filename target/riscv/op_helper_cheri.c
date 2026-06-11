@@ -622,3 +622,19 @@ void HELPER(ysunseal)(CPUArchState *env, uint32_t cd,
     update_capreg(env, cd, &result);
 }
 #endif
+
+void HELPER(ybld)(CPUArchState *env, uint32_t cd, uint32_t cs1, uint32_t cs2)
+{
+    const cap_register_t *auth = get_readonly_capreg(env, cs1);
+    const cap_register_t *input = get_readonly_capreg(env, cs2);
+    cap_register_t result = *input;
+
+    if (auth->cr_tag && cap_check_integrity(env, auth) &&
+        cap_is_unsealed(auth) && cap_check_integrity(env, input) &&
+        cap_is_subset_ignoring_tag(auth, input)) {
+        result.cr_tag = true;
+    } else {
+        result.cr_tag = false;
+    }
+    update_capreg(env, cd, &result);
+}
