@@ -713,7 +713,7 @@ static bool trans_ymodew(DisasContext *ctx, arg_ccr *a)
 #endif
     return gen_cheri_cap_cap_int(ctx, a, &gen_helper_scmode);
 }
-TRANSLATE_CAP_CAP_CAP_HELPER(ybld, cbuildcap)
+TRANSLATE_CAP_CAP_CAP(ybld)
 
 TRANSLATE_INT_CAP_CAP_HELPER(yeq, cseqx)
 TRANSLATE_INT_CAP_CAP_HELPER(yss, scss)
