@@ -157,8 +157,7 @@ void CHERI_HELPER_IMPL(ddc_check_bounds(CPUArchState *env, target_ulong addr,
     const cap_register_t *ddc = cheri_get_ddc(env);
     cheri_debug_assert(ddc->cr_tag && cap_is_unsealed(ddc) &&
                        "Should have been checked before bounds!");
-    check_cap(env, ddc, 0, addr, CHERI_EXC_REGNUM_DDC, num_bytes,
-              /*instavail=*/true, GETPC());
+    check_cap(env, ddc, 0, addr, CHERI_EXC_REGNUM_DDC, num_bytes, GETPC());
 }
 
 #ifdef TARGET_AARCH64
@@ -170,7 +169,7 @@ void CHERI_HELPER_IMPL(ddc_check_bounds_store(CPUArchState *env,
     cheri_debug_assert(ddc->cr_tag && cap_is_unsealed(ddc) &&
                        "Should have been checked before bounds!");
     check_cap(env, ddc, CAP_PERM_STORE, addr, CHERI_EXC_REGNUM_DDC, num_bytes,
-              /*instavail=*/true, GETPC());
+              GETPC());
 }
 #endif
 
@@ -180,8 +179,7 @@ void CHERI_HELPER_IMPL(pcc_check_bounds(CPUArchState *env, target_ulong addr,
     const cap_register_t *pcc = cheri_get_recent_pcc(env);
     cheri_debug_assert(pcc->cr_tag && cap_is_unsealed(pcc) &&
                        "Should have been checked before bounds!");
-    check_cap(env, pcc, 0, addr, CHERI_EXC_REGNUM_PCC, num_bytes,
-              /*instavail=*/true, GETPC());
+    check_cap(env, pcc, 0, addr, CHERI_EXC_REGNUM_PCC, num_bytes, GETPC());
 }
 
 void CHERI_HELPER_IMPL(cgetpccsetoffset(CPUArchState *env, uint32_t cd,
@@ -1797,8 +1795,7 @@ void CHERI_HELPER_IMPL(raise_exception_pcc_perms_not_if(
     CPUArchState *env, target_ulong addr, uint32_t required_perms))
 {
     const cap_register_t *pcc = cheri_get_recent_pcc(env);
-    check_cap(env, pcc, required_perms, addr, CHERI_EXC_REGNUM_PCC, 1,
-              /*instavail=*/true, GETPC());
+    check_cap(env, pcc, required_perms, addr, CHERI_EXC_REGNUM_PCC, 1, GETPC());
     __builtin_unreachable();
 }
 
@@ -1837,8 +1834,7 @@ void CHERI_HELPER_IMPL(raise_exception_ddc_bounds(CPUArchState *env,
     const cap_register_t *ddc = cheri_get_ddc(env);
     cheri_debug_assert(ddc->cr_tag && cap_is_unsealed(ddc) &&
                        "Should have been checked before bounds!");
-    check_cap(env, ddc, 0, addr, CHERI_EXC_REGNUM_DDC, num_bytes,
-              /*instavail=*/true, GETPC());
+    check_cap(env, ddc, 0, addr, CHERI_EXC_REGNUM_DDC, num_bytes, GETPC());
     error_report("%s should not return! DDC= " PRINT_CAP_FMTSTR, __func__,
                  PRINT_CAP_ARGS(cheri_get_ddc(env)));
     tcg_abort();

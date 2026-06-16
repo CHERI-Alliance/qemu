@@ -82,8 +82,9 @@ static inline void derive_cap_from_pcc(CPUArchState *env, uint32_t cd,
 // TODO: Still using this in a couple places however.
 static inline void check_cap(CPUArchState *env, const cap_register_t *cr,
                              uint32_t perm, target_ulong addr, uint16_t regnum,
-                             uint32_t len, bool instavail, uintptr_t pc)
+                             uint32_t len, uintptr_t pc)
 {
+    assert(!(perm & CAP_PERM_EXECUTE));
     CheriCapExcCause cause;
     /*
      * See section 5.6 in CHERI Architecture.
@@ -135,11 +136,10 @@ static inline void check_cap(CPUArchState *env, const cap_register_t *cr,
 
 do_exception:
 #ifdef TARGET_AARCH64
-    raise_cheri_exception_impl_if_wnr(env, cause, regnum, addr, instavail, pc,
-                                      !!(perm & CAP_PERM_EXECUTE),
+    raise_cheri_exception_impl_if_wnr(env, cause, regnum, addr, true, pc, false,
                                       !!(perm & CAP_PERM_STORE));
 #else
-    raise_cheri_exception_impl(env, cause, regnum, addr, instavail, pc);
+    raise_cheri_exception_impl(env, cause, regnum, addr, true, pc);
 #endif
 }
 
@@ -149,8 +149,7 @@ static inline target_ulong check_ddc(CPUArchState *env, uint32_t perm,
 {
     const cap_register_t *ddc = cheri_get_ddc(env);
     target_ulong addr = cheri_ddc_relative_addr(env, ddc_offset);
-    check_cap(env, ddc, perm, addr, CHERI_EXC_REGNUM_DDC, len,
-        /*instavail=*/true, retpc);
+    check_cap(env, ddc, perm, addr, CHERI_EXC_REGNUM_DDC, len, retpc);
     return addr;
 }
 
