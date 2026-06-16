@@ -82,8 +82,9 @@ static inline void derive_cap_from_pcc(CPUArchState *env, uint32_t cd,
 // TODO: Still using this in a couple places however.
 static inline void check_cap(CPUArchState *env, const cap_register_t *cr,
                              uint32_t perm, target_ulong addr, uint16_t regnum,
-                             uint32_t len, bool instavail, uintptr_t pc)
+                             uint32_t len, uintptr_t pc)
 {
+    assert(!(perm & CAP_PERM_EXECUTE));
     CheriCapExcCause cause;
     /*
      * See section 5.6 in CHERI Architecture.
@@ -91,9 +92,9 @@ static inline void check_cap(CPUArchState *env, const cap_register_t *cr,
      * Capability checks (in order of priority):
      * (1) <ctag> must be set (CapEx_TagViolation Violation).
      * (2) Seal bit must be unset (CapEx_SealViolation Violation).
-     * (3) <perm> permission must be set (CapEx_PermitExecuteViolation,
-     * CapEx_PermitLoadViolation, or CapEx_PermitStoreViolation Violation). (4)
-     * <addr> must be within bounds (CapEx_LengthViolation Violation).
+     * (3) <perm> permission must be set (CapEx_PermitLoadViolation or
+     * CapEx_PermitStoreViolation Violation).
+     * (4) <addr> must be within bounds (CapEx_LengthViolation Violation).
      */
     if (!cr->cr_tag) {
         cause = CapEx_TagViolation;
@@ -106,11 +107,7 @@ static inline void check_cap(CPUArchState *env, const cap_register_t *cr,
         goto do_exception;
     }
     if (!cap_has_perms(cr, perm)) {
-        if (perm & CAP_PERM_EXECUTE) {
-            cause = CapEx_PermitExecuteViolation;
-            // qemu_log("CAP Exe VIOLATION: ");
-            goto do_exception;
-        } else if (perm & CAP_PERM_STORE) {
+        if (perm & CAP_PERM_STORE) {
             cause = CapEx_PermitStoreViolation;
             // qemu_log("CAP ST VIOLATION: ");
             goto do_exception;
@@ -135,11 +132,10 @@ static inline void check_cap(CPUArchState *env, const cap_register_t *cr,
 
 do_exception:
 #ifdef TARGET_AARCH64
-    raise_cheri_exception_impl_if_wnr(env, cause, regnum, addr, instavail, pc,
-                                      !!(perm & CAP_PERM_EXECUTE),
-                                      !!(perm & CAP_PERM_STORE));
+    raise_cheri_exception_impl_if_wnr(env, cause, regnum, addr, true, pc,
+                                      false, !!(perm & CAP_PERM_STORE));
 #else
-    raise_cheri_exception_impl(env, cause, regnum, addr, instavail, pc);
+    raise_cheri_exception_impl(env, cause, regnum, addr, true, pc);
 #endif
 }
 
@@ -149,8 +145,7 @@ static inline target_ulong check_ddc(CPUArchState *env, uint32_t perm,
 {
     const cap_register_t *ddc = cheri_get_ddc(env);
     target_ulong addr = cheri_ddc_relative_addr(env, ddc_offset);
-    check_cap(env, ddc, perm, addr, CHERI_EXC_REGNUM_DDC, len,
-        /*instavail=*/true, retpc);
+    check_cap(env, ddc, perm, addr, CHERI_EXC_REGNUM_DDC, len, retpc);
     return addr;
 }
 
