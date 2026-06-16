@@ -164,6 +164,7 @@ typedef enum {
     rv_codec_zcb_mul,
     rv_codec_zcb_lb,
     rv_codec_zcb_lh,
+    rv_codec_ybndswi,
 } rv_codec;
 
 typedef enum {
@@ -702,7 +703,47 @@ typedef enum {
     rv_op_cbo_inval,
     rv_op_cbo_inval_cap,
     rv_op_cbo_zero,
-    rv_op_cbo_zero_cap
+    rv_op_cbo_zero_cap,
+
+    rv_op_packy,
+    rv_op_ymv,
+    rv_op_yadd,
+    rv_op_yaddrw,
+    rv_op_ypermc,
+    rv_op_ybndsw,
+    rv_op_ybndsrw,
+    rv_op_ymodeswy,
+    rv_op_ymodeswi,
+    rv_op_ymodew,
+    rv_op_ysh1add,
+    rv_op_ysh2add,
+    rv_op_ysh3add,
+    rv_op_ysh4add,
+    rv_op_ysh1add_uw,
+    rv_op_ysh2add_uw,
+    rv_op_ysh3add_uw,
+    rv_op_ysh4add_uw,
+    rv_op_yeq,
+    rv_op_yss,
+    rv_op_ysunseal,
+    rv_op_ybld,
+    rv_op_yamask,
+    rv_op_ybaser,
+    rv_op_ypermr,
+    rv_op_ytopr,
+    rv_op_ylenr,
+    rv_op_ytagr,
+    rv_op_ytyper,
+    rv_op_ymoder,
+    rv_op_ysentry,
+    rv_op_yaddi,
+    rv_op_ybndswi,
+    rv_op_ly,
+    rv_op_sy,
+    rv_op_lr_y,
+    rv_op_amoswap_y,
+    rv_op_sc_y,
+    rv_op_srliy
 } rv_op;
 
 /* structures */
@@ -1620,7 +1661,48 @@ const rv_opcode_data opcode_data[] = {
     [rv_op_cbo_inval] = { "cbo.inval", rv_codec_cbo_rs1, rv_fmt_cbo_rs1, NULL, 0, 0, 0 },
     [rv_op_cbo_inval_cap] = { "cbo.inval", rv_codec_cbo_rs1, rv_fmt_cbo_cs1, NULL, 0, 0, 0 },
     [rv_op_cbo_zero] = { "cbo.zero", rv_codec_cbo_rs1, rv_fmt_cbo_rs1, NULL, 0, 0, 0 },
-    [rv_op_cbo_zero_cap] = { "cbo.zero", rv_codec_cbo_rs1, rv_fmt_cbo_cs1, NULL, 0, 0, 0 }
+    [rv_op_cbo_zero_cap] = { "cbo.zero", rv_codec_cbo_rs1, rv_fmt_cbo_cs1, NULL, 0, 0, 0 },
+
+    // RVY
+    [rv_op_packy] = { "packy", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
+    [rv_op_ymv] = { "ymv", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0, 0 },
+    [rv_op_yadd] = { "yadd", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
+    [rv_op_yaddrw] = { "yaddrw", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
+    [rv_op_ypermc] = { "ypermc", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
+    [rv_op_ybndsw] = { "ybndsw", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
+    [rv_op_ybndsrw] = { "ybndsrw", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
+    [rv_op_ymodeswy] = { "ymodeswy", rv_codec_r, rv_fmt_none, NULL, 0, 0, 0 },
+    [rv_op_ymodeswi] = { "ymodeswi", rv_codec_r, rv_fmt_none, NULL, 0, 0, 0 },
+    [rv_op_ymodew] = { "ymodew", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
+    [rv_op_ysh1add] = { "ysh1add", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
+    [rv_op_ysh2add] = { "ysh2add", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
+    [rv_op_ysh3add] = { "ysh3add", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
+    [rv_op_ysh4add] = { "ysh4add", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
+    [rv_op_ysh1add_uw] = { "ysh1add.uw", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
+    [rv_op_ysh2add_uw] = { "ysh2add.uw", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
+    [rv_op_ysh3add_uw] = { "ysh3add.uw", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
+    [rv_op_ysh4add_uw] = { "ysh4add.uw", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
+    [rv_op_yeq] = { "yeq", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
+    [rv_op_yss] = { "yss", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
+    [rv_op_ysunseal] = { "ysunseal", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
+    [rv_op_ybld] = { "ybld", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
+    [rv_op_yamask] = { "yamask", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0, 0 },
+    [rv_op_ybaser] = { "ybaser", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0, 0 },
+    [rv_op_ypermr] = { "ypermr", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0, 0 },
+    [rv_op_ytopr] = { "ytopr", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0, 0 },
+    [rv_op_ylenr] = { "ylenr", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0, 0 },
+    [rv_op_ytagr] = { "ytagr", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0, 0 },
+    [rv_op_ytyper] = { "ytyper", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0, 0 },
+    [rv_op_ymoder] = { "ymoder", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0, 0 },
+    [rv_op_ysentry] = { "ysentry", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0, 0 },
+    [rv_op_yaddi] = { "yaddi", rv_codec_i, rv_fmt_rd_rs1_imm, NULL, 0, 0, 0 },
+    [rv_op_ybndswi] = { "ybndswi", rv_codec_ybndswi, rv_fmt_rd_rs1_imm, NULL, 0, 0, 0 },
+    [rv_op_ly] = { "ly", rv_codec_i, rv_fmt_rd_offset_rs1, NULL, 0, 0, 0 },
+    [rv_op_sy] = { "sy", rv_codec_s, rv_fmt_rs2_offset_rs1, NULL, 0, 0, 0 },
+    [rv_op_lr_y] = { "lr.y", rv_codec_r_l, rv_fmt_aqrl_rd_rs1, NULL, 0, 0, 0 },
+    [rv_op_amoswap_y] = { "amoswap.y", rv_codec_r, rv_fmt_aqrl_rd_rs2_rs1, NULL, 0, 0, 0 },
+    [rv_op_sc_y] = { "sc.y", rv_codec_r, rv_fmt_aqrl_rd_rs2_rs1, NULL, 0, 0, 0 },
+    [rv_op_srliy] = { "srli.y", rv_codec_i_sh7, rv_fmt_rd_rs1_imm, NULL, 0, 0, 0 }
 };
 
 /* CSR names */
@@ -1900,6 +1982,75 @@ static rv_opcode decode_cheri_inst(rv_inst inst) {
     default:
         return rv_op_illegal;
     }
+}
+
+static rv_opcode decode_cheri_rvy(rv_inst inst) {
+    int func3 = ((inst >> 12) & 0b111);
+    int func7 = ((inst >> 25) & 0b1111111);
+    int rs2 = ((inst >> 20) & 0b11111);
+    int rs1 = ((inst >> 15) & 0b11111);
+    int rd = ((inst >> 7) & 0b11111);
+
+    switch (func3) {
+    case 0:
+        switch (func7) {
+        case 1: return rv_op_packy;
+        case 3: return rs2 == 0 ? rv_op_ymv : rv_op_yadd;
+        case 5: return rv_op_ysh1add;
+        case 6: return rv_op_yeq;
+        case 7: return rv_op_ysunseal;
+        case 11: return rv_op_yaddrw;
+        case 13: return rv_op_ysh2add;
+        case 14: return rv_op_yss;
+        case 15: return rv_op_ybld;
+        case 19: return rv_op_ypermc;
+        case 21: return rv_op_ysh3add;
+        case 27: return rv_op_ybndsw;
+        case 29: return rv_op_ysh4add;
+        case 35: return rv_op_ybndsrw;
+        case 37: return rv_op_ysh1add_uw;
+        case 43:
+            /* The mode switches are ymodew with cd/cs1 zero and rs2 selecting. */
+            if (rd == 0 && rs1 == 0) {
+                if (rs2 == 0) return rv_op_ymodeswy;
+                if (rs2 == 1) return rv_op_ymodeswi;
+            }
+            return rv_op_ymodew;
+        case 45: return rv_op_ysh2add_uw;
+        case 53: return rv_op_ysh3add_uw;
+        case 61: return rv_op_ysh4add_uw;
+        case 120: return rs2 == 0 ? rv_op_yamask : rv_op_illegal;
+        case 122:
+            switch (rs2) {
+            case 0: return rv_op_ybaser;
+            case 1: return rv_op_ypermr;
+            case 2: return rv_op_ytopr;
+            case 3: return rv_op_ylenr;
+            case 4: return rv_op_ytagr;
+            case 5: return rv_op_ytyper;
+            case 6: return rv_op_ymoder;
+            }
+            break;
+        case 123: return rs2 == 0 ? rv_op_ysentry : rv_op_illegal;
+        }
+        break;
+    case 1: return rv_op_ly;
+    case 2: return rv_op_sy;
+    case 3:
+        switch (inst >> 27) {
+        case 2: return rv_op_lr_y;
+        case 1: return rv_op_amoswap_y;
+        case 3: return rv_op_sc_y;
+        }
+        break;
+    case 4: return rv_op_yaddi;
+    case 5:
+        if ((inst >> 29) == 7) return rv_op_ybndswi;
+        /* srliy has a 7 bit shamt, so only the top five bits must be zero. */
+        if ((inst >> 27) == 0) return rv_op_srliy;
+        break;
+    }
+    return rv_op_illegal;
 }
 
 static void decode_inst_opcode(rv_decode *dec, rv_isa isa, int flags)
@@ -2804,6 +2955,10 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa, int flags)
             }
             break;
         case 30:
+            if (flags & RISCV_DIS_FLAG_CHERI_RVY) {
+                op = decode_cheri_rvy(inst);
+                break;
+            }
             switch (((inst >> 22) & 0b1111111000) | ((inst >> 12) & 0b0000000111)) {
             case 0: op = rv_op_addd; break;
             case 1: op = rv_op_slld; break;
@@ -2965,6 +3120,25 @@ static int32_t operand_sbimm12(rv_inst inst)
         ((inst << 33) >> 58) << 5 |
         ((inst << 52) >> 60) << 1 |
         ((inst << 56) >> 63) << 11;
+}
+
+static int32_t operand_ybndswi(rv_inst inst)
+{
+    uint32_t imm9 = (inst >> 20) & 0x1ff;
+    if (imm9 == 0) {
+        return 4096;
+    }
+    if ((imm9 & 0x100) == 0) {
+        return imm9 & 0xff;
+    }
+    uint32_t imm7_5 = (imm9 >> 5) & 0x7;
+    if (imm7_5 == 0) {
+        uint32_t imm3_0 = imm9 & 0xf;
+        uint32_t imm4 = (imm9 >> 4) & 0x1;
+        return 256 | (imm3_0 << 4) | (imm4 << 3);
+    }
+    uint32_t imm7_0 = imm9 & 0xff;
+    return imm7_0 << 4;
 }
 
 static uint32_t operand_cimmsh6(rv_inst inst)
@@ -3407,6 +3581,11 @@ static void decode_inst_operands(rv_decode *dec)
         dec->rs1 = operand_rs1(inst);
         dec->imm = operand_scaled(inst) ? operand_uimm20(inst) << 4
                                         : operand_uimm20(inst);
+        break;
+    case rv_codec_ybndswi:
+        dec->rd = operand_rd(inst);
+        dec->rs1 = operand_rs1(inst);
+        dec->imm = operand_ybndswi(inst);
         break;
     case rv_codec_cbo_rs1:
         dec->rs1 = operand_rs1(inst);
