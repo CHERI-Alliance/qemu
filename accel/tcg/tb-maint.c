@@ -36,6 +36,9 @@ static bool tb_cmp(const void *ap, const void *bp)
 
     return ((TARGET_TB_PCREL || tb_pc(a) == tb_pc(b)) &&
             a->cs_base == b->cs_base &&
+            a->pcc_base == b->pcc_base &&
+            a->pcc_top == b->pcc_top &&
+            a->cheri_flags == b->cheri_flags &&
             a->flags == b->flags &&
             (tb_cflags(a) & ~CF_INVALID) == (tb_cflags(b) & ~CF_INVALID) &&
             a->trace_vcpu_dstate == b->trace_vcpu_dstate &&
