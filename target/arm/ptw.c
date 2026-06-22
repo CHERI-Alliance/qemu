@@ -1570,7 +1570,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
 #ifdef TARGET_CHERI
 
     uint32_t hwu = aa64_effective_hwu(env, mmu_idx, &param, tcr);
-    hwu &= (attrs >> 7);
+    hwu &= (attrs >> 59);
 
     int lc = extract32(hwu, 2, 2);
     int sc = extract32(hwu, 1, 1);
