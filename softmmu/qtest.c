@@ -318,9 +318,6 @@ static void G_GNUC_PRINTF(2, 3) qtest_sendf(CharBackend *chr,
 
 static void qtest_irq_handler(void *opaque, int n, int level)
 {
-    qemu_irq old_irq = *(qemu_irq *)opaque;
-    qemu_set_irq(old_irq, level);
-
     if (irq_levels[n] != level) {
         CharBackend *chr = &qtest->qtest_chr;
         irq_levels[n] = level;
@@ -420,7 +417,7 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
                                                             ngl->name, i);
                 }
             } else {
-                qemu_irq_intercept_in(ngl->in, qtest_irq_handler,
+                qemu_irq_set_observer(ngl->in, qtest_irq_handler,
                                       ngl->num_in);
             }
         }
