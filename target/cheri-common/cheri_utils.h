@@ -231,11 +231,11 @@ static inline bool cap_legalize_perms(G_GNUC_UNUSED CPUArchState *env,
 #endif
 }
 
-static inline void cap_set_perms(CPUArchState *env, cap_register_t *c,
+static inline bool cap_set_perms(CPUArchState *env, cap_register_t *c,
                                  target_ulong perms)
 {
     bool success = CAP_cc(set_permissions)(c, perms);
-    assert(success);
+    return success;
 }
 
 #ifndef TARGET_AARCH64
@@ -250,11 +250,11 @@ static inline CheriExecMode cap_get_exec_mode(const cap_register_t *c)
                : CHERI_EXEC_INTMODE;
 }
 
-static inline void cap_set_exec_mode(cap_register_t *c, CheriExecMode mode)
+static inline bool cap_set_exec_mode(cap_register_t *c, CheriExecMode mode)
 {
     bool ok = CAP_cc(set_execution_mode)(
         c, mode == CHERI_EXEC_CAPMODE ? CAP_CC(MODE_CAP) : CAP_CC(MODE_INT));
-    assert(ok && "Setting execution mode on non-X capability?");
+    return ok;
 }
 #endif
 
