@@ -23,14 +23,14 @@ jobs:
         sync: rsync
         copyback: false
         prepare: |
-          pkg install -y bash ninja pkgconf glib gmake dtc libslirp pixman python3 git
+          pkg install -y bash ninja pkgconf glib gmake dtc libslirp pixman python3 git meson
         run: |
           mkdir build
           cd build
           git config --global --add safe.directory '*'
-          ../configure --enable-werror --disable-docs --enable-fdt=system --enable-slirp=system --disable-capstone --target-list="arm-softmmu,aarch64-softmmu,riscv64-softmmu,x86_64-softmmu" --extra-cflags="-I/usr/local/include -Wno-error=macro-redefined -Wno-error=deprecated-declarations" --extra-ldflags="-L/usr/local/lib"
+          ../configure --meson=meson --enable-werror --disable-docs --enable-fdt=system --enable-slirp=system --disable-capstone --target-list="arm-softmmu,aarch64-softmmu,riscv64-softmmu,x86_64-softmmu" --extra-cflags="-I/usr/local/include -Wno-error=macro-redefined -Wno-error=deprecated-declarations" --extra-ldflags="-L/usr/local/lib"
           gmake -j$(sysctl -n hw.ncpu)
-          ../meson/meson.py test --print-errorlogs --timeout-multiplier=2
+          meson test --print-errorlogs --timeout-multiplier=2
 
     - name: Get test results
       if: always()
