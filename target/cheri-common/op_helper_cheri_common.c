@@ -703,8 +703,9 @@ void CHERI_HELPER_IMPL(cbuildcap(CPUArchState *env, uint32_t cd, uint32_t cb,
          * Only set the mode if the capability bears X permission, as
          * it is otherwise disallowed by the RVY spec.
          */
-        if (cap_get_all_perms(&derived) & CAP_PERM_EXECUTE) {
-            cap_set_exec_mode(&derived, cap_get_exec_mode(ctp));
+        if (!cap_set_exec_mode(&derived, cap_get_exec_mode(ctp)) &&
+            cap_get_exec_mode(ctp) == CHERI_EXEC_INTMODE) {
+            derived.cr_tag = 0;
         }
 #endif
 
