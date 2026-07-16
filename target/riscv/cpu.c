@@ -975,6 +975,10 @@ static void riscv_cpu_reset(DeviceState *dev)
     set_max_perms_capability(env, &env->mtvecc, 0);
     env->mscratchc = make_null_capability(env);
     set_max_perms_capability(env, &env->mepcc, 0);
+    // Virtual supervisor trap handling (all xtvec/xepc reset to root caps)
+    set_max_perms_capability(env, &env->vstvecc, 0);
+    env->vsscratchc = make_null_capability(env);
+    set_max_perms_capability(env, &env->vsepcc, 0);
 
     env->utidc = make_null_capability(env);
     env->stidc = make_null_capability(env);

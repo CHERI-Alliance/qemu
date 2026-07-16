@@ -55,7 +55,8 @@ static void check_csr_cap_permissions(CPURISCVState *env, uint32_t csrno,
 {
     RISCVException exc = riscv_csrrw_check(env, csrno, write_access ? -1L : 0,
                                        env_archcpu(env));
-    if (exc != RISCV_EXCP_NONE && (csr_cap_info->flags & CSR_OP_REQUIRE_CRE) &&
+    /* CSRs gated on CRE do not exist at all while CHERI is disabled. */
+    if ((csr_cap_info->flags & CSR_OP_REQUIRE_CRE) &&
         !riscv_cpu_mode_cre(env)) {
         exc = RISCV_EXCP_ILLEGAL_INST;
     }
