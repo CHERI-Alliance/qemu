@@ -68,6 +68,8 @@ static void print_pte(Monitor *mon, int va_bits, target_ulong vaddr,
                    " %c%c%c%c%c%c%c"
 #if defined(TARGET_CHERI_RISCV_V9) && !defined(TARGET_RISCV32)
                    "%c%c%c%c%c"
+#elif defined(TARGET_CHERI_RISCV_RVY) && !defined(TARGET_RISCV32)
+                   "%c%c%c%c"
 #elif defined(TARGET_CHERI_RISCV_STD_093) && !defined(TARGET_RISCV32)
                    "%c%c"
 #endif
@@ -81,8 +83,13 @@ static void print_pte(Monitor *mon, int va_bits, target_ulong vaddr,
                    attr & PTE_G ? 'g' : '-',
                    attr & PTE_A ? 'a' : '-',
                    attr & PTE_D ? 'd' : '-'
-#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32) && \
-    !defined(TARGET_CHERI_RISCV_RVY)
+#if defined(TARGET_CHERI_RISCV_RVY) && !defined(TARGET_RISCV32)
+                   ,
+                   attr & PTE_YR  ? 'R' : '-',
+                   attr & PTE_YRG ? 'G' : '-',
+                   attr & PTE_YW  ? 'W' : '-',
+                   attr & PTE_YD  ? 'D' : '-'
+#elif defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
                    ,
                    attr & PTE_CRG ? 'G' : '-',
 #if defined(TARGET_CHERI_RISCV_V9)

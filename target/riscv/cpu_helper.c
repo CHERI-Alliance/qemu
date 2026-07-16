@@ -851,16 +851,47 @@ static int get_physical_address_pmp(CPURISCVState *env, int *prot,
 static void pte_print(target_ulong pte, int level)
 {
     qemu_log_mask(
-        CPU_LOG_MMU, "PTE - " TARGET_FMT_lx " %s%s%s%s%s%s%s%s%s%s %d\n", pte,
-#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
-        pte & PTE_CRG ? "CRG" : "", pte & PTE_CW ? "CW" : "",
+        CPU_LOG_MMU, "PTE - " TARGET_FMT_lx " %s%s%s%s%s%s%s%s%s%s%s %d\n",
+        pte,
+#if defined(TARGET_CHERI_RISCV_RVY) && !defined(TARGET_RISCV32)
+        pte & PTE_YR ? "YR," : "", pte & PTE_YRG ? "YRG," : "",
+        pte & PTE_YW ? "YW," : "", pte & PTE_YD ? "YD," : "",
+#elif defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
+        pte & PTE_CRG ? "CRG" : "", pte & PTE_CW ? "CW" : "", "", "",
 #else
-        "", "",
+        "", "", "", "",
 #endif
         pte & PTE_R ? "R" : "", pte & PTE_W ? "W" : "", pte & PTE_X ? "X" : "",
         pte & PTE_A ? "A" : "", pte & PTE_U ? "U" : "", pte & PTE_D ? "D" : "",
-        pte & PTE_A ? "A" : "", pte & PTE_V ? "V" : "", level);
+        pte & PTE_V ? "V" : "", level);
 }
+
+#if defined(TARGET_CHERI_RISCV_RVY) && !defined(TARGET_RISCV32)
+/* Svyrg redefines the whole pte.rvy field when sstatus.YRGE is set. */
+static bool riscv_cpu_svyrg_active(CPURISCVState *env)
+{
+    return env_archcpu(env)->cfg.ext_svyrg && (env->mstatus & MSTATUS64_YRGE);
+}
+
+/*
+ * Whether a capability store (with the to-be-stored tag set) to this leaf
+ * PTE must raise a CHERI Store/AMO Page Fault. Callers must only check this
+ * for accesses that actually store a set tag (MMU_DATA_CAP_STORE).
+ */
+static bool rvy_cap_store_page_fault(CPURISCVState *env, target_ulong pte)
+{
+    if (riscv_cpu_svyrg_active(env)) {
+        /*
+         * pte.yw gates capability stores. With pte.yw set but pte.yd
+         * clear, capability dirty tracking also raises the fault (the
+         * Svade scheme; Svadu hardware updates are not implemented).
+         */
+        return !(pte & PTE_YW) || !(pte & PTE_YD);
+    }
+    /* Base RV64Y behavior: pte.rvy[3] (pte.y) gates capability stores. */
+    return !(pte & PTE_YD);
+}
+#endif
 
 /* get_physical_address - get the physical address for this virtual address
  *
@@ -1129,7 +1160,15 @@ restart:
 #endif
         } else if (!(pte & (PTE_R | PTE_W | PTE_X))) {
             /* Inner PTE, continue walking */
-#if defined(TARGET_CHERI_RISCV_STD) && !defined(TARGET_RISCV32)
+#if defined(TARGET_CHERI_RISCV_RVY) && !defined(TARGET_RISCV32)
+            if (pte & PTE_RVY_FIELD) {
+                /* The rvy field is reserved in non-leaf PTEs. */
+                qemu_log_mask(CPU_LOG_MMU,
+                              "%s Translate fail: rvy set in non-leaf PTE\n",
+                              __func__);
+                return TRANSLATE_FAIL;
+            }
+#elif defined(TARGET_CHERI_RISCV_STD) && !defined(TARGET_RISCV32)
             if (pte & PTE_CW) {
                 /* This bit on a leaf node is illegal regardless of cheripte */
                 qemu_log_mask(CPU_LOG_MMU,
@@ -1201,7 +1240,14 @@ restart:
             qemu_log_mask(CPU_LOG_MMU, "%s Translate fail: X bit not set\n",
                           __func__);
             return TRANSLATE_FAIL;
-#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
+#if defined(TARGET_CHERI_RISCV_RVY) && !defined(TARGET_RISCV32)
+        } else if (access_type == MMU_DATA_CAP_STORE &&
+                   rvy_cap_store_page_fault(env, pte)) {
+            qemu_log_mask(CPU_LOG_MMU,
+                          "%s Translate fail: capability store denied by "
+                          "pte.rvy on level %d\n", __func__, i);
+            return TRANSLATE_CHERI_FAIL;
+#elif defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
         } else if (access_type == MMU_DATA_CAP_STORE && !(pte & PTE_CW)
 #if defined(TARGET_CHERI_RISCV_STD)
                    && cpu->cfg.ext_svyrg
@@ -1352,66 +1398,42 @@ restart:
                 *prot |= PAGE_SC_TRAP;
             }
 #elif defined(TARGET_CHERI_RISCV_RVY) && !defined(TARGET_RISCV32)
-            /*
-             * Svyrg 1.0 Exception Priority Order (Table 52 of RVY Spec):
-             * 1. Check base write access (PTE_W) -> Store/AMO Page Fault.
-             * 2. Check cap write access (PTE_CW/PTE_YW) -> CHERI Store Page
-             * Fault.
-             * 3. Check dirty bit (PTE_D) -> Store/AMO Page Fault to update PTE.
-             * 4. Check cap-dirty (PTE_YD) -> Deferred to TLB memory access
-             * helper execution time (only traps if stored capability tag is 1).
-             */
-            {
-                bool yrge = cpu->cfg.ext_svyrg &&
-                            (env->mstatus & SSTATUS64_YRGE);
-
-                if (yrge) {
-                    bool pte_yr = (pte & PTE_YR);
-                    bool pte_yrg = (pte & PTE_YRG);
-                    bool pte_yw = (pte & PTE_YW);
-                    bool pte_yd = (pte & PTE_YD);
-
-                    if (!pte_yr) {
-                        if (!pte_yrg) {
-                            *prot |= PAGE_LC_CLEAR;
-                        }
-                    } else {
-                        bool uyrg = (env->mstatus & SSTATUS64_UYRG);
-                        bool syrg = (env->mstatus & SSTATUS64_SYRG);
-                        bool xyrg = (pte & PTE_U) ? uyrg : syrg;
-                        if (pte_yrg != xyrg) {
-                            *prot |= PAGE_LC_TRAP;
-                        }
+            if (riscv_cpu_svyrg_active(env)) {
+                /* Loads: see the pte.yr/pte.yrg summary table (Svyrg). */
+                if (!(pte & PTE_YR)) {
+                    if (!(pte & PTE_YRG)) {
+                        /* yr=0, yrg=0: clear the loaded tag. */
+                        *prot |= PAGE_LC_CLEAR;
                     }
-
-                    /*
-                     * Svyrg 1.0 Capability Dirty Tracking (Table 52/Sec 11.2):
-                     * If pte.yw=1 but pte.yd=0, storing a capability with a
-                     * valid tag (tag=1) must trigger a CHERI Store Page Fault
-                     * (cause 36). Since we do not know the tag at page walk
-                     * time, we mark PAGE_SC_TRAP in the TLB entry. The TCG
-                     * memory helper will trap at access time only if the
-                     * tag being stored is 1.
-                     */
-                    if (!pte_yw || !pte_yd) {
-                        *prot |= PAGE_SC_TRAP;
-                    }
+                    /* yr=0, yrg=1: normal operation. */
                 } else {
                     /*
-                     * Default RVY VM behavior (Section 10.3):
-                     * pte.rvy[3] is pte.y.
-                     * If pte.y = 0: load clears tag, store tag=1 traps.
-                     * If pte.y = 1: normal operation.
-                     *
-                     * This applies if Svyrg is not present, or present
-                     * but disabled.
+                     * yr=1: trap (CHERI Load Capability Fault) when pte.yrg
+                     * does not match the sstatus generation for the page
+                     * kind. PAGE_LC_TRAP only faults when the loaded tag is
+                     * set, i.e. we trap precisely rather than conservatively.
                      */
-                    bool pte_y = (pte & PTE_YD); /* pte.rvy[3] is PTE_YD */
-                    if (!pte_y) {
-                        *prot |= PAGE_LC_CLEAR;
-                        *prot |= PAGE_SC_TRAP;
+                    target_ulong xyrg_bit =
+                        (pte & PTE_U) ? MSTATUS64_UYRG : MSTATUS64_SYRG;
+                    if (!!(pte & PTE_YRG) != !!(env->mstatus & xyrg_bit)) {
+                        *prot |= PAGE_LC_TRAP;
                     }
                 }
+            } else if (!(pte & PTE_YD)) {
+                /*
+                 * Base RV64Y behavior: with pte.rvy[3] (pte.y) clear, all
+                 * capability loads have the loaded tag cleared.
+                 */
+                *prot |= PAGE_LC_CLEAR;
+            }
+            /*
+             * Stores with a set tag were already rejected above via
+             * rvy_cap_store_page_fault() for MMU_DATA_CAP_STORE accesses;
+             * mark the TLB entry so that tag writes through a TLB entry
+             * created by a non-capability access still force a refill.
+             */
+            if (rvy_cap_store_page_fault(env, pte)) {
+                *prot |= PAGE_SC_TRAP;
             }
 #elif defined(TARGET_CHERI_RISCV_STD_093) && !defined(TARGET_RISCV32)
             bool pte_crg = (pte & PTE_CRG);

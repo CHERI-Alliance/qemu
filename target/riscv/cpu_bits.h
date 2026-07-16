@@ -691,13 +691,17 @@ typedef enum {
 #define PTE_CW              0x8000000000000000 /* Cap Write */
 #define PTE_RESERVED 0x07C0000000000000ULL /* Reserved bits */
 #elif defined(TARGET_CHERI_RISCV_RVY) && !defined(TARGET_RISCV32)
+/*
+ * The 4-bit pte.rvy field (bits 58:55). With Svyrg enabled
+ * (sstatus.YRGE=1) all four bits are defined as below; otherwise only
+ * pte.rvy[3] (called pte.y) has meaning and gates capability accesses.
+ */
 #define PTE_YR              BIT_ULL(55) /* Capability readable */
 #define PTE_YRG             BIT_ULL(56) /* Capability read generation */
 #define PTE_YW              BIT_ULL(57) /* Capability writable */
-#define PTE_YD              BIT_ULL(58) /* Capability dirty */
-#define PTE_RESERVED        (BIT_ULL(59) | BIT_ULL(60)) /* Reserved bits */
-#define PTE_CW              PTE_YW
-#define PTE_CRG             PTE_YRG
+#define PTE_YD              BIT_ULL(58) /* Capability dirty / pte.y */
+#define PTE_RVY_FIELD       (PTE_YR | PTE_YRG | PTE_YW | PTE_YD)
+#define PTE_RESERVED        (BIT_ULL(54) | BIT_ULL(59) | BIT_ULL(60))
 #elif defined(TARGET_CHERI_RISCV_STD_093) && !defined(TARGET_RISCV32)
 #define PTE_CRG             BIT_ULL(59) /* Cap Read Generation */
 #define PTE_CW              BIT_ULL(60) /* Cap Write */
