@@ -282,6 +282,16 @@ target_ulong CHERI_HELPER_IMPL(cgetperm(CPUArchState *env, uint32_t cb))
 #ifdef TARGET_CHERI_RISCV_STD_093
     /* The reserved 1-bits were not present in 0.9.3, zero them */
     perms &= ~(CAP_CC(PERMS_RESERVED_ONES));
+#elif defined(TARGET_CHERI_RISCV_RVY)
+    if (!cap_check_integrity(env, cbp)) {
+        /*
+         * On integrity check failure all allocated permission bits read as
+         * zero; only the hardwired one-bits (as reported for the NULL
+         * capability) remain set.
+         */
+        cap_register_t null_cap = make_null_capability(env);
+        perms = cap_get_all_perms(&null_cap);
+    }
 #endif
     return perms;
 }
