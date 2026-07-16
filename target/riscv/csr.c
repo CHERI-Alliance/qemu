@@ -1307,6 +1307,42 @@ static RISCVException read_misa(CPURISCVState *env, int csrno,
     return RISCV_EXCP_NONE;
 }
 
+#if defined(TARGET_CHERI_RISCV_RVY)
+/* Check if cap is a root (Infinite) capability. */
+static bool cap_is_root_capability(CPURISCVState *env,
+                                   const cap_register_t *cap)
+{
+    cap_register_t root;
+
+    set_max_perms_capability(env, &root, cap_get_cursor(cap));
+    cap_set_exec_mode(&root, cap_get_exec_mode(cap));
+    return cap_exactly_equal(cap, &root);
+}
+
+/* misa.Y can only be cleared when PCC, DDC, and all xtvec/xepc are root. */
+static bool misa_y_can_be_cleared(CPURISCVState *env)
+{
+    if (!cap_is_root_capability(env, &env->pcc) ||
+        (riscv_feature(env, RISCV_FEATURE_CHERI_HYBRID) &&
+         !cap_is_root_capability(env, &env->ddc)) ||
+        !cap_is_root_capability(env, &env->mtvecc) ||
+        !cap_is_root_capability(env, &env->mepcc)) {
+        return false;
+    }
+    if (riscv_has_ext(env, RVS) &&
+        (!cap_is_root_capability(env, &env->stvecc) ||
+         !cap_is_root_capability(env, &env->sepcc))) {
+        return false;
+    }
+    if (riscv_has_ext(env, RVH) &&
+        (!cap_is_root_capability(env, &env->vstvecc) ||
+         !cap_is_root_capability(env, &env->vsepcc))) {
+        return false;
+    }
+    return true;
+}
+#endif
+
 static RISCVException write_misa(CPURISCVState *env, int csrno,
                                  target_ulong val)
 {
@@ -1325,6 +1361,10 @@ static RISCVException write_misa(CPURISCVState *env, int csrno,
         target_ulong new_y = val & RVY;
         if (old_y == new_y) {
             return RISCV_EXCP_NONE; /* No change */
+        }
+        if (new_y == 0 && !misa_y_can_be_cleared(env)) {
+            /* WARL: zero is currently not a legal value, keep Y set. */
+            valid_change = false;
         }
     }
     if (!valid_change) {
