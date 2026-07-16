@@ -1498,6 +1498,8 @@ static Property riscv_cpu_extensions[] = {
     DEFINE_PROP_BOOL("Zylevels1", RISCVCPU, cfg.ext_zylevels1, false),
 #if defined(TARGET_CHERI_RISCV_RVY)
     DEFINE_PROP_BOOL("Svyrg", RISCVCPU, cfg.ext_svyrg, false),
+    DEFINE_PROP_BOOL("x-rvy-strict-branches", RISCVCPU,
+                     cfg.rvy_strict_branches, false),
 #elif defined(TARGET_CHERI_RISCV_STD_093)
     DEFINE_PROP_UINT8("cheri_levels", RISCVCPU, cfg._compat_cheri_levels, 0),
     DEFINE_PROP_BOOL("cheri_pte", RISCVCPU, cfg.ext_svyrg, false),

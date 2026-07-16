@@ -607,6 +607,10 @@ struct RISCVCPUConfig {
     uint8_t lvbits; /* Only 0 and 1 (Zylevels1) are currently supported. */
     bool ext_svyrg;
     bool ext_zysentry;
+#ifdef TARGET_CHERI_RISCV_RVY
+    /* Raise illegal instruction for the reserved BEQ/BNE rs1 <= rs2 forms. */
+    bool rvy_strict_branches;
+#endif
 #endif
 #endif
 
