@@ -695,9 +695,12 @@ TRANSLATE_INT_CAP_HELPER(ytopr, cgettop)
 
 static bool trans_ysentry(DisasContext *ctx, arg_cc *a)
 {
+#ifndef TARGET_CHERI_RISCV_RVY
+    /* YSENTRY was moved into the base ISA in RVY v0.9.9. */
     if (!ctx->cfg_ptr->ext_zysentry) {
         return false;
     }
+#endif
     return gen_cheri_cap_cap(ctx, a, &gen_helper_csealentry);
 }
 

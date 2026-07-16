@@ -74,7 +74,10 @@ ylenr           1111010 00011 ..... 000 ..... 1111011 @rc ?pred_rvy
 ytagr           1111010 00100 ..... 000 ..... 1111011 @rc ?pred_rvy
 ytyper          1111010 00101 ..... 000 ..... 1111011 @rc ?pred_rvy
 ymoder          1111010 00110 ..... 000 ..... 1111011 @rc ?pred_hybrid ?pred_rvy
-ysentry         1111011 00000 ..... 000 ..... 1111011 @cc ?pred_rvy
+
+# YSENTRY sources cs2; cs1 != 0 is reserved to decode as a future YSEAL.
+@cc_cs2 .......  ..... ..... ... ..... ....... &cc %cd cs1=%cs2
+ysentry         0010111 ..... 00000 000 ..... 1111011 @cc_cs2 ?pred_rvy
 
 ### Instructions with immediate operands
 yaddi           ....... ..... ..... 100 ..... 1111011 @cci ?pred_rvy

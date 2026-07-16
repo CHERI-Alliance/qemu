@@ -1694,7 +1694,7 @@ const rv_opcode_data opcode_data[] = {
     [rv_op_ytagr] = { "ytagr", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0, 0 },
     [rv_op_ytyper] = { "ytyper", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0, 0 },
     [rv_op_ymoder] = { "ymoder", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0, 0 },
-    [rv_op_ysentry] = { "ysentry", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0, 0 },
+    [rv_op_ysentry] = { "ysentry", rv_codec_r, rv_fmt_rd_rs2, NULL, 0, 0, 0 },
     [rv_op_yaddi] = { "yaddi", rv_codec_i, rv_fmt_rd_rs1_imm, NULL, 0, 0, 0 },
     [rv_op_ybndswi] = { "ybndswi", rv_codec_ybndswi, rv_fmt_rd_rs1_imm, NULL, 0, 0, 0 },
     [rv_op_ly] = { "ly", rv_codec_i, rv_fmt_rd_offset_rs1, NULL, 0, 0, 0 },
@@ -2005,6 +2005,8 @@ static rv_opcode decode_cheri_rvy(rv_inst inst) {
         case 15: return rv_op_ybld;
         case 19: return rv_op_ypermc;
         case 21: return rv_op_ysh3add;
+        /* cs1 != 0 is reserved to decode as a future YSEAL. */
+        case 23: return rs1 == 0 ? rv_op_ysentry : rv_op_illegal;
         case 27: return rv_op_ybndsw;
         case 29: return rv_op_ysh4add;
         case 35: return rv_op_ybndsrw;
@@ -2031,7 +2033,6 @@ static rv_opcode decode_cheri_rvy(rv_inst inst) {
             case 6: return rv_op_ymoder;
             }
             break;
-        case 123: return rs2 == 0 ? rv_op_ysentry : rv_op_illegal;
         }
         break;
     case 1: return rv_op_ly;

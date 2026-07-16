@@ -1497,7 +1497,6 @@ static Property riscv_cpu_extensions[] = {
     DEFINE_PROP_BOOL("Zyhybrid", RISCVCPU, cfg.ext_zyhybrid, true),
     DEFINE_PROP_BOOL("Zylevels1", RISCVCPU, cfg.ext_zylevels1, false),
 #if defined(TARGET_CHERI_RISCV_RVY)
-    DEFINE_PROP_BOOL("Zysentry", RISCVCPU, cfg.ext_zysentry, true),
     DEFINE_PROP_BOOL("Svyrg", RISCVCPU, cfg.ext_svyrg, false),
 #elif defined(TARGET_CHERI_RISCV_STD_093)
     DEFINE_PROP_UINT8("cheri_levels", RISCVCPU, cfg._compat_cheri_levels, 0),
@@ -1755,7 +1754,6 @@ static void riscv_isa_string_ext(RISCVCPU *cpu, char **isa_str, int max_str_len)
         {"zyhybrid", cpu->cfg.ext_zyhybrid},
         {"zypurecap", cpu->cfg.ext_cheri},
         {"zylevels1", cpu->cfg.ext_zylevels1 },
-        {"zysentry", cpu->cfg.ext_zysentry},
         {"svyrg", cpu->cfg.ext_svyrg},
 #elif defined(TARGET_CHERI_RISCV_STD_093)
         {"zcherihybrid", cpu->cfg.ext_zyhybrid},
