@@ -274,6 +274,16 @@ target_ulong CHERI_HELPER_IMPL(cgetperm(CPUArchState *env, uint32_t cb))
 #ifdef TARGET_CHERI_RISCV_STD_093
     /* The reserved 1-bits were not present in 0.9.3, zero them */
     perms &= ~(CAP_CC(PERMS_RESERVED_ONES));
+#elif defined(TARGET_CHERI_RISCV_RVY)
+    if (!cap_check_integrity(env, cbp)) {
+        /*
+         * RVY 0.9.10 YPERMR: "If rs1 fails any integrity checks, all currently
+         * allocated permission bits in rd report 0. The hardwired bits
+         * described above are unaffected and still report 1."
+         */
+        cap_register_t null_cap = make_null_capability(env);
+        perms = cap_get_all_perms(&null_cap);
+    }
 #endif
     return perms;
 }
@@ -959,6 +969,16 @@ void CHERI_HELPER_IMPL(candperm(CPUArchState *env, uint32_t cd, uint32_t cb,
 
     cap_register_t result = *cbp;
     target_ulong old_perms = cap_get_all_perms(cbp);
+#ifdef TARGET_CHERI_RISCV_RVY
+    if (!cap_check_integrity(env, cbp)) {
+        /*
+         * RVY 0.9.10 YPERMC: "Set cd.tag=0, cd.AP=0, cd.SDP=0, and cd.P=0 if
+         * cs1 fails any integrity checks."
+         */
+        old_perms &= CAP_PERM_GLOBAL | CAP_CC(PERMS_RESERVED_ONES);
+        result.cr_tag = 0;
+    }
+#endif
     target_ulong new_perms = old_perms & rt;
     /* Ensure that the permission can be encoded */
     cap_legalize_perms(env, &result, &new_perms);
