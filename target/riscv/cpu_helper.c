@@ -497,6 +497,10 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env, bool hs_mode_trap)
     bool current_virt = riscv_cpu_virt_enabled(env);
 #if defined(TARGET_CHERI_RISCV_STD_093)
     mstatus_mask |= MSTATUS64_UCRG;
+#elif defined(TARGET_CHERI_RISCV_RVY) && !defined(TARGET_RISCV32)
+    if (env_archcpu(env)->cfg.ext_svyrg) {
+        mstatus_mask |= MSTATUS64_YRGE | MSTATUS64_SYRG | MSTATUS64_UYRG;
+    }
 #endif
     g_assert(riscv_has_ext(env, RVH));
 
