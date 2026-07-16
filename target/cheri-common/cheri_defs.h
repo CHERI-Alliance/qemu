@@ -43,6 +43,15 @@
 
 #define ASSERT_IF_CHERI() assert(0)
 
+/*
+ * The compressed capability headers are also included from target-independent
+ * code where the TARGET_* macros are poisoned, so the spec version has to be
+ * passed down as a separate define.
+ */
+#if defined(TARGET_CHERI_RISCV_RVY)
+#define CC128R_V099_FIELD_LAYOUT 1
+#endif
+
 #include "cheri-compressed-cap/cheri_compressed_cap.h"
 
 #define CHERI_DECLARE_ALIGNED_CC_CAP_T(suffix) \
