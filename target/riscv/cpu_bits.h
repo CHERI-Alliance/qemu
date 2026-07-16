@@ -750,6 +750,8 @@ typedef enum RISCVException {
     RISCV_EXCP_CHERI_INST = 32,
     RISCV_EXCP_CHERI_LOAD = 33,
     RISCV_EXCP_CHERI_STORE = 34,
+    RISCV_EXCP_LOAD_CAP_PAGE_FAULT = 35,
+    RISCV_EXCP_STORE_AMO_CAP_PAGE_FAULT = 36,
 /*
  * A missing ASR permission is reported as an illegal instruction.
  */
@@ -757,10 +759,10 @@ typedef enum RISCVException {
 #else
     RISCV_EXCP_CHERI = 0x1c,
 #define RISCV_EXCP_CHERI_ASR RISCV_EXCP_CHERI
-#endif
 #if !defined(TARGET_CHERI_RISCV_STD_093)
     RISCV_EXCP_LOAD_CAP_PAGE_FAULT = 0x1a,
     RISCV_EXCP_STORE_AMO_CAP_PAGE_FAULT = 0x1b,
+#endif
 #endif
 #endif /* TARGET_CHERI */
 } RISCVException;

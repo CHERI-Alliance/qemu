@@ -125,6 +125,8 @@ static const char * const riscv_excp_names[] = {
     [RISCV_EXCP_CHERI_INST] = "cheri_instruction_access_fault",
     [RISCV_EXCP_CHERI_LOAD] = "cheri_load_access_fault",
     [RISCV_EXCP_CHERI_STORE] = "cheri_store_amo_access_fault",
+    [RISCV_EXCP_LOAD_CAP_PAGE_FAULT] = "cheri_load_capability_fault",
+    [RISCV_EXCP_STORE_AMO_CAP_PAGE_FAULT] = "cheri_store_amo_page_fault",
 #elif defined(TARGET_CHERI)
 #if !defined(TARGET_RISCV32) && !defined(TARGET_CHERI_RISCV_STD_093)
     [RISCV_EXCP_LOAD_CAP_PAGE_FAULT] = "load_cap_page_fault",
