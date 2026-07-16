@@ -828,7 +828,12 @@ typedef enum RISCVException {
 #define MENVCFG_CBIE                       (3UL << 4)
 #define MENVCFG_CBCFE                      BIT(6)
 #define MENVCFG_CBZE                       BIT(7)
+#if defined(TARGET_CHERI_RISCV_RVY)
+/* RVY v0.9.9 moved the CHERI enable (Y/CRE) bit from 28 to 9. */
+#define MENVCFG_CRE                        BIT(9)
+#else
 #define MENVCFG_CRE                        BIT(28)
+#endif
 #define MENVCFG_PBMTE                      (1ULL << 62)
 #define MENVCFG_STCE                       (1ULL << 63)
 
