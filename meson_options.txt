@@ -16,6 +16,12 @@ option('sphinx_build', type : 'string', value : '',
        description: 'Use specified sphinx-build for building document')
 option('iasl', type : 'string', value : '',
        description: 'Path to ACPI disassembler')
+option('rvy_test_cc', type : 'string', value : '',
+       description: 'Bare-metal RISC-V clang for the tests/rvy suite')
+option('rvy_test_timeout', type : 'integer', value : 20,
+       description: 'Wall-clock seconds before an RVY test is considered hung')
+option('rvy_sail_insn_limit', type : 'integer', value : 20000000,
+       description: 'Instruction budget for the Sail model running RVY tests')
 option('tls_priority', type : 'string', value : 'NORMAL',
        description: 'Default TLS protocol/cipher priority string')
 option('default_devices', type : 'boolean', value : true,

@@ -50,6 +50,13 @@ meson_options_help() {
   printf "%s\n" '  --localedir=VALUE        Locale data directory [share/locale]'
   printf "%s\n" '  --localstatedir=VALUE    Localstate data directory [/var/local]'
   printf "%s\n" '  --mandir=VALUE           Manual page directory [share/man]'
+  printf "%s\n" '  --rvy-sail-insn-limit=CHOICE'
+  printf "%s\n" '                           Instruction budget for the Sail model running RVY'
+  printf "%s\n" '                           tests [20000000]'
+  printf "%s\n" '  --rvy-test-cc=VALUE      Bare-metal RISC-V clang for the tests/rvy suite'
+  printf "%s\n" '  --rvy-test-timeout=CHOICE'
+  printf "%s\n" '                           Wall-clock seconds before an RVY test is'
+  printf "%s\n" '                           considered hung [20]'
   printf "%s\n" '  --sphinx-build=VALUE     Use specified sphinx-build for building document'
   printf "%s\n" '  --sysconfdir=VALUE       Sysconf data directory [etc]'
   printf "%s\n" '  --tls-priority=VALUE     Default TLS protocol/cipher priority string'
@@ -382,6 +389,9 @@ _meson_option_parse() {
     --disable-replication) printf "%s" -Dreplication=disabled ;;
     --enable-rng-none) printf "%s" -Drng_none=true ;;
     --disable-rng-none) printf "%s" -Drng_none=false ;;
+    --rvy-sail-insn-limit=*) quote_sh "-Drvy_sail_insn_limit=$2" ;;
+    --rvy-test-cc=*) quote_sh "-Drvy_test_cc=$2" ;;
+    --rvy-test-timeout=*) quote_sh "-Drvy_test_timeout=$2" ;;
     --enable-sdl) printf "%s" -Dsdl=enabled ;;
     --disable-sdl) printf "%s" -Dsdl=disabled ;;
     --enable-sdl-image) printf "%s" -Dsdl_image=enabled ;;
