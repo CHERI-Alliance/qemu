@@ -137,20 +137,32 @@ static inline void G_NORETURN raise_store_tag_exception(CPUArchState *env,
 #endif
 }
 
+/*
+ * These are only used for capability-wide accesses. RVY specifies that
+ * misaligned capability accesses raise access faults instead of misaligned
+ * faults since they cannot be emulated in software.
+ */
 static inline void G_NORETURN raise_unaligned_load_exception(
     CPUArchState *env, target_ulong addr, uintptr_t retpc)
 {
     env->badaddr = addr;
+#ifdef TARGET_CHERI_RISCV_RVY
+    riscv_raise_exception(env, RISCV_EXCP_LOAD_ACCESS_FAULT, retpc);
+#else
     riscv_raise_exception(env, RISCV_EXCP_LOAD_ADDR_MIS, retpc);
+#endif
 }
 
 static inline void G_NORETURN raise_unaligned_store_exception(
     CPUArchState *env, target_ulong addr, uintptr_t retpc)
 {
     env->badaddr = addr;
+#ifdef TARGET_CHERI_RISCV_RVY
+    riscv_raise_exception(env, RISCV_EXCP_STORE_AMO_ACCESS_FAULT, retpc);
+#else
     // Note: RISCV_EXCP_STORE_AMO_ADDR_MIS means "Store/AMO address misaligned"
     riscv_raise_exception(env, RISCV_EXCP_STORE_AMO_ADDR_MIS, retpc);
-
+#endif
 }
 
 static inline bool validate_jump_target(CPUArchState *env,
