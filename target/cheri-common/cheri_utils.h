@@ -653,9 +653,22 @@ int gdb_get_general_purpose_capreg(GByteArray *buf, CPUArchState *env,
     raise_cheri_exception_impl(env, cause, reg, addr, true, /*pc=*/0,          \
                                /*is_instr=*/true)
 #endif
+#if defined(TARGET_CHERI_RISCV_RVY)
+/*
+ * RVY distinguishes CHERI load and store/AMO faults by exception cause, so
+ * the access type must be passed through to the exception raising code.
+ */
+#define raise_cheri_exception_addr_wnr(env, cause, reg, addr, is_write)        \
+    raise_cheri_exception_impl_if_wnr(env, cause, reg, addr, true,             \
+                                      _host_return_address, false, is_write)
+#else
 #define raise_cheri_exception_addr_wnr(env, cause, reg, addr, is_write)        \
     raise_cheri_exception_addr(env, cause, reg, addr)
 #endif
+#endif
+
+#define raise_cheri_exception_wnr(env, cause, reg, is_write)                   \
+    raise_cheri_exception_addr_wnr(env, cause, reg, 0, is_write)
 
 #ifdef TARGET_CHERI_RISCV_STD_093
 #define raise_cheri_exception_branch_impl(env, cause, reg, addr, retpc)        \
