@@ -379,9 +379,9 @@ void helper_cbo_clean_flush_cap(CPURISCVState *env, uint32_t addr_reg)
                                    address);
     }
 
-    /* Check if any of the bytes are outside the bounds */
-    if ((cap_get_top_full(auth_cap) < address) ||
-        (cap_get_base(auth_cap) > (address + cbomlen))) {
+    /* CBO.CLEAN/CBO.FLUSH only fault if all bytes are outside the bounds. */
+    if ((cap_get_top_full(auth_cap) <= address) ||
+        (cap_get_base(auth_cap) >= (cap_length_t)address + cbomlen)) {
         raise_cheri_exception_addr(env, CapEx_LengthViolation, auth_reg,
                                    address);
     }
@@ -432,9 +432,9 @@ void helper_cbo_inval_cap(CPURISCVState *env, uint32_t addr_reg)
                                    address);
     }
 
-    /* Check if any of the bytes are outside the bounds */
-    if ((cap_get_top_full(auth_cap) < address) ||
-        (cap_get_base(auth_cap) > (address + cbomlen))) {
+    /* 0.9.3: CBO.INVAL only faults if all bytes are out of bounds. */
+    if ((cap_get_top_full(auth_cap) <= address) ||
+        (cap_get_base(auth_cap) >= (cap_length_t)address + cbomlen)) {
         raise_cheri_exception_addr(env, CapEx_LengthViolation, auth_reg,
                                    address);
     }
