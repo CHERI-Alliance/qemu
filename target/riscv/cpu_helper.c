@@ -2085,7 +2085,8 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         case RISCV_EXCP_STORE_AMO_ACCESS_FAULT:
         case RISCV_EXCP_LOAD_PAGE_FAULT:
         case RISCV_EXCP_STORE_PAGE_FAULT:
-#if defined(TARGET_CHERI_RISCV_V9) && !defined(TARGET_RISCV32)
+#if defined(TARGET_CHERI_RISCV_RVY) ||                                         \
+    (defined(TARGET_CHERI_RISCV_V9) && !defined(TARGET_RISCV32))
         case RISCV_EXCP_LOAD_CAP_PAGE_FAULT:
         case RISCV_EXCP_STORE_AMO_CAP_PAGE_FAULT:
 #endif
@@ -2124,21 +2125,30 @@ void riscv_cpu_do_interrupt(CPUState *cs)
             tval = env->bins;
             break;
 #ifdef TARGET_CHERI
+#if defined(TARGET_CHERI_RISCV_RVY)
+        case RISCV_EXCP_CHERI_INST:
+        case RISCV_EXCP_CHERI_LOAD:
+        case RISCV_EXCP_CHERI_STORE:
+#else
         case RISCV_EXCP_CHERI:
+#endif
             qemu_log_instr_or_mask_msg(
                 env, CPU_LOG_INT, "Got CHERI trap %s, caused by register %d\n",
                 cheri_cause_str(env->last_cap_cause), env->last_cap_index);
             tcg_debug_assert(env->last_cap_cause < 32);
             tcg_debug_assert(env->last_cap_index < 64);
-#ifdef TARGET_CHERI_RISCV_STD_093
+#if defined(TARGET_CHERI_RISCV_RVY)
+            tval = env->badaddr;
+#elif defined(TARGET_CHERI_RISCV_STD_093)
+            /* Older versions of the standard used the tval2 CSRs */
             tcg_debug_assert(env->last_cap_type <= CapEx093_Type_Last);
             /* Remap cap causes to the 0.9.3 values. */
             cheri_exc_info = cheri093_cap_cause(env->last_cap_cause);
             tcg_debug_assert(cheri_exc_info <= CapEx093_Last);
-            tval = env->badaddr;
             cheri_exc_info |= env->last_cap_type << 16;
             env->last_cap_type = CapEx093_Type_None;
 #else
+            /* ISAv9 does not report the address, but instead cap cause+reg. */
             tval = env->last_cap_cause | env->last_cap_index << 5;
 #endif
             env->last_cap_cause = -1;

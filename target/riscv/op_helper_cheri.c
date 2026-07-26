@@ -60,7 +60,7 @@ static void check_csr_cap_permissions(CPURISCVState *env, uint32_t csrno,
         exc != RISCV_EXCP_VIRT_INSTRUCTION_FAULT) {
         exc = RISCV_EXCP_ILLEGAL_INST;
     }
-    if (exc == RISCV_EXCP_CHERI) {
+    if (exc == RISCV_EXCP_CHERI_ASR) {
         raise_access_sys_regs_exception(env, hostpc);
     } else if (exc != RISCV_EXCP_NONE) {
         riscv_raise_exception(env, exc, hostpc);
