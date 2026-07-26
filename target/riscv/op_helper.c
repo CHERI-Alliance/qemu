@@ -271,10 +271,12 @@ void helper_cbo_zero_cap(CPURISCVState *env, uint32_t addr_reg)
         raise_cheri_exception_access(env, CapEx_PermitStoreViolation, auth_reg,
                                      address, CHERI_ACCESS_STORE);
     }
+#ifndef TARGET_CHERI_RISCV_RVY
     if (cap_has_invalid_perms_encoding(env, auth_cap)) {
         raise_cheri_exception_access(env, CapEx_UserDefViolation, auth_reg,
                                      address, CHERI_ACCESS_STORE);
     }
+#endif
 
     if (!cap_is_in_bounds(auth_cap, address, cbozlen)) {
         raise_cheri_exception_access(env, CapEx_LengthViolation, auth_reg,
@@ -380,10 +382,12 @@ void helper_cbo_clean_flush_cap(CPURISCVState *env, uint32_t addr_reg)
         raise_cheri_exception_access(env, CapEx_PermitStoreViolation, auth_reg,
                                      address, CHERI_ACCESS_STORE);
     }
+#ifndef TARGET_CHERI_RISCV_RVY
     if (cap_has_invalid_perms_encoding(env, auth_cap)) {
         raise_cheri_exception_access(env, CapEx_UserDefViolation, auth_reg,
                                      address, CHERI_ACCESS_STORE);
     }
+#endif
 
     /* CBO.CLEAN/CBO.FLUSH only fault if all bytes are outside the bounds. */
     if ((cap_get_top_full(auth_cap) <= address) ||
@@ -417,6 +421,12 @@ void helper_cbo_inval_cap(CPURISCVState *env, uint32_t addr_reg)
     check_zicbo_envcfg(env, MENVCFG_CBIE, _host_return_address);
     uint32_t auth_reg = cheri_in_capmode(env) ? addr_reg : CHERI_EXC_REGNUM_DDC;
     const cap_register_t *auth_cap = get_capreg_or_special(env, auth_reg);
+#ifdef TARGET_CHERI_RISCV_RVY
+    /* RVY reports missing ASR as an illegal instruction before cap checks. */
+    if (!cheri_have_access_sysregs(env)) {
+        raise_access_sys_regs_exception(env, _host_return_address);
+    }
+#endif
     uint16_t cbomlen = cpu->cfg.cbom_blocksize;
     /* Mask off low-bits to align-down to the cache-block. */
     target_ulong address = get_capreg_cursor(env, addr_reg) & ~(cbomlen - 1);
@@ -433,6 +443,7 @@ void helper_cbo_inval_cap(CPURISCVState *env, uint32_t addr_reg)
         raise_cheri_exception_access(env, CapEx_PermitStoreViolation, auth_reg,
                                      address, CHERI_ACCESS_STORE);
     }
+#ifndef TARGET_CHERI_RISCV_RVY
     if (cap_has_invalid_perms_encoding(env, auth_cap)) {
         raise_cheri_exception_access(env, CapEx_UserDefViolation, auth_reg,
                                      address, CHERI_ACCESS_STORE);
@@ -441,13 +452,22 @@ void helper_cbo_inval_cap(CPURISCVState *env, uint32_t addr_reg)
     if (!cheri_have_access_sysregs(env)) {
         raise_access_sys_regs_exception(env, _host_return_address);
     }
+#endif
 
+#ifdef TARGET_CHERI_RISCV_RVY
+    /* RVY: CBO.INVAL faults if any byte of the block is out of bounds. */
+    if (!cap_is_in_bounds(auth_cap, address, cbomlen)) {
+        raise_cheri_exception_access(env, CapEx_LengthViolation, auth_reg,
+                                     address, CHERI_ACCESS_STORE);
+    }
+#else
     /* 0.9.3: CBO.INVAL only faults if all bytes are out of bounds. */
     if ((cap_get_top_full(auth_cap) <= address) ||
         (cap_get_base(auth_cap) >= (cap_length_t)address + cbomlen)) {
         raise_cheri_exception_access(env, CapEx_LengthViolation, auth_reg,
                                      address, CHERI_ACCESS_STORE);
     }
+#endif
     check_zicbom_access(env, address, _host_return_address);
 }
 #endif
