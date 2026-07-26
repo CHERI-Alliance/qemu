@@ -43,7 +43,7 @@ extern bool cheri_debugger_on_trap;
  */
 static inline void G_NORETURN raise_cheri_exception_with_093_type(
     CPUArchState *env, CheriCapExcCause cause, uint8_t type093, unsigned regnum,
-    target_ulong addr, bool instavail, uintptr_t hostpc)
+    target_ulong addr, bool instavail, uintptr_t hostpc, bool is_instr)
 {
     env->badaddr = addr;
     env->last_cap_cause = cause;
@@ -58,32 +58,49 @@ static inline void G_NORETURN raise_cheri_exception_with_093_type(
     // this breakpoint when GDB asks to continue
     if (cheri_debugger_on_trap)
         riscv_raise_exception(env, EXCP_DEBUG, hostpc);
+#if defined(TARGET_CHERI_RISCV_RVY)
+    bool is_write = cause == CapEx_PermitStoreViolation ||
+                    cause == CapEx_PermitStoreCapViolation ||
+                    cause == CapEx_PermitStoreLocalCapViolation;
+    if (is_instr) {
+        riscv_raise_exception(env, RISCV_EXCP_CHERI_INST, hostpc);
+    } else if (is_write) {
+        riscv_raise_exception(env, RISCV_EXCP_CHERI_STORE, hostpc);
+    } else {
+        riscv_raise_exception(env, RISCV_EXCP_CHERI_LOAD, hostpc);
+    }
+#else
     riscv_raise_exception(env, RISCV_EXCP_CHERI, hostpc);
+#endif
 }
 
 static inline void G_NORETURN raise_cheri_exception_impl(
     CPUArchState *env, CheriCapExcCause cause, unsigned regnum,
-    target_ulong addr, bool instavail, uintptr_t hostpc)
+    target_ulong addr, bool instavail, uintptr_t hostpc, bool is_instr)
 {
     uint8_t type093 = 0;
 #ifdef TARGET_CHERI_RISCV_STD_093
-    type093 = cause == CapEx_AccessSystemRegsViolation
-                  ? CapEx093_Type_InstrAccess
-                  : CapEx093_Type_Data;
+    type093 = is_instr ? CapEx093_Type_InstrAccess : CapEx093_Type_Data;
 #endif
     raise_cheri_exception_with_093_type(env, cause, type093, regnum, addr,
-                                        instavail, hostpc);
+                                        instavail, hostpc, is_instr);
 }
 
 /*
  * Raise the exception for an operation that requires the
- * Access_System_Registers permission in PCC but does not have it.
+ * Access_System_Registers permission in PCC but does not have it. RVY reports
+ * this as an illegal instruction, earlier versions as a CHERI fault.
  */
 static inline void G_NORETURN raise_access_sys_regs_exception(
     CPUArchState *env, uintptr_t retpc)
 {
+#ifdef TARGET_CHERI_RISCV_RVY
+    riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, retpc);
+#else
     raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
-                               CHERI_EXC_REGNUM_PCC, 0, true, retpc);
+                               CHERI_EXC_REGNUM_PCC, 0, true, retpc,
+                               /*is_instr=*/true);
+#endif
 }
 
 static inline void G_NORETURN raise_load_tag_exception(

@@ -88,7 +88,8 @@ static DEFINE_CHERI_STAT(misc);
         if (CHERI_TAG_CLEAR_ON_INVALID(env))                                   \
             _cap_valid = false;                                                \
         else                                                                   \
-            raise_cheri_exception_impl(env, cause, reg, 0, true, pc);          \
+            raise_cheri_exception_impl(env, cause, reg, 0, true, pc,           \
+                                       /*is_instr=*/false);                    \
     } while (false)
 #define GET_HOST_RETPC_IF_TRAPPING_CHERI_ARCH() GET_HOST_RETPC()
 

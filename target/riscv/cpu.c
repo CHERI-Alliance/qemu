@@ -121,12 +121,16 @@ static const char * const riscv_excp_names[] = {
     "reserved",
     "guest_store_page_fault",
     // 24-31 Reserved for custom use
-#ifdef TARGET_CHERI
+#if defined(TARGET_CHERI_RISCV_RVY)
+    [RISCV_EXCP_CHERI_INST] = "cheri_instruction_access_fault",
+    [RISCV_EXCP_CHERI_LOAD] = "cheri_load_access_fault",
+    [RISCV_EXCP_CHERI_STORE] = "cheri_store_amo_access_fault",
+#elif defined(TARGET_CHERI)
 #if !defined(TARGET_RISCV32) && !defined(TARGET_CHERI_RISCV_STD_093)
     [RISCV_EXCP_LOAD_CAP_PAGE_FAULT] = "load_cap_page_fault",
     [RISCV_EXCP_STORE_AMO_CAP_PAGE_FAULT] = "store_cap_page_fault",
 #endif
-    [RISCV_EXCP_CHERI] = "cheri_fault"
+    [RISCV_EXCP_CHERI] = "cheri_fault",
 #endif
     // 32–47 Reserved for future standard use
     // 48-63 Reserved for custom use

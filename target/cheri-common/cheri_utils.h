@@ -609,13 +609,14 @@ int gdb_get_general_purpose_capreg(GByteArray *buf, CPUArchState *env,
                                    unsigned regnum);
 
 #define raise_cheri_exception(env, cause, reg)                                 \
-    raise_cheri_exception_impl(env, cause, reg, 0, true, _host_return_address)
+    raise_cheri_exception_impl(env, cause, reg, 0, true, _host_return_address, \
+                               /*is_instr=*/false)
 
 #define raise_cheri_exception_addr(env, cause, reg, addr)                      \
     raise_cheri_exception_impl(env, cause, reg, addr, true,                    \
-                               _host_return_address)
+                               _host_return_address, /*is_instr=*/false)
 
-#ifdef TARGET_AARCH64
+#if defined(TARGET_AARCH64)
 #define raise_cheri_exception_if(env, cause, addr, reg)                        \
     raise_cheri_exception_impl_if_wnr(env, cause, reg, addr, true, /*pc=*/0,   \
                                       true, false)
@@ -627,10 +628,11 @@ int gdb_get_general_purpose_capreg(GByteArray *buf, CPUArchState *env,
 #define raise_cheri_exception_if(env, cause, addr, reg)                        \
     raise_cheri_exception_with_093_type(env, cause, CapEx093_Type_InstrAccess, \
                                         reg, addr, /*instavail=*/true,         \
-                                        /*pc=*/0)
+                                        /*pc=*/0, /*is_instr=*/true)
 #else
 #define raise_cheri_exception_if(env, cause, addr, reg)                        \
-    raise_cheri_exception_impl(env, cause, reg, addr, true, /*pc=*/0)
+    raise_cheri_exception_impl(env, cause, reg, addr, true, /*pc=*/0,          \
+                               /*is_instr=*/true)
 #endif
 #define raise_cheri_exception_addr_wnr(env, cause, reg, addr, is_write)        \
     raise_cheri_exception_addr(env, cause, reg, addr)
@@ -639,15 +641,15 @@ int gdb_get_general_purpose_capreg(GByteArray *buf, CPUArchState *env,
 #ifdef TARGET_CHERI_RISCV_STD_093
 #define raise_cheri_exception_branch_impl(env, cause, reg, addr, retpc)        \
     raise_cheri_exception_with_093_type(env, cause, CapEx093_Type_Branch, reg, \
-                                        addr, /*instavail=*/true, retpc)
+                                        addr, /*instavail=*/true, retpc,       \
+                                        /*is_instr=*/true)
+#else
+#define raise_cheri_exception_branch_impl(env, cause, reg, addr, retpc)        \
+    raise_cheri_exception_impl(env, cause, reg, addr, true, retpc,             \
+                               /*is_instr=*/true)
+#endif
 #define raise_cheri_exception_branch(env, cause, reg)                          \
     raise_cheri_exception_branch_impl(env, cause, reg, 0, _host_return_address)
-#else
-#define raise_cheri_exception_branch(env, cause, reg)                          \
-    raise_cheri_exception(env, cause, reg)
-#define raise_cheri_exception_branch_impl(env, cause, reg, addr, retpc)        \
-    raise_cheri_exception_impl(env, cause, reg, addr, true, retpc)
-#endif
 
 static inline void cap_set_cursor(cap_register_t *cap, uint64_t new_addr)
 {

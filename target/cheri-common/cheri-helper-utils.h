@@ -139,7 +139,7 @@ do_exception:
     raise_cheri_exception_impl_if_wnr(env, cause, regnum, addr, true, pc, false,
                                       !!(perm & CAP_PERM_STORE));
 #else
-    raise_cheri_exception_impl(env, cause, regnum, addr, true, pc);
+    raise_cheri_exception_impl(env, cause, regnum, addr, true, pc, false);
 #endif
 }
 

@@ -877,7 +877,19 @@ static const uint64_t vs_delegable_ints = VS_MODE_INTERRUPTS;
 static const uint64_t all_ints = M_MODE_INTERRUPTS | S_MODE_INTERRUPTS |
                                      HS_MODE_INTERRUPTS;
 
-#ifdef TARGET_CHERI
+#if defined(TARGET_CHERI_RISCV_RVY)
+#ifdef TARGET_RISCV64
+#define CHERI_DELEGABLE_EXCPS                                                  \
+    ((1ULL << (RISCV_EXCP_CHERI_INST)) | (1ULL << (RISCV_EXCP_CHERI_LOAD)) |   \
+     (1ULL << (RISCV_EXCP_CHERI_STORE)) |                                      \
+     (1ULL << (RISCV_EXCP_LOAD_CAP_PAGE_FAULT)) |                              \
+     (1ULL << (RISCV_EXCP_STORE_AMO_CAP_PAGE_FAULT)))
+#else
+#define CHERI_DELEGABLE_EXCPS                                                  \
+    ((1ULL << (RISCV_EXCP_LOAD_CAP_PAGE_FAULT)) |                              \
+     (1ULL << (RISCV_EXCP_STORE_AMO_CAP_PAGE_FAULT)))
+#endif
+#elif defined(TARGET_CHERI)
 #if !defined(TARGET_RISCV32) && !defined(TARGET_CHERI_RISCV_STD_093)
 #define CHERI_DELEGABLE_EXCPS ( \
         (1ULL << (RISCV_EXCP_LOAD_CAP_PAGE_FAULT)) | \
@@ -3909,7 +3921,7 @@ RISCVException riscv_csrrw_check(CPURISCVState *env, int csrno,
         if (env->debugger) {
             return RISCV_EXCP_INST_ACCESS_FAULT;
         }
-        return RISCV_EXCP_CHERI;
+        return RISCV_EXCP_CHERI_ASR;
 #endif
     }
 #endif // TARGET_CHERI
@@ -3932,7 +3944,7 @@ static RISCVException riscv_csrrw_do64(CPURISCVState *env, int csrno,
     ret = riscv_csrrw_check(env, csrno, write_mask, cpu);
     if (ret != RISCV_EXCP_NONE) {
 #ifdef TARGET_CHERI
-        if (ret == RISCV_EXCP_CHERI)
+        if (ret == RISCV_EXCP_CHERI_ASR)
             raise_access_sys_regs_exception(env, retpc);
 #endif
         return ret;
