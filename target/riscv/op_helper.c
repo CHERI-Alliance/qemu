@@ -274,7 +274,7 @@ void helper_cbo_zero_cap(CPURISCVState *env, uint32_t addr_reg)
     address &= ~(cbozlen - 1);
 
     if (!cap_is_in_bounds(auth_cap, address, cbozlen)) {
-        raise_cheri_exception_wnr(env, CapEx_LengthViolation, addr_reg, true);
+        raise_cheri_exception_wnr(env, CapEx_LengthViolation, auth_reg, true);
     }
 
     do_cbo_zero(env, address, _host_return_address);
@@ -380,9 +380,9 @@ void helper_cbo_clean_flush_cap(CPURISCVState *env, uint32_t addr_reg)
     /* Mask off low-bits to align-down to the cache-block. */
     address &= ~(cbomlen - 1);
 
-    /* Check if any of the bytes are outside the bounds */
-    if ((cap_get_top_full(auth_cap) < address) ||
-        (cap_get_base(auth_cap) > (address + cbomlen))) {
+    /* CBO.CLEAN/CBO.FLUSH only fault if all bytes are outside the bounds. */
+    if ((cap_get_top_full(auth_cap) <= address) ||
+        (cap_get_base(auth_cap) >= (cap_length_t)address + cbomlen)) {
         raise_cheri_exception_wnr(env, CapEx_LengthViolation, auth_reg, true);
     }
     check_zicbom_access(env, address, _host_return_address);
@@ -434,11 +434,18 @@ void helper_cbo_inval_cap(CPURISCVState *env, uint32_t addr_reg)
     /* Mask off low-bits to align-down to the cache-block. */
     address &= ~(cbomlen - 1);
 
-    /* Check if any of the bytes are outside the bounds */
-    if ((cap_get_top_full(auth_cap) < address) ||
-        (cap_get_base(auth_cap) > (address + cbomlen))) {
-        raise_cheri_exception_wnr(env, CapEx_LengthViolation, addr_reg, true);
+#ifdef TARGET_CHERI_RISCV_RVY
+    /* RVY: CBO.INVAL faults if any byte of the block is out of bounds. */
+    if (!cap_is_in_bounds(auth_cap, address, cbomlen)) {
+        raise_cheri_exception_wnr(env, CapEx_LengthViolation, auth_reg, true);
     }
+#else
+    /* Check that not all of the bytes are outside the bounds */
+    if ((cap_get_top_full(auth_cap) <= address) ||
+        (cap_get_base(auth_cap) >= (cap_length_t)address + cbomlen)) {
+        raise_cheri_exception_wnr(env, CapEx_LengthViolation, auth_reg, true);
+    }
+#endif
     check_zicbom_access(env, address, _host_return_address);
 }
 #endif
