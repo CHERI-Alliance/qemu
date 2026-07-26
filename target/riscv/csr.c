@@ -3933,8 +3933,7 @@ static RISCVException riscv_csrrw_do64(CPURISCVState *env, int csrno,
     if (ret != RISCV_EXCP_NONE) {
 #ifdef TARGET_CHERI
         if (ret == RISCV_EXCP_CHERI)
-            raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
-                                       /*regnum=*/0, 0, true, retpc);
+            raise_access_sys_regs_exception(env, retpc);
 #endif
         return ret;
     }

@@ -408,8 +408,7 @@ void helper_cbo_inval_cap(CPURISCVState *env, uint32_t addr_reg)
     uint32_t auth_reg = cheri_in_capmode(env) ? addr_reg : CHERI_EXC_REGNUM_DDC;
     const cap_register_t *auth_cap = get_capreg_or_special(env, auth_reg);
     if (!cheri_have_access_sysregs(env)) {
-        raise_cheri_exception(env, CapEx_AccessSystemRegsViolation,
-                              CHERI_EXC_REGNUM_PCC);
+        raise_access_sys_regs_exception(env, _host_return_address);
     }
     if (!auth_cap->cr_tag) {
         raise_cheri_exception(env, CapEx_TagViolation, auth_reg);
@@ -449,8 +448,7 @@ target_ulong helper_sret(CPURISCVState *env)
     }
 #ifdef TARGET_CHERI
     if (!cheri_have_access_sysregs(env)) {
-        raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
-                                   CHERI_EXC_REGNUM_PCC, 0, true, GETPC());
+        raise_access_sys_regs_exception(env, GETPC());
     }
 #endif
 
@@ -523,8 +521,7 @@ target_ulong helper_mret(CPURISCVState *env)
     }
 #ifdef TARGET_CHERI
     if (!cheri_have_access_sysregs(env)) {
-        raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
-                                   CHERI_EXC_REGNUM_PCC, 0, true, GETPC());
+        raise_access_sys_regs_exception(env, GETPC());
     }
 #endif
 
