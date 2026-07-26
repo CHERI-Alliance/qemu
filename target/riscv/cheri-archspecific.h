@@ -75,6 +75,17 @@ static inline void G_NORETURN raise_cheri_exception_impl(
                                         instavail, hostpc);
 }
 
+/*
+ * Raise the exception for an operation that requires the
+ * Access_System_Registers permission in PCC but does not have it.
+ */
+static inline void G_NORETURN raise_access_sys_regs_exception(
+    CPUArchState *env, uintptr_t retpc)
+{
+    raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
+                               CHERI_EXC_REGNUM_PCC, 0, true, retpc);
+}
+
 static inline void G_NORETURN raise_load_tag_exception(
     CPUArchState *env, target_ulong va, int cb, uintptr_t retpc)
 {
