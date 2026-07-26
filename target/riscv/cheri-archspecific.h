@@ -59,7 +59,20 @@ static inline void G_NORETURN raise_cheri_exception_with_093_type(
     // this breakpoint when GDB asks to continue
     if (cheri_debugger_on_trap)
         riscv_raise_exception(env, EXCP_DEBUG, hostpc);
+#if defined(TARGET_CHERI_RISCV_RVY)
+    cheri_debug_assert(access != CHERI_ACCESS_OTHER);
+    unsigned excp;
+    if (access == CHERI_ACCESS_STORE || access == CHERI_ACCESS_RMW) {
+        excp = RISCV_EXCP_CHERI_STORE;
+    } else if (access == CHERI_ACCESS_LOAD) {
+        excp = RISCV_EXCP_CHERI_LOAD;
+    } else {
+        excp = RISCV_EXCP_CHERI_INST;
+    }
+    riscv_raise_exception(env, excp, hostpc);
+#else
     riscv_raise_exception(env, RISCV_EXCP_CHERI, hostpc);
+#endif
 }
 
 static inline void G_NORETURN raise_cheri_exception_impl(
@@ -78,14 +91,19 @@ static inline void G_NORETURN raise_cheri_exception_impl(
 
 /*
  * Raise the exception for an operation that requires the
- * Access_System_Registers permission in PCC but does not have it.
+ * Access_System_Registers permission in PCC but does not have it. RVY reports
+ * this as an illegal instruction, earlier versions as a CHERI fault.
  */
 static inline void G_NORETURN raise_access_sys_regs_exception(
     CPUArchState *env, uintptr_t retpc)
 {
+#ifdef TARGET_CHERI_RISCV_RVY
+    riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, retpc);
+#else
     raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
                                CHERI_EXC_REGNUM_PCC, 0, true, retpc,
                                CHERI_ACCESS_FETCH);
+#endif
 }
 
 static inline void G_NORETURN raise_load_tag_exception(
