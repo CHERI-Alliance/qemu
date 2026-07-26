@@ -411,9 +411,6 @@ void helper_cbo_inval_cap(CPURISCVState *env, uint32_t addr_reg)
     check_zicbo_envcfg(env, MENVCFG_CBIE, _host_return_address);
     uint32_t auth_reg = cheri_in_capmode(env) ? addr_reg : CHERI_EXC_REGNUM_DDC;
     const cap_register_t *auth_cap = get_capreg_or_special(env, auth_reg);
-    if (!cheri_have_access_sysregs(env)) {
-        raise_access_sys_regs_exception(env, _host_return_address);
-    }
     uint16_t cbomlen = cpu->cfg.cbom_blocksize;
     /* Mask off low-bits to align-down to the cache-block. */
     target_ulong address = get_capreg_cursor(env, addr_reg) & ~(cbomlen - 1);
@@ -430,6 +427,10 @@ void helper_cbo_inval_cap(CPURISCVState *env, uint32_t addr_reg)
     if (cap_has_invalid_perms_encoding(env, auth_cap)) {
         raise_cheri_exception_addr(env, CapEx_UserDefViolation, auth_reg,
                                    address);
+    }
+    /* 0.9.3 checks ASR after tag/seal/store permissions. */
+    if (!cheri_have_access_sysregs(env)) {
+        raise_access_sys_regs_exception(env, _host_return_address);
     }
 
     /* 0.9.3: CBO.INVAL only faults if all bytes are out of bounds. */
