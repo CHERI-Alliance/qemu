@@ -899,6 +899,7 @@ static char *custom_riscv_isa_string(RISCVCPU *cpu, bool is_32_bit)
         { &cpu->cfg.ext_icboz, "_zicboz" },
 #if defined(TARGET_CHERI_RISCV_STD_093)
         { &cpu->cfg.ext_zish4add, "_zish4add" },
+        { &cpu->cfg.ext_zylevels1, "_zcherilevels" },
 #endif
         { &cpu->cfg.ext_zihintpause, "_zihintpause" },
         { &cpu->cfg.ext_zba, "_zba" },
