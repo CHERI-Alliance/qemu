@@ -1016,8 +1016,9 @@ static void create_fdt_socket_cpus(HobgoblinState *s, int socket,
         qemu_fdt_setprop(mc->fdt, cpu_name, "tlb-split", NULL, 0);
 
         qemu_fdt_setprop_cell(mc->fdt, cpu_name, "riscv,cbom-block-size", CACHE_LINE_SIZE);
-        // qemu_fdt_setprop_cell(mc->fdt, cpu_name, "riscv,cbop-block-size", CACHE_LINE_SIZE);
         qemu_fdt_setprop_cell(mc->fdt, cpu_name, "riscv,cboz-block-size", CACHE_LINE_SIZE);
+        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "riscv,cbop-block-size",
+                              CACHE_LINE_SIZE);
 
         qemu_fdt_setprop_string(mc->fdt, cpu_name, "compatible", "riscv");
         qemu_fdt_setprop_string(mc->fdt, cpu_name, "status", "okay");
