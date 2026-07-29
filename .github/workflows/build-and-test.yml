@@ -29,6 +29,8 @@ jobs:
               ninja-build \
               pkgconf \
               libglib2.0-dev \
+              libcap-ng-dev \
+              libattr-dev \
               libfdt-dev \
               libslirp-dev \
               libpixman-1-dev
@@ -39,6 +41,7 @@ jobs:
           cd build
           ../configure \
             --enable-werror \
+            --enable-virtfs \
             --disable-docs \
             --enable-fdt=system \
             --enable-slirp=system \
