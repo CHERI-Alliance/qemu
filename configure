@@ -496,6 +496,7 @@ gnu/kfreebsd)
 ;;
 freebsd)
   bsd="yes"
+  freebsd="yes"
   make="${MAKE-gmake}"
   # needed for kinfo_getvmmap(3) in libutil.h
 ;;
@@ -2489,6 +2490,10 @@ fi
 
 if test "$darwin" = "yes" ; then
   echo "CONFIG_DARWIN=y" >> $config_host_mak
+fi
+
+if test "$freebsd" = "yes" ; then
+  echo "CONFIG_FREEBSD=y" >> $config_host_mak
 fi
 
 if test "$solaris" = "yes" ; then
