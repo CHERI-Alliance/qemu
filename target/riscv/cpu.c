@@ -1248,11 +1248,7 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
 #ifdef TARGET_CHERI_RISCV_V9
         /* Non-standard extensions present */
         set_misa(env, env->misa_mxl, env->misa_ext | RV('X'));
-        riscv_set_feature(env, RISCV_FEATURE_CHERI_HYBRID);
 #elif defined(TARGET_CHERI_RISCV_STD)
-        if (cpu->cfg.ext_zyhybrid) {
-            riscv_set_feature(env, RISCV_FEATURE_CHERI_HYBRID);
-        }
         /* Temporary compatibility for scripts that uses cheri_levels=2 */
         if (cpu->cfg._compat_cheri_levels != 0) {
             if (cpu->cfg._compat_cheri_levels == 1) {

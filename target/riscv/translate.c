@@ -1542,7 +1542,11 @@ static void riscv_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 #ifdef TARGET_CHERI_RISCV_V9
     ctx->cheri_v9_semantics = cpu->cfg.ext_cheri_v9;
 #endif
-    ctx->hybrid = riscv_feature(env, RISCV_FEATURE_CHERI_HYBRID);
+#ifdef TARGET_CHERI_RISCV_STD
+    ctx->hybrid = env_archcpu(env)->cfg.ext_zyhybrid;
+#else
+    ctx->hybrid = false;
+#endif
     ctx->cre = riscv_cpu_mode_cre(env);
 #endif
     ctx->priv_ver = env->priv_ver;

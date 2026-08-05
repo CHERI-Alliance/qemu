@@ -919,10 +919,11 @@ static char *custom_riscv_isa_string(RISCVCPU *cpu, bool is_32_bit)
     if (riscv_feature(&cpu->env, RISCV_FEATURE_CHERI)) {
         g_string_append(result, "_zcheripurecap");
     }
-    if (riscv_feature(&cpu->env, RISCV_FEATURE_CHERI_HYBRID)) {
+#ifdef TARGET_CHERI_RISCV_STD
+    if (cpu->cfg.ext_zyhybrid) {
         g_string_append(result, "_zcherihybrid");
     }
-
+#endif
     return g_string_free(result, FALSE);
 }
 
