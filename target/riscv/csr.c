@@ -480,8 +480,9 @@ static RISCVException epmp(CPURISCVState *env, int csrno)
 static RISCVException epmp_or_cheri093(CPURISCVState *env, int csrno)
 {
 #ifdef TARGET_CHERI_RISCV_STD_093
+    RISCVCPU *cpu = env_archcpu(env);
     /* For 0.9.3 the CHERI enable/disable bits are in mseccfg. */
-    if (riscv_feature(env, RISCV_FEATURE_CHERI)) {
+    if (cpu->cfg.ext_cheri) {
         return RISCV_EXCP_NONE; /* NOTE: ASR is checked after calling this. */
     }
 #endif
