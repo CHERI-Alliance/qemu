@@ -203,10 +203,12 @@ static const VMStateDescription vmstate_rv128 = {
 
 static bool stid_needed(void *opaque)
 {
-    RISCVCPU *cpu = opaque;
-    CPURISCVState *env = &cpu->env;
-
-    return riscv_feature(env, RISCV_FEATURE_STID);
+    /* currently the stid feature is directly tied to cheri support */
+#ifdef TARGET_CHERI
+    return true;
+#else
+    return false;
+#endif
 }
 
 static const VMStateDescription vmstate_threadid = {

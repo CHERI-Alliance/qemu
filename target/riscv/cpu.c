@@ -1263,7 +1263,6 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
         cpu->cfg.lvbits = (uint8_t)cpu->cfg.ext_zylevels1;
 #endif
     }
-    riscv_set_feature(env, RISCV_FEATURE_STID);
 #endif
 #ifndef CONFIG_USER_ONLY
     if (cpu->cfg.pmu_num) {

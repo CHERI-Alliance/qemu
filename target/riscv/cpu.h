@@ -95,7 +95,6 @@ enum {
     RISCV_FEATURE_EPMP,
     RISCV_FEATURE_MISA,
     RISCV_FEATURE_DEBUG,
-    RISCV_FEATURE_STID,
 };
 
 /* Privileged specification version */

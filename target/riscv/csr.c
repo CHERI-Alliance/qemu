@@ -3839,10 +3839,6 @@ static RISCVException write_upmbase(CPURISCVState *env, int csrno,
 #ifndef TARGET_CHERI
 static RISCVException stid(CPURISCVState *env, int csrno)
 {
-    if (riscv_feature(env, RISCV_FEATURE_STID)) {
-        return RISCV_EXCP_NONE;
-    }
-
     return RISCV_EXCP_ILLEGAL_INST;
 }
 /* Thread ID (Zstid) */
