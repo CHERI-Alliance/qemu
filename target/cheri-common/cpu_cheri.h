@@ -104,7 +104,7 @@ static inline bool cheri_in_capmode(CPUArchState *env)
 {
 #ifdef TARGET_RISCV
 #ifdef TARGET_CHERI_RISCV_STD
-    if (!riscv_feature(env, RISCV_FEATURE_CHERI_HYBRID)) {
+    if (!env_archcpu(env)->cfg.ext_zyhybrid) {
         return true;
     }
 #endif

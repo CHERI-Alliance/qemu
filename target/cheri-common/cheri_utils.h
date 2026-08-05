@@ -201,7 +201,7 @@ static inline bool fix_up_exec_mode(G_GNUC_UNUSED CPUArchState *env,
 {
     /* ACPERM rules M=1 X=0 reserved */
     if (*mode == 1) {
-        bool hybrid_support = riscv_feature(env, RISCV_FEATURE_CHERI_HYBRID);
+        bool hybrid_support = env_archcpu(env)->cfg.ext_zyhybrid;
         if (!(perms & RVY_AP_X) || !hybrid_support) {
             *mode = 0;
             return true;
@@ -569,7 +569,7 @@ static inline void set_max_perms_capability(G_GNUC_UNUSED CPUArchState *env,
      * If hybrid mode is supported, the infinite capability has to set integer
      * pointer mode (M = 1).
      */
-    CAP_CC(Mode) m = riscv_feature(env, RISCV_FEATURE_CHERI_HYBRID)
+    CAP_CC(Mode) m = env_archcpu(env)->cfg.ext_zyhybrid
                          ? CAP_CC(MODE_INT)
                          : CAP_CC(MODE_CAP);
     uint8_t lvbits = env_archcpu(env)->cfg.lvbits;

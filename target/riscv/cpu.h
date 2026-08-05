@@ -96,7 +96,6 @@ enum {
     RISCV_FEATURE_MISA,
     RISCV_FEATURE_DEBUG,
     RISCV_FEATURE_CHERI,
-    RISCV_FEATURE_CHERI_HYBRID,
     RISCV_FEATURE_STID,
 };
 
@@ -1161,7 +1160,7 @@ static inline bool riscv_cpu_mode_cre(CPURISCVState *env)
      * CRE bits are defined only if Zcherihybrid is supported.
      * For Zcheripurecap, cheri register access is always allowed.
      */
-    if (!riscv_feature(env, RISCV_FEATURE_CHERI_HYBRID)) {
+    if (!env_archcpu(env)->cfg.ext_zyhybrid) {
         return true;
     }
 
