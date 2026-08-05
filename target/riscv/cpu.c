@@ -1244,7 +1244,6 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
             error_setg(errp, "J extension is not supported on Cheri systems.");
             return;
         }
-        riscv_set_feature(env, RISCV_FEATURE_CHERI);
 #ifdef TARGET_CHERI_RISCV_V9
         /* Non-standard extensions present */
         set_misa(env, env->misa_mxl, env->misa_ext | RV('X'));
