@@ -105,6 +105,7 @@ static void txfifo_reset(XilinxSPI *s)
 
     s->regs[R_SPISR] &= ~SR_TX_FULL;
     s->regs[R_SPISR] |= SR_TX_EMPTY;
+    s->regs[R_TX_FF_OCY] = 0;
 }
 
 static void rxfifo_reset(XilinxSPI *s)
@@ -113,6 +114,7 @@ static void rxfifo_reset(XilinxSPI *s)
 
     s->regs[R_SPISR] |= SR_RX_EMPTY;
     s->regs[R_SPISR] &= ~SR_RX_FULL;
+    s->regs[R_RX_FF_OCY] = 0;
 }
 
 static void xlx_spi_update_cs(XilinxSPI *s)
@@ -226,6 +228,20 @@ spi_read(void *opaque, hwaddr addr, unsigned int size)
         r = s->regs[addr];
         break;
 
+    case R_TX_FF_OCY:
+        r = fifo8_num_used(&s->tx_fifo);
+        if (r) {
+            r--;
+        }
+        break;
+
+    case R_RX_FF_OCY:
+        r = fifo8_num_used(&s->rx_fifo);
+        if (r) {
+            r--;
+        }
+        break;
+
     default:
         if (addr < ARRAY_SIZE(s->regs)) {
             r = s->regs[addr];
@@ -300,6 +316,10 @@ spi_write(void *opaque, hwaddr addr,
         if (!(value & R_SPICR_MTI)) {
             spi_flush_txfifo(s);
         }
+        break;
+    case R_TX_FF_OCY:
+    case R_RX_FF_OCY:
+        /* Writes have no effect */
         break;
 
     default:
