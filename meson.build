@@ -2691,11 +2691,14 @@ if have_system
     elif targetos == 'darwin'
       slirp_deps = cc.find_library('resolv')
     endif
+    # Must match the version of the slirp submodule not meson.project_version()
+    # (QEMU's own version): net/slirp.c uses SLIRP_CHECK_VERSION() to pick which
+    # libslirp API the vendored sources actually implement.
     slirp_conf = configuration_data()
-    slirp_conf.set('SLIRP_MAJOR_VERSION', meson.project_version().split('.')[0])
-    slirp_conf.set('SLIRP_MINOR_VERSION', meson.project_version().split('.')[1])
-    slirp_conf.set('SLIRP_MICRO_VERSION', meson.project_version().split('.')[2])
-    slirp_conf.set_quoted('SLIRP_VERSION_STRING', meson.project_version())
+    slirp_conf.set('SLIRP_MAJOR_VERSION', '4')
+    slirp_conf.set('SLIRP_MINOR_VERSION', '7')
+    slirp_conf.set('SLIRP_MICRO_VERSION', '0')
+    slirp_conf.set_quoted('SLIRP_VERSION_STRING', '4.7.0')
     slirp_cargs = ['-DG_LOG_DOMAIN="Slirp"']
     slirp_files = [
       'slirp/src/arp_table.c',
