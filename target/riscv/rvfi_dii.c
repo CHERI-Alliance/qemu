@@ -19,6 +19,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
+#include "exec/tb-flush.h"
 #include "exec/log_instr.h"
 #include "qemu/cutils.h"
 #include "sysemu/cpus.h"

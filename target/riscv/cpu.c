@@ -45,7 +45,7 @@
 #include "monitor/monitor.h"
 
 #include "helper_utils.h"
-
+#include "exec/tb-flush.h"
 #ifdef TARGET_CHERI
 #include "cheri-lazy-capregs.h"
 #endif

@@ -840,7 +840,6 @@ static inline void gen_reg_modified_cap(DisasContext *ctx, int regnum)
         gen_cap_get_cursor(ctx, regnum, cursor);
         gen_rvfi_dii_set_field_const_i8(INTEGER, rd_addr, regnum);
         gen_rvfi_dii_set_field_zext_tl(INTEGER, rd_wdata, cursor);
-        tcg_temp_free(cursor);
     }
 #endif
 }
