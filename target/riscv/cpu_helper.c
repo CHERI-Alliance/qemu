@@ -798,10 +798,6 @@ void riscv_cpu_set_mode(CPURISCVState *env, target_ulong newpriv)
 #endif
 }
 
-#ifdef CONFIG_RVFI_DII
-extern bool rvfi_debug_output;
-#endif
-
 #ifndef RISCV_PTE_TRAPPY
 /*
  * The PTW logic below supports trapping on any subset of PTE_A, PTE_D, PTE_CD

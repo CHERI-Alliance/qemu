@@ -265,11 +265,11 @@ void rvfi_dii_communicate(CPUState *cs, struct CPUArchState *env, bool was_trap)
         CHECK_SAME_TYPE(                                                       \
             typeof(((CPURISCVState *)NULL)->rvfi_dii_trace.type.rvfi_##field), \
             uint##n##_t, "Should only be used for uint64_t fields");           \
-        TCGv_i64 rvfi_tc = tcg_const_i64(constant);                            \
+        TCGv_i64 rvfi_tc = tcg_temp_new_i64();                                 \
+        tcg_gen_movi_i64(rvfi_tc, constant);                            \
         tcg_gen_##st_op(rvfi_tc, cpu_env, rvfi_dii_offset(type, field));       \
         tcg_gen_ori_i32(cpu_rvfi_available_fields, cpu_rvfi_available_fields,  \
                         RVFI_##type##_DATA);                                   \
-        tcg_temp_free_i64(rvfi_tc);                                            \
     } while (0)
 #define gen_rvfi_dii_set_field_const_i8(type, field, constant)                 \
     gen_rvfi_dii_set_field_const_iN(8, st8_i64, type, field, constant)
@@ -285,7 +285,6 @@ void rvfi_dii_communicate(CPUState *cs, struct CPUArchState *env, bool was_trap)
         TCGv_i64 tmp = tcg_temp_new_i64();                                     \
         tcg_gen_extu_i32_i64(tmp, arg);                                        \
         gen_rvfi_dii_set_field(type, field, tmp);                              \
-        tcg_temp_free_i64(tmp);                                                \
     } while (0)
 #if TARGET_LONG_BITS == 32
 #define gen_rvfi_dii_set_field_zext_tl(type, field, arg)                       \
@@ -300,7 +299,6 @@ void rvfi_dii_communicate(CPUState *cs, struct CPUArchState *env, bool was_trap)
         TCGv_i64 tmp = tcg_temp_new_i64();                                     \
         tcg_gen_extu_tl_i64(tmp, (TCGv)arg);                                   \
         gen_rvfi_dii_set_field(type, field, tmp);                              \
-        tcg_temp_free_i64(tmp);                                                \
     } while (0)
 #define gen_rvfi_dii_set_mem_data(rw, addr, val, memop, extend_to_i64)         \
     do {                                                                       \
@@ -311,7 +309,6 @@ void rvfi_dii_communicate(CPUState *cs, struct CPUArchState *env, bool was_trap)
         gen_rvfi_dii_set_field(MEM, mem_##rw##data[0], tmp);                   \
         gen_rvfi_dii_set_field_const_i32(MEM, mem_##rw##mask,                  \
                                          memop_rvfi_mask(memop));              \
-        tcg_temp_free_i64(tmp);                                                \
     } while (0)
 #define gen_rvfi_dii_set_mem_data_i32(rw, addr, val_i32, memop)                \
     gen_rvfi_dii_set_mem_data(rw, addr, val_i32, memop, tcg_gen_extu_i32_i64)
