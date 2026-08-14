@@ -3460,10 +3460,7 @@ void qemu_init(int argc, char **argv, char **envp)
                     exit(EXIT_FAILURE);
                 }
                 // Set -M virt and -m 8 Mib
-                opts = qemu_opts_parse_noisily(qemu_find_opts("machine"), "virt", true);
-                if (!opts) {
-                    exit(EXIT_FAILURE);
-                }
+                qdict_put_str(machine_opts_dict, "type", "virt");
                 opts = qemu_opts_parse_noisily(qemu_find_opts("memory"), "8M", true);
                 if (!opts) {
                     exit(EXIT_FAILURE);
