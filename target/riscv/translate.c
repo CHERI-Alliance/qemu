@@ -454,6 +454,8 @@ static void gen_set_gpri(DisasContext *ctx, int reg_num, target_long imm)
             tcg_gen_movi_tl(cpu_gprh[reg_num], -(imm < 0));
         }
 #endif
+        gen_rvfi_dii_set_field_const_i8(INTEGER, rd_addr, reg_num);
+        gen_rvfi_dii_set_field_const_i64(INTEGER, rd_wdata, imm);
     }
 }
 
