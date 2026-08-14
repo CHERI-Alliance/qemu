@@ -677,25 +677,6 @@ static void riscv_restore_state_to_opc(CPUState *cs,
     env->bins = data[1];
 }
 
-static void riscv_debug_excp_handler(CPUState *cs)
-{
-    /*
-     * Called by core code when a watchpoint or breakpoint fires;
-     * Also happens for singlestep events
-     */
-#ifdef CONFIG_RVFI_DII
-    ArchCPU *cpu = RISCV_CPU(cs);
-    CPUArchState *env = &cpu->env;
-    if (rvfi_client_fd && cs->singlestep_enabled) {
-        rvfi_dii_communicate(cs, env, false);
-        return;
-    }
-#endif
-#ifndef CONFIG_USER_ONLY
-    riscv_cpu_debug_excp_handler(cs);
-#endif
-}
-
 static void riscv_cpu_reset(DeviceState *dev)
 {
 #ifndef CONFIG_USER_ONLY
@@ -1500,7 +1481,6 @@ static const struct SysemuCPUOps riscv_sysemu_ops = {
 static const struct TCGCPUOps riscv_tcg_ops = {
     .initialize = riscv_translate_init,
     .synchronize_from_tb = riscv_cpu_synchronize_from_tb,
-    .debug_excp_handler = riscv_debug_excp_handler,
     .restore_state_to_opc = riscv_restore_state_to_opc,
 
 #ifndef CONFIG_USER_ONLY
@@ -1509,6 +1489,7 @@ static const struct TCGCPUOps riscv_tcg_ops = {
     .do_interrupt = riscv_cpu_do_interrupt,
     .do_transaction_failed = riscv_cpu_do_transaction_failed,
     .do_unaligned_access = riscv_cpu_do_unaligned_access,
+    .debug_excp_handler = riscv_cpu_debug_excp_handler,
     .debug_check_breakpoint = riscv_cpu_debug_check_breakpoint,
     .debug_check_watchpoint = riscv_cpu_debug_check_watchpoint,
 #endif /* !CONFIG_USER_ONLY */
