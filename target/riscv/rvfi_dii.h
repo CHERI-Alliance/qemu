@@ -38,6 +38,7 @@
 #define _RISCV_RVFI_DII_H
 
 #include <stdint.h>
+#include "sysemu/cpus.h"
 
 /// The old trace packet for backwards compatibility with older TestRIG versions:
 struct rvfi_dii_trace_v1 {
@@ -232,17 +233,10 @@ typedef struct rvfi_dii_command {
 #define RVFI_DII_RAM_SIZE (8 * MiB)
 #define RVFI_DII_RAM_END (RVFI_DII_RAM_START + RVFI_DII_RAM_SIZE)
 
-extern int rvfi_client_fd;
 extern bool rvfi_debug_output;
 
 struct CPUArchState;
 void rvfi_dii_communicate(CPUState *cs, struct CPUArchState *env, bool was_trap);
-
-static inline bool
-rvfi_dii_enabled(void)
-{
-    return (rvfi_client_fd != 0);
-}
 
 #define CHECK_SAME_TYPE(a, b, msg)                                             \
     _Static_assert(__builtin_types_compatible_p(a*, b*), msg)

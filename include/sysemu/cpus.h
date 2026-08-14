@@ -58,4 +58,17 @@ extern int smp_cores;
 extern int smp_threads;
 #endif
 
+#ifdef CONFIG_RVFI_DII
+extern int rvfi_client_fd;
+#endif
+
+static inline bool rvfi_dii_enabled(void)
+{
+#ifdef CONFIG_RVFI_DII
+    return (rvfi_client_fd != 0);
+#else
+    return false;
+#endif
+}
+
 #endif
