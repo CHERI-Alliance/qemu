@@ -583,22 +583,6 @@ void restore_state_to_opc(CPURISCVState *env, TranslationBlock *tb,
     env->bins = data[1];
 }
 
-static void riscv_debug_excp_handler(CPUState *cs)
-{
-    /*
-     * Called by core code when a watchpoint or breakpoint fires;
-     * Also happens for singlestep events
-     */
-#ifdef CONFIG_RVFI_DII
-    ArchCPU *cpu = RISCV_CPU(cs);
-    CPUArchState *env = &cpu->env;
-    if (rvfi_client_fd && cs->singlestep_enabled) {
-        rvfi_dii_communicate(cs, env, false);
-        return;
-    }
-#endif
-}
-
 static void riscv_cpu_reset(DeviceState *dev)
 {
 #ifndef CONFIG_USER_ONLY
@@ -1374,7 +1358,6 @@ static const struct SysemuCPUOps riscv_sysemu_ops = {
 static const struct TCGCPUOps riscv_tcg_ops = {
     .initialize = riscv_translate_init,
     .synchronize_from_tb = riscv_cpu_synchronize_from_tb,
-    .debug_excp_handler = riscv_debug_excp_handler,
 
 #ifndef CONFIG_USER_ONLY
     .tlb_fill = riscv_cpu_tlb_fill,
