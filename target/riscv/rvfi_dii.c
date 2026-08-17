@@ -211,6 +211,12 @@ void rvfi_dii_communicate(CPUState *cs, CPURISCVState *env, bool was_trap)
 #ifdef TARGET_CHERI
             /* TestRIG expects all capability registers to be max perms */
             set_max_perms_capregs(env);
+#ifdef TARGET_CHERI_RISCV_STD_093
+            /* TestRIG assumes that CHERI extensions are enabled */
+            env->mseccfg |= MSECCFG_CRE;
+            env->menvcfg |= MENVCFG_CRE;
+            env->senvcfg |= SENVCFG_CRE;
+#endif
 #endif
             cs->cflags_next_tb = (curr_cflags(cs) & ~CF_USE_ICOUNT) | 1;
             hwaddr system_ram_addr = cpu_get_phys_page_debug(cs, PC_ADDR(env));
