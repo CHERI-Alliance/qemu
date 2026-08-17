@@ -208,6 +208,15 @@ void rvfi_dii_communicate(CPUState *cs, CPURISCVState *env, bool was_trap)
             env->resetvec = RVFI_DII_RAM_START;
             /* Reset the processor (and ensure that it resets to 0x80000000) */
             cpu_reset(cs);
+#ifdef TARGET_CHERI
+            /* TestRIG expects all capability registers to be max perms */
+            set_max_perms_capregs(env);
+#ifdef TARGET_CHERI_RISCV_RVY
+            /* TestRIG assumes that CHERI extensions are enabled */
+            env->menvcfg |= MENVCFG_CRE;
+            env->senvcfg |= SENVCFG_CRE;
+#endif
+#endif
             /* FIXME: Hopefully this resets RAM? */
             qemu_system_reset(SHUTDOWN_CAUSE_HOST_SIGNAL);
             cs->cflags_next_tb = (curr_cflags(cs) & ~CF_USE_ICOUNT) | 1;
@@ -229,11 +238,6 @@ void rvfi_dii_communicate(CPUState *cs, CPURISCVState *env, bool was_trap)
             /* Flush the TCG state: */
             tb_flush(cs);
             tlb_flush(cs); /* Flush the QEMU guest->host tlb */
-
-            /* TestRIG expects all capability registers to be max perms */
-#ifdef TARGET_CHERI
-            set_max_perms_capregs(env);
-#endif
             rvfi_dii_send_trace(env, rvfi_dii_version);
             memset(&env->rvfi_dii_trace, 0, sizeof(env->rvfi_dii_trace));
             continue;
