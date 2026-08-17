@@ -1122,6 +1122,10 @@ static bool riscv_cpu_has_work(CPUState *cs)
      * Definition of the WFI instruction requires it to ignore the privilege
      * mode and delegation registers, but respect individual enables
      */
+    if (cpu->cfg.ext_smclic) {
+        return (cs->interrupt_request & CPU_INTERRUPT_CLIC) != 0;
+    }
+
     return riscv_cpu_all_pending(env) != 0;
 #else
     return true;
@@ -1911,7 +1915,12 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
     }
 
     riscv_cpu_register_gdb_regs_for_features(cs);
-
+    if (!cpu->cfg.ext_smclic &&
+        (cpu->cfg.ext_ssclic || cpu->cfg.ext_smclicconfig ||
+         cpu->cfg.ext_smclicshv)) {
+        error_setg(errp, "required smclic is not enabled");
+        return;
+    }
     qemu_init_vcpu(cs);
 #ifdef CONFIG_DEBUG_TCG
     cpu->env._pc_is_current = true;
@@ -2297,6 +2306,12 @@ static Property riscv_cpu_extensions[] = {
     DEFINE_PROP_BOOL("xtheadmempair", RISCVCPU, cfg.ext_xtheadmempair, false),
     DEFINE_PROP_BOOL("xtheadsync", RISCVCPU, cfg.ext_xtheadsync, false),
     DEFINE_PROP_BOOL("xventanacondops", RISCVCPU, cfg.ext_XVentanaCondOps, false),
+
+    /* clic - not yet ratified */
+    DEFINE_PROP_BOOL("smclic", RISCVCPU, cfg.ext_smclic, false),
+    DEFINE_PROP_BOOL("ssclic", RISCVCPU, cfg.ext_ssclic, false),
+    DEFINE_PROP_BOOL("smclicshv", RISCVCPU, cfg.ext_smclicshv, false),
+    DEFINE_PROP_BOOL("smclicconfig", RISCVCPU, cfg.ext_smclicconfig, false),
 
     /* These are experimental so mark with 'x-' */
     DEFINE_PROP_BOOL("x-zicond", RISCVCPU, cfg.ext_zicond, false),
