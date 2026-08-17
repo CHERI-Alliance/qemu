@@ -702,6 +702,10 @@ static void riscv_cpu_reset(DeviceState *dev)
 #elif defined(TARGET_CHERI_RISCV_STD_093)
     /* Need to initialize this since Type_None has a non-zero value. */
     env->last_cap_type = CapEx093_Type_None;
+#elif defined(TARGET_CHERI_RISCV_RVY) && defined(CONFIG_RVFI_DII)
+    /* TestRIG assumes that CHERI extensions are enabled */
+    env->menvcfg |= MENVCFG_Y;
+    env->senvcfg |= SENVCFG_Y;
 #endif
 
 #endif /* TARGET_CHERI */
