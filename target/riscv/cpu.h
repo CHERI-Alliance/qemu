@@ -42,6 +42,8 @@
  */
 #define TARGET_INSN_START_EXTRA_WORDS 1
 
+#define CPU_INTERRUPT_CLIC CPU_INTERRUPT_TGT_EXT_0
+
 #define RV(x) ((target_ulong)1 << (x - 'A'))
 
 /*
@@ -131,6 +133,16 @@ typedef struct PMUCTRState {
     /* Value beyond UINT32_MAX/UINT64_MAX before overflow interrupt trigger */
     target_ulong irq_overflow_left;
 } PMUCTRState;
+
+/* Target interface for CLIC device interactions */
+typedef struct RISCVCLICOps {
+    bool (*get_next_interrupt)(void *opaque);
+    bool (*is_shv_interrupt)(void *opaque, int irq);
+    bool (*is_edge_triggered)(void *opaque, int irq);
+    void (*clean_pending)(void *opaque, int irq);
+    bool (*use_jump_table)(void *opaque);
+    uint32_t (*get_exccode)(void *opaque);
+} RISCVCLICOps;
 
 struct CPUArchState {
 #ifdef TARGET_CHERI
@@ -225,6 +237,8 @@ struct CPUArchState {
     bool software_seip;
 
     uint64_t miclaim;
+    uint64_t mintstatus; /* clic-spec */
+    target_ulong mintthresh; /* clic-spec */
 
     uint64_t mie;
     uint64_t mideleg;
@@ -241,19 +255,24 @@ struct CPUArchState {
     cap_register_t stvecc;    // SCR 12 Supervisor trap code cap. (STCC)
     cap_register_t sscratchc; // SCR 14 Supervisor scratch cap. (SScratchC)
     cap_register_t sepcc;     // SCR 15 Supervisor exception PC cap. (SEPCC)
+    cap_register_t stvtc;     /* clic-spec */
 #else
     target_ulong stvec;
+    target_ulong stvt; /* clic-spec */
     target_ulong sepc;
     target_ulong sscratch;
 #endif
     target_ulong scause;
+    target_ulong sintthresh; /* clic-spec */
 
 #ifdef TARGET_CHERI
     cap_register_t mtvecc;    // SCR 28 Machine trap code cap. (MTCC)
     cap_register_t mscratchc; // SCR 30 Machine scratch cap. (MScratchC)
     cap_register_t mepcc;     // SCR 31 Machine exception PC cap. (MEPCC)
+    cap_register_t mtvtc;     /* clic-spec */
 #else
     target_ulong mtvec;
+    target_ulong mtvt; /* clic-spec */
     target_ulong mepc;
     target_ulong mscratch;
 #endif
@@ -500,6 +519,10 @@ struct CPUArchState {
     QEMUTimer *stimer; /* Internal timer for S-mode interrupt */
     QEMUTimer *vstimer; /* Internal timer for VS-mode interrupt */
     bool vstime_irq;
+
+    void *clic_opaque;            /* Opaque handle to CLIC device instance */
+    const RISCVCLICOps *clic_ops; /* Callback vtable */
+    uint32_t exccode; /* clic irq encode */
 
     hwaddr kernel_addr;
     hwaddr fdt_addr;
@@ -1106,5 +1129,50 @@ static inline bool riscv_cpu_mode_cre(CPURISCVState *env)
 #endif
 uint8_t satp_mode_max_from_map(uint32_t map);
 const char *satp_mode_str(uint8_t satp_mode, bool is_32_bit);
+
+/* Inline helper wrappers for CPU files */
+static inline bool riscv_cpu_has_clic(CPURISCVState *env)
+{
+    return env->clic_opaque;
+}
+
+static inline bool riscv_cpu_clic_get_next_interrupt(CPURISCVState *env)
+{
+    return (env->clic_ops && env->clic_ops->get_next_interrupt) ?
+           env->clic_ops->get_next_interrupt(env->clic_opaque) : false;
+}
+
+static inline bool riscv_cpu_clic_is_shv(CPURISCVState *env, int irq)
+{
+    return (env->clic_ops && env->clic_ops->is_shv_interrupt) ?
+           env->clic_ops->is_shv_interrupt(env->clic_opaque, irq) : false;
+}
+
+static inline bool riscv_cpu_clic_is_edge_triggered(CPURISCVState *env, int irq)
+{
+    return (env->clic_ops && env->clic_ops->is_edge_triggered) ?
+           env->clic_ops->is_edge_triggered(env->clic_opaque, irq) : false;
+}
+
+static inline void riscv_cpu_clic_clean_pending(CPURISCVState *env, int irq)
+{
+    if (env->clic_ops && env->clic_ops->clean_pending) {
+        env->clic_ops->clean_pending(env->clic_opaque, irq);
+    }
+}
+
+static inline bool riscv_cpu_clic_use_jump_table(CPURISCVState *env)
+{
+    return (env->clic_ops && env->clic_ops->use_jump_table) ?
+           env->clic_ops->use_jump_table(env->clic_opaque) : false;
+}
+
+static inline uint32_t riscv_cpu_clic_get_exccode(CPURISCVState *env)
+{
+    return (env->clic_ops && env->clic_ops->get_exccode) ?
+           env->clic_ops->get_exccode(env->clic_opaque) : RISCV_EXCP_NONE;
+}
+bool riscv_clic_is_clic_mode(CPURISCVState *env);
+void riscv_clic_decode_exccode(uint32_t exccode, int *mode, int *il, int *irq);
 
 #endif /* RISCV_CPU_H */

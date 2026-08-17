@@ -161,6 +161,7 @@
 #define CSR_MIE             0x304
 #define CSR_MTVEC           0x305
 #define CSR_MCOUNTEREN      0x306
+#define CSR_MTVT            0x307 /* clic-spec-draft */
 
 /* 32-bit only */
 #define CSR_MSTATUSH        0x310
@@ -171,6 +172,11 @@
 #define CSR_MCAUSE          0x342
 #define CSR_MTVAL           0x343
 #define CSR_MIP             0x344
+#define CSR_MNXTI           0x345 /* clic-spec-draft */
+#define CSR_MSCRATCHCSW     0x348 /* codasip-clic */
+#define CSR_MSCRATCHCSWL    0x349 /* codasip-clic */
+#define CSR_MINTSTATUS      0xfb1 /* clic-spec-draft */
+#define CSR_MINTTHRESH      0x347 /* clic-spec-draft */
 
 #ifdef TARGET_CHERI
 /* Machine trap setup,scratch and handling capabilities*/
@@ -203,6 +209,7 @@
 #define CSR_SIE             0x104
 #define CSR_STVEC           0x105
 #define CSR_SCOUNTEREN      0x106
+#define CSR_STVT            0x107 /* clic-spec-draft */
 
 /* Supervisor Configuration CSRs */
 #define CSR_SENVCFG         0x10A
@@ -219,6 +226,11 @@
 #define CSR_SCAUSE          0x142
 #define CSR_STVAL           0x143
 #define CSR_SIP             0x144
+#define CSR_SNXTI           0x145 /* clic-spec-draft */
+#define CSR_SSCRATCHCSW     0x148 /* codasip-clic */
+#define CSR_SSCRATCHCSWL    0x149 /* codasip-clic */
+#define CSR_SINTSTATUS      0xdb1 /* clic-spec-draft */
+#define CSR_SINTTHRESH      0x147 /* clic-spec-draft */
 
 #ifdef TARGET_CHERI
 /* Supervisor trap setup, scratch and handling */
@@ -649,6 +661,8 @@
 #define MSTATUS_GVA         0x4000000000ULL
 #define MSTATUS_MPV         0x8000000000ULL
 
+#define MSTATUS_WRITE_MASK  0x0000001f
+
 #define MSTATUS64_UXL       0x0000000300000000ULL
 #define MSTATUS64_SXL       0x0000000C00000000ULL
 
@@ -828,7 +842,18 @@ typedef enum RISCVException {
 #define RISCV_HICAUSE                            0x3f
 
 #define RISCV_EXCP_INT_FLAG                0x80000000
+/*
+ * Flags a CLIC interrupt in cs->exception_index. Must not overlap
+ * RISCV_EXCP_INT_FLAG, RISCV_CAUSE_INHV or the CLIC exccode fields below.
+ */
+#define RISCV_EXCP_CLIC                    0x20000000
+#define RISCV_EXCP_CLIC_LEVEL_SHIFT        14
+#define RISCV_EXCP_CLIC_LEVEL              (0xff << RISCV_EXCP_CLIC_LEVEL_SHIFT)
+#define RISCV_EXCP_CLIC_MODE_SHIFT         12
+#define RISCV_EXCP_CLIC_MODE               (3 << RISCV_EXCP_CLIC_MODE_SHIFT)
+#define RISCV_EXCP_CLIC_IRQ                0x00000fff
 #define RISCV_EXCP_INT_MASK                0x7fffffff
+#define RISCV_CAUSE_INHV                   0x40000000
 
 /* Interrupt causes */
 #define IRQ_U_SOFT                         0
@@ -870,6 +895,49 @@ typedef enum RISCVException {
 #define SIP_SEIP                           MIP_SEIP
 #define SIP_LCOFIP                         MIP_LCOFIP
 
+/* mintstatus */
+#define MINTSTATUS_MIL                     0xff000000 /* mil[31:24] */
+#define MINTSTATUS_SIL                     0x0000ff00 /* sil[15:8] */
+#define MINTSTATUS_UIL                     0x000000ff /* uil[7:0] */
+
+/* sintstatus */
+#define SINTSTATUS_SIL                     0x0000ff00 /* sil[15:8] */
+#define SINTSTATUS_UIL                     0x000000ff /* uil[7:0] */
+
+/* mcause */
+#define MCAUSE_INT                          ((target_ulong)1 << \
+                                             (TARGET_LONG_BITS - 1))
+#define MCAUSE_MINHV                       0x40000000 /* minhv */
+#define MCAUSE_MPP                         0x30000000 /* mpp[1:0] */
+#define MCAUSE_MPIE                        0x08000000 /* mpie */
+#define MCAUSE_MPIL                        0x00ff0000 /* mpil[7:0] */
+#define MCAUSE_EXCCODE                     0x00000fff /* exccode[11:0] */
+
+/* scause */
+#define SCAUSE_INT                         ((target_ulong)1 << \
+                                            (TARGET_LONG_BITS - 1))
+#define SCAUSE_SINHV                       0x40000000 /* sinhv */
+#define SCAUSE_SPP                         0x10000000 /* spp */
+#define SCAUSE_SPIE                        0x08000000 /* spie */
+#define SCAUSE_SPIL                        0x00ff0000 /* spil[7:0] */
+#define SCAUSE_EXCCODE                     0x00000fff /* exccode[11:0] */
+
+/* mcause & scause */
+#define XCAUSE_XPP_SHIFT                   28
+#define XCAUSE_XPIE_SHIFT                  27
+#define XCAUSE_XPIL_SHIFT                  16
+
+/* mtvec & stvec */
+#define XTVEC_MODE                         0x03
+#define XTVEC_SUBMODE                      0x3c
+#define XTVEC_FULL_MODE                    (XTVEC_MODE | XTVEC_SUBMODE)
+#define XTVEC_OBASE                        (~XTVEC_MODE)
+#define XTVEC_NBASE                        (~XTVEC_FULL_MODE)
+
+#define XTVEC_CLINT_DIRECT                 0x0
+#define XTVEC_CLINT_VECTORED               0x1
+#define XTVEC_CLIC                         0x3
+
 /* MIE masks */
 #define MIE_SEIE                           (1 << IRQ_S_EXT)
 #define MIE_UEIE                           (1 << IRQ_U_EXT)
@@ -877,6 +945,9 @@ typedef enum RISCVException {
 #define MIE_UTIE                           (1 << IRQ_U_TIMER)
 #define MIE_SSIE                           (1 << IRQ_S_SOFT)
 #define MIE_USIE                           (1 << IRQ_U_SOFT)
+
+/* mintthresh */
+#define MINTTHRESH_TH                      0xff
 
 /* General PointerMasking CSR bits */
 #define PM_ENABLE       0x00000001ULL

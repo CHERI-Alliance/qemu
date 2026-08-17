@@ -135,6 +135,12 @@ struct RISCVCPUConfig {
     bool ext_xtheadsync;
     bool ext_XVentanaCondOps;
 
+    /* Non retified clic spec */
+    bool ext_smclic;
+    bool ext_ssclic;
+    bool ext_smclicshv;
+    bool ext_smclicconfig;
+
     uint8_t pmu_num;
     char *priv_spec;
     char *user_spec;
