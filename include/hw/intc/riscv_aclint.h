@@ -46,10 +46,11 @@ typedef struct RISCVAclintMTimerState {
     qemu_irq *timer_irqs;
 } RISCVAclintMTimerState;
 
-DeviceState *riscv_aclint_mtimer_create(hwaddr addr, hwaddr size,
-    uint32_t hartid_base, uint32_t num_harts,
-    uint32_t timecmp_base, uint32_t time_base, uint32_t timebase_freq,
-    bool provide_rdtime);
+DeviceState *
+riscv_aclint_mtimer_create(hwaddr addr, hwaddr size, uint32_t hartid_base,
+                           uint32_t num_harts, uint32_t timecmp_base,
+                           uint32_t time_base, uint32_t timebase_freq,
+                           bool provide_rdtime, qemu_irq *irqs);
 
 #define TYPE_RISCV_ACLINT_SWI "riscv.aclint.swi"
 
@@ -69,7 +70,8 @@ typedef struct RISCVAclintSwiState {
 } RISCVAclintSwiState;
 
 DeviceState *riscv_aclint_swi_create(hwaddr addr, uint32_t hartid_base,
-    uint32_t num_harts, bool sswi);
+                                     uint32_t num_harts, bool sswi,
+                                     qemu_irq *irqs);
 
 enum {
     RISCV_ACLINT_DEFAULT_MTIMECMP      = 0x0,

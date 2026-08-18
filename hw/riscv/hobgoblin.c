@@ -391,7 +391,8 @@ static void hobgoblin_add_interrupt_controller(HobgoblinState *s,
     g_free(plic_hart_config);
 
     /* CLINT with SWI in M-Mode */
-    riscv_aclint_swi_create(mem_clint->base, hartid_base, num_harts, false);
+    riscv_aclint_swi_create(mem_clint->base, hartid_base, num_harts, false,
+                            NULL);
 
     /* CLINT timer */
     assert(mem_clint->size >= RISCV_ACLINT_SWI_SIZE);
@@ -403,7 +404,8 @@ static void hobgoblin_add_interrupt_controller(HobgoblinState *s,
         RISCV_ACLINT_DEFAULT_MTIMECMP,
         RISCV_ACLINT_DEFAULT_MTIME,
         CLINT_TIMEBASE_FREQ,
-        true); /* provide_rdtime */
+        true,
+        NULL); /* provide_rdtime */
 
     /* publish */
     s->plic = plic;
