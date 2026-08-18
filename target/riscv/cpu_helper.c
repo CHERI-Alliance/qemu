@@ -2453,3 +2453,27 @@ void update_special_register(CPURISCVState *env, cap_register_t *scr,
     }
 }
 #endif
+
+/*
+ * The new CLIC interrupt-handling mode is encoded as a new state in
+ * the existing WARL xtvec register, where the low two bits are 11.
+ */
+bool riscv_clic_is_clic_mode(CPURISCVState *env)
+{
+    target_ulong xtvec = (env->priv == PRV_M) ?
+        GET_SPECIAL_REG_ARCH(env, mtvec, mtvecc) :
+        GET_SPECIAL_REG_ARCH(env, stvec, stvecc);
+
+    RISCVCPU *cpu = env_archcpu(env);
+    return cpu->cfg.ext_smclic && riscv_cpu_has_clic(env) &&
+           ((xtvec & XTVEC_MODE) == XTVEC_CLIC);
+}
+
+void riscv_clic_decode_exccode(uint32_t exccode, int *mode,
+                               int *il, int *irq)
+{
+    *irq = get_field(exccode, RISCV_EXCP_CLIC_IRQ);
+    *mode = get_field(exccode, RISCV_EXCP_CLIC_MODE);
+    *il = get_field(exccode, RISCV_EXCP_CLIC_LEVEL);
+}
+
