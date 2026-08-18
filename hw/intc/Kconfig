@@ -81,6 +81,9 @@ config SIFIVE_PLIC
     bool
     select MSI_NONBROKEN
 
+config RISCV_CLIC
+    bool
+
 config GOLDFISH_PIC
     bool
 
