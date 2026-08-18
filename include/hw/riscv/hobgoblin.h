@@ -89,7 +89,8 @@ struct HobgoblinState {
     DeviceState *timer;
     DeviceState *internal_cmu;
     DeviceState *ddr_cmu[MAX_DRAM];
-
+    DeviceState *clic;
+    bool have_clic;
     int fdt_size;
 };
 
@@ -100,6 +101,7 @@ enum {
     HOBGOBLIN_BOOT_ROM,
     HOBGOBLIN_SRAM,
     HOBGOBLIN_PLIC,
+    HOBGOBLIN_CLIC,
     HOBGOBLIN_ID_REG,
     HOBGOBLIN_CLINT,
     HOBGOBLIN_ETHLITE,
