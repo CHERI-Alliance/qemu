@@ -24,6 +24,7 @@
 #include "internals.h"
 #include "pmu.h"
 #include "exec/exec-all.h"
+#include "exec/cpu_ldst.h"
 #include "exec/log_instr.h"
 #include "instmap.h"
 #include "tcg/tcg-op.h"
@@ -445,6 +446,20 @@ int riscv_cpu_vsirq_pending(CPURISCVState *env)
                                     irqs >> 1, env->hviprio);
 }
 
+static int riscv_cpu_local_irq_mode_enabled(CPURISCVState *env, int mode)
+{
+    switch (mode) {
+    case PRV_M:
+        return env->priv < PRV_M ||
+            (env->priv == PRV_M && get_field(env->mstatus, MSTATUS_MIE));
+    case PRV_S:
+        return env->priv < PRV_S ||
+            (env->priv == PRV_S && get_field(env->mstatus, MSTATUS_SIE));
+    default:
+        return false;
+    }
+}
+
 static int riscv_cpu_local_irq_pending(CPURISCVState *env)
 {
     int virq;
@@ -501,6 +516,28 @@ bool riscv_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
         int interruptno = riscv_cpu_local_irq_pending(env);
         if (interruptno >= 0) {
             cs->exception_index = RISCV_EXCP_INT_FLAG | interruptno;
+            riscv_cpu_do_interrupt(cs);
+            return true;
+        }
+    }
+    if (interrupt_request & CPU_INTERRUPT_CLIC) {
+        RISCVCPU *cpu = RISCV_CPU(cs);
+        CPURISCVState *env = &cpu->env;
+        /*
+         * The interrupt was posted against the level/threshold at the time
+         * it was raised; re-select it against the current ones, since e.g.
+         * a handler re-enabling xIE runs at the level of the interrupt that
+         * is still pending. The request stays set and is re-selected when
+         * the level drops (xret) or the CLIC state changes.
+         */
+        if (!riscv_cpu_clic_get_next_interrupt(env)) {
+            return false;
+        }
+        env->exccode = riscv_cpu_clic_get_exccode(env);
+        int mode = get_field(env->exccode, RISCV_EXCP_CLIC_MODE);
+        int enabled = riscv_cpu_local_irq_mode_enabled(env, mode);
+        if (enabled && env->exccode != RISCV_EXCP_NONE) {
+            cs->exception_index = RISCV_EXCP_CLIC | env->exccode;
             riscv_cpu_do_interrupt(cs);
             return true;
         }
@@ -1552,6 +1589,17 @@ static void raise_mmu_exception(CPURISCVState *env, target_ulong address,
     default:
         g_assert_not_reached();
     }
+    /*
+     * At this point we should now check if we were performing a CLIC vector
+     * table lookup and if so set the inhv bit in the execption index...
+     */
+    RISCVCPU *cpu = RISCV_CPU(cs);
+    if (cpu->cfg.ext_smclic) {
+        if (env->xtvt_fetch) {
+            cs->exception_index |= RISCV_CAUSE_INHV;
+            env->xtvt_fetch = false;
+        }
+    }
     if (pmp_violation) {
         /* CHERI and MMU checks passed, so we update mem_addr to match sail. */
         rvfi_dii_update_mem_addr(env, access_type, address);
@@ -2069,6 +2117,7 @@ static target_ulong riscv_transformed_insn(CPURISCVState *env,
 #endif /* !CONFIG_USER_ONLY */
 
 #ifdef TARGET_CHERI
+typedef cap_register_t cap_or_tulong;
 /* TODO(am2419): do we log PCC as a changed register? */
 #define riscv_update_pc_for_exc_handler(env, src_cap, new_pc)           \
     do {                                                                \
@@ -2076,6 +2125,7 @@ static target_ulong riscv_transformed_insn(CPURISCVState *env,
         qemu_log_instr_dbg_cap(env, "PCC", &env->pcc);                  \
     } while (false)
 #else
+typedef target_ulong cap_or_tulong;
 /*
  * TODO(am2419): We don't have a register ID for pc, move to a separate
  * logging helper that maps hwreg id to names for extra registers.
@@ -2088,6 +2138,99 @@ static target_ulong riscv_transformed_insn(CPURISCVState *env,
         qemu_log_instr_dbg_reg(env, "pc", new_pc);                             \
     } while (false)
 #endif /* TARGET_CHERI */
+
+#ifdef TARGET_RISCV64
+#define cpu_ldtl_mmuidx_ra cpu_ldq_mmuidx_ra
+#else
+#define cpu_ldtl_mmuidx_ra cpu_ldl_mmuidx_ra
+#endif
+
+static target_ulong riscv_intr_pc(CPURISCVState *env, target_ulong tvec,
+                                  cap_or_tulong tvt, bool async, int cause,
+                                  int mode, cap_or_tulong *xtvtentry,
+                                  cap_or_tulong *auth_cap)
+{
+    int mode1 = tvec & XTVEC_MODE;
+    int mode2 = tvec & XTVEC_FULL_MODE;
+
+    RISCVCPU *cpu = env_archcpu(env);
+
+    if (!async) {
+        return tvec & XTVEC_OBASE;
+    }
+    /* bits [1:0] encode mode; 0 = direct, 1 = vectored, 2 >= reserved */
+    switch (mode1) {
+    case XTVEC_CLINT_DIRECT:
+        return tvec & XTVEC_OBASE;
+    case XTVEC_CLINT_VECTORED:
+        return (tvec & XTVEC_OBASE) + cause * 4;
+    default:
+        if (cpu->cfg.ext_smclic && riscv_cpu_has_clic(env) &&
+            (mode2 == XTVEC_CLIC)) {
+            /* Non-vectored, clicintattr[i].shv = 0 || cliccfg.nvbits = 0 */
+            if ((!cpu->cfg.ext_smclicshv) ||
+                (!riscv_cpu_clic_is_shv(env, cause))) {
+                /* NBASE = mtvec[XLEN-1:6]<<6 */
+                return tvec & XTVEC_NBASE;
+            } else {
+                /*
+                 * pc := M[TBASE + XLEN/8 * exccode)] & ~1,
+                 * TBASE = mtvt[XLEN-1:6]<<6
+                 */
+                int size = TARGET_LONG_BITS / 8;
+#ifdef TARGET_CHERI
+                target_ulong tbase =
+                    (cap_get_cursor(&tvt) & XTVEC_NBASE) + size * cause;
+                /*
+                 * We expect the new PC will be inspected for cheri flags
+                 * when it is installed.
+                 * so we only need to check the vector table itself here.
+                 */
+                env->xtvt_fetch = true;
+                tvt = cap_scaddr(tbase, tvt);
+
+                uintptr_t _host_return_address = GETPC();
+                if (!tvt.cr_tag) {
+                    raise_cheri_exception(env, CapEx_TagViolation, tbase);
+                } else if (!cap_is_unsealed(&tvt)) {
+                    raise_cheri_exception(env, CapEx_SealViolation, tbase);
+                } else if (!cap_has_perms(&tvt, CAP_PERM_LOAD)) {
+                    raise_cheri_exception(env, CapEx_PermitLoadViolation,
+                                          tbase);
+                } else if (!cap_has_perms(&tvt, CAP_PERM_EXECUTE)) {
+                    raise_cheri_exception(env, CapEx_PermitExecuteViolation,
+                                          tbase);
+                }
+                if (!cap_is_in_bounds(&tvt, tbase, size)) {
+                    qemu_log_instr_or_mask_msg(
+                        env, CPU_LOG_INT,
+                        "Failed capability bounds check: addr=" TARGET_FMT_ld
+                        " base=" TARGET_FMT_lx " top=" TARGET_FMT_lx "\n",
+                        tbase, cap_get_base(&tvt), cap_get_top(&tvt));
+                    raise_cheri_exception(env, CapEx_LengthViolation, tbase);
+                }
+#else
+                env->xtvt_fetch = true;
+                target_ulong tbase = (tvt & XTVEC_NBASE) + size * cause;
+#endif
+                target_ulong new_pc = tbase;
+                if (!riscv_cpu_clic_use_jump_table(env)) {
+                    int mmu_idx = cpu_mmu_index(&cpu->env, false);
+                    new_pc = cpu_ldtl_mmuidx_ra(env, tbase, mmu_idx, GETPC());
+                    env->xtvt_fetch = false;
+#ifdef TARGET_CHERI
+                    *auth_cap = xtvtentry[new_pc & 1];
+#endif
+                }
+                if (riscv_cpu_clic_is_edge_triggered(env, cause)) {
+                    riscv_cpu_clic_clean_pending(env, cause);
+                }
+                return new_pc;
+            }
+        }
+        g_assert_not_reached();
+    }
+}
 
 /*
  * Handle Traps
@@ -2104,13 +2247,21 @@ void riscv_cpu_do_interrupt(CPUState *cs)
     bool write_gva = false;
     tcg_debug_assert(pc_is_current(env));
     uint64_t s;
+    int mode, level, irq;
 
     /*
      * cs->exception is 32-bits wide unlike mcause which is XLEN-bits wide
      * so we mask off the MSB and separate into trap type and cause.
      */
-    bool async = !!(cs->exception_index & RISCV_EXCP_INT_FLAG);
-    target_ulong cause = cs->exception_index & RISCV_EXCP_INT_MASK;
+    bool clic = !!(cs->exception_index & RISCV_EXCP_CLIC);
+    bool async = !!(cs->exception_index & RISCV_EXCP_INT_FLAG) || clic;
+    target_ulong cause =
+        cs->exception_index &
+        (RISCV_EXCP_INT_MASK & ~(RISCV_CAUSE_INHV | RISCV_EXCP_CLIC));
+    uint32_t xinhv =
+        (cs->exception_index & RISCV_CAUSE_INHV && cpu->cfg.ext_smclic)
+            ? RISCV_CAUSE_INHV
+            : 0;
     uint64_t deleg = async ? env->mideleg : env->medeleg;
     target_ulong tval = 0;
     target_ulong tinst = 0;
@@ -2223,6 +2374,28 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         }
     }
 
+    if (clic) {
+        riscv_clic_decode_exccode(cause, &mode, &level, &irq);
+        cause = irq | get_field(env->mstatus, MSTATUS_MPP) << XCAUSE_XPP_SHIFT;
+        switch (mode) {
+        case PRV_M:
+            cause |= get_field(env->mintstatus, MINTSTATUS_MIL)
+                     << XCAUSE_XPIL_SHIFT;
+            cause |= get_field(env->mstatus, MSTATUS_MIE) << XCAUSE_XPIE_SHIFT;
+            env->mintstatus = set_field(env->mintstatus, MINTSTATUS_MIL, level);
+            break;
+        case PRV_S:
+            cause |= get_field(env->mintstatus, MINTSTATUS_SIL)
+                     << XCAUSE_XPIL_SHIFT;
+            cause |= get_field(env->mstatus, MSTATUS_SPIE) << XCAUSE_XPIE_SHIFT;
+            env->mintstatus = set_field(env->mintstatus, MINTSTATUS_SIL, level);
+            break;
+        }
+    } else {
+        mode = env->priv <= PRV_S && cause < 64 &&
+            ((deleg >> cause) & 1) ? PRV_S : PRV_M;
+    }
+
     trace_riscv_trap(env->mhartid, async, cause, PC_ADDR(env), tval,
                      riscv_cpu_get_trap_name(cause, async));
 
@@ -2232,8 +2405,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
                   __func__, env->mhartid, async, cause, PC_ADDR(env), tval,
                   riscv_cpu_get_trap_name(cause, async));
 
-    if (env->priv <= PRV_S &&
-            cause < TARGET_LONG_BITS && ((deleg >> cause) & 1)) {
+    if (PRV_S == mode) {
         /* handle the trap in S-mode */
         if (riscv_has_ext(env, RVH)) {
             uint64_t hdeleg = async ? env->hideleg : env->hedeleg;
@@ -2241,7 +2413,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
             if (env->virt_enabled && ((hdeleg >> cause) & 1)) {
                 /* Trap to VS mode */
                 /*
-                 * See if we need to adjust cause. Yes if its VS mode interrupt
+                 * See if we need to adjust cause. Yes if it's VS mode interrupt
                  * no if hypervisor has delegated one of hs mode's interrupt
                  */
                 if (cause == IRQ_VS_TIMER || cause == IRQ_VS_SOFT ||
@@ -2259,7 +2431,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
                 htval = env->guest_phys_fault_addr;
 
                 riscv_cpu_set_virt_enabled(env, 0);
-            } else {
+
                 /* Trap into HS mode */
                 env->hstatus = set_field(env->hstatus, HSTATUS_SPV, false);
                 htval = env->guest_phys_fault_addr;
@@ -2274,7 +2446,10 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         s = set_field(s, MSTATUS_SIE, 0);
         env->mstatus = s;
         riscv_log_instr_csr_changed(env, CSR_MSTATUS);
-        env->scause = cause | ((target_ulong)async << (TARGET_LONG_BITS - 1));
+        if (async) {
+            cause = cause | SCAUSE_INT;
+        }
+        env->scause = cause | xinhv;
         riscv_log_instr_csr_changed(env, CSR_SCAUSE);
 
         COPY_SPECIAL_REG(env, sepc, sepcc, pc, pcc);
@@ -2301,7 +2476,23 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         target_ulong stvec = GET_SPECIAL_REG_ADDR(env, stvec, stvecc);
         target_ulong new_pc = (stvec >> 2 << 2) +
             ((async && (stvec & 3) == 1) ? cause * 4 : 0);
-        riscv_update_pc_for_exc_handler(env, &env->stvecc, new_pc);
+        cap_or_tulong *tvtentry = NULL;
+#ifdef TARGET_CHERI
+        tvtentry = &env->stvtentryc[0];
+        cap_register_t auth_cap = env->stvecc;
+        cap_register_t stvt = env->stvtc;
+#else
+        target_ulong auth_cap = 0;
+        target_ulong stvt = env->stvt;
+#endif
+
+        new_pc = riscv_intr_pc(env, stvec, stvt, async, cause & SCAUSE_EXCCODE,
+                               PRV_S, tvtentry, &auth_cap);
+        /*
+         * need to update here so that we return a capability and use it for
+         * the update
+         */
+        riscv_update_pc_for_exc_handler(env, &auth_cap, new_pc);
         riscv_cpu_set_mode(env, PRV_S);
     } else {
         /* handle the trap in M-mode */
@@ -2327,7 +2518,10 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         s = set_field(s, MSTATUS_MIE, 0);
         env->mstatus = s;
         riscv_log_instr_csr_changed(env, CSR_MSTATUS);
-        env->mcause = cause | ~(((target_ulong)-1) >> async);
+        if (async) {
+            cause = cause | MCAUSE_INT;
+        }
+        env->mcause = cause | xinhv;
         riscv_log_instr_csr_changed(env, CSR_MCAUSE);
 
         COPY_SPECIAL_REG(env, mepc, mepcc, pc, pcc);
@@ -2356,6 +2550,19 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         target_ulong mtvec = GET_SPECIAL_REG_ADDR(env, mtvec, mtvecc);
         target_ulong new_pc = (mtvec >> 2 << 2) +
             ((async && (mtvec & 3) == 1) ? cause * 4 : 0);
+        cap_or_tulong *tvtentry = NULL;
+
+#ifdef TARGET_CHERI
+        tvtentry = &env->mtvtentryc[0];
+        cap_register_t auth_cap = env->mtvecc;
+        cap_register_t mtvt = env->mtvtc;
+#else
+        target_ulong auth_cap = 0;
+        target_ulong mtvt = env->mtvt;
+#endif
+
+        new_pc = riscv_intr_pc(env, mtvec, mtvt, async, cause & MCAUSE_EXCCODE,
+                               PRV_M, tvtentry, &auth_cap);
 
         /*
          * This checks that the exception handler is at the same address that
@@ -2377,7 +2584,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
             exit(EXIT_FAILURE);
         }
 
-        riscv_update_pc_for_exc_handler(env, &env->mtvecc, new_pc);
+        riscv_update_pc_for_exc_handler(env, &auth_cap, new_pc);
         riscv_cpu_set_mode(env, PRV_M);
     }
 
@@ -2453,7 +2660,6 @@ void update_special_register(CPURISCVState *env, cap_register_t *scr,
     }
 }
 #endif
-
 /*
  * The new CLIC interrupt-handling mode is encoded as a new state in
  * the existing WARL xtvec register, where the low two bits are 11.

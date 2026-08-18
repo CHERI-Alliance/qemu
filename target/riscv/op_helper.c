@@ -30,7 +30,7 @@
 #include "cheri_tagmem.h"
 #endif
 
-/* Exceptions processing helpers */
+/* Exception processing helpers */
 G_NORETURN void riscv_raise_exception(CPURISCVState *env,
                                       uint32_t exception, uintptr_t pc)
 {
@@ -449,6 +449,7 @@ void helper_cbo_inval_cap(CPURISCVState *env, uint32_t addr_reg)
 #endif
 #ifndef CONFIG_USER_ONLY
 
+/* Return from PRV_S interrupt */
 target_ulong helper_sret(CPURISCVState *env)
 {
     uint64_t mstatus;
@@ -494,6 +495,28 @@ target_ulong helper_sret(CPURISCVState *env)
     env->mstatus = mstatus;
     riscv_log_instr_csr_changed(env, CSR_MSTATUS);
 
+    if (riscv_clic_is_clic_mode(env)) {
+        /* Update mintstatus with the PRV_S information */
+        target_ulong spil = get_field(env->scause, SCAUSE_SPIL);
+        env->mintstatus = set_field(env->mintstatus, MINTSTATUS_SIL, spil);
+        env->scause = set_field(env->scause, SCAUSE_SPIE, 1);
+        env->scause = set_field(env->scause, SCAUSE_SPP, PRV_U);
+        if (riscv_cpu_clic_get_next_interrupt(env)) {
+
+            bool locked = false;
+            CPUState *cs = env_cpu(env);
+            if (!qemu_mutex_iothread_locked()) {
+                locked = true;
+                qemu_mutex_lock_iothread();
+            }
+            env->exccode = riscv_cpu_clic_get_exccode(env);
+            cs->interrupt_request |= CPU_INTERRUPT_CLIC;
+
+            if (locked) {
+                qemu_mutex_unlock_iothread();
+            }
+        }
+    }
     if (riscv_has_ext(env, RVH) && !env->virt_enabled) {
         /* We support Hypervisor extensions and virtulisation is disabled */
         target_ulong hstatus = env->hstatus;
@@ -520,6 +543,7 @@ target_ulong helper_sret(CPURISCVState *env)
     return retpc;
 }
 
+/* Return from PRV_M interrupt */
 target_ulong helper_mret(CPURISCVState *env)
 {
     if (!(env->priv >= PRV_M)) {
@@ -569,6 +593,31 @@ target_ulong helper_mret(CPURISCVState *env)
     }
     env->mstatus = mstatus;
     riscv_cpu_set_mode(env, prev_priv);
+
+    if (riscv_clic_is_clic_mode(env)) {
+        /* Update mintstatus with the PRV_M information */
+        target_ulong mpil = get_field(env->mcause, MCAUSE_MPIL);
+        env->mintstatus = set_field(env->mintstatus, MINTSTATUS_MIL, mpil);
+        env->mcause = set_field(env->mcause, MCAUSE_MPIE, 1);
+        env->mcause = set_field(env->mcause, MCAUSE_MPP,
+                                riscv_has_ext(env, RVU) ? PRV_U : PRV_M);
+        if (riscv_cpu_clic_get_next_interrupt(env)) {
+
+            bool locked = false;
+            CPUState *cs = env_cpu(env);
+            if (!qemu_mutex_iothread_locked()) {
+                locked = true;
+                qemu_mutex_lock_iothread();
+            }
+
+            env->exccode = riscv_cpu_clic_get_exccode(env);
+            cs->interrupt_request |= CPU_INTERRUPT_CLIC;
+
+            if (locked) {
+                qemu_mutex_unlock_iothread();
+            }
+        }
+    }
 
     if (riscv_has_ext(env, RVH)) {
         if (prev_virt) {
