@@ -47,6 +47,7 @@
 #include "hw/char/xilinx_uartlite.h"
 #include "hw/misc/codasip_trng.h"
 #include "hw/pci-host/xilinx-pcie.h"
+#include "hw/intc/riscv_clic.h"
 #include "chardev/char.h"
 #include "sysemu/device_tree.h"
 #include "sysemu/sysemu.h"
@@ -83,6 +84,7 @@ static const memmapEntry_t v1_memmap[] = {
         "riscv.hobgoblin.boot.rom", MEM_ROM },
     [HOBGOBLIN_SRAM] =     { 0x20000000, 0x00100000,
         "riscv.hobgoblin.sram", MEM_RAM_CHERI },
+    [HOBGOBLIN_CLIC] =     { 0x00040000, 0x10000} ,
     [HOBGOBLIN_PLIC] =     { 0x40000000,  0x4000000 },
     [HOBGOBLIN_ID_REG] =   { 0x60000000,      0x1000,
         "id_register", MEM_ROM },
@@ -124,6 +126,7 @@ static const memmapEntry_t v2_memmap[] = {
     [HOBGOBLIN_SRAM] = { 0x20000000, 0x00100000, "riscv.hobgoblin.sram",
                          MEM_RAM_CHERI }, // Same location
     [HOBGOBLIN_PLIC] = { 0x18000000, 0x00400000 },
+    [HOBGOBLIN_CLIC] = { 0x00040000, 0x10000} ,
     [HOBGOBLIN_ID_REG] = { 0x10000000, 0x1000, "id_register", MEM_ROM },
     [HOBGOBLIN_CLINT] = { 0x10804000, 0x00010000 },   // moved...
     [HOBGOBLIN_ETHLITE] = { 0x10020000, 0x00010000 }, // moved
@@ -236,8 +239,10 @@ uint8_t irqmap[2][HOBGOBLIN_IRQ_END] = {
 
 /* define a couple of helpers for the mmap and irqmap */
 #define HIRQ(_hs_, _idx_)                                                      \
-    (irqmap[HOBGOBLIN_MACHINE_GET_CLASS(_hs_)->irq_map_version][_idx_])
+    ((irqmap[HOBGOBLIN_MACHINE_GET_CLASS(_hs_)->irq_map_version][_idx_]) +     \
+     (_hs_->have_clic ? 1 : 0))
 #define MAPVERSION(_hs_) (HOBGOBLIN_MACHINE_GET_CLASS(_hs_)->map_version)
+static qemu_irq hobgoblin_make_intc_irq(HobgoblinState *s, int number);
 
 #define V1_VIRTIO_TRANSPORTS 4
 #define V2_VIRTIO_TRANSPORTS 8
@@ -366,12 +371,13 @@ static void hobgoblin_add_interrupt_controller(HobgoblinState *s,
                                                const int num_harts)
 {
     const memmapEntry_t *memmap = address_maps[MAPVERSION(s)];
-    const memmapEntry_t *mem_plic = &memmap[HOBGOBLIN_PLIC];
     const memmapEntry_t *mem_clint = &memmap[HOBGOBLIN_CLINT];
     const int hartid_base = 0; /* Hart IDs start at 0 */
-    char *plic_hart_config;
 
+#ifdef TARGET_RISCV64
     /* PLIC */
+    const memmapEntry_t *mem_plic = &memmap[HOBGOBLIN_PLIC];
+    char *plic_hart_config;
     assert(HOBGOBLIN_PLIC_NUM_SOURCES > HIRQ(s, HOBGOBLIN_MAX_IRQ));
     plic_hart_config = riscv_plic_hart_config_string(num_harts);
     DeviceState *plic = sifive_plic_create(
@@ -389,7 +395,8 @@ static void hobgoblin_add_interrupt_controller(HobgoblinState *s,
         HOBGOBLIN_PLIC_CONTEXT_STRIDE,
         mem_plic->size);
     g_free(plic_hart_config);
-
+    /* publish */
+    s->plic = plic;
     /* CLINT with SWI in M-Mode */
     riscv_aclint_swi_create(mem_clint->base, hartid_base, num_harts, false,
                             NULL);
@@ -404,24 +411,66 @@ static void hobgoblin_add_interrupt_controller(HobgoblinState *s,
         RISCV_ACLINT_DEFAULT_MTIMECMP,
         RISCV_ACLINT_DEFAULT_MTIME,
         CLINT_TIMEBASE_FREQ,
-        true,
-        NULL); /* provide_rdtime */
+        true, NULL); /* provide_rdtime */
+#elif defined(TARGET_RISCV32)
+    /*
+     * Codasip CLIC only has an 1 memblock, this is shared by S and M mode)
+     * Also only a single hart is supported
+     */
 
-    /* publish */
-    s->plic = plic;
+#define HOBGOBLIN_CLIC_MAX_IRQS             0x1000
+#define HOBGOBLIN_CLIC_INT_SIZE(_irq_count) ((_irq_count) * 4)
+#define HOBGOBLIN_CLIC_BLOCK_SIZE                                              \
+    HOBGOBLIN_CLIC_INT_SIZE(HOBGOBLIN_CLIC_MAX_IRQS)
+#define HOBGOBLIN_CLIC_INTCL_BITS 8
+
+#define VIRT_CLIC_INT_SIZE(_irq_count) ((_irq_count) * 4)
+
+    const memmapEntry_t *mem_clic = &memmap[HOBGOBLIN_CLIC];
+
+    uint64_t mclicbase = mem_clic->base;
+    uint64_t sclicbase = mclicbase;
+    uint64_t uclicbase = 0;
+    qemu_irq sw_irq;/* Assumes a single HART and M mode only */
+    qemu_irq timer_irq;/* Assumes a single HART and Single privilege level */
+    s->clic = riscv_clic_create(mclicbase, sclicbase, uclicbase, 0, 128,
+                                HOBGOBLIN_CLIC_INTCL_BITS, "v0.9");
+    s->have_clic = true;
+    /*
+     * need to create the mtimer sn sw timers which connect the clint and clic
+     */
+   sw_irq = hobgoblin_make_intc_irq(s, 0);
+   timer_irq = hobgoblin_make_intc_irq(s, 1);
+
+    /* CLINT with SWI in M-Mode */
+    riscv_aclint_swi_create(mem_clint->base, hartid_base, num_harts, false,
+                            &sw_irq);
+
+    /* CLINT timer */
+    assert(mem_clint->size >= RISCV_ACLINT_SWI_SIZE);
+    riscv_aclint_mtimer_create(
+        mem_clint->base + RISCV_ACLINT_SWI_SIZE,
+        RISCV_ACLINT_DEFAULT_MTIMER_SIZE,
+        hartid_base,
+        num_harts,
+        RISCV_ACLINT_DEFAULT_MTIMECMP,
+        RISCV_ACLINT_DEFAULT_MTIME,
+        CLINT_TIMEBASE_FREQ,
+        true, &timer_irq); /* provide_rdtime */
+#endif
 }
 
-static qemu_irq hobgoblin_make_plic_irq(HobgoblinState *s, int number)
+#define INTC_HOBGOBLIN(S) (s->have_clic ? s->clic : s->plic)
+
+static qemu_irq hobgoblin_make_intc_irq(HobgoblinState *s, int number)
 {
-    DeviceState *plic = s->plic;
-    assert(plic); /* PLIC instance must exist. */
-    return qdev_get_gpio_in(DEVICE(plic), number);
+    return qdev_get_gpio_in(DEVICE(INTC_HOBGOBLIN(s)), number);
 }
 
-static void hobgoblin_connect_plic_irq(HobgoblinState *s, SysBusDevice *busDev,
+static void hobgoblin_connect_intc_irq(HobgoblinState *s, SysBusDevice *busDev,
                                        int dev_irq, int number)
 {
-    qemu_irq irq = hobgoblin_make_plic_irq(s, number);
+    qemu_irq irq = hobgoblin_make_intc_irq(s, number);
     sysbus_connect_irq(busDev, dev_irq, irq);
 }
 
@@ -539,7 +588,7 @@ static void hobgoblin_add_uart(HobgoblinState *s, MemoryRegion *system_memory)
     Chardev *chardev = serial_hd(0);
     assert(chardev);
 
-    qemu_irq irq = hobgoblin_make_plic_irq(s, HIRQ(s, HOBGOBLIN_UART0_IRQ));
+    qemu_irq irq = hobgoblin_make_intc_irq(s, HIRQ(s, HOBGOBLIN_UART0_IRQ));
 
     serial_mm_init(system_memory, mem_uart->base, 2, irq, 115200, chardev,
                    DEVICE_LITTLE_ENDIAN);
@@ -551,7 +600,7 @@ static void hobgoblin_add_uartlite(HobgoblinState *s,
     const memmapEntry_t *memmap = address_maps[MAPVERSION(s)];
     const memmapEntry_t *mem_uart = &memmap[HOBGOBLIN_UART1];
     Chardev *chardev = serial_hd(1);
-    qemu_irq irq = hobgoblin_make_plic_irq(s, HIRQ(s, HOBGOBLIN_UART1_IRQ));
+    qemu_irq irq = hobgoblin_make_intc_irq(s, HIRQ(s, HOBGOBLIN_UART1_IRQ));
 
     DeviceState *dev = qdev_new(TYPE_XILINX_UARTLITE);
     qdev_prop_set_chr(dev, "chardev", chardev);
@@ -579,7 +628,7 @@ static void hobgoblin_add_gpio(HobgoblinState *s)
         sysbus_realize_and_unref(bus_gpio, &error_fatal);
         sysbus_mmio_map(bus_gpio, 0, memmap[HOBGOBLIN_GPIO0 + i].base);
         /* connect PLIC interrupt */
-        hobgoblin_connect_plic_irq(s, bus_gpio, 0,
+        hobgoblin_connect_intc_irq(s, bus_gpio, 0,
                                    HIRQ(s, HOBGOBLIN_GPIO0_IRQ) + i);
         /* publish GPIO device */
         s->gpio[i] = gpio;
@@ -601,7 +650,7 @@ static void hobgoblin_add_spi(HobgoblinState *s)
     sysbus_realize_and_unref(bus_spi, &error_fatal);
     sysbus_mmio_map(bus_spi, 0, mem_spi->base);
     /* connect PLIC interrupt */
-    hobgoblin_connect_plic_irq(s, bus_spi, 0, HIRQ(s, HOBGOBLIN_SPI_IRQ));
+    hobgoblin_connect_intc_irq(s, bus_spi, 0, HIRQ(s, HOBGOBLIN_SPI_IRQ));
 
     /* publish SPI device */
     s->spi = spi;
@@ -654,7 +703,7 @@ static void hobgoblin_add_ethernetlite(HobgoblinState *s)
     sysbus_realize_and_unref(bus_eth, &error_fatal);
     sysbus_mmio_map(bus_eth, 0, mem_eth->base);
     /* connect PLIC interrupt */
-    hobgoblin_connect_plic_irq(s, bus_eth, 0, HIRQ(s, HOBGOBLIN_ETH_IRQ));
+    hobgoblin_connect_intc_irq(s, bus_eth, 0, HIRQ(s, HOBGOBLIN_ETH_IRQ));
 
     /* publish ETH device */
     s->eth[0] = eth;
@@ -700,7 +749,7 @@ static void hobgoblin_add_axi_ethernet(HobgoblinState *s, int eth_num,
     SysBusDevice *eth_busdev = SYS_BUS_DEVICE(eth);
     sysbus_realize_and_unref(eth_busdev, &error_fatal);
     sysbus_mmio_map(eth_busdev, 0, mem_eth->base);
-    hobgoblin_connect_plic_irq(s, eth_busdev, 0, eth_irq);
+    hobgoblin_connect_intc_irq(s, eth_busdev, 0, eth_irq);
 
     ds = object_property_get_link(OBJECT(eth), "axistream-connected-target",
                                   NULL);
@@ -717,8 +766,8 @@ static void hobgoblin_add_axi_ethernet(HobgoblinState *s, int eth_num,
     SysBusDevice *dma_busdev = SYS_BUS_DEVICE(dma);
     sysbus_realize_and_unref(dma_busdev, &error_fatal);
     sysbus_mmio_map(dma_busdev, 0, mem_dma->base);
-    hobgoblin_connect_plic_irq(s, dma_busdev, 0, dma_irq0);
-    hobgoblin_connect_plic_irq(s, dma_busdev, 1, dma_irq1);
+    hobgoblin_connect_intc_irq(s, dma_busdev, 0, dma_irq0);
+    hobgoblin_connect_intc_irq(s, dma_busdev, 1, dma_irq1);
 
     /* publish ETH device */
     s->eth[eth_num] = eth;
@@ -769,8 +818,9 @@ static void hobgoblin_add_timer(HobgoblinState *s)
     ss = SYS_BUS_DEVICE(s->timer);
     sysbus_realize_and_unref(ss, &error_fatal);
     sysbus_mmio_map(ss, 0, memmap[HOBGOBLIN_TIMER].base);
-    sysbus_connect_irq(
-        ss, 0, qdev_get_gpio_in(DEVICE(s->plic), HIRQ(s, HOBGOBLIN_TIMER_IRQ)));
+    sysbus_connect_irq(ss, 0,
+                       qdev_get_gpio_in(DEVICE(INTC_HOBGOBLIN(s)),
+                                        HIRQ(s, HOBGOBLIN_TIMER_IRQ)));
 }
 
 static void hobgoblin_add_virtio(HobgoblinState *s)
@@ -789,7 +839,7 @@ static void hobgoblin_add_virtio(HobgoblinState *s)
         assert(offset < mem_virtio->size);
         hwaddr base = mem_virtio->base + offset;
         qemu_irq irq =
-            hobgoblin_make_plic_irq(s, HIRQ(s, HOBGOBLIN_VIRTIO0_IRQ) + i);
+            hobgoblin_make_intc_irq(s, HIRQ(s, HOBGOBLIN_VIRTIO0_IRQ) + i);
         sysbus_create_simple("virtio-mmio", base, irq);
     }
 }
@@ -832,11 +882,11 @@ static void hobgoblin_add_xilinx_pcie(HobgoblinState *s, MemoryRegion *sys_mem,
 #endif
 
     qdev_connect_gpio_out_named(dev, "interrupt_out", 0,
-                                hobgoblin_make_plic_irq(s, irq));
+                                hobgoblin_make_intc_irq(s, irq));
 
     for (int i = 0; i < 2; i++) {
         qdev_connect_gpio_out_named(dev, "interrupt_out_msi", i,
-                                    hobgoblin_make_plic_irq(s, irq_msi[i]));
+                                    hobgoblin_make_intc_irq(s, irq_msi[i]));
     }
 }
 
