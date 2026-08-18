@@ -1397,12 +1397,12 @@ static void virt_machine_init(MachineState *machine)
                         base_hartid, hart_count,
                         RISCV_ACLINT_DEFAULT_MTIMECMP,
                         RISCV_ACLINT_DEFAULT_MTIME,
-                        RISCV_ACLINT_DEFAULT_TIMEBASE_FREQ, true);
+                        RISCV_ACLINT_DEFAULT_TIMEBASE_FREQ, true, NULL);
                 } else {
                     /* Per-socket ACLINT MSWI, MTIMER, and SSWI */
                     riscv_aclint_swi_create(memmap[VIRT_CLINT].base +
                             i * memmap[VIRT_CLINT].size,
-                        base_hartid, hart_count, false);
+                        base_hartid, hart_count, false, NULL);
                     riscv_aclint_mtimer_create(memmap[VIRT_CLINT].base +
                             i * memmap[VIRT_CLINT].size +
                             RISCV_ACLINT_SWI_SIZE,
@@ -1410,21 +1410,21 @@ static void virt_machine_init(MachineState *machine)
                         base_hartid, hart_count,
                         RISCV_ACLINT_DEFAULT_MTIMECMP,
                         RISCV_ACLINT_DEFAULT_MTIME,
-                        RISCV_ACLINT_DEFAULT_TIMEBASE_FREQ, true);
+                        RISCV_ACLINT_DEFAULT_TIMEBASE_FREQ, true, NULL);
                     riscv_aclint_swi_create(memmap[VIRT_ACLINT_SSWI].base +
                             i * memmap[VIRT_ACLINT_SSWI].size,
-                        base_hartid, hart_count, true);
+                        base_hartid, hart_count, true, NULL);
                 }
             } else {
                 /* Per-socket SiFive CLINT */
                 riscv_aclint_swi_create(
                     memmap[VIRT_CLINT].base + i * memmap[VIRT_CLINT].size,
-                    base_hartid, hart_count, false);
+                    base_hartid, hart_count, false, NULL);
                 riscv_aclint_mtimer_create(memmap[VIRT_CLINT].base +
                         i * memmap[VIRT_CLINT].size + RISCV_ACLINT_SWI_SIZE,
                     RISCV_ACLINT_DEFAULT_MTIMER_SIZE, base_hartid, hart_count,
                     RISCV_ACLINT_DEFAULT_MTIMECMP, RISCV_ACLINT_DEFAULT_MTIME,
-                    RISCV_ACLINT_DEFAULT_TIMEBASE_FREQ, true);
+                    RISCV_ACLINT_DEFAULT_TIMEBASE_FREQ, true, NULL);
             }
         }
 
