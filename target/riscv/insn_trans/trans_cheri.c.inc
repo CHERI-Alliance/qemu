@@ -742,20 +742,20 @@ static bool trans_packy(DisasContext *ctx, arg_crr *a)
 }
 static target_ulong decode_ybndswi_imm(uint32_t imm)
 {
-    uint32_t imm9 = imm & 0x1ff;
-    if (imm9 == 0) {
+    uint32_t imm8_0 = imm & 0x1ff;
+    if (imm8_0 == 0) {
         return 4096;
     }
-    if ((imm9 & 0x100) == 0) {
-        return imm9 & 0xff;
+    if ((imm8_0 & 0x100) == 0) {
+        return imm8_0 & 0xff;
     }
-    uint32_t imm7_5 = (imm9 >> 5) & 0x7;
+    uint32_t imm7_5 = (imm8_0 >> 5) & 0x7;
     if (imm7_5 == 0) {
-        uint32_t imm3_0 = imm9 & 0xf;
-        uint32_t imm4 = (imm9 >> 4) & 0x1;
+        uint32_t imm3_0 = imm8_0 & 0xf;
+        uint32_t imm4 = (imm8_0 >> 4) & 0x1;
         return 256 | (imm3_0 << 4) | (imm4 << 3);
     }
-    uint32_t imm7_0 = imm9 & 0xff;
+    uint32_t imm7_0 = imm8_0 & 0xff;
     return imm7_0 << 4;
 }
 
