@@ -1024,7 +1024,7 @@ static void riscv_cpu_disas_set_info(CPUState *s, disassemble_info *info)
     info->flags |= RISCV_DIS_FLAG_CHERI_V9;
 #endif
 #ifdef TARGET_CHERI_RISCV_RVY
-    if (riscv_cpu_mode_cre(&cpu->env)) {
+    if (riscv_cpu_mode_y(&cpu->env)) {
         info->flags |= RISCV_DIS_FLAG_CHERI_RVY;
     }
 #endif

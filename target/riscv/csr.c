@@ -1832,7 +1832,7 @@ static RISCVException read_menvcfg(CPURISCVState *env, int csrno,
 static RISCVException write_menvcfg(CPURISCVState *env, int csrno,
                                   target_ulong val)
 {
-    uint64_t mask = MENVCFG_FIOM | MENVCFG_CBIE | MENVCFG_CBCFE | MENVCFG_CBZE | MENVCFG_CRE;
+    uint64_t mask = MENVCFG_FIOM | MENVCFG_CBIE | MENVCFG_CBCFE | MENVCFG_CBZE | MENVCFG_Y;
 
     if (riscv_cpu_mxl(env) == MXL_RV64) {
         mask |= MENVCFG_PBMTE | MENVCFG_STCE;
@@ -1870,7 +1870,7 @@ static RISCVException read_senvcfg(CPURISCVState *env, int csrno,
 static RISCVException write_senvcfg(CPURISCVState *env, int csrno,
                                   target_ulong val)
 {
-    uint64_t mask = SENVCFG_FIOM | SENVCFG_CBIE | SENVCFG_CBCFE | SENVCFG_CBZE | SENVCFG_CRE;
+    uint64_t mask = SENVCFG_FIOM | SENVCFG_CBIE | SENVCFG_CBCFE | SENVCFG_CBZE | SENVCFG_Y;
 
     env->senvcfg = (env->senvcfg & ~mask) | (val & mask);
 
@@ -1887,7 +1887,7 @@ static RISCVException read_henvcfg(CPURISCVState *env, int csrno,
 static RISCVException write_henvcfg(CPURISCVState *env, int csrno,
                                   target_ulong val)
 {
-    uint64_t mask = HENVCFG_FIOM | HENVCFG_CBIE | HENVCFG_CBCFE | HENVCFG_CBZE | HENVCFG_CRE;
+    uint64_t mask = HENVCFG_FIOM | HENVCFG_CBIE | HENVCFG_CBCFE | HENVCFG_CBZE | HENVCFG_Y;
 
     if (riscv_cpu_mxl(env) == MXL_RV64) {
         mask |= HENVCFG_PBMTE | HENVCFG_STCE;
@@ -4738,7 +4738,7 @@ static riscv_csr_cap_ops csr_cap_ops[] = {
     { "sscratchc", CSR_SSCRATCHC, read_capcsr_reg, write_cap_csr_reg,
       CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
     { "ddc", CSR_DDC, read_capcsr_reg, write_cap_csr_reg,
-      CSR_OP_REQUIRE_CRE | CSR_OP_IA_CONVERSION },
+      CSR_OP_REQUIRE_Y | CSR_OP_IA_CONVERSION },
     { "mtidc", CSR_MTIDC, read_capcsr_reg, write_cap_csr_reg,
       CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
     { "stidc", CSR_STIDC, read_capcsr_reg, write_cap_csr_reg,
@@ -4757,12 +4757,12 @@ static riscv_csr_cap_ops csr_cap_ops[] = {
 #ifdef TARGET_CHERI_RISCV_V9
     /* For backwards compatibility add the *tdc registers */
     { "mtdc", CSR_MTDC, read_capcsr_reg, write_cap_csr_reg,
-      CSR_OP_REQUIRE_CRE },
+      CSR_OP_REQUIRE_Y },
     { "stdc", CSR_STDC, read_capcsr_reg, write_cap_csr_reg,
-      CSR_OP_REQUIRE_CRE },
+      CSR_OP_REQUIRE_Y },
     { "vstdc", CSR_VSTDC, read_capcsr_reg, write_cap_csr_reg,
-      CSR_OP_REQUIRE_CRE },
-    { "pcc", CSR_PCC, read_capcsr_reg, /*write=*/NULL, CSR_OP_REQUIRE_CRE },
+      CSR_OP_REQUIRE_Y },
+    { "pcc", CSR_PCC, read_capcsr_reg, /*write=*/NULL, CSR_OP_REQUIRE_Y },
 #endif
 };
 
