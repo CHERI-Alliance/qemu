@@ -416,10 +416,10 @@ static void _gen_set_gpr(DisasContext *ctx, int reg_num, TCGv t,
             tcg_gen_sari_tl(cpu_gprh[reg_num], cpu_gpr[reg_num], 63);
         }
 #endif
+        /* Log GPR writes here */
         gen_rvfi_dii_set_field_const_i8(INTEGER, rd_addr, reg_num);
         gen_rvfi_dii_set_field_zext_tl(INTEGER, rd_wdata, dest_gpr[reg_num]);
 #ifdef CONFIG_TCG_LOG_INSTR
-        // Log GPR writes here
         if (qemu_ctx_logging_enabled(ctx)) {
             gen_helper_riscv_log_gpr_write(cpu_env, tcg_constant_i32(reg_num),
                                            dest_gpr[reg_num]);
@@ -454,8 +454,15 @@ static void gen_set_gpri(DisasContext *ctx, int reg_num, target_long imm)
             tcg_gen_movi_tl(cpu_gprh[reg_num], -(imm < 0));
         }
 #endif
+        /* Log GPR writes here */
         gen_rvfi_dii_set_field_const_i8(INTEGER, rd_addr, reg_num);
-        gen_rvfi_dii_set_field_const_i64(INTEGER, rd_wdata, imm);
+        gen_rvfi_dii_set_field_zext_tl(INTEGER, rd_wdata, dest_gpr[reg_num]);
+#ifdef CONFIG_TCG_LOG_INSTR
+        if (qemu_ctx_logging_enabled(ctx)) {
+            gen_helper_riscv_log_gpr_write(cpu_env, tcg_constant_i32(reg_num),
+                                           dest_gpr[reg_num]);
+        }
+#endif
     }
 }
 
