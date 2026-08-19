@@ -207,7 +207,7 @@ uint8_t irqmap[2][HOBGOBLIN_IRQ_END] = {
         [HOBGOBLIN_AXIDMA_IRQ1]  = 17,
         [HOBGOBLIN_VIRTIO0_IRQ]  = 28,
         [HOBGOBLIN_MAX_IRQ] = 31,
-    }, // the MAX IRQ number corresponds to VIRTIO7
+    }, /* the MAX IRQ number corresponds to VIRTIO7 */
     {
         [HOBGOBLIN_UART0_IRQ]    = 1,
         [HOBGOBLIN_UART1_IRQ]    = 2,
@@ -234,8 +234,9 @@ uint8_t irqmap[2][HOBGOBLIN_IRQ_END] = {
     }
 };
 
-// define a couple of helpers for the mmap and irqmap
-#define HIRQ(_hs_, _idx_) (irqmap[HOBGOBLIN_MACHINE_GET_CLASS(_hs_)->irq_map_version][_idx_])
+/* define a couple of helpers for the mmap and irqmap */
+#define HIRQ(_hs_, _idx_)                                                      \
+    (irqmap[HOBGOBLIN_MACHINE_GET_CLASS(_hs_)->irq_map_version][_idx_])
 #define MAPVERSION(_hs_) (HOBGOBLIN_MACHINE_GET_CLASS(_hs_)->map_version)
 
 #define V1_VIRTIO_TRANSPORTS 4
@@ -271,10 +272,8 @@ static int hobgoblin_load_images(HobgoblinState *s, const memmapEntry_t *dram)
     if (s->boot_from_rom) {
         /* Load the FSBL into ROM and set the ZSBL to point to it */
         start_addr = memmap[HOBGOBLIN_BOOT_ROM].base;
-        firmware_end_addr = riscv_find_and_load_firmware(machine,
-                                                         "fsbl_rom.xexe",
-                                                         start_addr,
-                                                         NULL);
+        firmware_end_addr = riscv_find_and_load_firmware(
+            machine, "fsbl_rom.xexe", start_addr, NULL);
     } else {
         target_ulong kernel_start_addr = 0;
         int fdt_size = 0;
@@ -291,10 +290,8 @@ static int hobgoblin_load_images(HobgoblinState *s, const memmapEntry_t *dram)
         }
 
         /* Load SBI into RAM */
-        firmware_end_addr = riscv_find_and_load_firmware(machine,
-                                                         RISCV64_BIOS_BIN,
-                                                         start_addr,
-                                                         NULL);
+        firmware_end_addr = riscv_find_and_load_firmware(
+            machine, RISCV64_BIOS_BIN, start_addr, NULL);
 
         /* Load Kernel into RAM */
         if (machine->kernel_filename) {
@@ -305,8 +302,8 @@ static int hobgoblin_load_images(HobgoblinState *s, const memmapEntry_t *dram)
 
             if (machine->fdt && machine->kernel_cmdline &&
                 *machine->kernel_cmdline) {
-                qemu_fdt_setprop_string(machine->fdt, "/chosen",
-                                        "bootargs", machine->kernel_cmdline);
+                qemu_fdt_setprop_string(machine->fdt, "/chosen", "bootargs",
+                                        machine->kernel_cmdline);
             }
         }
 
@@ -324,9 +321,9 @@ static int hobgoblin_load_images(HobgoblinState *s, const memmapEntry_t *dram)
      * can be 0 here. For QEMU, this is fine, as they are just parameters
      * passed to the bootloader, which has to cope with that.
      */
-    riscv_setup_rom_reset_vec(machine, &s->soc, start_addr,
-            memmap[HOBGOBLIN_MROM].base, memmap[HOBGOBLIN_MROM].size,
-            kernel_entry, fdt_load_addr);
+    riscv_setup_rom_reset_vec(
+        machine, &s->soc, start_addr, memmap[HOBGOBLIN_MROM].base,
+        memmap[HOBGOBLIN_MROM].size, kernel_entry, fdt_load_addr);
 
     return 0;
 }
@@ -338,17 +335,17 @@ static void hobgoblin_add_soc(HobgoblinState *s, const int smp_cpus)
     object_initialize_child(OBJECT(machine), "soc", &s->soc,
                             TYPE_RISCV_HART_ARRAY);
 
-    object_property_set_str(OBJECT(&s->soc), "cpu-type",
-                            machine->cpu_type, &error_abort);
+    object_property_set_str(OBJECT(&s->soc), "cpu-type", machine->cpu_type,
+                            &error_abort);
 
-    object_property_set_int(OBJECT(&s->soc), "num-harts",
-                            smp_cpus, &error_abort);
+    object_property_set_int(OBJECT(&s->soc), "num-harts", smp_cpus,
+                            &error_abort);
 
     sysbus_realize(SYS_BUS_DEVICE(&s->soc), &error_fatal);
 }
 
 static MemoryRegion *hobgoblin_add_memory_area(MemoryRegion *system_memory,
-                                      const memmapEntry_t *e)
+                                               const memmapEntry_t *e)
 {
     MemoryRegion *reg = g_new(MemoryRegion, 1);
     memory_region_init_ram(reg, NULL, e->name, e->size, &error_fatal);
@@ -419,8 +416,8 @@ static qemu_irq hobgoblin_make_plic_irq(HobgoblinState *s, int number)
     return qdev_get_gpio_in(DEVICE(plic), number);
 }
 
-static void hobgoblin_connect_plic_irq(HobgoblinState *s,
-        SysBusDevice *busDev, int dev_irq, int number)
+static void hobgoblin_connect_plic_irq(HobgoblinState *s, SysBusDevice *busDev,
+                                       int dev_irq, int number)
 {
     qemu_irq irq = hobgoblin_make_plic_irq(s, number);
     sysbus_connect_irq(busDev, dev_irq, irq);
@@ -445,25 +442,24 @@ static void hobgoblin_add_id_register(HobgoblinState *s,
 
 #if defined(TARGET_RISCV64)
 #if defined(TARGET_CHERI)
-    char core_prefix='X';
+    char core_prefix = 'X';
     uint32_t core_type = 5;
 #else
-    char core_prefix='A';
+    char core_prefix = 'A';
     uint32_t core_type = 1;
 #endif
 #elif defined(TARGET_RISCV32)
 #if defined(TARGET_CHERI)
-    char core_prefix='V';
+    char core_prefix = 'V';
     uint32_t core_type = 7;
 #else
-    char core_prefix='L';
+    char core_prefix = 'L';
     uint32_t core_type = 3;
 #endif
 #endif
     // on hobgoblinv1 memory map we just had core_type=1
     //
-    if (MAPVERSION(s) == V1)
-    {
+    if (MAPVERSION(s) == V1) {
         core_type = 1;
     }
     uint32_t id_register[] = {
@@ -498,8 +494,8 @@ static void hobgoblin_add_id_register(HobgoblinState *s,
 
     const uint8_t platform_hash[20] = QEMU_GIT_HASH;
 
-    for (i=0; i<5; i++) {
-        id_register[0x100/4 + i] = *(uint32_t*)&platform_hash[i*4];
+    for (i = 0; i < 5; i++) {
+        id_register[0x100 / 4 + i] = *(uint32_t *)&platform_hash[i * 4];
     }
 
     for (i = 0; i < ARRAY_SIZE(id_register); i++) {
@@ -511,8 +507,10 @@ static void hobgoblin_add_id_register(HobgoblinState *s,
                        mem_id->base);
 }
 
-static void __attribute__((unused))
-hobgoblin_add_cmu(HobgoblinState *s, DeviceState **d, const memmapEntry_t *io, const MemoryRegion *ram)
+static void __attribute__((unused)) hobgoblin_add_cmu(HobgoblinState *s,
+                                                      DeviceState **d,
+                                                      const memmapEntry_t *io,
+                                                      const MemoryRegion *ram)
 {
     SysBusDevice *bus_cmu;
     *d = qdev_new(TYPE_CMU_DEVICE);
@@ -524,13 +522,13 @@ hobgoblin_add_cmu(HobgoblinState *s, DeviceState **d, const memmapEntry_t *io, c
      * from our memory map, this check makes sense.
      */
     qdev_prop_set_uint64(*d, "ram-size", int128_get64(ram->size));
-    object_property_set_link(OBJECT(*d), "managed-ram", OBJECT(ram), &error_fatal);
+    object_property_set_link(OBJECT(*d), "managed-ram", OBJECT(ram),
+                             &error_fatal);
     sysbus_realize_and_unref(bus_cmu, &error_fatal);
     sysbus_mmio_map(bus_cmu, 0, io->base);
 }
 
-static void hobgoblin_add_uart(HobgoblinState *s,
-                               MemoryRegion *system_memory)
+static void hobgoblin_add_uart(HobgoblinState *s, MemoryRegion *system_memory)
 {
     const memmapEntry_t *memmap = address_maps[MAPVERSION(s)];
     const memmapEntry_t *mem_uart = &memmap[HOBGOBLIN_UART0];
@@ -541,8 +539,8 @@ static void hobgoblin_add_uart(HobgoblinState *s,
 
     qemu_irq irq = hobgoblin_make_plic_irq(s, HIRQ(s, HOBGOBLIN_UART0_IRQ));
 
-    serial_mm_init(system_memory, mem_uart->base, 2, irq, 115200,
-                   chardev, DEVICE_LITTLE_ENDIAN);
+    serial_mm_init(system_memory, mem_uart->base, 2, irq, 115200, chardev,
+                   DEVICE_LITTLE_ENDIAN);
 }
 
 static void hobgoblin_add_uartlite(HobgoblinState *s,
@@ -579,7 +577,8 @@ static void hobgoblin_add_gpio(HobgoblinState *s)
         sysbus_realize_and_unref(bus_gpio, &error_fatal);
         sysbus_mmio_map(bus_gpio, 0, memmap[HOBGOBLIN_GPIO0 + i].base);
         /* connect PLIC interrupt */
-        hobgoblin_connect_plic_irq(s, bus_gpio, 0, HIRQ(s, HOBGOBLIN_GPIO0_IRQ) + i);
+        hobgoblin_connect_plic_irq(s, bus_gpio, 0,
+                                   HIRQ(s, HOBGOBLIN_GPIO0_IRQ) + i);
         /* publish GPIO device */
         s->gpio[i] = gpio;
     }
@@ -587,7 +586,6 @@ static void hobgoblin_add_gpio(HobgoblinState *s)
     /* Reset via GPIO 1.3 */
     qdev_connect_gpio_out(DEVICE(s->gpio[1]), 3,
                           qemu_allocate_irq(hobgoblin_gpio_1_3_event, NULL, 0));
-
 }
 
 static void hobgoblin_add_spi(HobgoblinState *s)
@@ -619,8 +617,7 @@ static void hobgoblin_add_sd(HobgoblinState *s)
     /* Connect SD card to SPI */
     SSIBus *bus_ssi = (SSIBus *)qdev_get_child_bus(s->spi, "spi");
     DeviceState *sd_dev = ssi_create_peripheral(bus_ssi, "ssi-sd");
-    qdev_realize_and_unref(sd_card_spi,
-                           qdev_get_child_bus(sd_dev, "sd-bus"),
+    qdev_realize_and_unref(sd_card_spi, qdev_get_child_bus(sd_dev, "sd-bus"),
                            &error_fatal);
 
     /*
@@ -662,9 +659,9 @@ static void hobgoblin_add_ethernetlite(HobgoblinState *s)
 }
 
 static void hobgoblin_add_axi_ethernet(HobgoblinState *s, int eth_num,
-    int phy_addr,
-    int eth_memmap, int dma_memmap,
-    int eth_irq, int dma_irq0, int dma_irq1)
+                                       int phy_addr, int eth_memmap,
+                                       int dma_memmap, int eth_irq,
+                                       int dma_irq0, int dma_irq1)
 {
     const memmapEntry_t *memmap = address_maps[MAPVERSION(s)];
     const memmapEntry_t *mem_eth = &memmap[eth_memmap];
@@ -684,8 +681,8 @@ static void hobgoblin_add_axi_ethernet(HobgoblinState *s, int eth_num,
     object_property_add_child(qdev_get_machine(), dma_name, OBJECT(dma));
 
     Object *ds, *cs;
-    ds = object_property_get_link(OBJECT(dma),
-                                  "axistream-connected-target", NULL);
+    ds = object_property_get_link(OBJECT(dma), "axistream-connected-target",
+                                  NULL);
     cs = object_property_get_link(OBJECT(dma),
                                   "axistream-control-connected-target", NULL);
     assert(ds && cs);
@@ -703,8 +700,8 @@ static void hobgoblin_add_axi_ethernet(HobgoblinState *s, int eth_num,
     sysbus_mmio_map(eth_busdev, 0, mem_eth->base);
     hobgoblin_connect_plic_irq(s, eth_busdev, 0, eth_irq);
 
-    ds = object_property_get_link(OBJECT(eth),
-                                  "axistream-connected-target", NULL);
+    ds = object_property_get_link(OBJECT(eth), "axistream-connected-target",
+                                  NULL);
     cs = object_property_get_link(OBJECT(eth),
                                   "axistream-control-connected-target", NULL);
     assert(ds && cs);
@@ -770,8 +767,8 @@ static void hobgoblin_add_timer(HobgoblinState *s)
     ss = SYS_BUS_DEVICE(s->timer);
     sysbus_realize_and_unref(ss, &error_fatal);
     sysbus_mmio_map(ss, 0, memmap[HOBGOBLIN_TIMER].base);
-    sysbus_connect_irq(ss, 0,
-                       qdev_get_gpio_in(DEVICE(s->plic), HIRQ(s, HOBGOBLIN_TIMER_IRQ)));
+    sysbus_connect_irq(
+        ss, 0, qdev_get_gpio_in(DEVICE(s->plic), HIRQ(s, HOBGOBLIN_TIMER_IRQ)));
 }
 
 static void hobgoblin_add_virtio(HobgoblinState *s)
@@ -780,21 +777,25 @@ static void hobgoblin_add_virtio(HobgoblinState *s)
     const memmapEntry_t *mem_virtio = &memmap[HOBGOBLIN_VIRTIO];
     HobgoblinClass *hc = HOBGOBLIN_MACHINE_GET_CLASS(s);
 
-    int virtio_transports = (MAPVERSION(s) == V2 && hc->board_type == BOARD_TYPE_VCU118) ?
-                            V2_VIRTIO_TRANSPORTS : V1_VIRTIO_TRANSPORTS;
+    int virtio_transports =
+        (MAPVERSION(s) == V2 && hc->board_type == BOARD_TYPE_VCU118)
+            ? V2_VIRTIO_TRANSPORTS
+            : V1_VIRTIO_TRANSPORTS;
 
     for (int i = 0; i < virtio_transports; i++) {
         hwaddr offset = 0x200 * i;
         assert(offset < mem_virtio->size);
         hwaddr base = mem_virtio->base + offset;
-        qemu_irq irq = hobgoblin_make_plic_irq(s, HIRQ(s, HOBGOBLIN_VIRTIO0_IRQ) + i);
+        qemu_irq irq =
+            hobgoblin_make_plic_irq(s, HIRQ(s, HOBGOBLIN_VIRTIO0_IRQ) + i);
         sysbus_create_simple("virtio-mmio", base, irq);
     }
 }
 
 static void hobgoblin_add_xilinx_pcie(HobgoblinState *s, MemoryRegion *sys_mem,
-    uint32_t bus_nr, int cfg_memmap, int mmio_memmap[], int mmio_num,
-    int irq, int irq_msi[2], bool link_up)
+                                      uint32_t bus_nr, int cfg_memmap,
+                                      int mmio_memmap[], int mmio_num, int irq,
+                                      int irq_msi[2], bool link_up)
 {
     DeviceState *dev;
     MemoryRegion *region;
@@ -819,8 +820,8 @@ static void hobgoblin_add_xilinx_pcie(HobgoblinState *s, MemoryRegion *sys_mem,
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     region = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
-    memory_region_add_subregion_overlap(sys_mem,
-        memmap[cfg_memmap].base, region, 0);
+    memory_region_add_subregion_overlap(sys_mem, memmap[cfg_memmap].base,
+                                        region, 0);
 
 #if 0
     region = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 1);
@@ -829,11 +830,11 @@ static void hobgoblin_add_xilinx_pcie(HobgoblinState *s, MemoryRegion *sys_mem,
 #endif
 
     qdev_connect_gpio_out_named(dev, "interrupt_out", 0,
-        hobgoblin_make_plic_irq(s, irq));
+                                hobgoblin_make_plic_irq(s, irq));
 
-    for (int i=0; i<2; i++) {
+    for (int i = 0; i < 2; i++) {
         qdev_connect_gpio_out_named(dev, "interrupt_out_msi", i,
-            hobgoblin_make_plic_irq(s, irq_msi[i]));
+                                    hobgoblin_make_plic_irq(s, irq_msi[i]));
     }
 }
 
@@ -846,8 +847,8 @@ static void create_fdt_aliases(HobgoblinState *s, const memmapEntry_t *memmap)
     name = g_strdup_printf("/aliases");
     qemu_fdt_add_subnode(mc->fdt, name);
 
-    ethernet0_alias =
-        g_strdup_printf("/soc@0/ethernet@%" PRIx64, memmap[HOBGOBLIN_AXI_ETH].base);
+    ethernet0_alias = g_strdup_printf("/soc@0/ethernet@%" PRIx64,
+                                      memmap[HOBGOBLIN_AXI_ETH].base);
     qemu_fdt_setprop_string(mc->fdt, name, "ethernet0", ethernet0_alias);
 
     ethernet1_alias = g_strdup_printf("/soc@0/ethernet@%" PRIx64,
@@ -858,7 +859,8 @@ static void create_fdt_aliases(HobgoblinState *s, const memmapEntry_t *memmap)
         g_strdup_printf("/soc@0/serial@%" PRIx64, memmap[HOBGOBLIN_UART0].base);
     qemu_fdt_setprop_string(mc->fdt, name, "serial0", serial0_alias);
 
-    spi0_alias = g_strdup_printf("/soc@0/spi@%" PRIx64, memmap[HOBGOBLIN_SPI].base);
+    spi0_alias =
+        g_strdup_printf("/soc@0/spi@%" PRIx64, memmap[HOBGOBLIN_SPI].base);
     qemu_fdt_setprop_string(mc->fdt, name, "spi0", spi0_alias);
 
     g_free(name);
@@ -1000,24 +1002,35 @@ static void create_fdt_socket_cpus(HobgoblinState *s, int socket,
         qemu_fdt_setprop(mc->fdt, cpu_name, "riscv,isa-extensions",
                          formatted_ext, ext_len);
 
-        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "i-cache-block-size", CACHE_LINE_SIZE);
-        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "i-cache-sets", L1_ICACHE_SIZE / (CACHE_LINE_SIZE * L1_ICACHE_WAYS));
-        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "i-cache-size", L1_ICACHE_SIZE);
+        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "i-cache-block-size",
+                              CACHE_LINE_SIZE);
+        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "i-cache-sets",
+                              L1_ICACHE_SIZE /
+                                  (CACHE_LINE_SIZE * L1_ICACHE_WAYS));
+        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "i-cache-size",
+                              L1_ICACHE_SIZE);
         qemu_fdt_setprop_cell(mc->fdt, cpu_name, "i-tlb-sets", 1);
         qemu_fdt_setprop_cell(mc->fdt, cpu_name, "i-tlb-size", ITLB_ENTRIES);
 
-        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "d-cache-block-size", CACHE_LINE_SIZE);
-        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "d-cache-sets", L1_DCACHE_SIZE / (CACHE_LINE_SIZE * L1_DCACHE_WAYS));
-        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "d-cache-size", L1_DCACHE_SIZE);
+        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "d-cache-block-size",
+                              CACHE_LINE_SIZE);
+        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "d-cache-sets",
+                              L1_DCACHE_SIZE /
+                                  (CACHE_LINE_SIZE * L1_DCACHE_WAYS));
+        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "d-cache-size",
+                              L1_DCACHE_SIZE);
         qemu_fdt_setprop_cell(mc->fdt, cpu_name, "d-tlb-sets", 1);
         qemu_fdt_setprop_cell(mc->fdt, cpu_name, "d-tlb-size", DTLB_ENTRIES);
 
-        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "next-level-cache", l2cache_phandle);
+        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "next-level-cache",
+                              l2cache_phandle);
         qemu_fdt_setprop(mc->fdt, cpu_name, "tlb-split", NULL, 0);
 
-        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "riscv,cbom-block-size", CACHE_LINE_SIZE);
-        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "riscv,cboz-block-size", CACHE_LINE_SIZE);
+        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "riscv,cbom-block-size",
+                              CACHE_LINE_SIZE);
         qemu_fdt_setprop_cell(mc->fdt, cpu_name, "riscv,cbop-block-size",
+                              CACHE_LINE_SIZE);
+        qemu_fdt_setprop_cell(mc->fdt, cpu_name, "riscv,cboz-block-size",
                               CACHE_LINE_SIZE);
 
         qemu_fdt_setprop_string(mc->fdt, cpu_name, "compatible", "riscv");
@@ -1111,7 +1124,8 @@ static void create_fdt_sockets(HobgoblinState *s, const memmapEntry_t *memmap,
     for (socket = 0; socket >= 0; socket--) {
         clust_name = g_strdup_printf("/cpus");
 
-        create_fdt_socket_cpus(s, socket, clust_name, is_32_bit, l2cache_phandle, intc_phandles);
+        create_fdt_socket_cpus(s, socket, clust_name, is_32_bit,
+                               l2cache_phandle, intc_phandles);
 
         create_fdt_socket_memory(s, memmap, socket);
         create_fdt_socket_reserved_memory(s, memmap, socket);
@@ -1128,8 +1142,7 @@ static void create_fdt_clock(HobgoblinState *s, const memmapEntry_t *memmap,
     name = g_strdup_printf("/clock");
     qemu_fdt_add_subnode(mc->fdt, name);
     qemu_fdt_setprop_cell(mc->fdt, name, "#clock-cells", 0);
-    qemu_fdt_setprop_cell(mc->fdt, name, "clock-frequency",
-                          AXI_BUS_FREQ);
+    qemu_fdt_setprop_cell(mc->fdt, name, "clock-frequency", AXI_BUS_FREQ);
     qemu_fdt_setprop_string(mc->fdt, name, "compatible", "fixed-clock");
     qemu_fdt_setprop_cell(mc->fdt, name, "phandle", clock_phandle);
 
@@ -1146,7 +1159,8 @@ static void create_fdt_l2cache(HobgoblinState *s, uint32_t l2cache_phandle)
     qemu_fdt_setprop_string(mc->fdt, name, "compatible", "cache");
     qemu_fdt_setprop_cell(mc->fdt, name, "cache-block-size", CACHE_LINE_SIZE);
     qemu_fdt_setprop_cell(mc->fdt, name, "cache-level", 2);
-    qemu_fdt_setprop_cell(mc->fdt, name, "cache-sets", L2_CACHE_SIZE / (CACHE_LINE_SIZE * L2_CACHE_WAYS));
+    qemu_fdt_setprop_cell(mc->fdt, name, "cache-sets",
+                          L2_CACHE_SIZE / (CACHE_LINE_SIZE * L2_CACHE_WAYS));
     qemu_fdt_setprop_cell(mc->fdt, name, "cache-size", L2_CACHE_SIZE);
     qemu_fdt_setprop(mc->fdt, name, "cache-unified", NULL, 0);
     qemu_fdt_setprop_cell(mc->fdt, name, "phandle", l2cache_phandle);
@@ -1207,7 +1221,10 @@ static void create_pcie_node(HobgoblinState *s, const memmapEntry_t *memmap,
                             "xlnx,axi-pcie-host-1.00.a");
     qemu_fdt_setprop_string(mc->fdt, name, "device_type", "pci");
 
-    // Interrupt map: maps PCI interrupts INTA-INTD to the interrupt controller
+    /*
+     * Interrupt map:
+     * maps PCI interrupts INTA-INTD to the interrupt controller
+     */
     uint32_t interrupt_map[] = {
         cpu_to_be32(0x00), cpu_to_be32(0x00),    cpu_to_be32(0x00),
         cpu_to_be32(0x01), cpu_to_be32(phandle), cpu_to_be32(0x01),
@@ -1237,12 +1254,12 @@ static void create_pcie_node(HobgoblinState *s, const memmapEntry_t *memmap,
     const memmapEntry_t *mmio0 = &memmap[memmap_mmio0_index];
     const memmapEntry_t *mmio1 = &memmap[memmap_mmio1_index];
     uint32_t ranges[] = {
-        cpu_to_be32(0x2000000),  // properties
+        cpu_to_be32(0x2000000), /* properties */
         cpu_to_be32(mmio0->base >> 32), cpu_to_be32(mmio0->base),
         cpu_to_be32(mmio0->base >> 32), cpu_to_be32(mmio0->base),
         cpu_to_be32(mmio0->size >> 32), cpu_to_be32(mmio0->size),
 
-        cpu_to_be32(0x43000000), // properties
+        cpu_to_be32(0x43000000), /* properties */
         cpu_to_be32(mmio1->base >> 32), cpu_to_be32(mmio1->base),
         cpu_to_be32(mmio1->base >> 32), cpu_to_be32(mmio1->base),
         cpu_to_be32(mmio1->size >> 32), cpu_to_be32(mmio1->size),
@@ -1307,8 +1324,8 @@ static void create_fdt_plic(HobgoblinState *s, const memmapEntry_t *memmap,
     qemu_fdt_setprop_cells(mc->fdt, name, "reg", memmap[HOBGOBLIN_PLIC].base,
                            memmap[HOBGOBLIN_PLIC].size);
 
-    // Build interrupts-extended array: each hart gets M-mode and S-mode
-    // external interrupts
+    /* Build interrupts-extended array: each hart gets M-mode and S-mode */
+    /* external interrupts */
     for (int cpu = 0; cpu < s->soc.num_harts; cpu++) {
         plic_cells[cpu * 4 + 0] = cpu_to_be32(intc_phandles[cpu]);
         plic_cells[cpu * 4 + 1] = cpu_to_be32(IRQ_M_EXT);
@@ -1396,8 +1413,9 @@ static void create_fdt_timer(HobgoblinState *s, const memmapEntry_t *memmap,
     MachineState *mc = MACHINE(s);
     char *name;
 
-    // CLINT timer node
-    name = g_strdup_printf("/soc@0/timer@%" PRIx64, memmap[HOBGOBLIN_CLINT].base);
+    /* CLINT timer node */
+    name =
+        g_strdup_printf("/soc@0/timer@%" PRIx64, memmap[HOBGOBLIN_CLINT].base);
     qemu_fdt_add_subnode(mc->fdt, name);
 
     const char clint_compatible[] =
@@ -1420,8 +1438,9 @@ static void create_fdt_timer(HobgoblinState *s, const memmapEntry_t *memmap,
     g_free(clint_interrupts);
     g_free(name);
 
-    // AXI timer node
-    name = g_strdup_printf("/soc@0/timer@%" PRIx64, memmap[HOBGOBLIN_TIMER].base);
+    /* AXI timer node */
+    name =
+        g_strdup_printf("/soc@0/timer@%" PRIx64, memmap[HOBGOBLIN_TIMER].base);
     qemu_fdt_add_subnode(mc->fdt, name);
     qemu_fdt_setprop_cell(
         mc->fdt, name, "clock-frequency",
@@ -1433,9 +1452,9 @@ static void create_fdt_timer(HobgoblinState *s, const memmapEntry_t *memmap,
     qemu_fdt_setprop(mc->fdt, name, "compatible", timer_types,
                      sizeof(timer_types) - 1);
 
-    uint32_t interrupts_extended[] = { cpu_to_be32(irq_mmio_phandle),
-                                       cpu_to_be32(
-                                           HIRQ(s, HOBGOBLIN_TIMER_IRQ)) };
+    uint32_t interrupts_extended[] = {
+        cpu_to_be32(irq_mmio_phandle), cpu_to_be32(HIRQ(s, HOBGOBLIN_TIMER_IRQ))
+    };
     qemu_fdt_setprop(mc->fdt, name, "interrupts-extended", interrupts_extended,
                      sizeof(interrupts_extended));
 
@@ -1477,16 +1496,16 @@ static void create_fdt_spi(HobgoblinState *s, const memmapEntry_t *memmap,
     qemu_fdt_setprop_cells(mc->fdt, name, "reg", memmap[HOBGOBLIN_SPI].base,
                            memmap[HOBGOBLIN_SPI].size);
 
-    // Create MMC child node
+    /* Create MMC child node */
     mmc_name = g_strdup_printf("%s/mmc@0", name);
     qemu_fdt_add_subnode(mc->fdt, mmc_name);
     qemu_fdt_setprop_string(mc->fdt, mmc_name, "compatible", "mmc-spi-slot");
     qemu_fdt_setprop(mc->fdt, mmc_name, "disable-wp", NULL,
-                     0); // Boolean property
+                     0); /* Boolean property */
     qemu_fdt_setprop_cell(mc->fdt, mmc_name, "reg", 0);
     qemu_fdt_setprop_cell(mc->fdt, mmc_name, "spi-max-frequency", 20000000);
 
-    uint32_t gpios[] = { cpu_to_be32(gpio_phandle), // GPIO controller phandle
+    uint32_t gpios[] = { cpu_to_be32(gpio_phandle),
                          cpu_to_be32(0), cpu_to_be32(1) };
     qemu_fdt_setprop(mc->fdt, mmc_name, "gpios", gpios, sizeof(gpios));
 
@@ -1518,13 +1537,13 @@ static void create_fdt_uart(HobgoblinState *s, const memmapEntry_t *memmap,
     };
     qemu_fdt_setprop(mc->fdt, name, "interrupts-extended", interrupts_extended0,
                      sizeof(interrupts_extended0));
-    qemu_fdt_setprop_cells(mc->fdt, name, "reg",
-                           memmap[HOBGOBLIN_UART0].base,
+    qemu_fdt_setprop_cells(mc->fdt, name, "reg", memmap[HOBGOBLIN_UART0].base,
                            memmap[HOBGOBLIN_UART0].size);
     qemu_fdt_setprop_cell(mc->fdt, name, "reg-shift", 2);
     g_free(name);
 
-    name = g_strdup_printf("/soc@0/serial@%" PRIx64, memmap[HOBGOBLIN_UART1].base);
+    name =
+        g_strdup_printf("/soc@0/serial@%" PRIx64, memmap[HOBGOBLIN_UART1].base);
     qemu_fdt_add_subnode(mc->fdt, name);
     qemu_fdt_setprop_string(mc->fdt, name, "compatible",
                             "xlnx,xps-uartlite-1.00.a");
@@ -1623,31 +1642,29 @@ static void create_fdt_ethernet(HobgoblinState *s, const memmapEntry_t *memmap,
                                 uint32_t axi_phy_phandle,
                                 uint32_t clock_phandle)
 {
-    // Add FMC ethernet (RGMII interface)
-    add_fdt_ethernet_node(
-        s, memmap, irq_mmio_phandle,
-        HOBGOBLIN_FMC_AXI_ETH,                // memmap index
-        fmc_axi_phandle,                      // axistream-connected
-        HIRQ(s, HOBGOBLIN_FMC_ETH_IRQ),       // ethernet interrupt
-        fmc_phy_phandle,                      // phy phandle
-        "rgmii-rxid",                         // phy-mode
-        0x01,                                 // phy reg address
-        HIRQ(s, HOBGOBLIN_FMC_ETH_PHY_IRQ),   // phy interrupt
-        clock_phandle,                        // clock phandle
-        false);                               // no TI quirks
+    /* Add FMC ethernet (RGMII interface) */
+    add_fdt_ethernet_node(s, memmap, irq_mmio_phandle,
+                          HOBGOBLIN_FMC_AXI_ETH,    /* memmap index */
+                          fmc_axi_phandle,          /* axistream-connected */
+                          HIRQ(s, HOBGOBLIN_FMC_ETH_IRQ), /* eth interrupt */
+                          fmc_phy_phandle,          /* phy phandle */
+                          "rgmii-rxid",             /* phy-mode */
+                          0x01,                     /* phy reg address */
+                          HIRQ(s, HOBGOBLIN_FMC_ETH_PHY_IRQ), /* phy  */
+                          clock_phandle,            /* clock phandle */
+                          false);                   /* no TI quirks */
 
-    // Add ethernet (SGMII interface)
-    add_fdt_ethernet_node(
-        s, memmap, irq_mmio_phandle,
-        HOBGOBLIN_AXI_ETH,                    // memmap index
-        axi_phandle,                          // axistream-connected
-        HIRQ(s, HOBGOBLIN_ETH_IRQ),           // ethernet interrupt
-        axi_phy_phandle,                      // phy phandle
-        "sgmii",                              // phy-mode
-        0x03,                                 // phy reg address
-        HIRQ(s, HOBGOBLIN_ETH_PHY_IRQ),       // phy interrupt
-        clock_phandle,                        // clock phandle
-        true);                                // has TI quirks
+    /* Add ethernet (SGMII interface) */
+    add_fdt_ethernet_node(s, memmap, irq_mmio_phandle,
+                          HOBGOBLIN_AXI_ETH,          /* memmap index */
+                          axi_phandle,                /* axistream-connected */
+                          HIRQ(s, HOBGOBLIN_ETH_IRQ), /* ethernet interrupt */
+                          axi_phy_phandle,            /* phy phandle */
+                          "sgmii",                    /* phy-mode */
+                          0x03,                       /* phy reg address */
+                          HIRQ(s, HOBGOBLIN_ETH_PHY_IRQ), /* phy interrupt */
+                          clock_phandle,                  /* clock phandle */
+                          true);                          /* has TI quirks */
 }
 
 static void create_gpio_node(HobgoblinState *s, const memmapEntry_t *memmap,
@@ -1900,12 +1917,14 @@ static void hobgoblin_machine_init(MachineState *machine)
     /* add peripherals (requires having an interrupt controller) */
     hobgoblin_add_id_register(s, system_memory);
 #ifdef TARGET_CHERI
-    //Hobgoblin V2 has no CMU on SRAM
+    /* Hobgoblin V2 has no CMU on SRAM */
     if (MAPVERSION(s) == V1) {
-        hobgoblin_add_cmu(s, &s->internal_cmu, &memmap[HOBGOBLIN_INTL_CMU], sram);
+        hobgoblin_add_cmu(s, &s->internal_cmu, &memmap[HOBGOBLIN_INTL_CMU],
+                          sram);
     }
     for (int i = 0; i < hc->dram_banks; i++) {
-        hobgoblin_add_cmu(s, &s->ddr_cmu[i], &memmap[HOBGOBLIN_CMU_DDR0+i], ddr[i]);
+        hobgoblin_add_cmu(s, &s->ddr_cmu[i], &memmap[HOBGOBLIN_CMU_DDR0 + i],
+                          ddr[i]);
     }
 #endif
     hobgoblin_add_uart(s, system_memory);
@@ -1915,19 +1934,18 @@ static void hobgoblin_machine_init(MachineState *machine)
     hobgoblin_add_spi(s);
     hobgoblin_add_sd(s);
     if (hc->board_type == BOARD_TYPE_VCU118)
-        hobgoblin_add_axi_ethernet(s, 1, 1,
-            HOBGOBLIN_FMC_AXI_ETH, HOBGOBLIN_FMC_AXI_DMA,
-            HIRQ(s, HOBGOBLIN_FMC_ETH_IRQ),
-            HIRQ(s, HOBGOBLIN_FMC_AXIDMA_IRQ0), HIRQ(s, HOBGOBLIN_FMC_AXIDMA_IRQ1));
+        hobgoblin_add_axi_ethernet(
+            s, 1, 1, HOBGOBLIN_FMC_AXI_ETH, HOBGOBLIN_FMC_AXI_DMA,
+            HIRQ(s, HOBGOBLIN_FMC_ETH_IRQ), HIRQ(s, HOBGOBLIN_FMC_AXIDMA_IRQ0),
+            HIRQ(s, HOBGOBLIN_FMC_AXIDMA_IRQ1));
     switch (s->eth_type) {
     case ETH_TYPE_ETHERNETLITE:
         hobgoblin_add_ethernetlite(s);
         break;
     case ETH_TYPE_AXI_ETHERNET:
-        hobgoblin_add_axi_ethernet(s, 0,
-            (hc->board_type == BOARD_TYPE_VCU118) ? 3 : 1,
-            HOBGOBLIN_AXI_ETH, HOBGOBLIN_AXI_DMA,
-            HIRQ(s, HOBGOBLIN_ETH_IRQ),
+        hobgoblin_add_axi_ethernet(
+            s, 0, (hc->board_type == BOARD_TYPE_VCU118) ? 3 : 1,
+            HOBGOBLIN_AXI_ETH, HOBGOBLIN_AXI_DMA, HIRQ(s, HOBGOBLIN_ETH_IRQ),
             HIRQ(s, HOBGOBLIN_AXIDMA_IRQ0), HIRQ(s, HOBGOBLIN_AXIDMA_IRQ1));
         break;
     }
@@ -1937,17 +1955,19 @@ static void hobgoblin_machine_init(MachineState *machine)
     hobgoblin_add_virtio(s);
 
     if (hc->board_type == BOARD_TYPE_VCU118 && MAPVERSION(s) == V2) {
-        hobgoblin_add_xilinx_pcie(s, system_memory, 0,
-            HOBGOBLIN_PCIE0,
-            (int[]){HOBGOBLIN_PCIE0_MMIO0, HOBGOBLIN_PCIE0_MMIO1}, 2,
+        hobgoblin_add_xilinx_pcie(
+            s, system_memory, 0, HOBGOBLIN_PCIE0,
+            (int[]){ HOBGOBLIN_PCIE0_MMIO0, HOBGOBLIN_PCIE0_MMIO1 }, 2,
             HIRQ(s, HOBGOBLIN2_PCIE0_IRQ),
-            (int[]){HIRQ(s, HOBGOBLIN2_PCIE0_MSI0_IRQ), HIRQ(s, HOBGOBLIN2_PCIE0_MSI1_IRQ)},
+            (int[]){ HIRQ(s, HOBGOBLIN2_PCIE0_MSI0_IRQ),
+                     HIRQ(s, HOBGOBLIN2_PCIE0_MSI1_IRQ) },
             true);
-        hobgoblin_add_xilinx_pcie(s, system_memory, 1,
-            HOBGOBLIN_PCIE1,
-            (int[]){HOBGOBLIN_PCIE1_MMIO0, HOBGOBLIN_PCIE1_MMIO1}, 2,
+        hobgoblin_add_xilinx_pcie(
+            s, system_memory, 1, HOBGOBLIN_PCIE1,
+            (int[]){ HOBGOBLIN_PCIE1_MMIO0, HOBGOBLIN_PCIE1_MMIO1 }, 2,
             HIRQ(s, HOBGOBLIN2_PCIE1_IRQ),
-            (int[]){HIRQ(s, HOBGOBLIN2_PCIE1_MSI0_IRQ), HIRQ(s, HOBGOBLIN2_PCIE1_MSI1_IRQ)},
+            (int[]){ HIRQ(s, HOBGOBLIN2_PCIE1_MSI0_IRQ),
+                     HIRQ(s, HOBGOBLIN2_PCIE1_MSI1_IRQ) },
             true);
     }
 
@@ -2044,13 +2064,15 @@ static void hobgoblin_machine_class_init(ObjectClass *oc, void *data)
     object_class_property_add_bool(oc, "boot-from-rom",
                                    hobgoblin_machine_get_boot_from_rom,
                                    hobgoblin_machine_set_boot_from_rom);
-    object_class_property_set_description(oc, "boot-from-rom",
+    object_class_property_set_description(
+        oc, "boot-from-rom",
         "Load BIOS (default fsbl_rom.xexe) into ROM and boot into it");
 
     object_class_property_add_str(oc, "eth-type",
                                   hobgoblin_machine_get_eth_type,
                                   hobgoblin_machine_set_eth_type);
-    object_class_property_set_description(oc, "eth-type",
+    object_class_property_set_description(
+        oc, "eth-type",
         "Set the Ethernet type (axi-ethernet (default) or ethernetlite)");
 }
 
@@ -2081,63 +2103,56 @@ static void hobgoblin_concrete_machine_class_init(ObjectClass *oc, void *data)
     hc->irq_map_version = hid->irq_map_version;
 }
 
-#define HOBGOBLIN_MACHINE(_type, _desc, _cpus, _dram, _map, _irq_map) {         \
-    .name          = TYPE_HOBGOBLIN_ ## _type ## _map ## _MACHINE,      \
-    .parent        = TYPE_HOBGOBLIN_MACHINE,                    \
-    .class_init    = hobgoblin_concrete_machine_class_init,      \
-    .class_data    = &((struct HobgoblinInitData) {             \
-        .board_type = BOARD_TYPE_ ## _type,                     \
-        .desc = _desc,                                          \
-        .cpus = _cpus,                                          \
-        .dram = _dram,                                          \
-        .dram_banks = ARRAY_SIZE(_dram),                        \
-        .map_version = _map,                                    \
-        .irq_map_version = _irq_map,                            \
-    })                                                          \
-}
+#define HOBGOBLIN_MACHINE(_type, _desc, _cpus, _dram, _map, _irq_map)          \
+    { .name = TYPE_HOBGOBLIN_##_type##_map##_MACHINE,                          \
+      .parent = TYPE_HOBGOBLIN_MACHINE,                                        \
+      .class_init = hobgoblin_concrete_machine_class_init,                     \
+      .class_data = &((struct HobgoblinInitData){                              \
+          .board_type = BOARD_TYPE_##_type,                                    \
+          .desc = _desc,                                                       \
+          .cpus = _cpus,                                                       \
+          .dram = _dram,                                                       \
+          .dram_banks = ARRAY_SIZE(_dram),                                     \
+          .map_version = _map,                                                 \
+          .irq_map_version = _irq_map,                                         \
+      }) }
 
-#define HOBGOBLIN_MACHINE_NAMED(_name, _type, _desc, _cpus, _dram, _map, _irq_map) {         \
-    .name          = _name,                                       \
-    .parent        = TYPE_HOBGOBLIN_MACHINE,                    \
-    .class_init    = hobgoblin_concrete_machine_class_init,      \
-    .class_data    = &((struct HobgoblinInitData) {             \
-        .board_type = BOARD_TYPE_ ## _type,                     \
-        .desc = _desc,                                          \
-        .cpus = _cpus,                                          \
-        .dram = _dram,                                          \
-        .dram_banks = ARRAY_SIZE(_dram),                        \
-        .map_version = _map,                                    \
-        .irq_map_version = _irq_map,                            \
-    })                                                          \
-}
+#define HOBGOBLIN_MACHINE_NAMED(_name, _type, _desc, _cpus, _dram, _map,       \
+                                _irq_map)                                      \
+    { .name = _name,                                                           \
+      .parent = TYPE_HOBGOBLIN_MACHINE,                                        \
+      .class_init = hobgoblin_concrete_machine_class_init,                     \
+      .class_data = &((struct HobgoblinInitData){                              \
+          .board_type = BOARD_TYPE_##_type,                                    \
+          .desc = _desc,                                                       \
+          .cpus = _cpus,                                                       \
+          .dram = _dram,                                                       \
+          .dram_banks = ARRAY_SIZE(_dram),                                     \
+          .map_version = _map,                                                 \
+          .irq_map_version = _irq_map,                                         \
+      }) }
 static const TypeInfo hobgoblin_machines_typeinfo[] = {
     {
-        .name          = TYPE_HOBGOBLIN_MACHINE,
-        .parent        = TYPE_MACHINE,
-        .abstract      = true,
+        .name = TYPE_HOBGOBLIN_MACHINE,
+        .parent = TYPE_MACHINE,
+        .abstract = true,
         .instance_size = sizeof(HobgoblinState),
-        .class_size    = sizeof(HobgoblinClass),
+        .class_size = sizeof(HobgoblinClass),
         .instance_init = hobgoblin_machine_instance_init,
-        .class_init    = hobgoblin_machine_class_init,
+        .class_init = hobgoblin_machine_class_init,
     },
-    HOBGOBLIN_MACHINE(GENESYS2,
-                      "RISC-V Hobgoblin_v1 (Genesys2) board",
-                      1, genesys2_dram_memmap, V1, V1),
-    HOBGOBLIN_MACHINE(PROFPGA,
-                      "RISC-V Hobgoblin_v1 (proFPGA) board",
-                      4, profpga_dram_memmap, V1, V1),
-    HOBGOBLIN_MACHINE(VCU118,
-                      "RISC-V Hobgoblin_v1 (VCU118) board",
-                      4, vcu118_dram_memmap, V1, V1),
-    HOBGOBLIN_MACHINE(GENESYS2,
-                      "RISC-V Hobgoblin_v2 (Genesys2) board",
-                      1, genesys2_dram_memmap, V2, V2),
-    HOBGOBLIN_MACHINE(PROFPGA,
-                      "RISC-V Hobgoblin_v2 (proFPGA) board",
-                      4, profpga_dram_memmap, V2, V2),
-    HOBGOBLIN_MACHINE(VCU118,
-                      "RISC-V Hobgoblin_v2 (VCU118) board",
-                      4, vcu118_dram_memmap, V2, V2),
+    HOBGOBLIN_MACHINE(GENESYS2, "RISC-V Hobgoblin_v1 (Genesys2) board", 1,
+                      genesys2_dram_memmap, V1, V1),
+    HOBGOBLIN_MACHINE(PROFPGA, "RISC-V Hobgoblin_v1 (proFPGA) board", 4,
+                      profpga_dram_memmap, V1, V1),
+    HOBGOBLIN_MACHINE(VCU118, "RISC-V Hobgoblin_v1 (VCU118) board", 4,
+                      vcu118_dram_memmap, V1, V1),
+    HOBGOBLIN_MACHINE(GENESYS2, "RISC-V Hobgoblin_v2 (Genesys2) board", 1,
+                      genesys2_dram_memmap, V2, V2),
+    HOBGOBLIN_MACHINE(PROFPGA, "RISC-V Hobgoblin_v2 (proFPGA) board", 4,
+                      profpga_dram_memmap, V2, V2),
+    HOBGOBLIN_MACHINE(VCU118, "RISC-V Hobgoblin_v2 (VCU118) board", 4,
+                      vcu118_dram_memmap, V2, V2),
     HOBGOBLIN_MACHINE_NAMED(TYPE_HOBGOBLIN_CODASIP_PRIME_MACHINE, VCU118,
                             "Codasip Prime FPGA platform", 4,
                             vcu118_dram_memmap, V2, V2),
