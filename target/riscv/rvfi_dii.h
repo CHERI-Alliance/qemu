@@ -238,6 +238,12 @@ extern bool rvfi_debug_output;
 struct CPUArchState;
 void rvfi_dii_communicate(CPUState *cs, struct CPUArchState *env, bool was_trap);
 
+static inline bool
+rvfi_dii_enabled(void)
+{
+    return (rvfi_client_fd != 0);
+}
+
 #define CHECK_SAME_TYPE(a, b, msg)                                             \
     _Static_assert(__builtin_types_compatible_p(a*, b*), msg)
 #define rvfi_dii_offset(type, field)                                           \
