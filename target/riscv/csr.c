@@ -4389,6 +4389,18 @@ cap_register_t *get_cap_csr(CPUArchState *env, uint32_t index)
         return &env->vsepcc;
     case CSR_VSTVECC:
         return &env->vstvecc;
+    case CSR_MTVTSCADDRC:
+        return &env->mtvtscaddrc;
+    case CSR_MTVTENTRY0C:
+        return &env->mtvtentryc[0];
+    case CSR_MTVTENTRY1C:
+        return &env->mtvtentryc[1];
+    case CSR_STVTSCADDRC:
+        return &env->stvtscaddrc;
+    case CSR_STVTENTRY0C:
+        return &env->stvtentryc[0];
+    case CSR_STVTENTRY1C:
+        return &env->stvtentryc[1];
 #ifdef TARGET_CHERI_RISCV_V9
     case CSR_MTDC:
         return &env->mtdc;
@@ -4399,6 +4411,10 @@ cap_register_t *get_cap_csr(CPUArchState *env, uint32_t index)
     case CSR_PCC:
         return &env->pcc;
 #endif
+    case CSR_MTVT:
+        return &env->mtvtc;
+    case CSR_STVT:
+        return &env->stvtc;
     default:
         assert(false && "Should have raised an invalid inst trap!");
     }
@@ -4558,11 +4574,31 @@ static void write_xtvecc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
 {
     bool valid = true;
     cap_register_t *csr = get_cap_csr(env, csr_cap_info->reg_num);
-    /* The low two bits encode the mode, but only 0 and 1 are valid. */
-    if ((new_tvec & 3) > 1) {
-        /* Invalid mode, keep the old one. */
+    RISCVCPU *cpu = env_archcpu(env);
+    if (cpu->cfg.ext_smclic && env->clic_opaque) {
+        /* Codasip CLIC hardwires the tvec mode to vectored */
+        new_tvec &= (~0x3f);
+        new_tvec |= 0x3;
+    }
+    target_ulong mode = get_field(new_tvec, XTVEC_MODE);
+    target_ulong fullmode = new_tvec & XTVEC_FULL_MODE;
+    /* bits [1:0] encode mode; 0 = direct, 1 = vectored, 2 >= reserved */
+    if (mode <= XTVEC_CLINT_VECTORED) {
+        /* Do nothing */
+    } else if (XTVEC_CLIC == fullmode && cpu->cfg.ext_smclic &&
+               riscv_cpu_has_clic(env)) {
+        new_tvec = (new_tvec & XTVEC_NBASE) | XTVEC_CLIC;
+        /*
+         * CLIC mode hardwires xtvec bits 2-5 to zero.
+         * Layout:
+         *   XLEN-1:6   base (WARL)
+         *   5:2        submode (WARL)  - 0000 for CLIC
+         *   1:0        mode (WARL)     - 11 for CLIC
+         */
+    } else {
         new_tvec &= ~(target_ulong)3;
         new_tvec |= cap_get_cursor(csr) & 3;
+        qemu_log_mask(LOG_UNIMP, "CSR_XTVECC: reserved mode not supported\n");
     }
 
     // the function needs to know if if it using the src capability or the csr's
@@ -4636,6 +4672,22 @@ static cap_register_t read_xepcc(CPURISCVState *env,
     }
 
     return retval;
+}
+
+static void rmw_xtvtscaddrc(CPURISCVState *env, riscv_csr_cap_ops *cap,
+                            cap_register_t *src, cap_register_t *dst,
+                            target_ulong newval, bool clen)
+{
+    /*
+     * Handler for the xtvtscaddr registers
+     * takes the input tvtentry (in newval)
+     * The bottom bits and current regnumber are used to select the appropriate
+     * authorising register from the xtvtentryc registers and set the
+     * destination using scaddr
+     */
+    int auth_csrnum = cap->reg_num + 1 + (newval & 1);
+    cap_register_t retval = *get_cap_csr(env, auth_csrnum);
+    *dst = cap_scaddr(newval & ~1, retval);
 }
 
 #ifdef TARGET_CHERI_RISCV_V9
@@ -5139,10 +5191,8 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_MCAUSE]   = { "mcause",   any,  read_mcause,   write_mcause   },
     [CSR_MTVAL]    = { "mtval",    any,  read_mtval,    write_mtval    },
     [CSR_MIP]      = { "mip",      any,  NULL,    NULL, rmw_mip        },
-    [CSR_MSCRATCHCSW] = { "mscratchcsw", any, NULL, NULL, rmw_xscratchcsw },
-    [CSR_MSCRATCHCSWL] = { "mscratchcswl", any, NULL, NULL,
-                           rmw_xscratchcswl },
-
+    [CSR_MSCRATCHCSW] = { "mscratchcsw" , any, NULL, NULL, rmw_xscratchcsw },
+    [CSR_MSCRATCHCSWL] = { "mscratchcswl" , any, NULL, NULL, rmw_xscratchcswl },
     /* Machine-Level Window to Indirectly Accessed Registers (AIA) */
     [CSR_MISELECT] = { "miselect", aia_any,   NULL, NULL,    rmw_xiselect },
     [CSR_MIREG]    = { "mireg",    aia_any,   NULL, NULL,    rmw_xireg },
@@ -5824,46 +5874,70 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
  */
 
 static riscv_csr_cap_ops csr_cap_ops[] = {
-    { "mscratchc", CSR_MSCRATCHC, read_capcsr_reg, write_cap_csr_reg,
+    { "mscratchc", CSR_MSCRATCHC, read_capcsr_reg, write_cap_csr_reg, NULL,
       CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
-    { "mtvecc", CSR_MTVECC, read_capcsr_reg, write_xtvecc,
+    { "mtvecc", CSR_MTVECC, read_capcsr_reg, write_xtvecc, NULL,
       CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG |
           CSR_OP_IS_CODE_PTR },
-    { "stvecc", CSR_STVECC, read_capcsr_reg, write_xtvecc,
+    { "stvecc", CSR_STVECC, read_capcsr_reg, write_xtvecc, NULL,
       CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG |
           CSR_OP_IS_CODE_PTR },
-    { "mepcc", CSR_MEPCC, read_xepcc, write_xepcc,
+    { "mepcc", CSR_MEPCC, read_xepcc, write_xepcc, NULL,
       CSR_OP_IA_CONVERSION | CSR_OP_EXTENDED_REG | CSR_OP_IS_CODE_PTR },
-    { "sepcc", CSR_SEPCC, read_xepcc, write_xepcc,
+    { "sepcc", CSR_SEPCC, read_xepcc, write_xepcc, NULL,
       CSR_OP_IA_CONVERSION | CSR_OP_EXTENDED_REG | CSR_OP_IS_CODE_PTR },
-    { "sscratchc", CSR_SSCRATCHC, read_capcsr_reg, write_cap_csr_reg,
+    { "sscratchc", CSR_SSCRATCHC, read_capcsr_reg, write_cap_csr_reg, NULL,
       CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
-    { "ddc", CSR_DDC, read_capcsr_reg, write_cap_csr_reg,
+    { "ddc", CSR_DDC, read_capcsr_reg, write_cap_csr_reg, NULL,
       CSR_OP_REQUIRE_CRE | CSR_OP_IA_CONVERSION },
-    { "mtidc", CSR_MTIDC, read_capcsr_reg, write_cap_csr_reg,
+    { "mtidc", CSR_MTIDC, read_capcsr_reg, write_cap_csr_reg, NULL,
       CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
-    { "stidc", CSR_STIDC, read_capcsr_reg, write_cap_csr_reg,
+    { "stidc", CSR_STIDC, read_capcsr_reg, write_cap_csr_reg, NULL,
       CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
-    { "utidc", CSR_UTIDC, read_capcsr_reg, write_cap_csr_reg,
+    { "utidc", CSR_UTIDC, read_capcsr_reg, write_cap_csr_reg, NULL,
       CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
-    { "vstidc", CSR_VSTIDC, read_capcsr_reg, write_cap_csr_reg,
+    { "vstidc", CSR_VSTIDC, read_capcsr_reg, write_cap_csr_reg, NULL,
       CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
-    { "vsepcc", CSR_VSEPCC, read_xepcc, write_xepcc,
+    { "vsepcc", CSR_VSEPCC, read_xepcc, write_xepcc, NULL,
       CSR_OP_IA_CONVERSION | CSR_OP_EXTENDED_REG | CSR_OP_IS_CODE_PTR },
-    { "vsscratchc", CSR_VSSCRATCHC, read_capcsr_reg, write_cap_csr_reg,
+    { "vsscratchc", CSR_VSSCRATCHC, read_capcsr_reg, write_cap_csr_reg, NULL,
       CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
-    { "vstvecc", CSR_VSTVECC, read_capcsr_reg, write_xtvecc,
+    { "vstvecc", CSR_VSTVECC, read_capcsr_reg, write_xtvecc, NULL,
       CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG |
           CSR_OP_IS_CODE_PTR },
-#ifdef TARGET_CHERI_RISCV_V9
+    { "mtvt", CSR_MTVT, read_capcsr_reg, write_cap_csr_reg, NULL,
+      CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG |
+          CSR_OP_IS_CODE_PTR },
+    { "mtvtentry0c", CSR_MTVTENTRY0C, read_capcsr_reg, write_cap_csr_reg, NULL,
+      CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG |
+          CSR_OP_IS_CODE_PTR | CSR_OP_REQUIRE_CRE },
+    { "mtvtentry1c", CSR_MTVTENTRY1C, read_capcsr_reg, write_cap_csr_reg, NULL,
+      CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG |
+          CSR_OP_IS_CODE_PTR | CSR_OP_REQUIRE_CRE },
+    { "stvt", CSR_STVT, read_capcsr_reg, write_cap_csr_reg, NULL,
+      CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG |
+          CSR_OP_IS_CODE_PTR },
+    { "stvtentry0c", CSR_STVTENTRY0C, read_capcsr_reg, write_cap_csr_reg, NULL,
+      CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG |
+          CSR_OP_IS_CODE_PTR | CSR_OP_REQUIRE_CRE },
+    { "stvtentry1c", CSR_STVTENTRY1C, read_capcsr_reg, write_cap_csr_reg, NULL,
+      CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG |
+          CSR_OP_IS_CODE_PTR | CSR_OP_REQUIRE_CRE },
+    { "mtvtscaddrc", CSR_MTVTSCADDRC, NULL, NULL, rmw_xtvtscaddrc,
+      CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG |
+          CSR_OP_IS_CODE_PTR | CSR_OP_REQUIRE_CRE },
+    { "stvtscaddrc", CSR_STVTSCADDRC, NULL, NULL, rmw_xtvtscaddrc,
+      CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG |
+          CSR_OP_IS_CODE_PTR | CSR_OP_REQUIRE_CRE },
+ #ifdef TARGET_CHERI_RISCV_V9
     /* For backwards compatibility add the *tdc registers */
-    { "mtdc", CSR_MTDC, read_capcsr_reg, write_cap_csr_reg,
+    { "mtdc", CSR_MTDC, read_capcsr_reg, write_cap_csr_reg, NULL,
       CSR_OP_REQUIRE_CRE },
-    { "stdc", CSR_STDC, read_capcsr_reg, write_cap_csr_reg,
+    { "stdc", CSR_STDC, read_capcsr_reg, write_cap_csr_reg, NULL,
       CSR_OP_REQUIRE_CRE },
-    { "vstdc", CSR_VSTDC, read_capcsr_reg, write_cap_csr_reg,
+    { "vstdc", CSR_VSTDC, read_capcsr_reg, write_cap_csr_reg, NULL,
       CSR_OP_REQUIRE_CRE },
-    { "pcc", CSR_PCC, read_capcsr_reg, /*write=*/NULL, CSR_OP_REQUIRE_CRE },
+    { "pcc", CSR_PCC, read_capcsr_reg, NULL, NULL, CSR_OP_REQUIRE_CRE },
 #endif
 };
 

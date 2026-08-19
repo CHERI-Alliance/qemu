@@ -1286,6 +1286,14 @@ static void riscv_cpu_reset_hold(Object *obj)
     set_max_perms_capability(env, &env->mepcc, 0);
 
     env->vsscratchc = make_null_capability(env);
+    set_max_perms_capability(env, &env->mtvtentryc[0], 0);
+    set_max_perms_capability(env, &env->mtvtentryc[1], 0);
+    set_max_perms_capability(env, &env->mtvtscaddrc, 0);
+    set_max_perms_capability(env, &env->stvtentryc[0], 0);
+    set_max_perms_capability(env, &env->stvtentryc[1], 0);
+    set_max_perms_capability(env, &env->stvtscaddrc, 0);
+    set_max_perms_capability(env, &env->stvtc, 0);
+    set_max_perms_capability(env, &env->mtvtc, 0);
 
     env->utidc = make_null_capability(env);
     env->stidc = make_null_capability(env);

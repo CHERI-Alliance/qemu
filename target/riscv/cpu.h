@@ -1058,6 +1058,9 @@ typedef void (*riscv_csr_cap_write_fn)(CPURISCVState *env,
                                        riscv_csr_cap_ops *cap,
                                        cap_register_t src, target_ulong newval,
                                        bool clen);
+typedef void (*riscv_csr_cap_rmw_fn)(CPURISCVState *env, riscv_csr_cap_ops *cap,
+                                     cap_register_t *src, cap_register_t *dst,
+                                     target_ulong newval, bool clen);
 
 #define CSR_OP_REQUIRE_CRE   (1 << 0)
 #define CSR_OP_IA_CONVERSION (1 << 1)
@@ -1071,6 +1074,7 @@ struct _csr_cap_ops {
     uint32_t reg_num;
     riscv_csr_cap_read_fn read;
     riscv_csr_cap_write_fn write;
+    riscv_csr_cap_rmw_fn rmw;
     uint8_t flags;
 };
 riscv_csr_cap_ops *get_csr_cap_info(uint32_t csrnum);
