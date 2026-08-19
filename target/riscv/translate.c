@@ -93,7 +93,7 @@ typedef struct DisasContext {
 #ifdef TARGET_CHERI
     bool capmode;
     bool hybrid;
-    bool cre;
+    bool y_enabled;
 #ifdef TARGET_CHERI_RISCV_V9
     bool cheri_v9_semantics;
 #endif
@@ -940,7 +940,7 @@ static bool pred_hybrid(DisasContext *ctx)
 #ifdef TARGET_CHERI_RISCV_STD
 static bool pred_cre(DisasContext *ctx)
 {
-    return ctx->cre;
+    return ctx->y_enabled;
 }
 #endif
 
@@ -1467,7 +1467,7 @@ static void riscv_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->cheri_v9_semantics = cpu->cfg.ext_cheri_v9;
 #endif
     ctx->hybrid = riscv_feature(env, RISCV_FEATURE_CHERI_HYBRID);
-    ctx->cre = tb_cheri_enabled(ctx->base.tb);
+    ctx->y_enabled = tb_cheri_enabled(ctx->base.tb);
 #endif
     ctx->priv_ver = env->priv_ver;
 #if !defined(CONFIG_USER_ONLY)

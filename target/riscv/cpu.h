@@ -813,7 +813,7 @@ char *riscv_isa_string(RISCVCPU *cpu);
 void riscv_cpu_list(void);
 
 #ifdef TARGET_CHERI
-static inline bool riscv_cpu_mode_cre(CPURISCVState *env);
+static inline bool riscv_cpu_mode_y(CPURISCVState *env);
 #endif
 
 #define cpu_list riscv_cpu_list
@@ -1107,7 +1107,7 @@ typedef void (*riscv_csr_cap_write_fn)(CPURISCVState *env,
                                        cap_register_t src, target_ulong newval,
                                        bool clen);
 
-#define CSR_OP_REQUIRE_CRE   (1 << 0)
+#define CSR_OP_REQUIRE_Y     (1 << 0)
 #define CSR_OP_IA_CONVERSION (1 << 1)
 #define CSR_OP_UPDATE_SCADDR (1 << 2)
 #define CSR_OP_EXTENDED_REG  (1 << 3)
@@ -1125,14 +1125,14 @@ struct _csr_cap_ops {
 riscv_csr_cap_ops *get_csr_cap_info(uint32_t csrnum);
 cap_register_t *get_cap_csr(CPUArchState *env, uint32_t index);
 
-/* Do the CRE bits allow cheri access in the current CPU mode? */
-static inline bool riscv_cpu_mode_cre(CPURISCVState *env)
+/* Do the envcfg Y bits allow cheri access in the current CPU mode? */
+static inline bool riscv_cpu_mode_y(CPURISCVState *env)
 {
 #ifdef TARGET_CHERI_RISCV_V9
     return env_archcpu(env)->cfg.ext_cheri;
 #else
     /*
-     * CRE bits are defined only if Zcherihybrid is supported.
+     * Y bits are defined only if Zcherihybrid is supported.
      * For Zcheripurecap, cheri register access is always allowed.
      */
     if (!riscv_feature(env, RISCV_FEATURE_CHERI_HYBRID)) {
@@ -1140,17 +1140,17 @@ static inline bool riscv_cpu_mode_cre(CPURISCVState *env)
     }
 
     if (env->mseccfg & MSECCFG_CRE) {
-        /* CRE bits allow cheri in M mode */
+        /* Y bits allow cheri in M mode */
         if (env->priv == PRV_M)
             return true;
 
-        if (env->menvcfg & MENVCFG_CRE) {
-            /* CRE bits allow cheri in S mode (and in M mode) */
+        if (env->menvcfg & MENVCFG_Y) {
+            /* Y bits allow cheri in S mode (and in M mode) */
             if (env->priv == PRV_S)
                 return true;
 
-            if (env->senvcfg & SENVCFG_CRE) {
-                /* CRE bits allow cheri in U mode (and in M, S modes) */
+            if (env->senvcfg & SENVCFG_Y) {
+                /* Y bits allow cheri in U mode (and in M, S modes) */
                 if (env->priv == PRV_U)
                     return true;
             }
@@ -1159,7 +1159,7 @@ static inline bool riscv_cpu_mode_cre(CPURISCVState *env)
 
     /*
      * For now, we do not support the hypervisor extension. It'll probably
-     * have another CRE bit for H mode.
+     * have another Y bit for H mode.
      */
 
     return false;
@@ -1168,7 +1168,7 @@ static inline bool riscv_cpu_mode_cre(CPURISCVState *env)
 
 static inline bool cheri_is_enabled(CPURISCVState *env)
 {
-    return riscv_cpu_mode_cre(env);
+    return riscv_cpu_mode_y(env);
 }
 #endif
 

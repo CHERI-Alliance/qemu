@@ -802,8 +802,8 @@ static void riscv_cpu_reset(DeviceState *dev)
     if (rvfi_dii_enabled()) {
         /* TestRIG assumes that CHERI extensions are enabled */
         env->mseccfg |= MSECCFG_CRE;
-        env->menvcfg |= MENVCFG_CRE;
-        env->senvcfg |= SENVCFG_CRE;
+        env->menvcfg |= MENVCFG_Y;
+        env->senvcfg |= SENVCFG_Y;
     }
 #endif
 #endif
