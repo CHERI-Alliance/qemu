@@ -1908,6 +1908,15 @@ void CHERI_HELPER_IMPL(debug_cap(CPUArchState *env, uint32_t regndx))
     }
 }
 
+#if defined(TARGET_RISCV) && defined(CONFIG_RVFI_DII)
+void CHERI_HELPER_IMPL(rvfi_changed_capreg(CPUArchState *env, uint32_t regnum))
+{
+    GPCapRegs *gpcrs = cheri_get_gpcrs(env);
+    const cap_register_t *cap = get_cap_in_gpregs(gpcrs, regnum);
+    rvfi_changed_capreg(env, regnum, cap->_cr_cursor);
+}
+#endif
+
 void helper_capreg_state_debug(CPUArchState *env, uint32_t regnum,
                                uint64_t flags, uint64_t pc)
 {
