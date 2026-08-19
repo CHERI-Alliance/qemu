@@ -2320,6 +2320,9 @@ void riscv_cpu_do_interrupt(CPUState *cs)
          */
         if ((cause == RISCV_EXCP_INST_ACCESS_FAULT ||
              cause == RISCV_EXCP_ILLEGAL_INST) &&
+#ifdef CONFIG_RVFI_DII
+            !rvfi_dii_enabled() &&
+#endif
 #ifdef TARGET_CHERI
             cap_exactly_equal(&env->pcc, &env->mtvecc)) {
 #else
