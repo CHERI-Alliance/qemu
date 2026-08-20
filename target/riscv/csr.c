@@ -1602,6 +1602,11 @@ static RISCVException rmw_mideleg(CPURISCVState *env, int csrno,
     uint64_t rval;
     RISCVException ret;
 
+    /* The xip CSR appears hardwired to zero in CLIC mode. */
+    if (riscv_clic_is_clic_mode(env)) {
+        *ret_val = 0;
+        return RISCV_EXCP_NONE;
+    }
     ret = rmw_mideleg64(env, csrno, &rval, new_val, wr_mask);
     if (ret_val) {
         *ret_val = rval;
@@ -1655,6 +1660,11 @@ static RISCVException rmw_mie(CPURISCVState *env, int csrno,
 {
     uint64_t rval = 0;
     RISCVException ret;
+    /* The xie CSR appears hardwired to zero in CLIC mode. */
+    if (riscv_clic_is_clic_mode(env)) {
+        *ret_val = 0;
+        return RISCV_EXCP_NONE;
+    }
 
     ret = rmw_mie64(env, csrno, &rval, new_val, wr_mask);
     if (ret_val) {
@@ -2774,6 +2784,11 @@ static RISCVException rmw_sie(CPURISCVState *env, int csrno,
     uint64_t rval = 0;
     RISCVException ret;
 
+    /* The xie CSR appears hardwired to zero in CLIC mode. */
+    if (riscv_clic_is_clic_mode(env)) {
+        *ret_val = 0;
+        return RISCV_EXCP_NONE;
+    }
     ret = rmw_sie64(env, csrno, &rval, new_val, wr_mask);
     if (ret == RISCV_EXCP_NONE && ret_val) {
         *ret_val = rval;
@@ -3107,6 +3122,11 @@ static RISCVException rmw_sip(CPURISCVState *env, int csrno,
     uint64_t rval = 0;
     RISCVException ret;
 
+    /* The xip CSR appears hardwired to zero in CLIC mode. */
+    if (riscv_clic_is_clic_mode(env)) {
+        *ret_val = 0;
+        return RISCV_EXCP_NONE;
+    }
     ret = rmw_sip64(env, csrno, &rval, new_val, wr_mask);
     if (ret_val) {
         *ret_val = rval;
@@ -3422,6 +3442,11 @@ static RISCVException rmw_hideleg(CPURISCVState *env, int csrno,
     uint64_t rval;
     RISCVException ret;
 
+    /* The xideleg CSR appears hardwired to zero in CLIC mode. */
+    if (riscv_clic_is_clic_mode(env)) {
+        *ret_val = 0;
+        return RISCV_EXCP_NONE;
+    }
     ret = rmw_hideleg64(env, csrno, &rval, new_val, wr_mask);
     if (ret_val) {
         *ret_val = rval;
