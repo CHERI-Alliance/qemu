@@ -367,57 +367,6 @@ static MemoryRegion *hobgoblin_add_memory_area(MemoryRegion *system_memory,
     return reg;
 }
 
-static void hobgoblin_add_interrupt_controller(HobgoblinState *s,
-                                               const int num_harts)
-{
-    const memmapEntry_t *memmap = address_maps[MAPVERSION(s)];
-    const memmapEntry_t *mem_clint = &memmap[HOBGOBLIN_CLINT];
-    const int hartid_base = 0; /* Hart IDs start at 0 */
-
-#ifdef TARGET_RISCV64
-    /* PLIC */
-    const memmapEntry_t *mem_plic = &memmap[HOBGOBLIN_PLIC];
-    char *plic_hart_config;
-    assert(HOBGOBLIN_PLIC_NUM_SOURCES > HIRQ(s, HOBGOBLIN_MAX_IRQ));
-    plic_hart_config = riscv_plic_hart_config_string(num_harts);
-    DeviceState *plic = sifive_plic_create(
-        mem_plic->base,
-        plic_hart_config,
-        num_harts,
-        hartid_base,
-        HOBGOBLIN_PLIC_NUM_SOURCES,
-        HOBGOBLIN_PLIC_NUM_PRIORITIES,
-        HOBGOBLIN_PLIC_PRIORITY_BASE,
-        HOBGOBLIN_PLIC_PENDING_BASE,
-        HOBGOBLIN_PLIC_ENABLE_BASE,
-        HOBGOBLIN_PLIC_ENABLE_STRIDE,
-        HOBGOBLIN_PLIC_CONTEXT_BASE,
-        HOBGOBLIN_PLIC_CONTEXT_STRIDE,
-        mem_plic->size);
-    g_free(plic_hart_config);
-    /* publish */
-    s->plic = plic;
-    /* CLINT with SWI in M-Mode */
-    riscv_aclint_swi_create(mem_clint->base, hartid_base, num_harts, false,
-                            NULL);
-
-    /* CLINT timer */
-    assert(mem_clint->size >= RISCV_ACLINT_SWI_SIZE);
-    riscv_aclint_mtimer_create(
-        mem_clint->base + RISCV_ACLINT_SWI_SIZE,
-        RISCV_ACLINT_DEFAULT_MTIMER_SIZE,
-        hartid_base,
-        num_harts,
-        RISCV_ACLINT_DEFAULT_MTIMECMP,
-        RISCV_ACLINT_DEFAULT_MTIME,
-        CLINT_TIMEBASE_FREQ,
-        true, NULL); /* provide_rdtime */
-#elif defined(TARGET_RISCV32)
-    /*
-     * Codasip CLIC only has an 1 memblock, this is shared by S and M mode)
-     * Also only a single hart is supported
-     */
-
 #define HOBGOBLIN_CLIC_MAX_IRQS             0x1000
 #define HOBGOBLIN_CLIC_INT_SIZE(_irq_count) ((_irq_count) * 4)
 #define HOBGOBLIN_CLIC_BLOCK_SIZE                                              \
@@ -426,38 +375,92 @@ static void hobgoblin_add_interrupt_controller(HobgoblinState *s,
 
 #define VIRT_CLIC_INT_SIZE(_irq_count) ((_irq_count) * 4)
 
-    const memmapEntry_t *mem_clic = &memmap[HOBGOBLIN_CLIC];
+static void hobgoblin_add_interrupt_controller(HobgoblinState *s,
+                                               const int num_harts)
+{
+    const memmapEntry_t *memmap = address_maps[MAPVERSION(s)];
+    const memmapEntry_t *mem_clint = &memmap[HOBGOBLIN_CLINT];
+    const int hartid_base = 0; /* Hart IDs start at 0 */
+    const bool have_clic = s->soc.harts[0].cfg.ext_smclic;
 
-    uint64_t mclicbase = mem_clic->base;
-    uint64_t sclicbase = mclicbase;
-    uint64_t uclicbase = 0;
-    qemu_irq sw_irq;/* Assumes a single HART and M mode only */
-    qemu_irq timer_irq;/* Assumes a single HART and Single privilege level */
-    s->clic = riscv_clic_create(mclicbase, sclicbase, uclicbase, 0, 128,
-                                HOBGOBLIN_CLIC_INTCL_BITS, "v0.9");
-    s->have_clic = true;
-    /*
-     * need to create the mtimer sn sw timers which connect the clint and clic
-     */
-   sw_irq = hobgoblin_make_intc_irq(s, 0);
-   timer_irq = hobgoblin_make_intc_irq(s, 1);
+    if (!have_clic) {
+        /* PLIC */
+        const memmapEntry_t *mem_plic = &memmap[HOBGOBLIN_PLIC];
+        char *plic_hart_config;
+        assert(HOBGOBLIN_PLIC_NUM_SOURCES > HIRQ(s, HOBGOBLIN_MAX_IRQ));
+        plic_hart_config = riscv_plic_hart_config_string(num_harts);
+        DeviceState *plic = sifive_plic_create(
+            mem_plic->base,
+            plic_hart_config,
+            num_harts,
+            hartid_base,
+            HOBGOBLIN_PLIC_NUM_SOURCES,
+            HOBGOBLIN_PLIC_NUM_PRIORITIES,
+            HOBGOBLIN_PLIC_PRIORITY_BASE,
+            HOBGOBLIN_PLIC_PENDING_BASE,
+            HOBGOBLIN_PLIC_ENABLE_BASE,
+            HOBGOBLIN_PLIC_ENABLE_STRIDE,
+            HOBGOBLIN_PLIC_CONTEXT_BASE,
+            HOBGOBLIN_PLIC_CONTEXT_STRIDE,
+            mem_plic->size);
+        g_free(plic_hart_config);
+        /* publish */
+        s->plic = plic;
+        /* CLINT with SWI in M-Mode */
+        riscv_aclint_swi_create(mem_clint->base, hartid_base, num_harts, false,
+                                NULL);
 
-    /* CLINT with SWI in M-Mode */
-    riscv_aclint_swi_create(mem_clint->base, hartid_base, num_harts, false,
-                            &sw_irq);
+        /* CLINT timer */
+        assert(mem_clint->size >= RISCV_ACLINT_SWI_SIZE);
+        riscv_aclint_mtimer_create(
+            mem_clint->base + RISCV_ACLINT_SWI_SIZE,
+            RISCV_ACLINT_DEFAULT_MTIMER_SIZE,
+            hartid_base,
+            num_harts,
+            RISCV_ACLINT_DEFAULT_MTIMECMP,
+            RISCV_ACLINT_DEFAULT_MTIME,
+            CLINT_TIMEBASE_FREQ,
+            true, NULL); /* provide_rdtime */
+    } else {
+        /*
+         * Codasip CLIC only has an 1 memblock, this is shared by S and M mode)
+         * Also only a single hart is supported
+         */
+        assert(num_harts == 1);
 
-    /* CLINT timer */
-    assert(mem_clint->size >= RISCV_ACLINT_SWI_SIZE);
-    riscv_aclint_mtimer_create(
-        mem_clint->base + RISCV_ACLINT_SWI_SIZE,
-        RISCV_ACLINT_DEFAULT_MTIMER_SIZE,
-        hartid_base,
-        num_harts,
-        RISCV_ACLINT_DEFAULT_MTIMECMP,
-        RISCV_ACLINT_DEFAULT_MTIME,
-        CLINT_TIMEBASE_FREQ,
-        true, &timer_irq); /* provide_rdtime */
-#endif
+        const memmapEntry_t *mem_clic = &memmap[HOBGOBLIN_CLIC];
+
+        uint64_t mclicbase = mem_clic->base;
+        uint64_t sclicbase = mclicbase;
+        uint64_t uclicbase = 0;
+        qemu_irq sw_irq;/* Assumes a single HART and M mode only */
+        qemu_irq timer_irq;/* Assume a single HART and Single privilege level */
+        s->clic = riscv_clic_create(mclicbase, sclicbase, uclicbase, 0, 128,
+                                    HOBGOBLIN_CLIC_INTCL_BITS, "v0.9");
+        s->have_clic = true;
+        /*
+         * need to create the mtimer sn sw timers which connect the
+         * clint and clic
+         */
+       sw_irq = hobgoblin_make_intc_irq(s, 0);
+       timer_irq = hobgoblin_make_intc_irq(s, 1);
+
+        /* CLINT with SWI in M-Mode */
+        riscv_aclint_swi_create(mem_clint->base, hartid_base, num_harts, false,
+                                &sw_irq);
+
+        /* CLINT timer */
+        assert(mem_clint->size >= RISCV_ACLINT_SWI_SIZE);
+        riscv_aclint_mtimer_create(
+            mem_clint->base + RISCV_ACLINT_SWI_SIZE,
+            RISCV_ACLINT_DEFAULT_MTIMER_SIZE,
+            hartid_base,
+            num_harts,
+            RISCV_ACLINT_DEFAULT_MTIMECMP,
+            RISCV_ACLINT_DEFAULT_MTIME,
+            CLINT_TIMEBASE_FREQ,
+            true, &timer_irq); /* provide_rdtime */
+    }
 }
 
 #define INTC_HOBGOBLIN(S) (s->have_clic ? s->clic : s->plic)
