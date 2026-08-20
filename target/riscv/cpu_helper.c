@@ -893,7 +893,7 @@ static bool rvy_cap_store_page_fault(CPURISCVState *env, target_ulong pte)
         return !(pte & PTE_YW) || !(pte & PTE_YD);
     }
     /* Base RV64Y behavior: pte.rvy[3] (pte.y) gates capability stores. */
-    return !(pte & PTE_YD);
+    return !(pte & PTE_Y);
 }
 #endif
 
@@ -1423,7 +1423,7 @@ restart:
                         *prot |= PAGE_LC_TRAP;
                     }
                 }
-            } else if (!(pte & PTE_YD)) {
+            } else if (!(pte & PTE_Y)) {
                 /*
                  * Base RV64Y behavior: with pte.rvy[3] (pte.y) clear, all
                  * capability loads have the loaded tag cleared.
