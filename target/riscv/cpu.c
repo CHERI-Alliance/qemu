@@ -900,6 +900,11 @@ static void rv32_codasip_l730_glim_cpu_init(Object *obj)
     cpu->cfg.ext_zfhmin = true;
     cpu->cfg.ext_zbkc = true;
     codasip_base_configure_extensions(cpu);
+
+    cpu->cfg.ext_smclic = true;
+    cpu->cfg.ext_ssclic = true;
+    cpu->cfg.ext_smclicshv = true;
+    cpu->cfg.ext_smclicconfig = true;
 }
 static void rv32_codasip_l739_topaz_cpu_init(Object *obj)
 {
@@ -914,6 +919,11 @@ static void rv32_codasip_l739_topaz_cpu_init(Object *obj)
     cpu->cfg.pmp = true;
     cpu->cfg.ext_zfhmin = true;
     codasip_base_configure_extensions(cpu);
+
+    cpu->cfg.ext_smclic = true;
+    cpu->cfg.ext_ssclic = true;
+    cpu->cfg.ext_smclicshv = true;
+    cpu->cfg.ext_smclicconfig = true;
 }
 
 #endif /* RV32 */
