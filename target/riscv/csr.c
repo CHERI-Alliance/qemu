@@ -4690,6 +4690,83 @@ static void rmw_xtvtscaddrc(CPURISCVState *env, riscv_csr_cap_ops *cap,
     *dst = cap_scaddr(newval & ~1, retval);
 }
 
+
+/*
+ * handlers for the CLIC based csr registers
+ * xscratchcsw swaps the value conditionally based on the current mode
+ * xscratchcswl swaps based on the interrupt level.
+ * Duplicates the logic of the capability versions, simply targetting
+ * capabilities
+ */
+static void rmw_xscratchcswc(CPURISCVState *env, riscv_csr_cap_ops *cap,
+                            cap_register_t *src, cap_register_t *dst,
+                            target_ulong newval, bool clen)
+
+{
+    target_ulong mode = (cap->reg_num == CSR_MSCRATCHCSW) ?
+                        get_field(env->mstatus, MSTATUS_MPP) :
+                        get_field(env->mstatus, MSTATUS_SPP);
+    cap_register_t *xscratch = NULL;
+    /* Figure out which scratch register is needed */
+    if (env->priv == PRV_M) {
+        xscratch = &env->mscratchc;
+    } else {
+        xscratch = &env->sscratchc;
+    }
+    /*
+     * Snapshot *src before writing anything: the caller (HELPER(csrrw_cap))
+     * passes the same pointer for src and dst, so writing *dst before
+     * reading *src would clobber the new value we still need to store into
+     * *xscratch.
+     */
+    cap_register_t new_val = *src;
+    if (env->priv == mode) {
+        *dst = new_val;
+    } else {
+        *dst = *xscratch;
+        *xscratch = new_val;
+    }
+
+}
+
+static void rmw_xscratchcswlc(CPURISCVState *env, riscv_csr_cap_ops *cap,
+                            cap_register_t *src, cap_register_t *dst,
+                            target_ulong newval, bool clen)
+
+{
+    cap_register_t *xscratch = NULL;
+    /* Figure out which scratch register is needed */
+    if (env->priv == PRV_M) {
+        xscratch = &env->mscratchc;
+    } else {
+        xscratch = &env->sscratchc;
+    }
+
+    int cause_pil, status_il;
+    if (cap->reg_num == CSR_MSCRATCHCSWL) {
+        cause_pil = get_field(env->mcause, MCAUSE_MPIL);
+        status_il = get_field(env->mintstatus, MINTSTATUS_MIL);
+    } else {
+        cause_pil = get_field(env->scause, SCAUSE_SPIL);
+        status_il = get_field(env->mintstatus, SINTSTATUS_SIL);
+    }
+    /*
+     * Snapshot *src before writing anything: the caller (HELPER(csrrw_cap))
+     * passes the same pointer for src and dst, so writing *dst before
+     * reading *src would clobber the new value we still need to store into
+     * *xscratch.
+     */
+    cap_register_t new_val = *src;
+    if (cause_pil != status_il) {
+        *dst = *xscratch;
+        *xscratch = new_val;
+    } else {
+        *dst = new_val;
+    }
+}
+
+
+
 #ifdef TARGET_CHERI_RISCV_V9
 static RISCVException read_ccsr(CPURISCVState *env, int csrno, target_ulong *val)
 {
@@ -5927,6 +6004,18 @@ static riscv_csr_cap_ops csr_cap_ops[] = {
       CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG |
           CSR_OP_IS_CODE_PTR | CSR_OP_REQUIRE_CRE },
     { "stvtscaddrc", CSR_STVTSCADDRC, NULL, NULL, rmw_xtvtscaddrc,
+      CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG |
+          CSR_OP_IS_CODE_PTR | CSR_OP_REQUIRE_CRE },
+    { "mscratchcswc", CSR_MSCRATCHCSW, NULL, NULL, rmw_xscratchcswc,
+      CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG |
+          CSR_OP_IS_CODE_PTR | CSR_OP_REQUIRE_CRE },
+    { "sscratchcswc", CSR_SSCRATCHCSW, NULL, NULL, rmw_xscratchcswc,
+      CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG |
+          CSR_OP_IS_CODE_PTR | CSR_OP_REQUIRE_CRE },
+    { "mscratchcswlc", CSR_MSCRATCHCSWL, NULL, NULL, rmw_xscratchcswlc,
+      CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG |
+          CSR_OP_IS_CODE_PTR | CSR_OP_REQUIRE_CRE },
+    { "sscratchcswlc", CSR_SSCRATCHCSWL, NULL, NULL, rmw_xscratchcswlc,
       CSR_OP_IA_CONVERSION | CSR_OP_UPDATE_SCADDR | CSR_OP_EXTENDED_REG |
           CSR_OP_IS_CODE_PTR | CSR_OP_REQUIRE_CRE },
  #ifdef TARGET_CHERI_RISCV_V9
