@@ -227,6 +227,14 @@ typedef struct rvfi_dii_command {
     uint8_t padding;
 } QEMU_PACKED rvfi_dii_command_t; // 8 bytes
 
+enum rvfi_dii_command_code {
+    RVFI_DII_CMD_END = 0x00,
+    RVFI_DII_CMD_INSTR = 0x01,
+    RVFI_DII_CMD_VERSION = 'v',
+    RVFI_DII_CMD_BLINK = 'B',
+    RVFI_DII_CMD_QUIT = 'Q'
+};
+
 #ifdef CONFIG_RVFI_DII
 #define RVFI_DII_RAM_START 0x80000000
 #define RVFI_DII_RAM_SIZE (8 * MiB)
