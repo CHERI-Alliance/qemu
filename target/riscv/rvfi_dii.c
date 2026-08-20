@@ -183,7 +183,7 @@ void rvfi_dii_communicate(CPUState *cs, CPURISCVState *env, bool was_trap)
             info_report("Handling RVFI-DII command %d", cmd_buf.rvfi_dii_cmd);
         }
         switch (cmd_buf.rvfi_dii_cmd) {
-        case '\0': {
+        case RVFI_DII_CMD_END: {
             rvfi_dii_started = false;
             if (cmd_buf.rvfi_dii_insn ==
                 (('V' << 24) | ('E' << 16) | ('R' << 8) | 'S')) {
@@ -242,7 +242,7 @@ void rvfi_dii_communicate(CPUState *cs, CPURISCVState *env, bool was_trap)
             memset(&env->rvfi_dii_trace, 0, sizeof(env->rvfi_dii_trace));
             continue;
         }
-        case 'v': { /* Set wire format version */
+        case RVFI_DII_CMD_VERSION: { /* Set wire format version */
             if (cmd_buf.rvfi_dii_insn == 1) {
                 fprintf(stderr, "Requested trace in legacy format!\n");
             } else if (cmd_buf.rvfi_dii_insn == 2) {
@@ -261,12 +261,12 @@ void rvfi_dii_communicate(CPUState *cs, CPURISCVState *env, bool was_trap)
             send_rvfi_dii_packet(&version_response, sizeof(version_response));
             continue;
         }
-        case 'B': {
+        case RVFI_DII_CMD_BLINK: {
             fprintf(stderr, "*BLINK*\n");
             info_report("*BLINK*");
             break;
         }
-        case 'Q': {
+        case RVFI_DII_CMD_QUIT: {
             /* The remote disconnected. */
             fprintf(stderr, "Received a quit command. Quitting.\n");
             info_report("Received a quit command. Quitting.");
@@ -274,7 +274,7 @@ void rvfi_dii_communicate(CPUState *cs, CPURISCVState *env, bool was_trap)
             rvfi_client_fd = 0;
             exit(EXIT_SUCCESS);
         }
-        case 1: {
+        case RVFI_DII_CMD_INSTR: {
             /*
              * We send the resulting packet on the next call of this function.
              */
