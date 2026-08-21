@@ -55,13 +55,13 @@ static void check_csr_cap_permissions(CPURISCVState *env, uint32_t csrno,
 {
     RISCVException exc = riscv_csrrw_check(env, csrno, write_access ? -1L : 0,
                                        env_archcpu(env));
-    if (exc != RISCV_EXCP_NONE && (csr_cap_info->flags & CSR_OP_REQUIRE_CRE) &&
-        !riscv_cpu_mode_cre(env)) {
+    /* CSRs gated on CRE do not exist at all while CHERI is disabled. */
+    if ((csr_cap_info->flags & CSR_OP_REQUIRE_Y) &&
+        !riscv_cpu_mode_y(env)) {
         exc = RISCV_EXCP_ILLEGAL_INST;
     }
-    if (exc == RISCV_EXCP_CHERI) {
-        raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
-                                   CHERI_EXC_REGNUM_PCC, 0, true, hostpc);
+    if (exc == RISCV_EXCP_CHERI_ASR) {
+        raise_access_sys_regs_exception(env, hostpc);
     } else if (exc != RISCV_EXCP_NONE) {
         riscv_raise_exception(env, exc, hostpc);
     }
@@ -290,14 +290,17 @@ void HELPER(amoswap_cap)(CPUArchState *env, uint32_t dest_reg,
     }
     const cap_register_t *cbp = get_load_store_base_cap(env, addr_reg);
 
+    /* All checks for AMOs are reported as store/AMO faults. */
     if (!cbp->cr_tag) {
-        raise_cheri_exception(env, CapEx_TagViolation, addr_reg);
+        raise_cheri_exception_wnr(env, CapEx_TagViolation, addr_reg, true);
     } else if (!cap_is_unsealed(cbp)) {
-        raise_cheri_exception(env, CapEx_SealViolation, addr_reg);
+        raise_cheri_exception_wnr(env, CapEx_SealViolation, addr_reg, true);
     } else if (!cap_has_perms(cbp, CAP_PERM_LOAD)) {
-        raise_cheri_exception(env, CapEx_PermitLoadViolation, addr_reg);
+        raise_cheri_exception_wnr(env, CapEx_PermitLoadViolation, addr_reg,
+                                  true);
     } else if (!cap_has_perms(cbp, CAP_PERM_STORE)) {
-        raise_cheri_exception(env, CapEx_PermitStoreViolation, addr_reg);
+        raise_cheri_exception_wnr(env, CapEx_PermitStoreViolation, addr_reg,
+                                  true);
 #ifndef TARGET_CHERI_RISCV_STD /* RISC-V Standard CHERI tag clears instead. */
     } else if (!cap_has_perms(cbp, CAP_PERM_STORE_CAP)) {
         raise_cheri_exception(env, CapEx_PermitStoreCapViolation, addr_reg);
@@ -314,7 +317,7 @@ void HELPER(amoswap_cap)(CPUArchState *env, uint32_t dest_reg,
             "Failed capability bounds check: addr=" TARGET_FMT_ld
             " base=" TARGET_FMT_lx " top=" TARGET_FMT_lx "\n",
             addr, cap_get_cursor(cbp), cap_get_top(cbp));
-        raise_cheri_exception(env, CapEx_LengthViolation, addr_reg);
+        raise_cheri_exception_wnr(env, CapEx_LengthViolation, addr_reg, true);
     } else if (!QEMU_IS_ALIGNED(addr, CHERI_CAP_SIZE)) {
         raise_unaligned_store_exception(env, addr, _host_return_address);
     }
@@ -359,7 +362,11 @@ static void lr_c_impl(CPUArchState *env, uint32_t dest_reg, uint32_t auth_reg,
             addr, cap_get_cursor(cbp), cap_get_top(cbp));
         raise_cheri_exception(env, CapEx_LengthViolation, auth_reg);
     } else if (!QEMU_IS_ALIGNED(addr, CHERI_CAP_SIZE)) {
-        raise_unaligned_store_exception(env, addr, _host_return_address);
+        /*
+         * Unlike SC.Y/AMOSWAP.Y, LR.Y has plain load semantics for its
+         * exception checks, so a misaligned address is a load fault.
+         */
+        raise_unaligned_load_exception(env, addr, _host_return_address);
     }
     /*
      * For the reservation, we need the raw memory content without any fixups
@@ -427,10 +434,11 @@ static target_ulong sc_c_impl(CPUArchState *env, uint32_t addr_reg,
             "Should have raised EXCP_ATOMIC"));
     const cap_register_t *auth_cap = get_load_store_base_cap(env, addr_reg);
 
+    /* All checks for SC.Y are reported as store/AMO faults. */
     if (!auth_cap->cr_tag) {
-        raise_cheri_exception(env, CapEx_TagViolation, addr_reg);
+        raise_cheri_exception_wnr(env, CapEx_TagViolation, addr_reg, true);
     } else if (!cap_is_unsealed(auth_cap)) {
-        raise_cheri_exception(env, CapEx_SealViolation, addr_reg);
+        raise_cheri_exception_wnr(env, CapEx_SealViolation, addr_reg, true);
     } else if (!cap_has_perms(auth_cap, CAP_PERM_STORE)) {
         raise_cheri_exception(env, CapEx_PermitStoreViolation, addr_reg);
 #ifndef TARGET_CHERI_RISCV_STD
@@ -449,7 +457,7 @@ static target_ulong sc_c_impl(CPUArchState *env, uint32_t addr_reg,
             "Failed capability bounds check: addr=" TARGET_FMT_ld
             " base=" TARGET_FMT_lx " top=" TARGET_FMT_lx "\n",
             addr, cap_get_cursor(auth_cap), cap_get_top(auth_cap));
-        raise_cheri_exception(env, CapEx_LengthViolation, addr_reg);
+        raise_cheri_exception_wnr(env, CapEx_LengthViolation, addr_reg, true);
     } else if (!QEMU_IS_ALIGNED(addr, CHERI_CAP_SIZE)) {
         raise_unaligned_store_exception(env, addr, _host_return_address);
     }
@@ -566,36 +574,76 @@ target_ulong HELPER(scss)(CPUArchState *env, uint32_t cs1, uint32_t cs2)
      */
     const cap_register_t *cs1p = get_readonly_capreg(env, cs1);
     const cap_register_t *cs2p = get_readonly_capreg(env, cs2);
-    if (!cs1p->cr_bounds_valid || !cs2p->cr_bounds_valid) {
-        return 0;
-    }
-    if (cap_has_reserved_bits_set(cs1p) || cap_has_reserved_bits_set(cs2p)) {
-        return 0;
-    }
+
     if (cs1p->cr_tag != cs2p->cr_tag) {
         return 0;
     }
+    /* Explicitly verify that the permissions/reserved bits are valid. */
+    if (!cap_check_integrity(env, cs1p) || !cap_check_integrity(env, cs2p)) {
+        return 0;
+    }
+
+    return cap_is_subset(cs1p, cs2p) ? 1 : 0;
+}
+
+#ifdef TARGET_CHERI_RISCV_RVY
+void HELPER(ypermc)(CPUArchState *env, uint32_t cd, uint32_t cs1,
+                    target_ulong mask)
+{
+    helper_candperm(env, cd, cs1, ~mask);
+}
+
+void HELPER(packy)(CPUArchState *env, uint32_t cd, target_ulong rs1,
+                   target_ulong rs2)
+{
+    cap_register_t result;
+    CAP_cc(decompress_mem)(rs2, rs1, false, &result);
+    result.cr_extra = CREG_FULLY_DECOMPRESSED;
+    update_capreg(env, cd, &result);
+}
+
+void HELPER(ysunseal)(CPUArchState *env, uint32_t cd,
+                      uint32_t cs1, uint32_t cs2)
+{
+    const cap_register_t *auth = get_readonly_capreg(env, cs1);
+    const cap_register_t *input = get_readonly_capreg(env, cs2);
+    cap_register_t result = *input;
+
     /*
-     * cs2's bounds must be equal to or a subset of cs1's
-     * base1 <= base2, top2 <= top1
+     * ysunseal unconditionally clears the otype to unsealed.
+     * We use the raw update_otype helper directly to avoid assertion checks
+     * in the wrappers (which fail if the input is unsealed or untagged).
      */
-    if (cap_get_base(cs1p) > cap_get_base(cs2p)) {
-        return 0;
-    }
-    if (cap_get_top_full(cs2p) > cap_get_top_full(cs1p)) {
-        return 0;
-    }
+    CAP_cc(update_otype)(&result, CAP_OTYPE_UNSEALED);
 
-    /* Explicitly verify that the permissions are valid. */
-    if (cap_has_invalid_perms_encoding(env, cs1p) ||
-        cap_has_invalid_perms_encoding(env, cs2p)) {
-        return 0;
+    if (auth->cr_tag && cap_check_integrity(env, auth) &&
+        cap_is_unsealed(auth) && input->cr_tag &&
+        cap_check_integrity(env, input) && !cap_is_unsealed(input) &&
+        cap_is_subset(auth, &result)) {
+        /*
+         * The spec says "Set rd.tag=1 if ...", but since one of the conditions
+         * is rs2.tag == 1, this is a no-op and we just assert.
+         */
+        assert(result.cr_tag);
+    } else {
+        result.cr_tag = false;
     }
-    /* Return 0 if the permissions or level are not identical. */
-    if ((cap_get_all_perms(cs2p) & cap_get_all_perms(cs1p)) !=
-        cap_get_all_perms(cs2p)) {
-        return 0;
-    }
+    update_capreg(env, cd, &result);
+}
+#endif
 
-    return 1;
+void HELPER(ybld)(CPUArchState *env, uint32_t cd, uint32_t cs1, uint32_t cs2)
+{
+    const cap_register_t *auth = get_readonly_capreg(env, cs1);
+    const cap_register_t *input = get_readonly_capreg(env, cs2);
+    cap_register_t result = *input;
+
+    if (auth->cr_tag && cap_check_integrity(env, auth) &&
+        cap_is_unsealed(auth) && cap_check_integrity(env, input) &&
+        cap_is_subset_ignoring_tag(auth, input)) {
+        result.cr_tag = true;
+    } else {
+        result.cr_tag = false;
+    }
+    update_capreg(env, cd, &result);
 }

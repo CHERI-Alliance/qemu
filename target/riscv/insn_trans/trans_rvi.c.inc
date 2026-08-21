@@ -196,13 +196,35 @@ static bool gen_branch(DisasContext *ctx, arg_b *a, TCGCond cond)
     return true;
 }
 
+/*
+ * RVY reserves BEQ/BNE encodings with rs1 <= rs2 in capability mode, so
+ * assemblers must swap the operands. This will allow reusing them for
+ * capability specific branches in the future. It is off by default (enabled by
+ * setting x-rvy-strict-branches) for now since compilers do not perform the
+ * operand swapping yet.
+ */
+static bool rvy_branch_encoding_reserved(DisasContext *ctx, int rs1, int rs2)
+{
+#ifdef TARGET_CHERI_RISCV_RVY
+    return ctx->cfg_ptr->rvy_strict_branches && ctx->capmode && rs1 <= rs2;
+#else
+    return false;
+#endif
+}
+
 static bool trans_beq(DisasContext *ctx, arg_beq *a)
 {
+    if (rvy_branch_encoding_reserved(ctx, a->rs1, a->rs2)) {
+        return false;
+    }
     return gen_branch(ctx, a, TCG_COND_EQ);
 }
 
 static bool trans_bne(DisasContext *ctx, arg_bne *a)
 {
+    if (rvy_branch_encoding_reserved(ctx, a->rs1, a->rs2)) {
+        return false;
+    }
     return gen_branch(ctx, a, TCG_COND_NE);
 }
 

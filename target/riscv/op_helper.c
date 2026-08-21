@@ -255,16 +255,18 @@ void helper_cbo_zero_cap(CPURISCVState *env, uint32_t addr_reg)
     check_zicbo_envcfg(env, MENVCFG_CBZE, _host_return_address);
     uint32_t auth_reg = cheri_in_capmode(env) ? addr_reg : CHERI_EXC_REGNUM_DDC;
     const cap_register_t *auth_cap = get_capreg_or_special(env, auth_reg);
+    /* All CBO checks are reported as store/AMO faults. */
     if (!auth_cap->cr_tag) {
-        raise_cheri_exception(env, CapEx_TagViolation, auth_reg);
+        raise_cheri_exception_wnr(env, CapEx_TagViolation, auth_reg, true);
     } else if (!cap_is_unsealed(auth_cap)) {
-        raise_cheri_exception(env, CapEx_SealViolation, auth_reg);
+        raise_cheri_exception_wnr(env, CapEx_SealViolation, auth_reg, true);
     }
     if (!cap_has_perms(auth_cap, CAP_PERM_STORE)) {
-        raise_cheri_exception(env, CapEx_PermitStoreViolation, auth_reg);
+        raise_cheri_exception_wnr(env, CapEx_PermitStoreViolation, auth_reg,
+                                  true);
     }
     if (cap_has_invalid_perms_encoding(env, auth_cap)) {
-        raise_cheri_exception(env, CapEx_UserDefViolation, auth_reg);
+        raise_cheri_exception_wnr(env, CapEx_UserDefViolation, auth_reg, true);
     }
     target_ulong address = get_capreg_cursor(env, addr_reg);
     uint16_t cbozlen = cpu->cfg.cboz_blocksize;
@@ -272,7 +274,7 @@ void helper_cbo_zero_cap(CPURISCVState *env, uint32_t addr_reg)
     address &= ~(cbozlen - 1);
 
     if (!cap_is_in_bounds(auth_cap, address, cbozlen)) {
-        raise_cheri_exception(env, CapEx_LengthViolation, addr_reg);
+        raise_cheri_exception_wnr(env, CapEx_LengthViolation, auth_reg, true);
     }
 
     do_cbo_zero(env, address, _host_return_address);
@@ -358,17 +360,19 @@ void helper_cbo_clean_flush_cap(CPURISCVState *env, uint32_t addr_reg)
 
     uint32_t auth_reg = cheri_in_capmode(env) ? addr_reg : CHERI_EXC_REGNUM_DDC;
     const cap_register_t *auth_cap = get_capreg_or_special(env, auth_reg);
+    /* All CBO checks are reported as store/AMO faults. */
     if (!auth_cap->cr_tag) {
-        raise_cheri_exception(env, CapEx_TagViolation, auth_reg);
+        raise_cheri_exception_wnr(env, CapEx_TagViolation, auth_reg, true);
     }
     if (!cap_is_unsealed(auth_cap)) {
-        raise_cheri_exception(env, CapEx_SealViolation, auth_reg);
+        raise_cheri_exception_wnr(env, CapEx_SealViolation, auth_reg, true);
     }
     if (!cap_has_perms(auth_cap, perms_req)) {
-        raise_cheri_exception(env, CapEx_PermitStoreViolation, auth_reg);
+        raise_cheri_exception_wnr(env, CapEx_PermitStoreViolation, auth_reg,
+                                  true);
     }
     if (cap_has_invalid_perms_encoding(env, auth_cap)) {
-        raise_cheri_exception(env, CapEx_UserDefViolation, auth_reg);
+        raise_cheri_exception_wnr(env, CapEx_UserDefViolation, auth_reg, true);
     }
 
     target_ulong address = get_capreg_cursor(env, addr_reg);
@@ -376,10 +380,10 @@ void helper_cbo_clean_flush_cap(CPURISCVState *env, uint32_t addr_reg)
     /* Mask off low-bits to align-down to the cache-block. */
     address &= ~(cbomlen - 1);
 
-    /* Check if any of the bytes are outside the bounds */
-    if ((cap_get_top_full(auth_cap) < address) ||
-        (cap_get_base(auth_cap) > (address + cbomlen))) {
-        raise_cheri_exception(env, CapEx_LengthViolation, auth_reg);
+    /* CBO.CLEAN/CBO.FLUSH only fault if all bytes are outside the bounds. */
+    if ((cap_get_top_full(auth_cap) <= address) ||
+        (cap_get_base(auth_cap) >= (cap_length_t)address + cbomlen)) {
+        raise_cheri_exception_wnr(env, CapEx_LengthViolation, auth_reg, true);
     }
     check_zicbom_access(env, address, _host_return_address);
     /* We don't emulate the cache-hierarchy, so we're done. */
@@ -408,20 +412,21 @@ void helper_cbo_inval_cap(CPURISCVState *env, uint32_t addr_reg)
     uint32_t auth_reg = cheri_in_capmode(env) ? addr_reg : CHERI_EXC_REGNUM_DDC;
     const cap_register_t *auth_cap = get_capreg_or_special(env, auth_reg);
     if (!cheri_have_access_sysregs(env)) {
-        raise_cheri_exception(env, CapEx_AccessSystemRegsViolation,
-                              CHERI_EXC_REGNUM_PCC);
+        raise_access_sys_regs_exception(env, _host_return_address);
     }
+    /* All CBO checks are reported as store/AMO faults. */
     if (!auth_cap->cr_tag) {
-        raise_cheri_exception(env, CapEx_TagViolation, auth_reg);
+        raise_cheri_exception_wnr(env, CapEx_TagViolation, auth_reg, true);
     }
     if (!cap_is_unsealed(auth_cap)) {
-        raise_cheri_exception(env, CapEx_SealViolation, auth_reg);
+        raise_cheri_exception_wnr(env, CapEx_SealViolation, auth_reg, true);
     }
     if (!cap_has_perms(auth_cap, perms_req)) {
-        raise_cheri_exception(env, CapEx_PermitStoreViolation, auth_reg);
+        raise_cheri_exception_wnr(env, CapEx_PermitStoreViolation, auth_reg,
+                                  true);
     }
     if (cap_has_invalid_perms_encoding(env, auth_cap)) {
-        raise_cheri_exception(env, CapEx_UserDefViolation, auth_reg);
+        raise_cheri_exception_wnr(env, CapEx_UserDefViolation, auth_reg, true);
     }
 
     target_ulong address = get_capreg_cursor(env, addr_reg);
@@ -429,11 +434,18 @@ void helper_cbo_inval_cap(CPURISCVState *env, uint32_t addr_reg)
     /* Mask off low-bits to align-down to the cache-block. */
     address &= ~(cbomlen - 1);
 
-    /* Check if any of the bytes are outside the bounds */
-    if ((cap_get_top_full(auth_cap) < address) ||
-        (cap_get_base(auth_cap) > (address + cbomlen))) {
-        raise_cheri_exception(env, CapEx_LengthViolation, addr_reg);
+#ifdef TARGET_CHERI_RISCV_RVY
+    /* RVY: CBO.INVAL faults if any byte of the block is out of bounds. */
+    if (!cap_is_in_bounds(auth_cap, address, cbomlen)) {
+        raise_cheri_exception_wnr(env, CapEx_LengthViolation, auth_reg, true);
     }
+#else
+    /* Check that not all of the bytes are outside the bounds */
+    if ((cap_get_top_full(auth_cap) <= address) ||
+        (cap_get_base(auth_cap) >= (cap_length_t)address + cbomlen)) {
+        raise_cheri_exception_wnr(env, CapEx_LengthViolation, auth_reg, true);
+    }
+#endif
     check_zicbom_access(env, address, _host_return_address);
 }
 #endif
@@ -449,8 +461,7 @@ target_ulong helper_sret(CPURISCVState *env)
     }
 #ifdef TARGET_CHERI
     if (!cheri_have_access_sysregs(env)) {
-        raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
-                                   CHERI_EXC_REGNUM_PCC, 0, true, GETPC());
+        raise_access_sys_regs_exception(env, GETPC());
     }
 #endif
 
@@ -523,8 +534,7 @@ target_ulong helper_mret(CPURISCVState *env)
     }
 #ifdef TARGET_CHERI
     if (!cheri_have_access_sysregs(env)) {
-        raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
-                                   CHERI_EXC_REGNUM_PCC, 0, true, GETPC());
+        raise_access_sys_regs_exception(env, GETPC());
     }
 #endif
 

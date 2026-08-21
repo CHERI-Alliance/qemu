@@ -1499,6 +1499,7 @@ fi
 if test "$tcg" = "enabled"; then
     git_submodules="$git_submodules tests/fp/berkeley-testfloat-3"
     git_submodules="$git_submodules tests/fp/berkeley-softfloat-3"
+    git_submodules="$git_submodules tests/rvy"
 fi
 
 feature_not_found() {

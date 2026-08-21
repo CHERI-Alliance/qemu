@@ -76,8 +76,10 @@
     VMSTATE_ALIGN_CAP_ARRAY_V(_f, _s, _n, 0)
 
 #define VMSTATE_UINTTL_OR_CAP(_f, _cf, _s) VMSTATE_CAP(_cf, _s)
+#define VMSTATE_UINT64_OR_CAP(_f, _cf, _s) VMSTATE_CAP(_cf, _s)
 #else
 #define VMSTATE_UINTTL_OR_CAP(_f, _cf, _s) VMSTATE_UINTTL(_f, _s)
+#define VMSTATE_UINT64_OR_CAP(_f, _cf, _s) VMSTATE_UINT64(_f, _s)
 #endif
 
 #endif

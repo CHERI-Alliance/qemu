@@ -280,6 +280,18 @@ cap_has_invalid_perms_encoding(G_GNUC_UNUSED CPUArchState *env,
 #endif
 }
 
+/**
+ * Check that the capability is valid (i.e. bounds are valid, no reserved bits
+ * are set, and permissions are validly encoded).
+ */
+static inline bool cap_check_integrity(CPUArchState *env,
+                                       const cap_register_t *cap)
+{
+    return cap->cr_bounds_valid &&
+           !cap_has_reserved_bits_set(cap) &&
+           !cap_has_invalid_perms_encoding(env, cap);
+}
+
 // The top of the capability (exclusive -- i.e., one past the end)
 static inline target_ulong cap_get_top(const cap_register_t *c)
 {
@@ -308,6 +320,29 @@ static inline cap_length_t cap_get_top_full(const cap_register_t *c)
 {
     return c->_cr_top;
 }
+
+/* In general cap_is_subset should be used, this is just for ybld */
+static inline bool cap_is_subset_ignoring_tag(const cap_register_t *superset,
+                                              const cap_register_t *subset)
+{
+    return cap_get_base(superset) <= cap_get_base(subset) &&
+           cap_get_top_full(subset) <= cap_get_top_full(superset) &&
+           (cap_get_all_perms(superset) & cap_get_all_perms(subset)) ==
+               cap_get_all_perms(subset);
+}
+
+static inline bool cap_is_subset(const cap_register_t *superset,
+                                 const cap_register_t *subset)
+{
+    /*
+     * Assert that we are comparing capabilities of the same tag state.
+     * Comparing capabilities with different tag states is confusing and
+     * likely a logical bug in the caller.
+     */
+    cheri_debug_assert(superset->cr_tag == subset->cr_tag);
+    return cap_is_subset_ignoring_tag(superset, subset);
+}
+
 
 static inline bool cap_otype_is_reserved(target_ulong otype)
 {
@@ -593,13 +628,14 @@ int gdb_get_general_purpose_capreg(GByteArray *buf, CPUArchState *env,
                                    unsigned regnum);
 
 #define raise_cheri_exception(env, cause, reg)                                 \
-    raise_cheri_exception_impl(env, cause, reg, 0, true, _host_return_address)
+    raise_cheri_exception_impl(env, cause, reg, 0, true, _host_return_address, \
+                               /*is_instr=*/false)
 
 #define raise_cheri_exception_addr(env, cause, reg, addr)                      \
     raise_cheri_exception_impl(env, cause, reg, addr, true,                    \
-                               _host_return_address)
+                               _host_return_address, /*is_instr=*/false)
 
-#ifdef TARGET_AARCH64
+#if defined(TARGET_AARCH64)
 #define raise_cheri_exception_if(env, cause, addr, reg)                        \
     raise_cheri_exception_impl_if_wnr(env, cause, reg, addr, true, /*pc=*/0,   \
                                       true, false)
@@ -611,27 +647,41 @@ int gdb_get_general_purpose_capreg(GByteArray *buf, CPUArchState *env,
 #define raise_cheri_exception_if(env, cause, addr, reg)                        \
     raise_cheri_exception_with_093_type(env, cause, CapEx093_Type_InstrAccess, \
                                         reg, addr, /*instavail=*/true,         \
-                                        /*pc=*/0)
+                                        /*pc=*/0, /*is_instr=*/true)
 #else
 #define raise_cheri_exception_if(env, cause, addr, reg)                        \
-    raise_cheri_exception_impl(env, cause, reg, addr, true, /*pc=*/0)
+    raise_cheri_exception_impl(env, cause, reg, addr, true, /*pc=*/0,          \
+                               /*is_instr=*/true)
 #endif
+#if defined(TARGET_CHERI_RISCV_RVY)
+/*
+ * RVY distinguishes CHERI load and store/AMO faults by exception cause, so
+ * the access type must be passed through to the exception raising code.
+ */
+#define raise_cheri_exception_addr_wnr(env, cause, reg, addr, is_write)        \
+    raise_cheri_exception_impl_if_wnr(env, cause, reg, addr, true,             \
+                                      _host_return_address, false, is_write)
+#else
 #define raise_cheri_exception_addr_wnr(env, cause, reg, addr, is_write)        \
     raise_cheri_exception_addr(env, cause, reg, addr)
 #endif
+#endif
+
+#define raise_cheri_exception_wnr(env, cause, reg, is_write)                   \
+    raise_cheri_exception_addr_wnr(env, cause, reg, 0, is_write)
 
 #ifdef TARGET_CHERI_RISCV_STD_093
 #define raise_cheri_exception_branch_impl(env, cause, reg, addr, retpc)        \
     raise_cheri_exception_with_093_type(env, cause, CapEx093_Type_Branch, reg, \
-                                        addr, /*instavail=*/true, retpc)
+                                        addr, /*instavail=*/true, retpc,       \
+                                        /*is_instr=*/true)
+#else
+#define raise_cheri_exception_branch_impl(env, cause, reg, addr, retpc)        \
+    raise_cheri_exception_impl(env, cause, reg, addr, true, retpc,             \
+                               /*is_instr=*/true)
+#endif
 #define raise_cheri_exception_branch(env, cause, reg)                          \
     raise_cheri_exception_branch_impl(env, cause, reg, 0, _host_return_address)
-#else
-#define raise_cheri_exception_branch(env, cause, reg)                          \
-    raise_cheri_exception(env, cause, reg)
-#define raise_cheri_exception_branch_impl(env, cause, reg, addr, retpc)        \
-    raise_cheri_exception_impl(env, cause, reg, addr, true, retpc)
-#endif
 
 static inline void cap_set_cursor(cap_register_t *cap, uint64_t new_addr)
 {

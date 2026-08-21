@@ -38,12 +38,13 @@
 extern bool cheri_debugger_on_trap;
 
 /*
- * TODO: Remove this function once we no longer need to support the 0.9.3
- * version of the CHERI specification.
+ * TODO: Remove the type093 argument once we no longer need to support the
+ * 0.9.3 version of the CHERI specification.
  */
-static inline void G_NORETURN raise_cheri_exception_with_093_type(
+static inline void G_NORETURN raise_cheri_exception_full(
     CPUArchState *env, CheriCapExcCause cause, uint8_t type093, unsigned regnum,
-    target_ulong addr, bool instavail, uintptr_t hostpc)
+    target_ulong addr, bool instavail, uintptr_t hostpc, bool is_instr,
+    bool is_write)
 {
     env->badaddr = addr;
     env->last_cap_cause = cause;
@@ -58,21 +59,83 @@ static inline void G_NORETURN raise_cheri_exception_with_093_type(
     // this breakpoint when GDB asks to continue
     if (cheri_debugger_on_trap)
         riscv_raise_exception(env, EXCP_DEBUG, hostpc);
+#if defined(TARGET_CHERI_RISCV_RVY)
+    if (is_instr) {
+        riscv_raise_exception(env, RISCV_EXCP_CHERI_INST, hostpc);
+    } else if (is_write) {
+        riscv_raise_exception(env, RISCV_EXCP_CHERI_STORE, hostpc);
+    } else {
+        riscv_raise_exception(env, RISCV_EXCP_CHERI_LOAD, hostpc);
+    }
+#else
     riscv_raise_exception(env, RISCV_EXCP_CHERI, hostpc);
+#endif
+}
+
+/*
+ * Fallback for callers without an explicit access type: guess it from the
+ * capability cause. Only correct when a cause can arise from just one
+ * access type: checks shared between loads and stores (tag, seal, bounds,
+ * integrity) must use raise_cheri_exception_impl_if_wnr instead, so e.g. a
+ * store with an untagged capability still reports a store/AMO fault.
+ */
+static inline bool cheri_cause_indicates_write(CheriCapExcCause cause)
+{
+    return cause == CapEx_PermitStoreViolation ||
+           cause == CapEx_PermitStoreCapViolation ||
+           cause == CapEx_PermitStoreLocalCapViolation;
+}
+
+static inline void G_NORETURN raise_cheri_exception_with_093_type(
+    CPUArchState *env, CheriCapExcCause cause, uint8_t type093, unsigned regnum,
+    target_ulong addr, bool instavail, uintptr_t hostpc, bool is_instr)
+{
+    raise_cheri_exception_full(env, cause, type093, regnum, addr, instavail,
+                               hostpc, is_instr,
+                               cheri_cause_indicates_write(cause));
 }
 
 static inline void G_NORETURN raise_cheri_exception_impl(
     CPUArchState *env, CheriCapExcCause cause, unsigned regnum,
-    target_ulong addr, bool instavail, uintptr_t hostpc)
+    target_ulong addr, bool instavail, uintptr_t hostpc, bool is_instr)
 {
     uint8_t type093 = 0;
 #ifdef TARGET_CHERI_RISCV_STD_093
-    type093 = cause == CapEx_AccessSystemRegsViolation
-                  ? CapEx093_Type_InstrAccess
-                  : CapEx093_Type_Data;
+    type093 = is_instr ? CapEx093_Type_InstrAccess : CapEx093_Type_Data;
 #endif
     raise_cheri_exception_with_093_type(env, cause, type093, regnum, addr,
-                                        instavail, hostpc);
+                                        instavail, hostpc, is_instr);
+}
+
+/* Same as raise_cheri_exception_impl, but with an explicit access type. */
+static inline void G_NORETURN raise_cheri_exception_impl_if_wnr(
+    CPUArchState *env, CheriCapExcCause cause, unsigned regnum,
+    target_ulong addr, bool instavail, uintptr_t hostpc, bool is_instr,
+    bool is_write)
+{
+    uint8_t type093 = 0;
+#ifdef TARGET_CHERI_RISCV_STD_093
+    type093 = is_instr ? CapEx093_Type_InstrAccess : CapEx093_Type_Data;
+#endif
+    raise_cheri_exception_full(env, cause, type093, regnum, addr, instavail,
+                               hostpc, is_instr, is_write);
+}
+
+/*
+ * Raise the exception for an operation that requires the
+ * Access_System_Registers permission in PCC but does not have it. RVY reports
+ * this as an illegal instruction, earlier versions as a CHERI fault.
+ */
+static inline void G_NORETURN raise_access_sys_regs_exception(
+    CPUArchState *env, uintptr_t retpc)
+{
+#ifdef TARGET_CHERI_RISCV_RVY
+    riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, retpc);
+#else
+    raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
+                               CHERI_EXC_REGNUM_PCC, 0, true, retpc,
+                               /*is_instr=*/true);
+#endif
 }
 
 static inline void G_NORETURN raise_load_tag_exception(
@@ -109,20 +172,32 @@ static inline void G_NORETURN raise_store_tag_exception(CPUArchState *env,
 #endif
 }
 
+/*
+ * These are only used for capability-wide accesses. RVY specifies that
+ * misaligned capability accesses raise access faults instead of misaligned
+ * faults since they cannot be emulated in software.
+ */
 static inline void G_NORETURN raise_unaligned_load_exception(
     CPUArchState *env, target_ulong addr, uintptr_t retpc)
 {
     env->badaddr = addr;
+#ifdef TARGET_CHERI_RISCV_RVY
+    riscv_raise_exception(env, RISCV_EXCP_LOAD_ACCESS_FAULT, retpc);
+#else
     riscv_raise_exception(env, RISCV_EXCP_LOAD_ADDR_MIS, retpc);
+#endif
 }
 
 static inline void G_NORETURN raise_unaligned_store_exception(
     CPUArchState *env, target_ulong addr, uintptr_t retpc)
 {
     env->badaddr = addr;
+#ifdef TARGET_CHERI_RISCV_RVY
+    riscv_raise_exception(env, RISCV_EXCP_STORE_AMO_ACCESS_FAULT, retpc);
+#else
     // Note: RISCV_EXCP_STORE_AMO_ADDR_MIS means "Store/AMO address misaligned"
     riscv_raise_exception(env, RISCV_EXCP_STORE_AMO_ADDR_MIS, retpc);
-
+#endif
 }
 
 static inline bool validate_jump_target(CPUArchState *env,
@@ -130,11 +205,13 @@ static inline bool validate_jump_target(CPUArchState *env,
                                         target_ulong addr,
                                         unsigned regnum, uintptr_t retpc)
 {
+#if !defined(TARGET_CHERI_RISCV_RVY)
     unsigned min_insn_size = riscv_has_ext(env, RVC) ? 2 : 4;
     if (!cap_is_in_bounds(cap, addr, min_insn_size)) {
         raise_cheri_exception_branch_impl(env, CapEx_LengthViolation, regnum,
                                           addr, retpc);
     }
+#endif
 #ifndef TARGET_CHERI_RISCV_STD
     target_ulong base = cap_get_base(cap);
     if (!QEMU_IS_ALIGNED(base, min_insn_size)) {

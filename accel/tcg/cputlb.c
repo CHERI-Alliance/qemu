@@ -2007,7 +2007,7 @@ static void check_address_space_wrap(CPUArchState *env, target_ulong addr,
         assert(cap_get_top_full(cheri_get_ddc(env)) == CAP_MAX_TOP &&
                cap_get_base(cheri_get_ddc(env)) == 0);
         check_cap(env, cheri_get_ddc(env), 0, addr, CHERI_EXC_REGNUM_DDC, size,
-                  /*instavail=*/true, retaddr);
+                  retaddr);
     }
 }
 #endif

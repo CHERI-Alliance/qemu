@@ -16,6 +16,11 @@ option('sphinx_build', type : 'string', value : '',
        description: 'Use specified sphinx-build for building document')
 option('iasl', type : 'string', value : '',
        description: 'Path to ACPI disassembler')
+option('rvy_test_cc', type : 'string', value : '',
+       description: 'Path to a bare-metal RISC-V clang used to build the ' +
+                     'tests/rvy test suite (check-rvy). Leave empty to ' +
+                     'auto-detect one and silently skip the suite if none ' +
+                     'is found.')
 option('tls_priority', type : 'string', value : 'NORMAL',
        description: 'Default TLS protocol/cipher priority string')
 option('default_devices', type : 'boolean', value : true,

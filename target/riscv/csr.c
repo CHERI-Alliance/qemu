@@ -877,7 +877,19 @@ static const uint64_t vs_delegable_ints = VS_MODE_INTERRUPTS;
 static const uint64_t all_ints = M_MODE_INTERRUPTS | S_MODE_INTERRUPTS |
                                      HS_MODE_INTERRUPTS;
 
-#ifdef TARGET_CHERI
+#if defined(TARGET_CHERI_RISCV_RVY)
+#ifdef TARGET_RISCV64
+#define CHERI_DELEGABLE_EXCPS                                                  \
+    ((1ULL << (RISCV_EXCP_CHERI_INST)) | (1ULL << (RISCV_EXCP_CHERI_LOAD)) |   \
+     (1ULL << (RISCV_EXCP_CHERI_STORE)) |                                      \
+     (1ULL << (RISCV_EXCP_LOAD_CAP_PAGE_FAULT)) |                              \
+     (1ULL << (RISCV_EXCP_STORE_AMO_CAP_PAGE_FAULT)))
+#else
+#define CHERI_DELEGABLE_EXCPS                                                  \
+    ((1ULL << (RISCV_EXCP_LOAD_CAP_PAGE_FAULT)) |                              \
+     (1ULL << (RISCV_EXCP_STORE_AMO_CAP_PAGE_FAULT)))
+#endif
+#elif defined(TARGET_CHERI)
 #if !defined(TARGET_RISCV32) && !defined(TARGET_CHERI_RISCV_STD_093)
 #define CHERI_DELEGABLE_EXCPS ( \
         (1ULL << (RISCV_EXCP_LOAD_CAP_PAGE_FAULT)) | \
@@ -909,7 +921,7 @@ static const uint64_t all_ints = M_MODE_INTERRUPTS | S_MODE_INTERRUPTS |
                          (1ULL << (RISCV_EXCP_VIRT_INSTRUCTION_FAULT)) | \
                          (1ULL << (RISCV_EXCP_STORE_GUEST_AMO_ACCESS_FAULT)) | \
                          (CHERI_DELEGABLE_EXCPS))
-static const target_ulong vs_delegable_excps = DELEGABLE_EXCPS &
+static const uint64_t vs_delegable_excps = DELEGABLE_EXCPS &
     ~((1ULL << (RISCV_EXCP_S_ECALL)) |
       (1ULL << (RISCV_EXCP_VS_ECALL)) |
       (1ULL << (RISCV_EXCP_M_ECALL)) |
@@ -922,6 +934,8 @@ static const target_ulong sstatus_v1_10_mask = SSTATUS_SIE | SSTATUS_SPIE |
     SSTATUS_SUM | SSTATUS_MXR | SSTATUS_VS
 #if defined(TARGET_CHERI_RISCV_STD_093) && defined(TARGET_RISCV64)
     | SSTATUS64_UCRG
+#elif defined(TARGET_CHERI_RISCV_RVY) && defined(TARGET_RISCV64)
+    | SSTATUS64_YRGE | SSTATUS64_SYRG | SSTATUS64_UYRG
 #endif
     ;
 static const target_ulong sip_writable_mask = SIP_SSIP | MIP_USIP | MIP_UEIP;
@@ -1036,12 +1050,21 @@ static RISCVException write_mstatus(CPURISCVState *env, int csrno,
     uint64_t mstatus = env->mstatus;
     uint64_t mask = 0;
     RISCVMXL xl = riscv_cpu_mxl(env);
+#if defined(TARGET_CHERI_RISCV_RVY) && defined(TARGET_RISCV64)
+    /* The YRG fields select the pte.rvy interpretation cached in TLBs. */
+    const uint64_t yrg_mask =
+        env_archcpu(env)->cfg.ext_svyrg
+            ? (MSTATUS64_YRGE | MSTATUS64_SYRG | MSTATUS64_UYRG)
+            : 0;
+#endif
 
     /* flush tlb on mstatus fields that affect VM */
     if ((val ^ mstatus) &
         (MSTATUS_MXR | MSTATUS_MPP | MSTATUS_MPV | MSTATUS_MPRV | MSTATUS_SUM
 #if defined(TARGET_CHERI_RISCV_STD_093) && defined(TARGET_RISCV64)
          | MSTATUS64_UCRG
+#elif defined(TARGET_CHERI_RISCV_RVY) && defined(TARGET_RISCV64)
+         | yrg_mask
 #endif
          )) {
         tlb_flush(env_cpu(env));
@@ -1052,6 +1075,8 @@ static RISCVException write_mstatus(CPURISCVState *env, int csrno,
         MSTATUS_TW | MSTATUS_VS;
 #if defined(TARGET_CHERI_RISCV_STD_093) && !defined(TARGET_RISCV32)
     mask = mask | MSTATUS64_UCRG;
+#elif defined(TARGET_CHERI_RISCV_RVY) && !defined(TARGET_RISCV32)
+    mask |= yrg_mask;
 #endif
 
     if (riscv_has_ext(env, RVF)) {
@@ -1141,9 +1166,86 @@ static RISCVException read_misa(CPURISCVState *env, int csrno,
     return RISCV_EXCP_NONE;
 }
 
+#if defined(TARGET_CHERI_RISCV_RVY)
+/*
+ * Check whether a capability register is currently configured as a root
+ * capability, i.e. the Infinite capability: tagged, unsealed, all
+ * permissions, bounds covering the entire address space.
+ */
+static bool cap_is_root_capability(CPURISCVState *env,
+                                   const cap_register_t *cap)
+{
+    cap_register_t root;
+
+    if (!cap->cr_tag || !cap_is_unsealed(cap)) {
+        return false;
+    }
+    if (cap_get_base(cap) != 0 || cap_get_top_full(cap) != CAP_MAX_TOP) {
+        return false;
+    }
+    set_max_perms_capability(env, &root, cap_get_cursor(cap));
+    return cap_get_all_perms(cap) == cap_get_all_perms(&root);
+}
+
+/*
+ * misa.Y is WARL; zero is illegal while pcc, any xtvec/xepc, or ddc is not
+ * a root capability, so M-mode software cannot drop CHERI checks once
+ * these registers are configured.
+ */
+static bool misa_y_can_be_cleared(CPURISCVState *env)
+{
+    if (!cap_is_root_capability(env, &env->pcc) ||
+        !cap_is_root_capability(env, &env->ddc) ||
+        !cap_is_root_capability(env, &env->mtvecc) ||
+        !cap_is_root_capability(env, &env->mepcc)) {
+        return false;
+    }
+    if (riscv_has_ext(env, RVS) &&
+        (!cap_is_root_capability(env, &env->stvecc) ||
+         !cap_is_root_capability(env, &env->sepcc))) {
+        return false;
+    }
+    if (riscv_has_ext(env, RVH) &&
+        (!cap_is_root_capability(env, &env->vstvecc) ||
+         !cap_is_root_capability(env, &env->vsepcc))) {
+        return false;
+    }
+    return true;
+}
+#endif
+
 static RISCVException write_misa(CPURISCVState *env, int csrno,
                                  target_ulong val)
 {
+#if defined(TARGET_CHERI_RISCV_RVY)
+    /*
+     * We only support writing the Y bit (if Zyhybrid is supported).
+     * MISA writes are otherwise completely broken until we update to a newer
+     * version of QEMU.
+     */
+    bool valid_change = false;
+    /*
+     * The MXL field returned by reads is read-only and unsupported extension
+     * bits are WARL; only compare the writable extension bits.
+     */
+    val &= env->misa_ext_mask;
+    if (riscv_feature(env, RISCV_FEATURE_CHERI_HYBRID)) {
+        valid_change = (env->misa_ext & ~RVY) == (val & ~RVY);
+        target_ulong old_y = env->misa_ext & RVY;
+        target_ulong new_y = val & RVY;
+        if (old_y == new_y) {
+            return RISCV_EXCP_NONE; /* No change */
+        }
+        if (new_y == 0 && !misa_y_can_be_cleared(env)) {
+            /* WARL: zero is currently not a legal value, keep Y set. */
+            valid_change = false;
+        }
+    }
+    if (!valid_change) {
+        /* drop invalid write to misa */
+        return RISCV_EXCP_NONE;
+    }
+#else
     if (!riscv_feature(env, RISCV_FEATURE_MISA)) {
         /* drop write to misa */
         return RISCV_EXCP_NONE;
@@ -1207,6 +1309,7 @@ static RISCVException write_misa(CPURISCVState *env, int csrno,
         env->mstatus &= ~MSTATUS_FS;
     }
 
+#endif
     /* flush translation cache */
     tb_flush(env_cpu(env));
     env->misa_ext = val;
@@ -1729,7 +1832,7 @@ static RISCVException read_menvcfg(CPURISCVState *env, int csrno,
 static RISCVException write_menvcfg(CPURISCVState *env, int csrno,
                                   target_ulong val)
 {
-    uint64_t mask = MENVCFG_FIOM | MENVCFG_CBIE | MENVCFG_CBCFE | MENVCFG_CBZE | MENVCFG_CRE;
+    uint64_t mask = MENVCFG_FIOM | MENVCFG_CBIE | MENVCFG_CBCFE | MENVCFG_CBZE | MENVCFG_Y;
 
     if (riscv_cpu_mxl(env) == MXL_RV64) {
         mask |= MENVCFG_PBMTE | MENVCFG_STCE;
@@ -1767,7 +1870,7 @@ static RISCVException read_senvcfg(CPURISCVState *env, int csrno,
 static RISCVException write_senvcfg(CPURISCVState *env, int csrno,
                                   target_ulong val)
 {
-    uint64_t mask = SENVCFG_FIOM | SENVCFG_CBIE | SENVCFG_CBCFE | SENVCFG_CBZE | SENVCFG_CRE;
+    uint64_t mask = SENVCFG_FIOM | SENVCFG_CBIE | SENVCFG_CBCFE | SENVCFG_CBZE | SENVCFG_Y;
 
     env->senvcfg = (env->senvcfg & ~mask) | (val & mask);
 
@@ -1784,7 +1887,7 @@ static RISCVException read_henvcfg(CPURISCVState *env, int csrno,
 static RISCVException write_henvcfg(CPURISCVState *env, int csrno,
                                   target_ulong val)
 {
-    uint64_t mask = HENVCFG_FIOM | HENVCFG_CBIE | HENVCFG_CBCFE | HENVCFG_CBZE | HENVCFG_CRE;
+    uint64_t mask = HENVCFG_FIOM | HENVCFG_CBIE | HENVCFG_CBCFE | HENVCFG_CBZE | HENVCFG_Y;
 
     if (riscv_cpu_mxl(env) == MXL_RV64) {
         mask |= HENVCFG_PBMTE | HENVCFG_STCE;
@@ -3909,7 +4012,7 @@ RISCVException riscv_csrrw_check(CPURISCVState *env, int csrno,
         if (env->debugger) {
             return RISCV_EXCP_INST_ACCESS_FAULT;
         }
-        return RISCV_EXCP_CHERI;
+        return RISCV_EXCP_CHERI_ASR;
 #endif
     }
 #endif // TARGET_CHERI
@@ -3932,9 +4035,8 @@ static RISCVException riscv_csrrw_do64(CPURISCVState *env, int csrno,
     ret = riscv_csrrw_check(env, csrno, write_mask, cpu);
     if (ret != RISCV_EXCP_NONE) {
 #ifdef TARGET_CHERI
-        if (ret == RISCV_EXCP_CHERI)
-            raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
-                                       /*regnum=*/0, 0, true, retpc);
+        if (ret == RISCV_EXCP_CHERI_ASR)
+            raise_access_sys_regs_exception(env, retpc);
 #endif
         return ret;
     }
@@ -4636,7 +4738,7 @@ static riscv_csr_cap_ops csr_cap_ops[] = {
     { "sscratchc", CSR_SSCRATCHC, read_capcsr_reg, write_cap_csr_reg,
       CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
     { "ddc", CSR_DDC, read_capcsr_reg, write_cap_csr_reg,
-      CSR_OP_REQUIRE_CRE | CSR_OP_IA_CONVERSION },
+      CSR_OP_REQUIRE_Y | CSR_OP_IA_CONVERSION },
     { "mtidc", CSR_MTIDC, read_capcsr_reg, write_cap_csr_reg,
       CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
     { "stidc", CSR_STIDC, read_capcsr_reg, write_cap_csr_reg,
@@ -4655,12 +4757,12 @@ static riscv_csr_cap_ops csr_cap_ops[] = {
 #ifdef TARGET_CHERI_RISCV_V9
     /* For backwards compatibility add the *tdc registers */
     { "mtdc", CSR_MTDC, read_capcsr_reg, write_cap_csr_reg,
-      CSR_OP_REQUIRE_CRE },
+      CSR_OP_REQUIRE_Y },
     { "stdc", CSR_STDC, read_capcsr_reg, write_cap_csr_reg,
-      CSR_OP_REQUIRE_CRE },
+      CSR_OP_REQUIRE_Y },
     { "vstdc", CSR_VSTDC, read_capcsr_reg, write_cap_csr_reg,
-      CSR_OP_REQUIRE_CRE },
-    { "pcc", CSR_PCC, read_capcsr_reg, /*write=*/NULL, CSR_OP_REQUIRE_CRE },
+      CSR_OP_REQUIRE_Y },
+    { "pcc", CSR_PCC, read_capcsr_reg, /*write=*/NULL, CSR_OP_REQUIRE_Y },
 #endif
 };
 

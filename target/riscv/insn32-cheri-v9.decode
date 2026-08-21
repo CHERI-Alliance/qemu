@@ -91,7 +91,7 @@ cgetoffset  1111111  00110 ..... 000 ..... 1011011 @rc
 cgetflags   1111111  00111 ..... 000 ..... 1011011 @rc
 crrl        1111111  01000 ..... 000 ..... 1011011 @r2
 cram        1111111  01001 ..... 000 ..... 1011011 @r2
-cmv         1111111  01010 ..... 000 ..... 1011011 @cc
+ymv         1111111  01010 ..... 000 ..... 1011011 @cc
 ccleartag   1111111  01011 ..... 000 ..... 1011011 @cc
 jalr_cap    1111111  01100 ..... 000 ..... 1011011 @cc
 # clear     1111111  01101 ..... 000 ..... 1011011 @r2
@@ -121,8 +121,8 @@ cinvoke  1111110  ..... ..... 000 00001 1011011 @r_2source
 @atom_ld_cap_or_ddc .......   ..... ..... ... ..... ....... &atomic aq=1 rl=1 rs2=0  %rs1 %rd
 @atom_st_cap_or_ddc .......   ..... ..... ... ..... ....... &atomic aq=1 rl=1 rd=0   %rs2 %rs1
 
-# Instead of cincoffsetimm, we reuse the standard name caddi to reduce the diff
-caddi         ............     ..... 001 ..... 1011011 @cci
+# Instead of cincoffsetimm, we reuse the standard name yaddi to reduce the diff
+yaddi         ............     ..... 001 ..... 1011011 @cci
 csetboundsimm ............     ..... 010 ..... 1011011 @cci_unsigned
 
 ### Memory Loads (including Load-Reserved) with Explicit Address Type
@@ -193,13 +193,13 @@ sc_w_cap       1111100  ..... ..... 000 11010 1011011 @atom_st_cap_or_ddc
 #                                       11111 is reserved
 
 # Support the new standard encoding of LC as well (different from RV64 V9)
-lc       ............    ..... 100 ..... 0001111 @i
+ly       ............    ..... 100 ..... 0001111 @i
 # The standard encoding of SC/atomics are the same as RV64 V9.
 # Support them for RV32 as well so we can eventually GC the old encodings.
-sc        ....... .....   ..... 100 ..... 0100011 @s
-amoswap_c 00001 . . ..... ..... 100 ..... 0101111 @atom_st
-lr_c      00010 . . 00000 ..... 100 ..... 0101111 @atom_ld
-sc_c      00011 . . ..... ..... 100 ..... 0101111 @atom_st
+sy        ....... .....   ..... 100 ..... 0100011 @s
+amoswap_y 00001 . . ..... ..... 100 ..... 0101111 @atom_st
+lr_y      00010 . . 00000 ..... 100 ..... 0101111 @atom_ld
+sc_y      00011 . . ..... ..... 100 ..... 0101111 @atom_st
 
 ### Zero operands
 # These are CHERI standard only instruction but we expose them to v9
