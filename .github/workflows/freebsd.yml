@@ -28,7 +28,7 @@ jobs:
           mkdir build
           cd build
           git config --global --add safe.directory '*'
-          ../configure --meson=meson --enable-werror --enable-virtfs --disable-docs --enable-fdt=system --enable-slirp=system --disable-capstone --target-list="arm-softmmu,aarch64-softmmu,riscv64-softmmu,x86_64-softmmu" --extra-cflags="-I/usr/local/include -Wno-error=macro-redefined -Wno-error=deprecated-declarations" --extra-ldflags="-L/usr/local/lib"
+          ../configure --meson=meson --enable-werror --enable-virtfs --disable-docs --enable-fdt=system --disable-capstone --target-list="arm-softmmu,aarch64-softmmu,riscv64-softmmu,x86_64-softmmu" --extra-cflags="-I/usr/local/include -Wno-error=macro-redefined -Wno-error=deprecated-declarations" --extra-ldflags="-L/usr/local/lib"
           gmake -j$(sysctl -n hw.ncpu)
           meson test --print-errorlogs --timeout-multiplier=2
 
