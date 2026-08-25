@@ -74,7 +74,6 @@ jobs:
             --disable-docs \
             --disable-cocoa \
             --enable-fdt=system \
-            --enable-slirp=system \
             --disable-capstone \
             --disable-linux-user \
             --target-list="${{ matrix.targets }}" \

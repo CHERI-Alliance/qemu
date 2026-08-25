@@ -334,7 +334,7 @@ static int hobgoblin_load_images(HobgoblinState *s, const memmapEntry_t *dram)
      */
     riscv_setup_rom_reset_vec(machine, &s->soc, start_addr,
             memmap[HOBGOBLIN_MROM].base, memmap[HOBGOBLIN_MROM].size,
-            kernel_entry, fdt_load_addr, machine->fdt);
+            kernel_entry, fdt_load_addr);
 
     return 0;
 }

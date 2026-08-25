@@ -28,6 +28,7 @@
 
 #include "exec/translator.h"
 #include "exec/log.h"
+#include "semihosting/semihost.h"
 #include "exec/log_instr.h"
 
 #include "instmap.h"
@@ -114,6 +115,7 @@ typedef struct DisasContext {
     int8_t lmul;
     uint8_t sew;
     uint8_t vta;
+    uint8_t vma;
     bool cfg_vta_all_1s;
     target_ulong vstart;
     bool vl_eq_vlmax;
@@ -707,7 +709,7 @@ static TCGv get_address(DisasContext *ctx, int rs1, int imm)
 
     tcg_gen_addi_tl(addr, src1, imm);
     if (ctx->pm_mask_enabled) {
-        tcg_gen_and_tl(addr, addr, pm_mask);
+        tcg_gen_andc_tl(addr, addr, pm_mask);
     } else if (get_xl(ctx) == MXL_RV32) {
         tcg_gen_ext32u_tl(addr, addr);
     }
@@ -868,10 +870,26 @@ static int ex_rvc_register(DisasContext *ctx, int reg)
     return 8 + reg;
 }
 
-static int ex_rvc_shifti(DisasContext *ctx, int imm)
+static int ex_rvc_shiftli(DisasContext *ctx, int imm)
 {
     /* For RV128 a shamt of 0 means a shift by 64. */
-    return imm ? imm : 64;
+    if (get_ol(ctx) == MXL_RV128) {
+        imm = imm ? imm : 64;
+    }
+    return imm;
+}
+
+static int ex_rvc_shiftri(DisasContext *ctx, int imm)
+{
+    /*
+     * For RV128 a shamt of 0 means a shift by 64, furthermore, for right
+     * shifts, the shamt is sign-extended.
+     */
+    if (get_ol(ctx) == MXL_RV128) {
+        imm = imm | (imm & 32) << 1;
+        imm = imm ? imm : 64;
+    }
+    return imm;
 }
 
 static bool pred_capmode(DisasContext *ctx)
@@ -1352,6 +1370,14 @@ TRANS_STUB(amoswap_c)
 static bool trans_sq(DisasContext *ctx, arg_sq *a) { return false; }
 #endif
 
+/* The specification allows for longer insns, but not supported by qemu. */
+#define MAX_INSN_LEN  4
+
+static inline int insn_len(uint16_t first_word)
+{
+    return (first_word & 3) == 3 ? 4 : 2;
+}
+
 static void decode_opc(CPURISCVState *env, DisasContext *ctx, uint16_t opcode)
 {
     /*
@@ -1367,7 +1393,7 @@ static void decode_opc(CPURISCVState *env, DisasContext *ctx, uint16_t opcode)
     };
 
     /* Check for compressed insn */
-    if (extract16(opcode, 0, 2) != 3) {
+    if (insn_len(opcode) == 2) {
         gen_riscv_log_instr16(ctx, opcode);
         gen_check_pcc_bounds_next_inst(ctx, 2);
         gen_rvfi_dii_set_field_const_i64(INST, insn, opcode);
@@ -1375,7 +1401,7 @@ static void decode_opc(CPURISCVState *env, DisasContext *ctx, uint16_t opcode)
          * The Zca extension is added as way to refer to instructions in the C
          * extension that do not include the floating-point loads and stores
          */
-        if (!has_ext(ctx, RVC) || !ctx->cfg_ptr->ext_zca) {
+        if (!has_ext(ctx, RVC) && !ctx->cfg_ptr->ext_zca) {
             gen_exception_illegal(ctx);
         } else {
             ctx->opcode = opcode;
@@ -1454,6 +1480,7 @@ static void riscv_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->sew = FIELD_EX32(tb_flags, TB_FLAGS, SEW);
     ctx->lmul = sextract32(FIELD_EX32(tb_flags, TB_FLAGS, LMUL), 0, 3);
     ctx->vta = FIELD_EX32(tb_flags, TB_FLAGS, VTA) && cpu->cfg.rvv_ta_all_1s;
+    ctx->vma = FIELD_EX32(tb_flags, TB_FLAGS, VMA) && cpu->cfg.rvv_ma_all_1s;
     ctx->cfg_vta_all_1s = cpu->cfg.rvv_ta_all_1s;
     ctx->vstart = env->vstart;
     ctx->vl_eq_vlmax = FIELD_EX32(tb_flags, TB_FLAGS, VL_EQ_VLMAX);
@@ -1513,12 +1540,21 @@ static void riscv_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
     }
     ctx->nftemp = 0;
 
+    /* Only the first insn within a TB is allowed to cross a page boundary. */
     if (ctx->base.is_jmp == DISAS_NEXT) {
-        target_ulong page_start;
-
-        page_start = ctx->base.pc_first & TARGET_PAGE_MASK;
-        if (ctx->base.pc_next - page_start >= TARGET_PAGE_SIZE) {
+        if (!is_same_page(&ctx->base, ctx->base.pc_next)) {
             ctx->base.is_jmp = DISAS_TOO_MANY;
+        } else {
+            unsigned page_ofs = ctx->base.pc_next & ~TARGET_PAGE_MASK;
+
+            if (page_ofs > TARGET_PAGE_SIZE - MAX_INSN_LEN) {
+                uint16_t next_insn = cpu_lduw_code(env, ctx->base.pc_next);
+                int len = insn_len(next_insn);
+
+                if (!is_same_page(&ctx->base, ctx->base.pc_next + len)) {
+                    ctx->base.is_jmp = DISAS_TOO_MANY;
+                }
+            }
         }
     }
 }
@@ -1577,11 +1613,12 @@ static const TranslatorOps riscv_tr_ops = {
     .disas_log          = riscv_tr_disas_log,
 };
 
-void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
+void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns,
+                           target_ulong pc, void *host_pc)
 {
     DisasContext ctx;
 
-    translator_loop(&riscv_tr_ops, &ctx.base, cs, tb, max_insns);
+    translator_loop(cs, tb, max_insns, pc, host_pc, &riscv_tr_ops, &ctx.base);
 }
 
 void riscv_translate_init(void)

@@ -85,22 +85,71 @@ static void arm_cpu_set_pc(CPUState *cs, vaddr value)
     }
 }
 
-#ifdef CONFIG_TCG
-void arm_cpu_synchronize_from_tb(CPUState *cs,
-                                 const TranslationBlock *tb)
+static vaddr arm_cpu_get_pc(CPUState *cs)
 {
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
 
-    /*
-     * It's OK to look at env for the current mode here, because it's
-     * never possible for an AArch64 TB to chain to an AArch32 TB.
-     */
     if (is_a64(env)) {
-        // LETODO: I dont know if this needs bounds checking
-        set_aarch_reg_value(&env->pc, tb->pc);
+#ifdef TARGET_CHERI
+        return env->pc.cap._cr_cursor;
+#else
+        return env->pc;
+#endif
     } else {
-        env->regs[15] = tb->pc;
+        return env->regs[15];
+    }
+}
+
+#ifdef CONFIG_TCG
+void arm_cpu_synchronize_from_tb(CPUState *cs,
+                                 const TranslationBlock *tb)
+{
+    /* The program counter is always up to date with TARGET_TB_PCREL. */
+    if (!TARGET_TB_PCREL) {
+        CPUARMState *env = cs->env_ptr;
+        /*
+         * It's OK to look at env for the current mode here, because it's
+         * never possible for an AArch64 TB to chain to an AArch32 TB.
+         */
+        if (is_a64(env)) {
+            // LETODO: I dont know if this needs bounds checking
+            set_aarch_reg_value(&env->pc, tb_pc(tb));
+        } else {
+            env->regs[15] = tb_pc(tb);
+        }
+    }
+}
+
+void arm_restore_state_to_opc(CPUState *cs,
+                              const TranslationBlock *tb,
+                              const uint64_t *data)
+{
+    CPUARMState *env = cs->env_ptr;
+
+    if (is_a64(env)) {
+        target_ulong pc;
+        if (TARGET_TB_PCREL) {
+            pc = (get_aarch_reg_as_x(&env->pc) & TARGET_PAGE_MASK) | data[0];
+        } else {
+            pc = data[0];
+        }
+#ifdef TARGET_CHERI
+        assert(cap_is_in_bounds(_cheri_get_pcc_unchecked(env), pc, 4));
+        env->pc.cap._cr_cursor = pc;
+#else
+        set_aarch_reg_to_x(env, &env->pc, pc);
+#endif
+        env->condexec_bits = 0;
+        env->exception.syndrome = data[2] << ARM_INSN_START_WORD2_SHIFT;
+    } else {
+        if (TARGET_TB_PCREL) {
+            env->regs[15] = (env->regs[15] & TARGET_PAGE_MASK) | data[0];
+        } else {
+            env->regs[15] = data[0];
+        }
+        env->condexec_bits = data[1];
+        env->exception.syndrome = data[2] << ARM_INSN_START_WORD2_SHIFT;
     }
 }
 #endif /* CONFIG_TCG */
@@ -660,14 +709,24 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
     if ((target_el > cur_el) && (target_el != 1)) {
         /* Exceptions targeting a higher EL may not be maskable */
         if (arm_feature(env, ARM_FEATURE_AARCH64)) {
-            /*
-             * 64-bit masking rules are simple: exceptions to EL3
-             * can't be masked, and exceptions to EL2 can only be
-             * masked from Secure state. The HCR and SCR settings
-             * don't affect the masking logic, only the interrupt routing.
-             */
-            if (target_el == 3 || !secure || (env->cp15.scr_el3 & SCR_EEL2)) {
+            switch (target_el) {
+            case 2:
+                /*
+                 * According to ARM DDI 0487H.a, an interrupt can be masked
+                 * when HCR_E2H and HCR_TGE are both set regardless of the
+                 * current Security state. Note that we need to revisit this
+                 * part again once we need to support NMI.
+                 */
+                if ((hcr_el2 & (HCR_E2H | HCR_TGE)) != (HCR_E2H | HCR_TGE)) {
+                        unmasked = true;
+                }
+                break;
+            case 3:
+                /* Interrupt cannot be masked when the target EL is 3 */
                 unmasked = true;
+                break;
+            default:
+                g_assert_not_reached();
             }
         } else {
             /*
@@ -2263,6 +2322,7 @@ static const struct TCGCPUOps arm_tcg_ops = {
     .initialize = arm_translate_init,
     .synchronize_from_tb = arm_cpu_synchronize_from_tb,
     .debug_excp_handler = arm_debug_excp_handler,
+    .restore_state_to_opc = arm_restore_state_to_opc,
 
 #ifdef CONFIG_USER_ONLY
     .record_sigsegv = arm_cpu_record_sigsegv,
@@ -2296,6 +2356,7 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
     cc->has_work = arm_cpu_has_work;
     cc->dump_state = arm_cpu_dump_state;
     cc->set_pc = arm_cpu_set_pc;
+    cc->get_pc = arm_cpu_get_pc;
     cc->gdb_read_register = arm_cpu_gdb_read_register;
     cc->gdb_write_register = arm_cpu_gdb_write_register;
 #ifndef CONFIG_USER_ONLY
