@@ -159,6 +159,24 @@ static inline bool cheri_have_access_sysregs(CPUArchState* env)
     return cap_has_perms(cheri_get_recent_pcc(env), CAP_ACCESS_SYS_REGS);
 }
 
+static inline bool cheri_will_store_tag(CPUArchState *env,
+                                        const cap_register_t *cbp, uint32_t cs)
+{
+    bool tag = get_capreg_tag_filtered(env, cs);
+#if defined(TARGET_CHERI_RISCV_STD)
+    if (!cap_has_perms(cbp, CAP_PERM_STORE_CAP)) {
+        tag = false;
+    } else if (env_archcpu(env)->cfg.lvbits > 0 &&
+               !cap_has_perms(cbp, CAP_PERM_STORE_LOCAL) &&
+               !cap_has_perms(get_capreg_or_special(env, cs),
+                              CAP_PERM_GLOBAL)) {
+        /* If lvbits == 0, the format still has SL, but it's always 0. */
+        tag = false;
+    }
+#endif
+    return tag;
+}
+
 static inline void cheri_update_pcc_for_exc_handler(cap_register_t *pcc,
                                                     cap_register_t *src_cap,
                                                     target_ulong new_pc)
