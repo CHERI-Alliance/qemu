@@ -290,9 +290,11 @@ static inline void _generate_special_checked_ptr(
         if (use_ddc) {
 #ifdef TARGET_AARCH64
             if (!(req_perms & CAP_PERM_LOAD))
+#else
+            if (req_perms & CAP_PERM_STORE)
+#endif
                 bounds_check_helper = &gen_helper_ddc_check_bounds_store;
             else
-#endif
                 bounds_check_helper = &gen_helper_ddc_check_bounds;
         } else {
             cheri_debug_assert(!(req_perms & CAP_PERM_STORE));

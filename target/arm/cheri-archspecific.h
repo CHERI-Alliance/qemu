@@ -87,11 +87,14 @@ static inline ARMFaultType cheri_cause_to_arm_fault(CheriCapExcCause cause)
 
 extern bool cheri_debugger_on_trap;
 
-static inline void G_NORETURN raise_cheri_exception_impl_if_wnr(
+static inline void G_NORETURN raise_cheri_exception_impl(
     CPUArchState *env, CheriCapExcCause cause, unsigned regnum,
-    target_ulong addr, bool instavail, uintptr_t hostpc, bool instruction_fetch,
-    bool is_write)
+    target_ulong addr, bool instavail, uintptr_t hostpc,
+    CheriAccessType access)
 {
+    bool instruction_fetch = access == CHERI_ACCESS_FETCH;
+    /* Morello sets ESR.WnR=0 when an atomic RMW fails a non-store check. */
+    bool is_write = access == CHERI_ACCESS_STORE;
     ARMFaultType arm_fault = cheri_cause_to_arm_fault(cause);
 
     int target_el = exception_target_el_capability(env);
@@ -133,21 +136,13 @@ static inline void G_NORETURN raise_cheri_exception_impl_if_wnr(
                     syn, target_el);
 }
 
-static inline void G_NORETURN raise_cheri_exception_impl(
-    CPUArchState *env, CheriCapExcCause cause, unsigned regnum,
-    target_ulong addr, bool instavail, uintptr_t hostpc)
-{
-    raise_cheri_exception_impl_if_wnr(env, cause, regnum, addr, instavail,
-                                      hostpc, false, false);
-}
-
 static inline void G_NORETURN raise_load_tag_exception(CPUArchState *env,
                                                           target_ulong va,
                                                           int cb,
                                                           uintptr_t retpc)
 {
-    raise_cheri_exception_impl_if_wnr(env, CapEx_TLBNoStoreCap, cb, va, false,
-                                      retpc, false, false);
+    raise_cheri_exception_impl(env, CapEx_TLBNoStoreCap, cb, va, false, retpc,
+                               CHERI_ACCESS_LOAD);
 }
 
 static inline void G_NORETURN raise_store_tag_exception(CPUArchState *env,
@@ -155,8 +150,8 @@ static inline void G_NORETURN raise_store_tag_exception(CPUArchState *env,
                                                            int reg,
                                                            uintptr_t retpc)
 {
-    raise_cheri_exception_impl_if_wnr(env, CapEx_TLBNoStoreCap, reg, va, false,
-                                      retpc, false, true);
+    raise_cheri_exception_impl(env, CapEx_TLBNoStoreCap, reg, va, false, retpc,
+                               CHERI_ACCESS_STORE);
 }
 
 static inline void G_NORETURN raise_unaligned_load_exception(

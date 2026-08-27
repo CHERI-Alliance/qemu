@@ -98,12 +98,18 @@ static inline G_NORETURN void do_raise_c2_exception_noreg(CPUMIPSState *env, uin
 
 static inline void G_NORETURN raise_cheri_exception_impl(
     CPUArchState *env, CheriCapExcCause cause, unsigned regnum,
-    target_ulong addr, bool instavail, uintptr_t hostpc)
+    target_ulong addr, bool instavail, uintptr_t hostpc,
+    G_GNUC_UNUSED CheriAccessType access)
 {
     if (!instavail)
         env->error_code |= EXCP_INST_NOTAVAIL;
     do_raise_c2_exception_impl(env, cause, regnum, hostpc);
 }
+
+/* CHERI-MIPS traps on invalid capability operands of non-memory insns. */
+#define raise_cheri_exception(env, cause, reg)                                 \
+    raise_cheri_exception_impl(env, cause, reg, 0, true, _host_return_address, \
+                               CHERI_ACCESS_OTHER)
 
 static inline void G_NORETURN raise_load_tag_exception(
     CPUArchState *env, target_ulong va, int cb, uintptr_t retpc)
@@ -140,7 +146,7 @@ static inline bool validate_jump_target(CPUMIPSState *env,
 {
     if (!cap_is_in_bounds(cap, addr, 4)) {
         raise_cheri_exception_impl(env, CapEx_LengthViolation, regnum, addr,
-                                   true, retpc);
+                                   true, retpc, CHERI_ACCESS_FETCH);
     }
     if (!QEMU_IS_ALIGNED(addr, 4)) {
         do_raise_c0_exception_impl(env, EXCP_AdEL, addr, retpc);

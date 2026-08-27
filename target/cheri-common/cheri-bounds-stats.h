@@ -60,7 +60,7 @@ _became_unrepresentable(CPUArchState *env, uint16_t reg, uintptr_t retpc)
 #endif
     if (cheri_c2e_on_unrepresentable)
         raise_cheri_exception_impl(env, CapEx_InexactBounds, reg, 0, false,
-                                   retpc);
+                                   retpc, CHERI_ACCESS_OTHER);
 }
 
 #ifdef DO_CHERI_STATISTICS

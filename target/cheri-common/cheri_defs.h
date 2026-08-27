@@ -43,6 +43,18 @@
 
 #define ASSERT_IF_CHERI() assert(0)
 
+typedef enum CheriAccessType {
+    /*
+     * Non-memory capability exceptions (e.g. CIncOffset on a sealed capability,
+     * which traps on MIPS instead of untagging).
+     */
+    CHERI_ACCESS_OTHER,
+    CHERI_ACCESS_FETCH,
+    CHERI_ACCESS_LOAD,
+    CHERI_ACCESS_STORE,
+    CHERI_ACCESS_RMW,
+} CheriAccessType;
+
 #include "cheri-compressed-cap/cheri_compressed_cap.h"
 
 #define CHERI_DECLARE_ALIGNED_CC_CAP_T(suffix) \

@@ -43,7 +43,8 @@ extern bool cheri_debugger_on_trap;
  */
 static inline void G_NORETURN raise_cheri_exception_with_093_type(
     CPUArchState *env, CheriCapExcCause cause, uint8_t type093, unsigned regnum,
-    target_ulong addr, bool instavail, uintptr_t hostpc)
+    target_ulong addr, bool instavail, uintptr_t hostpc,
+    G_GNUC_UNUSED CheriAccessType access)
 {
     env->badaddr = addr;
     env->last_cap_cause = cause;
@@ -63,16 +64,16 @@ static inline void G_NORETURN raise_cheri_exception_with_093_type(
 
 static inline void G_NORETURN raise_cheri_exception_impl(
     CPUArchState *env, CheriCapExcCause cause, unsigned regnum,
-    target_ulong addr, bool instavail, uintptr_t hostpc)
+    target_ulong addr, bool instavail, uintptr_t hostpc,
+    CheriAccessType access)
 {
     uint8_t type093 = 0;
 #ifdef TARGET_CHERI_RISCV_STD_093
-    type093 = cause == CapEx_AccessSystemRegsViolation
-                  ? CapEx093_Type_InstrAccess
-                  : CapEx093_Type_Data;
+    type093 = access == CHERI_ACCESS_FETCH ? CapEx093_Type_InstrAccess
+                                           : CapEx093_Type_Data;
 #endif
     raise_cheri_exception_with_093_type(env, cause, type093, regnum, addr,
-                                        instavail, hostpc);
+                                        instavail, hostpc, access);
 }
 
 /*
@@ -83,7 +84,8 @@ static inline void G_NORETURN raise_access_sys_regs_exception(
     CPUArchState *env, uintptr_t retpc)
 {
     raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
-                               CHERI_EXC_REGNUM_PCC, 0, true, retpc);
+                               CHERI_EXC_REGNUM_PCC, 0, true, retpc,
+                               CHERI_ACCESS_FETCH);
 }
 
 static inline void G_NORETURN raise_load_tag_exception(
