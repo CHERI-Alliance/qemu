@@ -113,9 +113,7 @@ GEN_ATOMIC_HELPERS(xchg)
 // of DDC and raise an exception otherwise. Tag+usealed+load/store perms must
 // have been checked before.
 DEF_HELPER_3(ddc_check_bounds, void, env, tl, tl)
-#ifdef TARGET_AARCH64
 DEF_HELPER_3(ddc_check_bounds_store, void, env, tl, tl)
-#endif
 /* Same but relative to PCC */
 DEF_HELPER_3(pcc_check_bounds, void, env, tl, tl)
 /* Clear tags due to a store. Only call this after the store succeeded. */

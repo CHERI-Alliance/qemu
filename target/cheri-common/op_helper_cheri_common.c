@@ -81,14 +81,8 @@ static DEFINE_CHERI_STAT(misc);
         if (CHERI_TAG_CLEAR_ON_INVALID(env))                                   \
             _cap_valid = false;                                                \
         else                                                                   \
-            raise_cheri_exception(env, cause, reg);                            \
-    } while (false)
-#define raise_cheri_exception_or_invalidate_impl(env, cause, reg, pc)          \
-    do {                                                                       \
-        if (CHERI_TAG_CLEAR_ON_INVALID(env))                                   \
-            _cap_valid = false;                                                \
-        else                                                                   \
-            raise_cheri_exception_impl(env, cause, reg, 0, true, pc);          \
+            raise_cheri_exception_access(env, cause, reg, 0,                   \
+                                         CHERI_ACCESS_OTHER);                  \
     } while (false)
 #define GET_HOST_RETPC_IF_TRAPPING_CHERI_ARCH() GET_HOST_RETPC()
 
@@ -105,7 +99,7 @@ static inline bool is_cap_sealed(const cap_register_t *cp)
 static inline QEMU_ALWAYS_INLINE bool
 try_set_cap_cursor(CPUArchState *env, const cap_register_t *cptr,
                    int regnum_src, int regnum_dst, target_ulong new_addr,
-                   bool precise_repr_check, uintptr_t retpc,
+                   bool precise_repr_check, uintptr_t _host_return_address,
                    struct oob_stats_info *oob_info)
 {
     DEFINE_RESULT_VALID;
@@ -114,8 +108,8 @@ try_set_cap_cursor(CPUArchState *env, const cap_register_t *cptr,
 #endif
 
     if (unlikely(cptr->cr_tag && is_cap_sealed(cptr))) {
-        raise_cheri_exception_or_invalidate_impl(env, CapEx_SealViolation,
-                                                 regnum_src, retpc);
+        raise_cheri_exception_or_invalidate(env, CapEx_SealViolation,
+                                            regnum_src);
     }
 #ifndef TARGET_MORELLO
     /*
@@ -135,7 +129,8 @@ try_set_cap_cursor(CPUArchState *env, const cap_register_t *cptr,
     if (unlikely(!CAP_cc(is_representable_with_addr)(cptr, new_addr,
                                                      precise_repr_check))) {
         if (cptr->cr_tag) {
-            became_unrepresentable(env, regnum_dst, oob_info, retpc);
+            became_unrepresentable(env, regnum_dst, oob_info,
+                                   _host_return_address);
         }
         cap_register_t result = *cptr;
         cap_mark_unrepresentable(new_addr, &result);
@@ -160,7 +155,6 @@ void CHERI_HELPER_IMPL(ddc_check_bounds(CPUArchState *env, target_ulong addr,
     check_cap(env, ddc, 0, addr, CHERI_EXC_REGNUM_DDC, num_bytes, GETPC());
 }
 
-#ifdef TARGET_AARCH64
 void CHERI_HELPER_IMPL(ddc_check_bounds_store(CPUArchState *env,
                                               target_ulong addr,
                                               target_ulong num_bytes))
@@ -171,7 +165,6 @@ void CHERI_HELPER_IMPL(ddc_check_bounds_store(CPUArchState *env,
     check_cap(env, ddc, CAP_PERM_STORE, addr, CHERI_EXC_REGNUM_DDC, num_bytes,
               GETPC());
 }
-#endif
 
 void CHERI_HELPER_IMPL(pcc_check_bounds(CPUArchState *env, target_ulong addr,
                                         target_ulong num_bytes))
@@ -1060,11 +1053,14 @@ static void do_setbounds(bool must_be_exact, CPUArchState *env, uint32_t cd,
          * perform these checks here.
          */
         if (!cbp->cr_tag) {
-            raise_cheri_exception(env, CapEx_TagViolation, cb);
+            raise_cheri_exception_access(env, CapEx_TagViolation, cb, 0,
+                                         CHERI_ACCESS_OTHER);
         } else if (is_cap_sealed(cbp)) {
-            raise_cheri_exception(env, CapEx_SealViolation, cb);
+            raise_cheri_exception_access(env, CapEx_SealViolation, cb, 0,
+                                         CHERI_ACCESS_OTHER);
         } else if (!cap_is_in_bounds(cbp, cap_get_cursor(cbp), length)) {
-            raise_cheri_exception(env, CapEx_LengthViolation, cb);
+            raise_cheri_exception_access(env, CapEx_LengthViolation, cb, 0,
+                                         CHERI_ACCESS_OTHER);
         }
         /* Use checked_setbounds to ensure we didn't missed any checks. */
         exact = CAP_cc(checked_setbounds)(&result, length);
@@ -1220,7 +1216,8 @@ target_ulong CHERI_HELPER_IMPL(ctoptr(CPUArchState *env, uint32_t cb,
      * CToPtr: Capability to Pointer
      */
     if (!CHERI_TAG_CLEAR_ON_INVALID(env) && !ctp->cr_tag) {
-        raise_cheri_exception(env, CapEx_TagViolation, ct);
+        raise_cheri_exception_access(env, CapEx_TagViolation, ct, 0,
+                                     CHERI_ACCESS_OTHER);
     }
     if (!cbp->cr_tag) {
         return (target_ulong)0;
@@ -1751,7 +1748,8 @@ raise_pcc_fault(CPUArchState *env, CheriCapExcCause cause, target_ulong addr)
      * The PC fetched from the generated code will often be out-of-bounds, so
      * fetching it will trigger an assertion.
      */
-    raise_cheri_exception_if(env, cause, addr, CHERI_EXC_REGNUM_PCC);
+    raise_cheri_exception_impl(env, cause, CHERI_EXC_REGNUM_PCC, addr, true,
+                               /*pc=*/0, CHERI_ACCESS_FETCH);
 }
 
 void CHERI_HELPER_IMPL(raise_exception_pcc_perms(CPUArchState *env))
