@@ -1091,6 +1091,12 @@ static void riscv_cpu_reset_hold(Object *obj)
      */
     set_max_perms_capability(env, &env->pcc, env->resetvec);
     set_max_perms_capability(env, &env->ddc, 0);
+
+#ifdef TARGET_CHERI_RISCV_STD
+    if (!env_archcpu(env)->cfg.ext_zyhybrid) {
+        cap_set_exec_mode(&env->pcc, CHERI_EXEC_CAPMODE);
+    }
+#endif
     // Supervisor mode trap handling
     set_max_perms_capability(env, &env->stvecc, 0);
     env->sscratchc = make_null_capability(env);
