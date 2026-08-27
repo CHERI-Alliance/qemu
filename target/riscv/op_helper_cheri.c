@@ -330,6 +330,14 @@ void HELPER(amoswap_cap)(CPUArchState *env, uint32_t dest_reg,
     if (addr == env->load_res) {
         env->load_res = -1; // Invalidate LR/SC to the same address
     }
+    /* Store/AMO page faults take priority over load capability faults. */
+    if (cheri_will_store_tag(env, cbp, val_reg)) {
+        probe_cap_write(env, addr, CHERI_CAP_SIZE, cpu_mmu_index(env, false),
+                        _host_return_address);
+    } else {
+        probe_write(env, addr, CHERI_CAP_SIZE, cpu_mmu_index(env, false),
+                    _host_return_address);
+    }
     // Load the value to store from the register file now in case the
     // load_cap_from_memory call overwrites that register
     target_ulong loaded_pesbt;
@@ -484,6 +492,13 @@ static target_ulong sc_c_impl(CPUArchState *env, uint32_t addr_reg,
     // We do this regardless of success/failure.
     env->load_res = -1;
     log_changed_special_reg(env, "load_res", env->load_res, ~0u, 0);
+    if (cheri_will_store_tag(env, auth_cap, val_reg)) {
+        probe_cap_write(env, addr, CHERI_CAP_SIZE, cpu_mmu_index(env, false),
+                        _host_return_address);
+    } else {
+        probe_write(env, addr, CHERI_CAP_SIZE, cpu_mmu_index(env, false),
+                    _host_return_address);
+    }
     if (addr != expected_addr) {
         goto sc_failed;
     }
