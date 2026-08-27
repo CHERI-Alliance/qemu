@@ -887,7 +887,7 @@ static bool trans_pause(DisasContext *ctx, arg_pause *a)
      * end the TB and return to main loop
      */
     gen_set_pc_imm(ctx, ctx->pc_succ_insn);
-    tcg_gen_exit_tb(NULL, 0);
+    exit_tb(ctx);
     ctx->base.is_jmp = DISAS_NORETURN;
 
     return true;
@@ -911,7 +911,7 @@ static bool trans_fence_i(DisasContext *ctx, arg_fence_i *a)
      * however we need to end the translation block
      */
     gen_set_pc_imm(ctx, ctx->pc_succ_insn);
-    tcg_gen_exit_tb(NULL, 0);
+    exit_tb(ctx);
     ctx->base.is_jmp = DISAS_NORETURN;
     return true;
 }
@@ -931,7 +931,7 @@ static bool do_csr_post(DisasContext *ctx)
     decode_save_opc(ctx);
     /* We may have changed important cpu state -- exit to main loop. */
     gen_set_pc_imm(ctx, ctx->pc_succ_insn);
-    tcg_gen_exit_tb(NULL, 0);
+    exit_tb(ctx);
     ctx->base.is_jmp = DISAS_NORETURN;
     return true;
 }
