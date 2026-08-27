@@ -744,7 +744,7 @@ static uint64_t arm_casq_ptw(CPUARMState *env, uint64_t old_val,
         int flags;
 
         env->tlb_fi = fi;
-        flags = probe_access_full_mmu(env, ptw->out_virt, 0,
+        flags = probe_access_full_mmu(env, ptw->out_virt, sizeof(uint64_t),
                                       MMU_DATA_STORE,
                                       arm_to_core_mmu_idx(ptw->in_ptw_idx),
                                       NULL, NULL);
