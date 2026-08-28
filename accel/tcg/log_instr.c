@@ -1114,7 +1114,9 @@ void qemu_log_instr_evt(CPUArchState *env, uint16_t fn, target_ulong arg0,
     /* iinfo->cv_buffer.val4 = arg3; */
 }
 
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic push
+#endif
 #ifdef __clang__
 #pragma GCC diagnostic ignored "-Wmissing-format-attribute"
 #else
@@ -1129,7 +1131,9 @@ void qemu_log_instr_extra(CPUArchState *env, const char *msg, ...)
     g_string_append_vprintf(iinfo->txt_buffer, msg, va);
     va_end(va);
 }
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic pop
+#endif
 
 /*
  *  A printf that takes an array of argments unioned of all possible argument
