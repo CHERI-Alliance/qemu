@@ -5009,6 +5009,17 @@ static RISCVException cheri_hybrid(CPURISCVState *env, int csrno)
     return RISCV_EXCP_ILLEGAL_INST;
 }
 
+/*
+ * RVY 0.9.10 Section 20, Table 64: CSRs added by RVY (including *tidc) are
+ * YLEN-wide and unavailable when Y=0. Earlier specs had a separate extension
+ * with an XLEN view when Y is disabled.
+ */
+#ifdef TARGET_CHERI_RISCV_RVY
+#define CSR_OP_TIDC_FLAGS (CSR_OP_REQUIRE_Y | CSR_OP_DIRECT_WRITE)
+#else
+#define CSR_OP_TIDC_FLAGS (CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG)
+#endif
+
 static riscv_csr_cap_ops csr_cap_ops[] = {
     { "mscratchc", CSR_MSCRATCHC, read_capcsr_reg, write_cap_csr_reg,
       CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
@@ -5027,13 +5038,13 @@ static riscv_csr_cap_ops csr_cap_ops[] = {
     { "ddc", CSR_DDC, read_capcsr_reg, write_cap_csr_reg,
       CSR_OP_REQUIRE_Y | CSR_OP_IA_CONVERSION, cheri_hybrid },
     { "mtidc", CSR_MTIDC, read_capcsr_reg, write_cap_csr_reg,
-      CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
+      CSR_OP_TIDC_FLAGS },
     { "stidc", CSR_STIDC, read_capcsr_reg, write_cap_csr_reg,
-      CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
+      CSR_OP_TIDC_FLAGS },
     { "utidc", CSR_UTIDC, read_capcsr_reg, write_cap_csr_reg,
-      CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
+      CSR_OP_TIDC_FLAGS },
     { "vstidc", CSR_VSTIDC, read_capcsr_reg, write_cap_csr_reg,
-      CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
+      CSR_OP_TIDC_FLAGS },
     { "vsepcc", CSR_VSEPCC, read_xepcc, write_xepcc,
       CSR_OP_IA_CONVERSION | CSR_OP_EXTENDED_REG | CSR_OP_IS_CODE_PTR },
     { "vsscratchc", CSR_VSSCRATCHC, read_capcsr_reg, write_cap_csr_reg,
