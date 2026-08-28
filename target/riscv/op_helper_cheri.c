@@ -98,8 +98,10 @@ void HELPER(csrrw_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
         writeback_csrrw(env, csr_cap, rd, csr_cap_info);
     }
     /* CSRRW always performs the write operation even for rs1=zero. */
+    bool clen = cheri_in_capmode(env) ||
+                !(csr_cap_info->flags & CSR_OP_EXTENDED_REG);
     csr_cap_info->write(env, csr_cap_info, rs_cap, cap_get_cursor(&rs_cap),
-                        cheri_in_capmode(env));
+                        clen);
 }
 
 static inline void do_csr_set_clear(CPUArchState *env, uint32_t csr,
