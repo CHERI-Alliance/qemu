@@ -227,6 +227,15 @@ static inline bool validate_jump_target(CPUArchState *env,
     return true;
 }
 
+#ifdef TARGET_CHERI_RISCV_RVY
+static inline void update_target_for_jump(CPURISCVState *env,
+                                          cap_register_t *target,
+                                          uint32_t cjalr_flags)
+{
+    return;
+}
+#endif
+
 static inline void update_next_pcc_for_tcg(CPUArchState *env,
                                            cap_register_t *target,
                                            uint32_t cjalr_flags)

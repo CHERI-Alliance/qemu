@@ -281,8 +281,10 @@ static void gen_check_branch_target(DisasContext *ctx, target_ulong dest);
 static void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest,
                         bool bounds_check)
 {
+#if defined(TARGET_CHERI) && CHERI_CONTROLFLOW_CHECK_AT_TARGET == 0
     if (bounds_check)
         gen_check_branch_target(ctx, dest);
+#endif
 
     if (translator_use_goto_tb(&ctx->base, dest)) {
         tcg_gen_goto_tb(n);
@@ -657,7 +659,6 @@ static void gen_jal(DisasContext *ctx, int rd, target_ulong imm)
 
     /* check misaligned: */
     next_pc = ctx->base.pc_next + imm;
-    gen_check_branch_target(ctx, next_pc);
     if (!has_ext(ctx, RVC) && !ctx->cfg_ptr->ext_zca) {
         if ((next_pc & 0x3) != 0) {
             gen_exception_inst_addr_mis(ctx);
@@ -683,7 +684,9 @@ static void gen_jalr(DisasContext *ctx, int rd, int rs1, target_ulong imm)
     /* For CHERI ISAv8 the destination is an offset relative to PCC.base. */
     tcg_gen_addi_tl(t0, t0, imm + pcc_reloc(ctx));
     tcg_gen_andi_tl(t0, t0, (target_ulong)-2);
+#if defined(TARGET_CHERI) && CHERI_CONTROLFLOW_CHECK_AT_TARGET == 0
     gen_check_branch_target_dynamic(ctx, t0);
+#endif
     // Note: Only update cpu_pc after a successful bounds check to avoid
     // representability issues caused by directly modifying PCC.cursor.
     gen_set_pc(ctx, t0);
