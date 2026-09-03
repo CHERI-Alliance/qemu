@@ -260,6 +260,14 @@ target_ulong CHERI_HELPER_IMPL(cgethigh(CPUArchState *env, uint32_t cb))
 
 target_ulong CHERI_HELPER_IMPL(cgetlen(CPUArchState *env, uint32_t cb))
 {
+#ifdef TARGET_CHERI_RISCV_RVY
+    const cap_register_t *cbp = get_readonly_capreg(env, cb);
+    if (!cap_check_integrity(env, cbp)) {
+        /* On integrity check failure, the length reads as zero */
+        return 0;
+    }
+#endif
+
     /*
      * CGetLen: Move Length to a General-Purpose Register.
      *
