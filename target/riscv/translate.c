@@ -281,8 +281,10 @@ static void gen_check_branch_target(DisasContext *ctx, target_ulong dest);
 static void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest,
                         bool bounds_check)
 {
+#if defined(TARGET_CHERI) && CHERI_CONTROLFLOW_CHECK_AT_TARGET == 0
     if (bounds_check)
         gen_check_branch_target(ctx, dest);
+#endif
 
     if (translator_use_goto_tb(&ctx->base, dest)) {
         tcg_gen_goto_tb(n);
@@ -416,13 +418,13 @@ static void _gen_set_gpr(DisasContext *ctx, int reg_num, TCGv t,
             tcg_gen_sari_tl(cpu_gprh[reg_num], cpu_gpr[reg_num], 63);
         }
 #endif
+        /* Log GPR writes here */
         gen_rvfi_dii_set_field_const_i8(INTEGER, rd_addr, reg_num);
-        gen_rvfi_dii_set_field_zext_tl(INTEGER, rd_wdata, t);
+        gen_rvfi_dii_set_field_zext_tl(INTEGER, rd_wdata, dest_gpr[reg_num]);
 #ifdef CONFIG_TCG_LOG_INSTR
-        // Log GPR writes here
         if (qemu_ctx_logging_enabled(ctx)) {
             gen_helper_riscv_log_gpr_write(cpu_env, tcg_constant_i32(reg_num),
-                                           t);
+                                           dest_gpr[reg_num]);
         }
 #endif
     }
@@ -452,6 +454,15 @@ static void gen_set_gpri(DisasContext *ctx, int reg_num, target_long imm)
 #ifndef TARGET_CHERI
         if (get_xl_max(ctx) == MXL_RV128) {
             tcg_gen_movi_tl(cpu_gprh[reg_num], -(imm < 0));
+        }
+#endif
+        /* Log GPR writes here */
+        gen_rvfi_dii_set_field_const_i8(INTEGER, rd_addr, reg_num);
+        gen_rvfi_dii_set_field_zext_tl(INTEGER, rd_wdata, dest_gpr[reg_num]);
+#ifdef CONFIG_TCG_LOG_INSTR
+        if (qemu_ctx_logging_enabled(ctx)) {
+            gen_helper_riscv_log_gpr_write(cpu_env, tcg_constant_i32(reg_num),
+                                           dest_gpr[reg_num]);
         }
 #endif
     }
@@ -648,7 +659,6 @@ static void gen_jal(DisasContext *ctx, int rd, target_ulong imm)
 
     /* check misaligned: */
     next_pc = ctx->base.pc_next + imm;
-    gen_check_branch_target(ctx, next_pc);
     if (!has_ext(ctx, RVC) && !ctx->cfg_ptr->ext_zca) {
         if ((next_pc & 0x3) != 0) {
             gen_exception_inst_addr_mis(ctx);
@@ -674,7 +684,9 @@ static void gen_jalr(DisasContext *ctx, int rd, int rs1, target_ulong imm)
     /* For CHERI ISAv8 the destination is an offset relative to PCC.base. */
     tcg_gen_addi_tl(t0, t0, imm + pcc_reloc(ctx));
     tcg_gen_andi_tl(t0, t0, (target_ulong)-2);
+#if defined(TARGET_CHERI) && CHERI_CONTROLFLOW_CHECK_AT_TARGET == 0
     gen_check_branch_target_dynamic(ctx, t0);
+#endif
     // Note: Only update cpu_pc after a successful bounds check to avoid
     // representability issues caused by directly modifying PCC.cursor.
     gen_set_pc(ctx, t0);

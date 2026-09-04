@@ -601,6 +601,19 @@ static bool trans_ymodeswi(DisasContext *ctx, arg_empty *a)
     return do_trans_modesw(ctx, /*to_capmode=*/false);
 }
 
+#ifdef TARGET_CHERI_RISCV_STD
+static bool trans_ymodew(DisasContext *ctx, arg_ccr *a)
+{
+#ifdef TARGET_CHERI_RISCV_RVY
+    if (a->cd == 0) {
+        return false;
+    }
+#endif
+
+    return gen_cheri_cap_cap_int(ctx, a, &gen_helper_scmode);
+}
+#endif
+
 static bool trans_yamask(DisasContext *ctx, arg_r2 *a)
 {
     return gen_cheri_int_int(ctx, a, &gen_helper_cram);
@@ -713,7 +726,6 @@ static bool trans_yadd(DisasContext *ctx, arg_ccr *a)
 TRANSLATE_CAP_CAP_INT_HELPER(yaddrw, csetaddr)
 TRANSLATE_CAP_CAP_INT_HELPER(ybndsw, csetboundsexact)
 TRANSLATE_CAP_CAP_INT_HELPER(ybndsrw, csetbounds)
-TRANSLATE_CAP_CAP_INT_HELPER(ymodew, scmode)
 TRANSLATE_CAP_CAP_CAP(ybld)
 
 TRANSLATE_INT_CAP_CAP_HELPER(yeq, cseqx)
@@ -857,7 +869,7 @@ TRANSLATE_CAP_CAP_INT_HELPER(schi, csethigh)
 #endif
 #endif
 
-// Common for V9 and standard CHERI:
+/* Common for V9 and CHERI 0.9.3: */
 #if !defined(TARGET_CHERI_RISCV_RVY)
 RVY_RENAMED(yamask, cram)
 RVY_RENAMED(ymodeswi, modesw_int)

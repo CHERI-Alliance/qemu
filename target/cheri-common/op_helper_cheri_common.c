@@ -260,6 +260,14 @@ target_ulong CHERI_HELPER_IMPL(cgethigh(CPUArchState *env, uint32_t cb))
 
 target_ulong CHERI_HELPER_IMPL(cgetlen(CPUArchState *env, uint32_t cb))
 {
+#ifdef TARGET_CHERI_RISCV_RVY
+    const cap_register_t *cbp = get_readonly_capreg(env, cb);
+    if (!cap_check_integrity(env, cbp)) {
+        /* On integrity check failure, the length reads as zero */
+        return 0;
+    }
+#endif
+
     /*
      * CGetLen: Move Length to a General-Purpose Register.
      *
@@ -1907,6 +1915,15 @@ void CHERI_HELPER_IMPL(debug_cap(CPUArchState *env, uint32_t regndx))
                (target_ulong)cap->_cr_top);
     }
 }
+
+#if defined(TARGET_RISCV) && defined(CONFIG_RVFI_DII)
+void CHERI_HELPER_IMPL(rvfi_changed_capreg(CPUArchState *env, uint32_t regnum))
+{
+    GPCapRegs *gpcrs = cheri_get_gpcrs(env);
+    const cap_register_t *cap = get_cap_in_gpregs(gpcrs, regnum);
+    rvfi_changed_capreg(env, regnum, cap->_cr_cursor);
+}
+#endif
 
 void helper_capreg_state_debug(CPUArchState *env, uint32_t regnum,
                                uint64_t flags, uint64_t pc)

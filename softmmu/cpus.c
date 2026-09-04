@@ -64,6 +64,15 @@
 
 #endif /* CONFIG_LINUX */
 
+static bool rvfi_enabled(void)
+{
+#ifdef CONFIG_RVFI_DII
+    return (rvfi_client_fd != 0);
+#else
+    return false;
+#endif
+}
+
 static QemuMutex qemu_global_mutex;
 
 /*
@@ -305,7 +314,14 @@ void cpu_handle_guest_debug(CPUState *cpu)
             cpu_single_step(cpu, 0);
         }
     } else {
-        gdb_set_stop_cpu(cpu);
+        /*
+         * When RVFI-DII is enabled, the CPU takes debug
+         * exceptions without having initialized the GDB
+         * state. Do not attempt to update the GDB state.
+         */
+        if (!rvfi_enabled()) {
+            gdb_set_stop_cpu(cpu);
+        }
         qemu_system_debug_request();
         cpu->stopped = true;
     }
