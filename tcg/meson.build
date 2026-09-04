@@ -12,12 +12,8 @@ tcg_ss.add(files(
   'tcg-op.c',
   'tcg-op-gvec.c',
   'tcg-op-vec.c',
+  'tcg-op-ldst.c',
 ))
-
-# tcg-op-ldst.c contains CHERI-specific logic that requires TARGET_* /
-# TARGET_LONG_BITS to be defined, so it is compiled once per target here
-# rather than in the shared tcg_ss library above.
-specific_ss.add(files('tcg-op-ldst.c'))
 
 if get_option('tcg_interpreter')
   libffi = dependency('libffi', version: '>=3.0', required: true,
