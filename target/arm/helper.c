@@ -18,6 +18,7 @@
 #include "qemu/crc32c.h"
 #include "qemu/qemu-print.h"
 #include "exec/exec-all.h"
+#include "tcg/debug-assert.h"
 #include <zlib.h> /* For crc32 */
 #include "hw/irq.h"
 #include "sysemu/cpu-timers.h"

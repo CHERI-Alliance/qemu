@@ -13,6 +13,7 @@
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
 #include "sysemu/tcg.h"
+#include "tcg/debug-assert.h"
 
 #ifdef CONFIG_TCG
 /* Return the Exception Level targeted by debug exceptions. */
