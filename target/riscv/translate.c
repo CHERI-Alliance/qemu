@@ -1345,6 +1345,13 @@ get_capmode_dependent_rmw_addr(DisasContext *ctx, int reg_num,
 
 static bool trans_c_hint(DisasContext *ctx, arg_c_hint *a)
 {
+#ifdef TARGET_CHERI_RISCV_RVY
+    if (a->rd != 0) {
+        /* RVY c.hint instructions behave as add rd, rd, zero */
+        TCGv dest = dest_gpr(ctx, a->rd);
+        gen_set_gpr(ctx, a->rd, dest);
+    }
+#endif
     return true;
 }
 
