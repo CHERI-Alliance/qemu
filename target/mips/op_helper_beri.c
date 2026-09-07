@@ -37,6 +37,7 @@
 #include "cpu.h"
 #include "internal.h"
 
+#ifndef CONFIG_USER_ONLY
 uint64_t helper_mfc0_rtc64(CPUMIPSState *env)
 {
     if (!is_beri_or_cheri(env)) {
@@ -56,6 +57,7 @@ void helper_mtc0_rtc64(CPUMIPSState *env, uint64_t arg1)
     }
     cpu_mips_set_rtc64(env, arg1);
 }
+#endif /* !CONFIG_USER_ONLY */
 
 /*
  * Return the CHERI/BERI CoreID Register:

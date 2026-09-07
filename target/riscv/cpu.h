@@ -487,11 +487,6 @@ struct CPUArchState {
 
     uint32_t features;
 
-#ifdef CONFIG_USER_ONLY
-    uint32_t elf_flags;
-#endif
-
-
     /* Fields from here on are preserved across CPU reset. */
     QEMUTimer *stimer; /* Internal timer for S-mode interrupt */
     QEMUTimer *vstimer; /* Internal timer for VS-mode interrupt */
@@ -989,12 +984,22 @@ extern const char * const riscv_cpu_mode_names[];
 
 static inline bool cpu_in_user_mode(CPURISCVState *env)
 {
+#ifdef CONFIG_USER_ONLY
+    /* No privilege levels under linux-user emulation; always "user". */
+    return true;
+#else
     return env->priv == PRV_U;
+#endif
 }
 
 static inline unsigned cpu_get_asid(CPURISCVState *env, target_ulong pc)
 {
+#ifdef CONFIG_USER_ONLY
+    /* No satp/paging under linux-user emulation. */
+    return 0;
+#else
     return get_field(env->satp, SATP_ASID);
+#endif
 }
 
 static inline const char *cpu_get_mode_name(qemu_log_instr_cpu_mode_t mode)

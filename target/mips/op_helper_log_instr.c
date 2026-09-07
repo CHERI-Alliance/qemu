@@ -64,9 +64,12 @@ void helper_mips_log_instr_gpr(CPUArchState *env, uint32_t reg,
 void helper_mips_log_instr_cop0(CPUArchState *env, uint32_t reg, uint32_t sel,
                                 target_ulong value)
 {
+#ifndef CONFIG_USER_ONLY
+    /* mips_cop0_regnames (target/mips/tcg/sysemu/cp0_helper.c) is system-only. */
     if (qemu_log_instr_enabled(env))
         qemu_log_instr_reg(env, mips_cop0_regnames[reg * 8 + sel], value, reg,
                            LRI_CSR_ACCESS);
+#endif
 }
 
 /*

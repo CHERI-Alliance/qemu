@@ -48,10 +48,10 @@
 #else
 #include "qemu/cutils.h"
 #include "hw/loader.h"
+#include "hw/boards.h"
+#endif
 #ifdef TARGET_RISCV
 #include "helper_utils.h"
-#endif
-#include "hw/boards.h"
 #endif
 
 #define TARGET_SYS_OPEN        0x01

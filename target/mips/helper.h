@@ -23,10 +23,20 @@ DEF_HELPER_FLAGS_1(dbitswap, TCG_CALL_NO_RWG_SE, tl, tl)
 
 DEF_HELPER_FLAGS_4(rotx, TCG_CALL_NO_RWG_SE, tl, tl, i32, i32, i32)
 
+/*
+ * mfc0_rtc64/mtc0_rtc64 (RTC hardware register) and magic_library_function/
+ * smp_yield (debug/test-acceleration hooks) are implemented only for system
+ * emulation (target/mips/sysemu/{cp0_timer,op_helper_magic}.c are excluded
+ * from -linux-user builds), so their declarations stay under
+ * CONFIG_USER_ONLY like the rest of this system-only block below. The
+ * BERI/log-instr helpers right after them have implementations that are
+ * always compiled, so they stay declared unconditionally.
+ */
 #ifndef CONFIG_USER_ONLY
 // QEMU-CHERI extension:
 DEF_HELPER_1(mfc0_rtc64, i64, env)
 DEF_HELPER_2(mtc0_rtc64, void, env, i64)
+#endif /* !CONFIG_USER_ONLY */
 // BERI extension:
 DEF_HELPER_1(mfc0_coreid, tl, env)
 
@@ -44,11 +54,14 @@ DEF_HELPER_2(mtc0_dumpstate, void, env, tl)
 #endif /* CONFIG_TCG_LOG_INSTR */
 /* Break after n cycles have been executed */
 DEF_HELPER_1(check_breakcount, void, env)
+#ifndef CONFIG_USER_ONLY
 #ifdef TARGET_MIPS64
 DEF_HELPER_2(magic_library_function, void, env, tl)
 #endif
 DEF_HELPER_1(smp_yield, void, env)
+#endif /* !CONFIG_USER_ONLY */
 
+#ifndef CONFIG_USER_ONLY
 #if defined(TARGET_CHERI)
 #include "cheri-helper-common.h"
 DEF_HELPER_2(mtc2_dumpcstate, void, env, tl)

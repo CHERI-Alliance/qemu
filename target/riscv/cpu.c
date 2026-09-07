@@ -959,10 +959,12 @@ static void riscv_cpu_reset_hold(Object *obj)
 #endif
 
 #if !defined(TARGET_CHERI)
+#ifndef CONFIG_USER_ONLY
     env->pc = env->resetvec;
     // Also reset mepc/sepc to zero for predicatable behaviour
     env->mepc = 0;
     env->sepc = 0;
+#endif
 #else
     // Force the extension on as some tests try and toggle it
     cpu->cfg.ext_cheri = true;

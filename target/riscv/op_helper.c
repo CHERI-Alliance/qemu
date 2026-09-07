@@ -565,6 +565,7 @@ target_ulong helper_mret(CPURISCVState *env)
 #endif
     return retpc;
 }
+#endif /* !CONFIG_USER_ONLY */
 
 void HELPER(check_alignment)(CPURISCVState *env, target_ulong addr, MemOp op,
                              uint32_t exc)
@@ -575,6 +576,7 @@ void HELPER(check_alignment)(CPURISCVState *env, target_ulong addr, MemOp op,
     }
 }
 
+#ifndef CONFIG_USER_ONLY
 void helper_wfi(CPURISCVState *env)
 {
     CPUState *cs = env_cpu(env);

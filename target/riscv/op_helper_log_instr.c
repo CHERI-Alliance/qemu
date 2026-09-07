@@ -31,9 +31,10 @@
  */
 
 #include "qemu/osdep.h"
-#include "exec/log_instr.h"
-#include "exec/helper-proto.h"
 #include "cpu.h"
+#include "exec/log_instr.h"
+#include "exec/memopidx.h"
+#include "exec/helper-proto.h"
 
 void HELPER(riscv_log_gpr_write)(CPURISCVState *env, uint32_t regnum,
                                  target_ulong value)
