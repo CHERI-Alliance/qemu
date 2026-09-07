@@ -236,7 +236,7 @@ static inline int target_memory_rw_debug(CPUState *cpu, target_ulong addr,
     return cpu_memory_rw_debug(cpu, addr, buf, len, is_write);
 }
 
-static void handle_query_xfer_auxv(GArray *params, void *user_ctx)
+void gdb_handle_query_xfer_auxv(GArray *params, void *user_ctx)
 {
     TaskState *ts;
     unsigned long offset, len, saved_auxv, auxv_len;
@@ -279,8 +279,5 @@ static void handle_query_xfer_auxv(GArray *params, void *user_ctx)
                (const char *)gdbserver_state.mem_buf->data, len);
     gdb_put_packet_binary(gdbserver_state.str_buf->str,
                           gdbserver_state.str_buf->len, true);
-}
-#endif
-
 }
 #endif

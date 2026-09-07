@@ -721,7 +721,7 @@ int page_unprotect(target_ulong address, uintptr_t pc)
     return current_tb_invalidated ? 2 : 1;
 }
 
-static QEMU_ALWAYS_INLINE int
+static int
 probe_access_internal(CPUArchState *env, target_ulong addr, int fault_size,
                       MMUAccessType access_type, bool nonfault, uintptr_t ra)
 {
