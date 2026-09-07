@@ -2224,12 +2224,12 @@ FOP_CONDNS(s, FMT_S, 32, gen_store_fpr32(ctx, fp0, fd))
 /* load/store instructions. */
 #ifdef CONFIG_USER_ONLY
 #define OP_LD_ATOMIC(insn, memop)                                          \
-static inline void op_ld_##insn(TCGv ret, TCGv arg1, int mem_idx,          \
-                                DisasContext *ctx)                         \
+static inline void op_ld_##insn(TCGv ret, TCGv_cap_checked_ptr arg1,       \
+                                int mem_idx, DisasContext *ctx)             \
 {                                                                          \
     TCGv t0 = tcg_temp_new();                                              \
-    tcg_gen_mov_tl(t0, arg1);                                              \
-    tcg_gen_qemu_ld_tl(ret, arg1, ctx->mem_idx, memop);                    \
+    tcg_gen_mov_tl(t0, (TCGv)arg1);                                        \
+    tcg_gen_qemu_ld_tl(ret, (TCGv)arg1, ctx->mem_idx, memop);              \
     tcg_gen_st_tl(t0, cpu_env, offsetof(CPUMIPSState, lladdr));            \
     tcg_gen_st_tl(ret, cpu_env, offsetof(CPUMIPSState, llval));            \
 }
@@ -2798,17 +2798,21 @@ static void gen_logic_imm(DisasContext *ctx, uint32_t opc,
              * $v1 = 7 -> bcopy(src=$a0, dst=$a1, len=$a2)
              * TODO: strlen? str{l,n}cpy?
              */
+#ifndef CONFIG_USER_ONLY
             if ((uint16_t)imm == 0xC0DE) {
                 save_cpu_state(ctx, 1);
                 gen_helper_magic_library_function(cpu_env, cpu_gpr[3]);
             }
+#endif /* !CONFIG_USER_ONLY */
 #endif
 
             /* With 'li $0, 0xea1d' perform smp yield. */
+#ifndef CONFIG_USER_ONLY
             if ((uint16_t)imm == 0xea1d) {
                 gen_save_pc(ctx->base.pc_next + 4);
                 gen_helper_smp_yield(cpu_env);
             }
+#endif /* !CONFIG_USER_ONLY */
 
             /* Buffered tracing switches, same as RISC-V */
             if ((uint16_t)imm == 0x01 || (uint16_t)imm == 0x02) {
