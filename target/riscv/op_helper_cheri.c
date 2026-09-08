@@ -359,7 +359,7 @@ static void lr_c_impl(CPUArchState *env, uint32_t dest_reg, uint32_t auth_reg,
             addr, cap_get_cursor(cbp), cap_get_top(cbp));
         raise_cheri_exception(env, CapEx_LengthViolation, auth_reg);
     } else if (!QEMU_IS_ALIGNED(addr, CHERI_CAP_SIZE)) {
-        raise_unaligned_store_exception(env, addr, _host_return_address);
+        raise_unaligned_load_exception(env, addr, _host_return_address);
     }
     /*
      * For the reservation, we need the raw memory content without any fixups
