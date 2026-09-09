@@ -1864,7 +1864,7 @@ static void check_address_space_wrap(CPUArchState *env, target_ulong addr,
 #endif
 
 #if defined(TARGET_RISCV) && defined(CONFIG_RVFI_DII)
-static uint8_t do_ld1_mmu(CPUArchState *env, target_ulong addr, MemOpIdx oi,
+static uint8_t do_ld1_mmu(CPUArchState *env, vaddr addr, MemOpIdx oi,
                           uintptr_t ra, MMUAccessType access_type);
 #endif
 

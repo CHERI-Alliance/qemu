@@ -239,7 +239,16 @@ tcg_prologue_fn *tcg_qemu_tb_exec;
 #endif
 
 #ifdef CONFIG_DEBUG_TCG
-TCGv _pc_is_current = 0;
+/*
+ * TCGv is target-specific (TCGv_i32 or TCGv_i64 depending on
+ * TARGET_LONG_BITS) and unavailable here since this file is built once,
+ * target-independently, for all configured targets. TCGv_i32 and TCGv_i64
+ * are both simple opaque-pointer handles with identical representation
+ * (tcgv_i64_temp() itself reinterprets a TCGv_i64 as a TCGv_i32), so
+ * TCGv_i64 storage here is binary-compatible with the TCGv the
+ * target-specific translators declare and assign through in tcg-op.h.
+ */
+TCGv_i64 _pc_is_current = 0;
 #endif
 static TCGRegSet tcg_target_available_regs[TCG_TYPE_COUNT];
 static TCGRegSet tcg_target_call_clobber_regs;
