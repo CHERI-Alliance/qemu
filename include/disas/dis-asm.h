@@ -451,33 +451,6 @@ int print_insn_microblaze       (bfd_vma, disassemble_info*);
 int print_insn_ia64             (bfd_vma, disassemble_info*);
 int print_insn_nios2(bfd_vma, disassemble_info*);
 int print_insn_xtensa           (bfd_vma, disassemble_info*);
-/*
- * Subset of target/riscv/cpu_cfg.h's RISCVCPUConfig needed by the
- * target-independent RISC-V disassembler (disas/riscv.c) to disambiguate a
- * few encodings. RISCVCPUConfig itself cannot be used here: several of its
- * fields are gated behind TARGET_CHERI-family macros that are poisoned in
- * target-independent code, and its layout differs across the CHERI RISC-V
- * variants. target/riscv/cpu.c copies these flags out of the real
- * RISCVCPUConfig into an instance of this struct and passes a pointer to it
- * as disassemble_info.target_info.
- */
-typedef struct RISCVCPUConfigDisas {
-    bool ext_zcmp;
-    bool ext_zcmt;
-    bool ext_zfinx;
-    bool ext_xtheadba;
-    bool ext_xtheadbb;
-    bool ext_xtheadbs;
-    bool ext_xtheadcmo;
-    bool ext_xtheadcondmov;
-    bool ext_xtheadfmemidx;
-    bool ext_xtheadfmv;
-    bool ext_xtheadmac;
-    bool ext_xtheadmemidx;
-    bool ext_xtheadmempair;
-    bool ext_xtheadsync;
-    bool ext_XVentanaCondOps;
-} RISCVCPUConfigDisas;
 
 int print_insn_riscv32          (bfd_vma, disassemble_info*);
 int print_insn_riscv64          (bfd_vma, disassemble_info*);

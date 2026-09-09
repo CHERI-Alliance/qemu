@@ -71,10 +71,8 @@ struct RISCVCPUConfig {
     bool ext_sstc;
     bool ext_svadu;
     bool ext_svinval;
-#if !defined(TARGET_CHERI_RISCV_V9)
-    /* Incompatible with ISAv9 */
+    /* Incompatible with ISAv9 -- unused there, see the property gate in cpu.c */
     bool ext_svnapot;
-#endif
     bool ext_svpbmt;
     bool ext_zdinx;
     bool ext_zawrs;
@@ -99,23 +97,25 @@ struct RISCVCPUConfig {
     bool rvv_ta_all_1s;
     bool rvv_ma_all_1s;
 
-#if defined(TARGET_CHERI_RISCV_STD_093)
-    bool ext_zish4add;
-#endif
-
-#ifdef TARGET_CHERI
+    /*
+     * CHERI extension config. Only meaningful (and only settable via a QOM
+     * property or ISA-string entry) on a CHERI target -- see the matching
+     * TARGET_CHERI*-gated code in cpu.c/csr.c/cpu_helper.c/translate.c for
+     * where each of these actually takes effect; unused/false otherwise.
+     * These fields are unconditional so every field in this struct sits at
+     * a stable offset regardless of which TARGET_CHERI* variant (if any)
+     * compiled it -- target-independent code (disas/riscv.c) depends on
+     * that stability to read this struct directly.
+     */
+    bool ext_zish4add; /* Part of the CHERI ISAv9.3 spec */
     bool ext_cheri;
-#ifdef TARGET_CHERI_RISCV_V9
     bool ext_cheri_v9; /* Temporary flag to support new semantics. */
-#elif defined(TARGET_CHERI_RISCV_STD)
     bool ext_zyhybrid;
     bool ext_zylevels1;
     /* number of levels (Zcherilevels): 0 invalid, 1 disabled (default)) */
     uint8_t _compat_cheri_levels; /* To keep existing scripts working */
     uint8_t lvbits; /* Only 0 and 1 (Zylevels1) are currently supported. */
     bool cheri_pte;
-#endif
-#endif
 
     uint32_t mvendorid;
     uint64_t marchid;
@@ -165,18 +165,6 @@ static inline bool always_true_p(const RISCVCPUConfig *cfg __attribute__((__unus
 {
     return true;
 }
-
-#ifndef TARGET_CHERI
-static inline bool has_xthead_p(const RISCVCPUConfig *cfg)
-{
-    return cfg->ext_xtheadba || cfg->ext_xtheadbb ||
-           cfg->ext_xtheadbs || cfg->ext_xtheadcmo ||
-           cfg->ext_xtheadcondmov ||
-           cfg->ext_xtheadfmemidx || cfg->ext_xtheadfmv ||
-           cfg->ext_xtheadmac || cfg->ext_xtheadmemidx ||
-           cfg->ext_xtheadmempair || cfg->ext_xtheadsync;
-}
-#endif
 
 #define MATERIALISE_EXT_PREDICATE(ext) \
     static inline bool has_ ## ext ## _p(const RISCVCPUConfig *cfg) \

@@ -20,6 +20,7 @@
 #include "qemu/osdep.h"
 #include "qemu/bitops.h"
 #include "disas/dis-asm.h"
+#include "target/riscv/cpu_cfg.h"
 #include "disas/riscv.h"
 
 /* Vendor extensions */
@@ -5471,49 +5472,11 @@ static void decode_inst_decompress(rv_decode *dec, rv_isa isa)
     }
 }
 
-/*
- * Vendor-extension decoder dispatch table guard. target/riscv/cpu_cfg.h's
- * always_true_p() takes a RISCVCPUConfig *, which this target-independent
- * file cannot use (see the RISCVCPUConfigDisas comment in dis-asm.h), so
- * this is a local copy typed against the disassembler's own config subset.
- */
-static bool always_true_p(const RISCVCPUConfigDisas *cfg __attribute__((__unused__)))
-{
-    return true;
-}
-
-/*
- * As above: target/riscv/cpu_cfg.h's has_<ext>_p() predicates for the
- * XThead and XVentanaCondOps vendor extensions take a RISCVCPUConfig *, so
- * mirror them here typed against the disassembler's RISCVCPUConfigDisas
- * subset instead.
- */
-#define MATERIALISE_DISAS_EXT_PREDICATE(ext) \
-    static bool has_ ## ext ## _p(const RISCVCPUConfigDisas *cfg) \
-    { \
-        return cfg->ext_ ## ext; \
-    }
-
-MATERIALISE_DISAS_EXT_PREDICATE(xtheadba)
-MATERIALISE_DISAS_EXT_PREDICATE(xtheadbb)
-MATERIALISE_DISAS_EXT_PREDICATE(xtheadbs)
-MATERIALISE_DISAS_EXT_PREDICATE(xtheadcmo)
-MATERIALISE_DISAS_EXT_PREDICATE(xtheadcondmov)
-MATERIALISE_DISAS_EXT_PREDICATE(xtheadfmemidx)
-MATERIALISE_DISAS_EXT_PREDICATE(xtheadfmv)
-MATERIALISE_DISAS_EXT_PREDICATE(xtheadmac)
-MATERIALISE_DISAS_EXT_PREDICATE(xtheadmemidx)
-MATERIALISE_DISAS_EXT_PREDICATE(xtheadmempair)
-MATERIALISE_DISAS_EXT_PREDICATE(xtheadsync)
-MATERIALISE_DISAS_EXT_PREDICATE(XVentanaCondOps)
-
-#undef MATERIALISE_DISAS_EXT_PREDICATE
-
 /* disassemble instruction */
 
 static void
 disasm_inst(char *buf, size_t buflen, rv_isa isa, uint64_t pc, rv_inst inst,
-            int flags, RISCVCPUConfigDisas *cfg)
+            int flags, RISCVCPUConfig *cfg)
 {
     rv_decode dec = { 0 };
     dec.pc = pc;
@@ -5521,7 +5484,7 @@ disasm_inst(char *buf, size_t buflen, rv_isa isa, uint64_t pc, rv_inst inst,
     dec.cfg = cfg;
 
     static const struct {
-        bool (*guard_func)(const RISCVCPUConfigDisas *);
+        bool (*guard_func)(const RISCVCPUConfig *);
         const rv_opcode_data *opcode_data;
         void (*decode_func)(rv_decode *, rv_isa, int);
     } decoders[] = {
@@ -5541,7 +5504,7 @@ disasm_inst(char *buf, size_t buflen, rv_isa isa, uint64_t pc, rv_inst inst,
     };
 
     for (size_t i = 0; i < ARRAY_SIZE(decoders); i++) {
-        bool (*guard_func)(const RISCVCPUConfigDisas *) = decoders[i].guard_func;
+        bool (*guard_func)(const RISCVCPUConfig *) = decoders[i].guard_func;
         const rv_opcode_data *opcode_data = decoders[i].opcode_data;
         void (*decode_func)(rv_decode *, rv_isa, int) = decoders[i].decode_func;
 
@@ -5611,7 +5574,7 @@ print_insn_riscv(bfd_vma memaddr, struct disassemble_info *info, rv_isa isa)
     }
 
     disasm_inst(buf, sizeof(buf), isa, memaddr, inst, info->flags,
-                (RISCVCPUConfigDisas *)info->target_info);
+                (RISCVCPUConfig *)info->target_info);
     (*info->fprintf_func)(info->stream, "%s", buf);
 
     return len;
