@@ -1469,6 +1469,18 @@ static inline int insn_len(uint16_t first_word)
     return (first_word & 3) == 3 ? 4 : 2;
 }
 
+#ifndef TARGET_CHERI
+static bool has_xthead_p(const RISCVCPUConfig *cfg)
+{
+    return cfg->ext_xtheadba || cfg->ext_xtheadbb ||
+           cfg->ext_xtheadbs || cfg->ext_xtheadcmo ||
+           cfg->ext_xtheadcondmov ||
+           cfg->ext_xtheadfmemidx || cfg->ext_xtheadfmv ||
+           cfg->ext_xtheadmac || cfg->ext_xtheadmemidx ||
+           cfg->ext_xtheadmempair || cfg->ext_xtheadsync;
+}
+#endif
+
 static void decode_opc(CPURISCVState *env, DisasContext *ctx, uint16_t opcode)
 {
     /*

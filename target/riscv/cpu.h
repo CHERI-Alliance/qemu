@@ -537,13 +537,6 @@ struct ArchCPU {
 
     /* Configuration Settings */
     RISCVCPUConfig cfg;
-    /*
-     * Subset of cfg's flags needed by the target-independent RISC-V
-     * disassembler (disas/riscv.c); kept in sync by
-     * riscv_cpu_disas_set_info(). See RISCVCPUConfigDisas's definition for
-     * why disas/riscv.c cannot use RISCVCPUConfig directly.
-     */
-    RISCVCPUConfigDisas cfg_disas;
 
     QEMUTimer *pmu_timer;
     /* A bitmask of Available programmable counters */

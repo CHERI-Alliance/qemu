@@ -1132,22 +1132,7 @@ static void riscv_cpu_disas_set_info(CPUState *s, disassemble_info *info)
     RISCVCPU *cpu = RISCV_CPU(s);
     CPURISCVState *env = &cpu->env;
 
-    cpu->cfg_disas.ext_zcmp = cpu->cfg.ext_zcmp;
-    cpu->cfg_disas.ext_zcmt = cpu->cfg.ext_zcmt;
-    cpu->cfg_disas.ext_zfinx = cpu->cfg.ext_zfinx;
-    cpu->cfg_disas.ext_xtheadba = cpu->cfg.ext_xtheadba;
-    cpu->cfg_disas.ext_xtheadbb = cpu->cfg.ext_xtheadbb;
-    cpu->cfg_disas.ext_xtheadbs = cpu->cfg.ext_xtheadbs;
-    cpu->cfg_disas.ext_xtheadcmo = cpu->cfg.ext_xtheadcmo;
-    cpu->cfg_disas.ext_xtheadcondmov = cpu->cfg.ext_xtheadcondmov;
-    cpu->cfg_disas.ext_xtheadfmemidx = cpu->cfg.ext_xtheadfmemidx;
-    cpu->cfg_disas.ext_xtheadfmv = cpu->cfg.ext_xtheadfmv;
-    cpu->cfg_disas.ext_xtheadmac = cpu->cfg.ext_xtheadmac;
-    cpu->cfg_disas.ext_xtheadmemidx = cpu->cfg.ext_xtheadmemidx;
-    cpu->cfg_disas.ext_xtheadmempair = cpu->cfg.ext_xtheadmempair;
-    cpu->cfg_disas.ext_xtheadsync = cpu->cfg.ext_xtheadsync;
-    cpu->cfg_disas.ext_XVentanaCondOps = cpu->cfg.ext_XVentanaCondOps;
-    info->target_info = &cpu->cfg_disas;
+    info->target_info = &cpu->cfg;
 
     switch (env->xl) {
     case MXL_RV32:

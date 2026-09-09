@@ -9,6 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "disas/dis-asm.h"
+#include "target/riscv/cpu_cfg.h"
 
 /* types */
 
@@ -189,7 +190,7 @@ typedef struct {
 } rv_opcode_data;
 
 typedef struct {
-    RISCVCPUConfigDisas *cfg;
+    RISCVCPUConfig *cfg;
     uint64_t  pc;
     uint64_t  inst;
     const rv_opcode_data *opcode_data;
