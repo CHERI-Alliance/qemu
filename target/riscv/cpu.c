@@ -1735,13 +1735,13 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
 
     qemu_init_vcpu(cs);
 #ifdef CONFIG_DEBUG_TCG
-    env->_pc_is_current = true;
+    cpu->env._pc_is_current = true;
 #endif
 #ifdef CONFIG_RVFI_DII
     /* When waiting for RVFI packets, don't fetch the initial instruction */
     if (rvfi_dii_enabled() && cs->singlestep_enabled) {
-        env->rvfi_dii_have_injected_insn = true;
-        env->rvfi_dii_injected_insn = 0; /* ILLEGAL */
+        cpu->env.rvfi_dii_have_injected_insn = true;
+        cpu->env.rvfi_dii_injected_insn = 0; /* ILLEGAL */
     }
 #endif
     cpu_reset(cs);

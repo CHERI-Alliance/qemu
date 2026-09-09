@@ -921,7 +921,7 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
          * env->rvfi_dii_injected_insn.
          */
         *physical = addr;
-        *prot = PAGE_EXEC;
+        *ret_prot = PAGE_EXEC;
         return TRANSLATE_SUCCESS;
     }
 #endif
