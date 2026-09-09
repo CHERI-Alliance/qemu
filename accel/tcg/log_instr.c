@@ -1115,7 +1115,11 @@ void qemu_log_instr_evt(CPUArchState *env, uint16_t fn, target_ulong arg0,
 }
 
 #pragma GCC diagnostic push
+#ifdef __clang__
+#pragma GCC diagnostic ignored "-Wmissing-format-attribute"
+#else
 #pragma GCC diagnostic ignored "-Wsuggest-attribute=format"
+#endif
 void qemu_log_instr_extra(CPUArchState *env, const char *msg, ...)
 {
     cpu_log_instr_info_t *iinfo = get_cpu_log_instr_info(env);
