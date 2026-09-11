@@ -1075,6 +1075,12 @@ typedef struct CPUArchState {
     target_ulong lladdr; /* LL virtual address compared against SC */
     target_ulong llval;
     uint64_t llval_wp;
+#ifdef TARGET_CHERI
+    /* Capability value reserved by CLLC, compared against by CSCC. */
+    target_ulong llval_cap_pesbt;
+    target_ulong llval_cap_cursor;
+    bool llval_cap_tag;
+#endif
     uint64_t CP0_LLAddr_rw_bitmask;
     int CP0_LLAddr_shift;
 /*
