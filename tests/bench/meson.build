@@ -17,6 +17,11 @@ executable('atomic64-bench',
            dependencies: [qemuutil],
            build_by_default: false)
 
+executable('cheri-tagmem-locktag-bench',
+           sources: files('cheri-tagmem-locktag-bench.c'),
+           dependencies: [qemuutil],
+           build_by_default: false)
+
 benchs = {}
 
 if have_block
