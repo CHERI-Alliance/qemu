@@ -4,6 +4,7 @@
  * Copyright (c) 2015-2016 Stacey Son <sson@FreeBSD.org>
  * Copyright (c) 2016-2018 Alfredo Mazzinghi <am2419@cl.cam.ac.uk>
  * Copyright (c) 2016-2018 Alex Richardson <Alexander.Richardson@cl.cam.ac.uk>
+ * Copyright (c) 2021-2021 Lawrence Esswood <le277@cam.ac.uk>
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -32,9 +33,11 @@
  * SUCH DAMAGE.
  */
 #include "cheri_tagmem.h"
+#include "cheri_tagmem_locktag.h"
 #include "exec/exec-all.h"
 #include "exec/log.h"
 #include "exec/ramblock.h"
+#include "hw/boards.h"
 #include "cheri_defs.h"
 #include "cheri-helper-utils.h"
 // XXX: use hbitmap? Or a different data structure?
@@ -50,8 +53,6 @@
 #error "Should only be included for TARGET_CHERI"
 #endif
 
-// XXX: use secure/target_tlb_bit0/target_tlb_bit1 for cheri TLB permissions?
-
 /*
  * Tagged Memory Emulation
  *
@@ -65,21 +66,17 @@
  * This 4K number is arbitary and depending on the workload other sizes may be
  * better.
  *
- * Note: We also support an mode where we use one byte per tag. This makes it
- * easy to set or unset a tag without the need of locking or atomics.
- * This requires eight times the memory.
+ * If MTTCG is not enabled, one bit is used per tag in a dense bitmap.
  *
- * As tag accesses are not atomic with regard to data writes/reads spurious
- * invalid capabilities could be created in a threaded context.
- * Therefore, we don't use atomic bitwise RMW operations and the one byte per
- * tag variant actually performs slightly worse due to increased memory usage.
- *
- * FIXME: find a solution to make tags safe (or just always disable multi-tcg)
+ * If MTTCG is enabled, each tag bit is combined with a lock making the size
+ * up to a byte per tag. See cheri_tagmem.h for how the interface should be
+ * used.
  *
  * XXX Should consider adding a reference count per tag block so that
  * blocks can be deallocated when no longer used maybe.
  *
- * FIXME: rewrite using somethign more like the upcoming MTE changes (https://github.com/rth7680/qemu/commits/tgt-arm-mte-user)
+ * FIXME: rewrite using somethign more like the upcoming MTE changes
+ * (https://github.com/rth7680/qemu/commits/tgt-arm-mte-user)
  *
  * XXX: I/O threads still exist even without MTTCG and need to have tag
  * clearing be atomic with their writes. Currently various places just write to
@@ -89,6 +86,9 @@
  * patterns on top of valid capabilities and try to race to read in between the
  * DMA write and the tag invalidate.
  */
+
+bool _need_concurrent_tags;
+bool _need_concurrent_tags_initialized;
 
 #define CAP_TAGBLK_SHFT     12          // 2^12 or 4096 tags per block
 #define CAP_TAGBLK_MSK      ((1 << CAP_TAGBLK_SHFT) - 1)
@@ -102,12 +102,37 @@
 
 _Static_assert(CAP_TAG_GET_MANY_SHFT <= 3, "");
 
+/*
+ * Pack/unpack to make get/set multiple tags atomic
+ * (assuming the host atomic size is large enough)
+ * lock_tags are indexed as bytes, and so are always little endian.
+ * Bitmaps are indexed as longs, and so are host endian.
+ */
+
 #if (CAP_TAG_GET_MANY_SHFT == 3)
-#define byte_unpack byte_unpack_64
-#define byte_pack byte_pack_64
+#define byte_unpack_he byte_unpack_64
+#define byte_pack_he   byte_pack_64
+#ifdef HOST_BIG_ENDIAN
+#define byte_unpack_le byte_unpack_swap_64
+#define byte_pack_le   byte_pack_swap_64
 #else
-#define byte_unpack byte_unpack_32
-#define byte_pack byte_pack_32
+#define byte_unpack_le byte_unpack_64
+#define byte_pack_le   byte_pack_64
+#endif
+#define packed_t uint64_t
+#elif (CAP_TAG_GET_MANY_SHFT == 2)
+#define byte_unpack_he byte_unpack_32
+#define byte_pack_he   byte_pack_32
+#ifdef HOST_BIG_ENDIAN
+#define byte_unpack_le byte_unpack_swap_32
+#define byte_pack_le   byte_pack_swap_32
+#else
+#define byte_unpack_le byte_unpack_32
+#define byte_pack_le   byte_pack_32
+#endif
+#define packed_t uint32_t
+#else
+#error "No packed type defined for this CAP_TAG_GET_MANY_SHFT"
 #endif
 
 #define CAP_TAG_GET_MANY_MASK ((1 << (1UL << CAP_TAG_GET_MANY_SHFT)) - 1UL)
@@ -128,8 +153,43 @@ static inline size_t num_tagblocks(RAMBlock* ram)
     return result;
 }
 
+/*
+ * The lock_tag struct and its acquire/release primitives live in
+ * cheri_tagmem_locktag.h so they can be exercised by a host-side unit test
+ * (tests/unit/test-cheri-tagmem-locktag.c) without depending on any
+ * target-specific CPU state.
+ *
+ * These two don't take locks out, so use with caution: as long as every
+ * other access respects locks, we don't need atomics here.
+ */
+static bool lock_tag_read(lock_tag *lock)
+{
+#ifdef CONFIG_DEBUG_TCG
+    assert(need_concurrent_tags());
+#endif
+    return lock_tag_peek_tag(lock);
+}
+
+static bool lock_tag_write(lock_tag *lock, bool tag, bool check_locked)
+{
+#ifdef CONFIG_DEBUG_TCG
+    if (check_locked) {
+        assert(!need_concurrent_tags() ||
+               (lock->as_int & LOCKTAG_MASK_WRITE_LOCKED));
+    }
+#endif
+    return lock_tag_poke_tag(lock, tag);
+}
+
 typedef struct CheriTagBlock {
-    DECLARE_BITMAP(tag_bitmap, CAP_TAGBLK_SIZE);
+    /*
+     * It would be silly to use locks for non-mttcg. So support both formats and
+     * use one or the other depending on need_concurrent_tags()
+     */
+    union {
+        DECLARE_BITMAP(tag_bitmap, CAP_TAGBLK_SIZE);
+        lock_tag locked_tags[CAP_TAGBLK_SIZE];
+    };
 } CheriTagBlock;
 
 
@@ -137,7 +197,11 @@ static CheriTagBlock *cheri_tag_new_tagblk(RAMBlock *ram, uint64_t tagidx)
 {
     CheriTagBlock *tagblk, *old;
 
-    tagblk = g_malloc0(sizeof(CheriTagBlock));
+    size_t size = need_concurrent_tags()
+                      ? sizeof(((CheriTagBlock *)0)->locked_tags)
+                      : sizeof(((CheriTagBlock *)0)->tag_bitmap);
+
+    tagblk = g_malloc0(size);
     if (tagblk == NULL) {
         error_report("Can't allocate tag block.");
         exit(1);
@@ -168,77 +232,232 @@ static inline QEMU_ALWAYS_INLINE CheriTagBlock *cheri_tag_block(size_t tag_index
         return NULL;
     }
     CheriTagBlock **tagmem = (CheriTagBlock **)ram->cheri_tags;
-    return tagmem[tagbock_index];
+    /*
+     * This entry is published by cheri_tag_new_tagblk() via qatomic_cmpxchg
+     * (a de-facto release, being SEQ_CST) once the block has been
+     * g_malloc0()'d. This load must be at least an acquire, not merely
+     * atomic/relaxed: a relaxed load stops the *pointer* from tearing, but
+     * gives no guarantee that the pointee's zeroed contents are visible yet
+     * - callers dereference the returned block immediately, with no further
+     * synchronizing operation of their own. Confirmed with ThreadSanitizer
+     * on a standalone repro: a relaxed load here still races with the
+     * g_malloc0() write, an acquire load doesn't.
+     */
+    return qatomic_load_acquire(&tagmem[tagbock_index]);
 }
 
-static inline QEMU_ALWAYS_INLINE bool tagblock_get_tag_tagmem(void *tagmem,
-                                                              size_t index)
+static inline QEMU_ALWAYS_INLINE bool tagmem_get_tag(void *tagmem, size_t index,
+                                                     tag_reader_lock_t *lock)
 {
-    unsigned long *p = (unsigned long *)tagmem + BIT_WORD(index);
-    unsigned long word;
+    if (need_concurrent_tags()) {
+        lock_tag *locktag = (lock_tag *)tagmem + index;
+        if (lock) {
+            *lock = (tag_reader_lock_t)locktag;
+            return lock_tag_read_tag_and_acquire_lock(locktag);
+        } else {
+            return lock_tag_read(locktag);
+        }
+    } else {
+        if (lock) {
+            *lock = TAG_LOCK_NONE;
+        }
+        unsigned long *p = (unsigned long *)tagmem + BIT_WORD(index);
+        unsigned long word;
 
-    word = qatomic_read(p);
-    return (word & BIT_MASK(index)) != 0;
+        word = qatomic_read(p);
+        return (word & BIT_MASK(index)) != 0;
+    }
 }
 
 static inline QEMU_ALWAYS_INLINE bool tagblock_get_tag(CheriTagBlock *block,
                                                        size_t block_index)
 {
-    return block ? tagblock_get_tag_tagmem(block->tag_bitmap, block_index)
-                 : false;
+    return block ? test_bit(block_index, block->tag_bitmap) : false;
 }
 
-static inline QEMU_ALWAYS_INLINE int
-tagblock_get_tag_many_tagmem(void *tagmem, size_t block_index)
+static inline QEMU_ALWAYS_INLINE bool
+tagblock_get_locktag(CheriTagBlock *block, size_t block_index,
+                     tag_reader_lock_t *lock)
 {
-    unsigned long *p = (unsigned long *)tagmem + BIT_WORD(block_index);
-    unsigned long word;
+    if (!block) {
+        if (lock) {
+            *lock = TAG_LOCK_NONE;
+        }
+        return false;
+    }
 
-    word = qatomic_read(p);
-    return (word >> (block_index % BITS_PER_LONG)) & CAP_TAG_GET_MANY_MASK;
-}
-
-static inline QEMU_ALWAYS_INLINE void
-tagblock_set_tag_tagmem(void *tagmem, size_t block_index)
-{
-    unsigned long *p = (unsigned long *)tagmem + BIT_WORD(block_index);
-
-    qatomic_or(p, BIT_MASK(block_index));
-}
-
-static inline QEMU_ALWAYS_INLINE void
-tagblock_set_tag_many_tagmem(void *tagmem, size_t block_index, uint8_t tags)
-{
-    unsigned long *p = (unsigned long *)tagmem + BIT_WORD(block_index);
-    size_t shift = block_index % BITS_PER_LONG;
-    unsigned long mask = CAP_TAG_GET_MANY_MASK << shift;
-    unsigned long tags_shifted = ((unsigned long)tags << shift) & mask;
-
-    if (likely(tags_shifted == 0)) {
-        qatomic_and(p, ~mask);
+    lock_tag *locktag = &block->locked_tags[block_index];
+    if (lock) {
+        *lock = (tag_reader_lock_t)locktag;
+        return lock_tag_read_tag_and_acquire_lock(locktag);
     } else {
-        unsigned long old, new, cmp;
-        cmp = qatomic_read(p);
-        do {
-            old = cmp;
-            new = (old & ~mask) | tags_shifted;
-            cmp = qatomic_cmpxchg(p, old, new);
-        } while (cmp != old);
+        return lock_tag_read(locktag);
     }
 }
 
-static inline QEMU_ALWAYS_INLINE void tagblock_clear_tag_tagmem(void *tagmem,
-                                                                size_t index)
+static inline QEMU_ALWAYS_INLINE int
+tagmem_get_tag_many(void *tagmem, size_t block_index, bool take_lock)
 {
-    unsigned long *p = (unsigned long *)tagmem + BIT_WORD(index);
+    if (need_concurrent_tags()) {
+        lock_tag *lock = ((lock_tag *)tagmem) + block_index;
+        if (!take_lock) {
+            /*
+             * If we don't need the lock we can just read a bunch of
+             * these at once
+             */
+            packed_t raw = qatomic_read((packed_t *)lock);
+            return byte_pack_le(raw);
+        } else {
+            /* Otherwise acquire the locks in order */
+            lock_tag *start = lock;
+            int result = 0;
+            for (int ndx = 0; ndx != (1 << CAP_TAG_GET_MANY_SHFT); ndx++) {
+                result |= lock_tag_read_tag_and_acquire_lock(start + ndx)
+                              ? (1 << ndx)
+                              : 0;
+            }
+            return result;
+        }
+    } else {
+        unsigned long *p = (unsigned long *)tagmem + BIT_WORD(block_index);
+        unsigned long word;
 
-    qatomic_and(p, ~BIT_MASK(index));
+        word = qatomic_read(p);
+        return (word >> (block_index % BITS_PER_LONG)) & CAP_TAG_GET_MANY_MASK;
+    }
+}
+
+static inline QEMU_ALWAYS_INLINE void tagmem_set_tag(void *tagmem,
+                                                     size_t block_index,
+                                                     tag_writer_lock_t *lock,
+                                                     bool lock_only)
+{
+    if (need_concurrent_tags()) {
+        lock_tag *lockTag = (lock_tag *)tagmem + block_index;
+        if (lock) {
+            *lock = (tag_writer_lock_t)(lockTag);
+            lock_tag_write_tag_and_acquire_lock_impl(lockTag, !lock_only, 1,
+                                                     false);
+        } else {
+            lock_tag_write(lockTag, 1, true);
+        }
+    } else {
+        if (lock) {
+            *lock = TAG_LOCK_NONE;
+
+        }
+
+        unsigned long *p = (unsigned long *)tagmem + BIT_WORD(block_index);
+
+        qatomic_or(p, BIT_MASK(block_index));
+    }
+}
+
+/* A 1 in the lowest bit in each byte of a packed_t */
+#define GET_SET_MANY_LOCKTAG_TAG_MASK (((packed_t)~0ULL) / 0xFF)
+
+static inline QEMU_ALWAYS_INLINE void tagmem_set_tag_many(void *tagmem,
+                                                          size_t block_index,
+                                                          uint8_t tags,
+                                                          bool take_lock)
+{
+    if (need_concurrent_tags()) {
+        lock_tag *lock = ((lock_tag *)tagmem) + block_index;
+
+        /*
+         * TODO: Needs testing on Morello multicore.
+         *  If something breaks around the STCT instruction it is THIS.
+         */
+
+        if (!take_lock) {
+            /*
+             * Although we are not taking any locks, we still need to not
+             * touch any of the lock bits as other operations may be using them.
+             */
+            if (tags == 0) {
+                /* If setting to zeros this is just an and. */
+                qatomic_and((packed_t *)lock, ~GET_SET_MANY_LOCKTAG_TAG_MASK);
+            } else if (tags == CAP_TAG_GET_MANY_MASK) {
+                /* If setting to ones it is an or. */
+                qatomic_or((packed_t *)lock, GET_SET_MANY_LOCKTAG_TAG_MASK);
+            } else {
+                /* Otherwise we need a cmpxchg loop. */
+                packed_t unpacked = byte_unpack_le(tags);
+                packed_t old;
+                /* Relaxed atomic peek: races with the CAS below otherwise. */
+                packed_t got = qatomic_read((packed_t *)lock);
+                do {
+                    old = got;
+                    got = qatomic_cmpxchg(
+                        (packed_t *)lock, old,
+                        (old & ~GET_SET_MANY_LOCKTAG_TAG_MASK) | unpacked);
+                } while (old != got);
+            }
+        } else {
+            lock_tag *start = lock;
+            lock_tag *end = start + (1 << CAP_TAG_GET_MANY_SHFT);
+            for (; start != end; start++) {
+                lock_tag_write_tag_and_acquire_lock(start, tags & 1);
+                tags = tags >> 1;
+            }
+        }
+    } else {
+        unsigned long *p = (unsigned long *)tagmem + BIT_WORD(block_index);
+        size_t shift = block_index % BITS_PER_LONG;
+        unsigned long mask = CAP_TAG_GET_MANY_MASK << shift;
+        unsigned long tags_shifted = ((unsigned long)tags << shift) & mask;
+
+        if (likely(tags_shifted == 0)) {
+            qatomic_and(p, ~mask);
+        } else {
+            unsigned long old, new, cmp;
+            cmp = qatomic_read(p);
+            do {
+                old = cmp;
+                new = (old & ~mask) | tags_shifted;
+                cmp = qatomic_cmpxchg(p, old, new);
+            } while (cmp != old);
+        }
+    }
+}
+
+static inline QEMU_ALWAYS_INLINE void tagmem_clear_tag(void *tagmem,
+                                                       size_t index,
+                                                       tag_writer_lock_t *lock,
+                                                       bool lock_only)
+{
+    if (need_concurrent_tags()) {
+        lock_tag *lockTag = (lock_tag *)tagmem + index;
+        if (lock) {
+            *lock = (tag_writer_lock_t)lockTag;
+            lock_tag_write_tag_and_acquire_lock_impl(lockTag, !lock_only, 0,
+                                                     false);
+        } else {
+            lock_tag_write(lockTag, 0, true);
+        }
+    } else {
+        if (lock) {
+            *lock = TAG_LOCK_NONE;
+        }
+        unsigned long *p = (unsigned long *)tagmem + BIT_WORD(index);
+        qatomic_and(p, ~BIT_MASK(index));
+    }
 }
 
 static inline QEMU_ALWAYS_INLINE void tagblock_clear_tag(CheriTagBlock *block,
                                                          size_t block_index)
 {
-    tagblock_clear_tag_tagmem(block->tag_bitmap, block_index);
+    unsigned long *p =
+        (unsigned long *)block->tag_bitmap + BIT_WORD(block_index);
+    qatomic_and(p, ~BIT_MASK(block_index));
+}
+
+static inline QEMU_ALWAYS_INLINE void
+tagblock_clear_locktag_with_lock_and_release(CheriTagBlock *block,
+                                             size_t block_index)
+{
+    lock_tag *lockTag = &block->locked_tags[block_index];
+    lock_tag_write_tag_and_acquire_lock_impl(lockTag, true, 0, true);
 }
 
 void cheri_tag_init(MemoryRegion *mr, uint64_t memory_size)
@@ -248,18 +467,20 @@ void cheri_tag_init(MemoryRegion *mr, uint64_t memory_size)
            "Incorrect tag mem size passed?");
     assert(mr->ram_block->cheri_tags == NULL && "Already initialized?");
 
+    if (!_need_concurrent_tags_initialized) {
+        _need_concurrent_tags =
+            qemu_tcg_mttcg_enabled() && current_machine->smp.max_cpus > 1;
+        _need_concurrent_tags_initialized = true;
+    } else {
+        assert(_need_concurrent_tags ==
+               (qemu_tcg_mttcg_enabled() && current_machine->smp.max_cpus > 1));
+    }
     size_t cheri_ntagblks = num_tagblocks(mr->ram_block);
     mr->ram_block->cheri_tags =
         g_malloc0(cheri_ntagblks * sizeof(CheriTagBlock *));
     if (mr->ram_block->cheri_tags == NULL) {
         error_report("%s: Can't allocated tag memory", __func__);
         exit(-1);
-    }
-    if (qemu_tcg_mttcg_enabled()) {
-        warn_report("The CHERI tagged memory implementation is not thread-safe "
-                    "and therefore not compatible with MTTCG. Capability tags "
-                    "may mysteriously appear/disappear. Run with \"--accel "
-                    "tcg,thread=single\" to fix.");
     }
 }
 
@@ -289,7 +510,7 @@ void *cheri_tagmem_for_addr(CPUArchState *env, target_ulong vaddr,
 #endif
     CheriTagBlock *tagblk = cheri_tag_block(tag, ram);
 
-    if (tag_write && !tagblk) {
+    if ((!tagblk) && (tag_write || need_concurrent_tags())) {
         cheri_tag_new_tagblk(ram, tag);
         CPUState *cpu = env_cpu(env);
         /*
@@ -308,7 +529,11 @@ void *cheri_tagmem_for_addr(CPUArchState *env, target_ulong vaddr,
 
     if (tagblk != NULL) {
         const size_t tagblk_index = CAP_TAGBLK_IDX(tag);
-        return tagblk->tag_bitmap + BIT_WORD(tagblk_index);
+        if (need_concurrent_tags()) {
+            return tagblk->locked_tags + tagblk_index;
+        } else {
+            return tagblk->tag_bitmap + BIT_WORD(tagblk_index);
+        }
     }
 
     if (!(*prot & PAGE_SC_CLEAR)) {
@@ -369,29 +594,116 @@ tag_offset_to_addr(TagOffset offset)
 }
 
 static void *cheri_tag_invalidate_one(CPUArchState *env, target_ulong vaddr,
-                                      int32_t size, uintptr_t pc, int mmu_idx);
-
-void *cheri_tag_invalidate_aligned(CPUArchState *env, target_ulong vaddr,
-                                   uintptr_t pc, int mmu_idx)
+                                      int32_t size, uintptr_t pc, int mmu_idx,
+                                      tag_writer_lock_t *lock, bool lock_only);
+static void invalidate_from_locktag(lock_tag *lock, CPUArchState *env,
+                                    target_ulong vaddr, uintptr_t pc,
+                                    int mmu_idx)
 {
-    cheri_debug_assert(QEMU_IS_ALIGNED(vaddr, CHERI_CAP_SIZE));
-    return cheri_tag_invalidate_one(env, vaddr, CHERI_CAP_SIZE, pc, mmu_idx);
+    if (lock != TAG_LOCK_NONE) {
+        if (lock == TAG_LOCK_ERROR) {
+            /*
+             * If we have reached here and there is a TAG_LOCK_ERROR it means
+             * that our initial tag lock attempt failed to get the physical
+             * address.
+             * However, the actual memory op succeeded to get the address.
+             * This may be caused by MMU pages being populated between
+             * probe_write calls.
+             * To catch these, add the define below:
+             * #define TCG_RACE_DEBUG
+             */
+#ifdef TCG_RACE_DEBUG
+            qemu_log_flush();
+            char buffer[256];
+            FILE *f = fmemopen(buffer, sizeof(buffer), "w");
+            fprintf(f,
+                    "Attempt to invalidate invalid tag for vaddr %lx\nProbably "
+                    "caused by guest instruction: ",
+                    vaddr);
+            target_disas(f, env_cpu(env), cpu_get_current_pc(env, pc, false),
+                         -1);
+            fprintf(f, "\r");
+            fclose(f);
+            buffer[sizeof(buffer) - 1] = '\0';
+            error_report("%s", buffer);
+            void *host_addr = NULL;
+            int access_flags = probe_access_flags(
+                env, vaddr, MMU_DATA_STORE, mmu_idx, true, &host_addr, pc);
+            error_report(
+                "Probe access returns access_flags = 0x%x and host_addr %p",
+                access_flags, host_addr);
+#endif
+            /*
+             * The real memory op that follows this call succeeds using the
+             * same vaddr, so the page must be mapped by now - re-resolve it
+             * from scratch to still clear the tag instead of leaving it
+             * stale over the data that op is about to write.
+             */
+            cheri_tag_invalidate_one(env, vaddr, CHERI_CAP_SIZE, pc, mmu_idx,
+                                     NULL, false);
+            return;
+        }
+        lock_tag_write_tag_and_release(lock, 0);
+    }
 }
 
-void cheri_tag_invalidate(CPUArchState *env, target_ulong vaddr, int32_t size,
-                          uintptr_t pc, int mmu_idx)
+void *cheri_tag_invalidate_aligned_impl(CPUArchState *env, target_ulong vaddr,
+                                        uintptr_t pc, int mmu_idx,
+                                        tag_writer_lock_t *lock, bool lock_only)
 {
+    cheri_debug_assert(QEMU_IS_ALIGNED(vaddr, CHERI_CAP_SIZE));
+    if (lock && *lock) {
+        invalidate_from_locktag((lock_tag *)*lock, env, vaddr, pc, mmu_idx);
+        return NULL;
+    }
+    return cheri_tag_invalidate_one(env, vaddr, CHERI_CAP_SIZE, pc, mmu_idx,
+                                    lock, lock_only);
+}
+
+void cheri_tag_invalidate_impl(CPUArchState *env, target_ulong vaddr,
+                               int32_t size, uintptr_t pc, int mmu_idx,
+                               tag_writer_lock_t *first,
+                               tag_writer_lock_t *second, bool lock_only)
+{
+    cheri_debug_assert(size > 0);
+
+    if (first && *first) {
+        vaddr = (vaddr / CHERI_CAP_SIZE) * CHERI_CAP_SIZE;
+        invalidate_from_locktag((lock_tag *)*first, env, vaddr, pc, mmu_idx);
+        if (second && *second) {
+            invalidate_from_locktag((lock_tag *)*second, env,
+                    vaddr + CHERI_CAP_SIZE, pc, mmu_idx);
+        }
+        return;
+    }
+
     target_ulong first_addr = vaddr;
     target_ulong last_addr = (vaddr + size - 1);
     TagOffset tag_start = addr_to_tag_offset(first_addr);
     TagOffset tag_end = addr_to_tag_offset(last_addr);
     if (likely(tag_start.value == tag_end.value)) {
         // Common case, only one tag (i.e. an aligned store)
-        cheri_tag_invalidate_one(env, vaddr, size, pc, mmu_idx);
+        cheri_tag_invalidate_one(env, vaddr, size, pc, mmu_idx, first,
+                                 lock_only);
         return;
     }
-    // Unaligned store -> can cross a capabiblity alignment boundary and
-    // therefore invalidate two tags. It can also cross pages
+    /*
+     * Unaligned store -> can cross a capabiblity alignment boundary and
+     * therefore invalidate two tags. It can also cross pages
+     *
+     * Lock-ordering invariant: the loop below always acquires the *first
+     * param's lock (the lower tag address, i.e. lower `locked_tags[]`/tagmem
+     * index) before the *second param's lock (the higher address), because
+     * it walks addr from tag_start to tag_end and the pointer swap
+     * ("first = second") only happens *after* the low-address tag has
+     * already been locked. Every hart that needs both locks for an
+     * overlapping pair takes them in this same low-then-high order, so two
+     * harts can never deadlock by acquiring them in opposite order. This
+     * falls out for free here because ascending tag/vaddr always maps to
+     * ascending array index for real (non-dummy) locks - contrast with
+     * get_dummy_locks() below, which hashes addresses and therefore needs an
+     * explicit swap to keep the same low-then-high ordering.
+     */
     size_t ntags = tag_end.value - tag_start.value + 1;
     assert(ntags == 2 && "Should invalidate at most two tag bits here");
     // Note: we always do a new page lookup here since unaligned stores
@@ -422,20 +734,22 @@ void cheri_tag_invalidate(CPUArchState *env, target_ulong vaddr, int32_t size,
     exit(1);
 #endif
 #endif
-    target_ulong second_addr = tag_offset_to_addr(tag_start) + CHERI_CAP_SIZE;
-    cheri_tag_invalidate_one(env, first_addr, second_addr - first_addr, pc,
-                             mmu_idx);
-    for (target_ulong addr = second_addr; addr <= tag_offset_to_addr(tag_end);
-         addr += CHERI_CAP_SIZE) {
-        target_ulong inval_size = MIN(CHERI_CAP_SIZE, last_addr + 1 - addr);
-        cheri_tag_invalidate_one(env, addr, inval_size, pc, mmu_idx);
+    for (target_ulong addr = tag_offset_to_addr(tag_start);
+         addr <= tag_offset_to_addr(tag_end); addr += CHERI_CAP_SIZE) {
+        cheri_tag_invalidate_one(env, addr, CHERI_CAP_SIZE, pc, mmu_idx, first,
+                                 lock_only);
+        first = second;
     }
 }
 
 static void *cheri_tag_invalidate_one(CPUArchState *env, target_ulong vaddr,
-                                      int32_t size, uintptr_t pc, int mmu_idx)
+                                      int32_t size, uintptr_t pc, int mmu_idx,
+                                      tag_writer_lock_t *lock, bool lock_only)
 {
     cheri_debug_assert(size > 0);
+    if (lock) {
+        *lock = TAG_LOCK_NONE;
+    }
 
     /*
      * When resolving this address in the TLB, treat it like a data store
@@ -443,11 +757,28 @@ static void *cheri_tag_invalidate_one(CPUArchState *env, target_ulong vaddr,
      * so that we don't require that the SC inhibit be clear.
      */
 
-    void *host_addr = probe_write(env, vaddr, size, mmu_idx, pc);
+    /*
+     * We use the flags version to suppress exceptions if we only want the
+     * lock. This is required as the data access might throw an exception with a
+     * higher priority. It should be the case that the data access will throw an
+     * MMU exception as well, but if it doesn't, I am returning another special
+     * lock value which can be tested later
+     */
+    void *host_addr;
+    int access_flags = probe_access_flags(env, vaddr, size, MMU_DATA_STORE,
+                                            mmu_idx, lock_only, &host_addr, pc);
+
+    if (access_flags & TLB_INVALID_MASK) {
+        if (lock) {
+            *lock = TAG_LOCK_ERROR;
+        }
+        return host_addr;
+    }
+
     // Only RAM and ROM regions are backed by host addresses so if
     // probe_write() returns NULL we know that we can't write the tagmem.
     if (unlikely(!host_addr)) {
-        return NULL;
+        return host_addr;
     }
 
     uintptr_t tagmem_flags;
@@ -469,15 +800,18 @@ static void *cheri_tag_invalidate_one(CPUArchState *env, target_ulong vaddr,
     // for the start of the page so we can simply add the index for the
     // page offset.
     target_ulong tag_offset = page_vaddr_to_tag_offset(vaddr);
-    if (qemu_log_instr_enabled(env)) {
-        bool old_value = tagblock_get_tag_tagmem(tagmem, tag_offset);
+    /* only perform this logging when not in concurrent mode */
+    /* else it will result in an unsafe tag read */
+    /* we should refactor the tagmem_clear_tag to return the old tag value */
+    if (qemu_log_instr_enabled(env) && !need_concurrent_tags()) {
+        bool old_value = tagmem_get_tag(tagmem, tag_offset, NULL);
         qemu_log_instr_extra(
             env,
             "    Cap Tag Write [" TARGET_FMT_lx "/" RAM_ADDR_FMT "] %d -> 0\n",
             vaddr, qemu_ram_addr_from_host(host_addr), old_value);
     }
 
-    tagblock_clear_tag_tagmem(tagmem, tag_offset);
+    tagmem_clear_tag(tagmem, tag_offset, lock, lock_only);
     return host_addr;
 }
 
@@ -509,19 +843,32 @@ void cheri_tag_phys_invalidate(CPUArchState *env, RAMBlock *ram,
         CheriTagBlock *tagblk = cheri_tag_block(tag, ram);
         if (tagblk != NULL) {
             const size_t tagblk_index = CAP_TAGBLK_IDX(tag);
-            if (unlikely(env && vaddr && qemu_log_instr_enabled(env))) {
-                target_ulong write_vaddr =
-                    QEMU_ALIGN_DOWN(*vaddr, CHERI_CAP_SIZE) + (addr - startaddr);
-                qemu_log_instr_extra(env, "    Cap Tag Write [" TARGET_FMT_lx
-                    "/" RAM_ADDR_FMT "] %d -> 0\n", write_vaddr, addr,
-                    tagblock_get_tag(tagblk, tagblk_index));
-            } else if (unlikely(env && qemu_log_instr_enabled(env))) {
-                qemu_log_instr_extra(env, "    Cap Tag ramaddr Write ["
-                    RAM_ADDR_FMT "] %d -> 0\n", addr,
-                    tagblock_get_tag(tagblk, tagblk_index));
+            if (unlikely(env && qemu_log_instr_enabled(env) &&
+                        !need_concurrent_tags())) {
+                bool old_tag = tagmem_get_tag(tagblk, tagblk_index, NULL);
+                if (vaddr) {
+                    target_ulong write_vaddr =
+                        QEMU_ALIGN_DOWN(*vaddr, CHERI_CAP_SIZE) +
+                        (addr - startaddr);
+                    qemu_log_instr_extra(env,
+                                         "    Cap Tag Write [" TARGET_FMT_lx
+                                         "/" RAM_ADDR_FMT "] %d -> 0\n",
+                                         write_vaddr, addr, old_tag);
+                } else {
+                    qemu_log_instr_extra(
+                        env,
+                        "    Cap Tag ramaddr Write [" RAM_ADDR_FMT
+                        "] %d -> 0\n",
+                        addr, old_tag);
+                }
             }
-            // changed |= tagblock_get_tag(tagblk, tagblk_index);
-            tagblock_clear_tag(tagblk, tagblk_index);
+
+            if (need_concurrent_tags()) {
+                tagblock_clear_locktag_with_lock_and_release(tagblk,
+                                                             tagblk_index);
+            } else {
+                tagblock_clear_tag(tagblk, tagblk_index);
+            }
         }
     }
 }
@@ -547,9 +894,18 @@ void cheri_tag_phys_invalidate(CPUArchState *env, RAMBlock *ram,
 #define clear_capcause_reg(env)
 #endif
 
-void *cheri_tag_set(CPUArchState *env, target_ulong vaddr, int reg,
-                    hwaddr *ret_paddr, uintptr_t pc, int mmu_idx)
+void *cheri_tag_set_impl(CPUArchState *env, target_ulong vaddr, int reg,
+                         hwaddr *ret_paddr, uintptr_t pc, int mmu_idx,
+                         tag_writer_lock_t *lock, bool lock_only)
 {
+
+    if (lock && *lock) {
+        if (*lock != TAG_LOCK_NONE) {
+            lock_tag_write_tag_and_release((lock_tag *)*lock, 1);
+        }
+        return NULL;
+    }
+
     /*
      * This attempt to resolve a virtual address may cause both a data store
      * TLB fault (entry missing or D bit clear) and a capability store TLB
@@ -561,6 +917,10 @@ void *cheri_tag_set(CPUArchState *env, target_ulong vaddr, int reg,
     clear_capcause_reg(env);
 
     handle_paddr_return(write);
+
+    if (lock) {
+        *lock = TAG_LOCK_NONE;
+    }
 
     if (unlikely(!host_addr)) {
         return NULL;
@@ -593,16 +953,21 @@ void *cheri_tag_set(CPUArchState *env, target_ulong vaddr, int reg,
     qemu_maybe_log_instr_extra(
         env, "    Cap Tag Write [" TARGET_FMT_lx "/" RAM_ADDR_FMT "] %d -> 1\n",
         vaddr, qemu_ram_addr_from_host(host_addr),
-        tagblock_get_tag_tagmem(tagmem, tag_offset));
+        tagmem_get_tag(tagmem, tag_offset, NULL));
 
-    tagblock_set_tag_tagmem(tagmem, tag_offset);
+    tagmem_set_tag(tagmem, tag_offset, lock, lock_only);
     return host_addr;
 }
 
 bool cheri_tag_get(CPUArchState *env, target_ulong vaddr, int reg,
                    hwaddr *ret_paddr, int *prot, uintptr_t pc, int mmu_idx,
-                   void *host_addr)
+                   void *host_addr, tag_reader_lock_t *lock)
 {
+    if (lock && *lock) {
+        return (*lock == TAG_LOCK_NONE)
+                   ? 0
+                   : lock_tag_release_read((lock_tag *)*lock);
+    }
 
     if (host_addr == NULL) {
         host_addr = probe_read(env, vaddr, CHERI_CAP_SIZE, mmu_idx, pc);
@@ -633,7 +998,7 @@ bool cheri_tag_get(CPUArchState *env, target_ulong vaddr, int reg,
     bool result =
         (tagmem == ALL_ZERO_TAGBLK)
             ? 0
-            : tagblock_get_tag_tagmem(tagmem, page_vaddr_to_tag_offset(vaddr));
+            : tagmem_get_tag(tagmem, page_vaddr_to_tag_offset(vaddr), lock);
 
     // XXX: Not atomic w.r.t. writes to tag memory
     qemu_maybe_log_instr_extra(
@@ -657,8 +1022,8 @@ int cheri_tag_get_many(CPUArchState *env, target_ulong vaddr, int reg,
     int result =
         ((tagmem == ALL_ZERO_TAGBLK) || (tagmem_flags & TLBENTRYCAP_FLAG_CLEAR))
             ? 0
-            : tagblock_get_tag_many_tagmem(tagmem,
-                                           page_vaddr_to_tag_offset(vaddr));
+            : tagmem_get_tag_many(tagmem, page_vaddr_to_tag_offset(vaddr),
+                                  false);
 
     if ((result && (tagmem_flags & TLBENTRYCAP_FLAG_TRAP)) ||
         (tagmem_flags & TLBENTRYCAP_FLAG_TRAP_ANY)) {
@@ -713,7 +1078,110 @@ void cheri_tag_set_many(CPUArchState *env, uint32_t tags, target_ulong vaddr,
 
     cheri_debug_assert(tagmem);
 
-    tagblock_set_tag_many_tagmem(tagmem, page_vaddr_to_tag_offset(vaddr), tags);
+    tagmem_set_tag_many(tagmem, page_vaddr_to_tag_offset(vaddr), tags, false);
+}
+
+void cheri_tag_reader_lock_release_impl(tag_reader_lock_t lock)
+{
+    lock_tag *lockTag = (lock_tag *)lock;
+    lock_tag_release_read(lockTag);
+}
+void cheri_tag_writer_lock_release_impl(tag_writer_lock_t lock)
+{
+    lock_tag *lockTag = (lock_tag *)lock;
+    lock_tag_release_write(lockTag);
+}
+
+void cheri_tag_free_lock(tag_lock_t lock)
+{
+    lock_tag *lockTag = (lock_tag *)lock;
+    if (!lock || lock == TAG_LOCK_NONE || lock == TAG_LOCK_ERROR) {
+        return;
+    }
+    if (lockTag->as_int & LOCKTAG_MASK_WRITE_LOCKED) {
+        lock_tag_release_write(lockTag);
+    } else{
+        lock_tag_release_read(lockTag);
+    }
+}
+
+/*
+ * Some TCG operations on data need to be atomic. This is done using atomic host
+ * operations, or single stepping. Tags pose a problem, as no host operations
+ * can simultaneously set tags and data, so that would leave only single
+ * stepping, which would not perform very well.
+ * Luckily, a lock now exists on every capability sized unit of memory, so
+ * atomic TCG operations are done by taking the lock and then doing a non-atomic
+ * sequence. Because it is unknown at translation time whether a location will
+ * have a tag (and therefore a lock), we cannot know whether we can rely
+ * on the tags lock or not.
+ * Therefore, we assume every location is tagged. If it is not, we asign it a
+ * dummy lock (that will always have a zero tag).
+ * We have a few of these to avoid false sharing.
+ */
+
+#define DUMMY_LOCK_BITS 16
+
+lock_tag dummy_tag_table[1 << DUMMY_LOCK_BITS];
+
+static target_ulong hash_vaddr(target_ulong vaddr)
+{
+    size_t shft = sizeof(target_ulong) * 8;
+    while (shft > DUMMY_LOCK_BITS) {
+        shft /= 2;
+        vaddr ^= vaddr >> shft;
+    }
+    return vaddr & ((1 << DUMMY_LOCK_BITS) - 1);
+}
+
+static lock_tag *get_dummy(target_ulong vaddr)
+{
+    return &dummy_tag_table[hash_vaddr(vaddr)];
+}
+
+void get_dummy_locks(target_ulong vaddr, tag_writer_lock_t *low,
+                     tag_writer_lock_t *high)
+{
+    target_ulong tag_addr1 = vaddr / CHERI_CAP_SIZE;
+    target_ulong tag_addr2 = tag_addr1 + 1;
+    tag_writer_lock_t low_dummy = NULL;
+    tag_writer_lock_t high_dummy = NULL;
+
+    if (*low == TAG_LOCK_NONE) {
+        low_dummy = get_dummy(tag_addr1);
+    }
+
+    if (*high == TAG_LOCK_NONE) {
+        high_dummy = get_dummy(tag_addr2);
+    }
+
+    if (low_dummy && high_dummy && high_dummy < low_dummy) {
+        /*
+         * Lock-ordering invariant: callers always expect *low to end up
+         * holding the lock for the lower tag address and *high the lock for
+         * the higher one, acquired in that low-then-high order, so that two
+         * harts locking an overlapping pair can never deadlock by acquiring
+         * them in opposite order (see the matching invariant comment in
+         * cheri_tag_invalidate_impl() above for the real, non-dummy locks).
+         * Unlike real locks, dummy locks are picked by hashing the address
+         * (hash_vaddr()), so ascending address does *not* imply ascending
+         * pointer value - swap here explicitly to restore that ordering
+         * before acquiring either lock.
+         */
+        tag_writer_lock_t tmp = high_dummy;
+        high_dummy = low_dummy;
+        low_dummy = tmp;
+    }
+
+    if (low_dummy) {
+        lock_tag_write_acquire_lock(low_dummy);
+        *low = low_dummy;
+    }
+
+    if (high_dummy) {
+        lock_tag_write_acquire_lock(high_dummy);
+        *high = high_dummy;
+    }
 }
 
 bool cheri_tag_get_debug(RAMBlock *ram, ram_addr_t ram_offset)
@@ -732,5 +1200,6 @@ bool cheri_tag_get_debug(RAMBlock *ram, ram_addr_t ram_offset)
     CheriTagBlock *tagblk = cheri_tag_block(tag, ram);
     cheri_debug_assert(tagblk);
     const size_t tagblk_index = CAP_TAGBLK_IDX(tag);
-    return tagblock_get_tag(tagblk, tagblk_index);
+    bool tag_value = tagmem_get_tag(tagblk, tagblk_index, NULL);
+    return tag_value;
 }

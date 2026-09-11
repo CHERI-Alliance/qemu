@@ -327,10 +327,11 @@ void HELPER(amoswap_cap)(CPUArchState *env, uint32_t dest_reg,
     target_ulong loaded_cursor;
     bool loaded_tag =
         load_cap_from_memory_raw(env, &loaded_pesbt, &loaded_cursor, addr_reg,
-                                 cbp, addr, _host_return_address, NULL);
+                                 cbp, addr, _host_return_address, NULL, true);
     // The store may still trap, so we must only update the dest register after
     // the store succeeded.
-    store_cap_to_memory(env, val_reg, addr_reg, addr, _host_return_address);
+    store_cap_to_memory(env, val_reg, addr_reg, addr, _host_return_address,
+                        true);
     // Store succeeded -> we can update cd
     update_compressed_capreg(env, dest_reg, loaded_pesbt, loaded_tag,
                              loaded_cursor);
@@ -390,7 +391,7 @@ static void lr_c_impl(CPUArchState *env, uint32_t dest_reg, uint32_t auth_reg,
      * to be applied or not?
      */
     tag = load_cap_from_memory_raw(env, &pesbt, &cursor, auth_reg, cbp, addr,
-                                   _host_return_address, NULL);
+                                   _host_return_address, NULL, true);
     update_compressed_capreg(env, dest_reg, pesbt, tag, cursor);
 }
 
@@ -490,7 +491,8 @@ static target_ulong sc_c_impl(CPUArchState *env, uint32_t addr_reg,
     }
 
     // This store may still trap, so we should update env->load_res before
-    store_cap_to_memory(env, val_reg, addr_reg, addr, _host_return_address);
+    store_cap_to_memory(env, val_reg, addr_reg, addr, _host_return_address,
+                        true);
 
     tcg_debug_assert(env->load_res == -1);
     return 0; // success
