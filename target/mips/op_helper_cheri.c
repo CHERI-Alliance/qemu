@@ -697,9 +697,46 @@ target_ulong CHERI_HELPER_IMPL(cscc_without_tcg(CPUArchState *env, uint32_t cs, 
         vaddr, env->lladdr, env->CP0_LLAddr);
     if (env->lladdr != vaddr)
         return 0;
-    store_cap_to_memory(env, cs, cb, vaddr, retpc, true);
+
+    /*
+     * The address-only check above is just a cheap local filter (mirroring
+     * the plain-integer SC below): the actual store-conditional semantics
+     * come from comparing the reserved capability value against the current
+     * one under this address's tag write lock, so that a concurrent hart's
+     * CSCC to the same address cannot also succeed against the same stale
+     * reservation.
+     */
+    int mmu_idx = cpu_mmu_index(env, false);
+    const cap_register_t *cbp = get_capreg_0_is_ddc(env, cb);
+
+    tag_writer_lock_t lock = NULL;
+    cheri_lock_for_tag_set(env, vaddr, cb, NULL, retpc, mmu_idx, &lock);
+    cheri_tag_writer_push_free_on_exception(env, lock);
+
+    target_ulong cur_pesbt, cur_cursor;
+    bool cur_raw_tag;
+    load_cap_from_memory_raw_tag(env, &cur_pesbt, &cur_cursor, cb, cbp, vaddr,
+                                 retpc, NULL, false, &cur_raw_tag);
+
+    /*
+     * Compare the raw (pre-permission-fixup) tag, not the effective one:
+     * this must detect any change to the actual bit in memory since CLLC,
+     * regardless of what either access's authorizing capability's
+     * permissions would filter it to.
+     */
+    bool success = (cur_pesbt == env->llval_cap_pesbt) &&
+                  (cur_cursor == env->llval_cap_cursor) &&
+                  (cur_raw_tag == env->llval_cap_tag);
+
+    if (success) {
+        store_cap_to_memory(env, cs, cb, vaddr, retpc, false);
+    }
+
+    cheri_tag_writer_pop_free_on_exception(env);
+    cheri_tag_writer_release(lock);
+
     env->lladdr = 1;
-    return 1;
+    return success ? 1 : 0;
 }
 
 void CHERI_HELPER_IMPL(cllc_without_tcg(CPUArchState *env, uint32_t cd, uint32_t cb))
@@ -725,8 +762,23 @@ void CHERI_HELPER_IMPL(cllc_without_tcg(CPUArchState *env, uint32_t cd, uint32_t
         do_raise_c0_exception(env, EXCP_AdEL, addr);
     }
     cheri_debug_assert(align_of(CHERI_CAP_SIZE, addr) == 0);
-    load_cap_from_memory(env, cd, cb, cbp, /*addr=*/cap_get_cursor(cbp),
-                         _host_return_address, &env->CP0_LLAddr, true);
+
+    /*
+     * Record the loaded value so a later CSCC to this address can compare
+     * against it under lock, rather than relying only on env->lladdr (which
+     * is per-vCPU and gives CSCC no way to detect that another hart's store
+     * changed the memory in between).
+     */
+    target_ulong pesbt, cursor;
+    bool raw_tag;
+    bool tag = load_cap_from_memory_raw_tag(
+        env, &pesbt, &cursor, cb, cbp, /*addr=*/cap_get_cursor(cbp),
+        _host_return_address, &env->CP0_LLAddr, true, &raw_tag);
+    env->llval_cap_pesbt = pesbt;
+    env->llval_cap_cursor = cursor;
+    env->llval_cap_tag = raw_tag;
+    update_compressed_capreg(env, cd, pesbt, tag, cursor);
+
     env->lladdr = addr;
 }
 
