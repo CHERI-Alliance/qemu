@@ -3146,9 +3146,28 @@ static void gen_store_exclusive_with_checked_addr(DisasContext *s, int rd,
                                         cpu_exclusive_val);
             }
 
+#ifdef TARGET_CHERI
+            /*
+             * tcg_gen_atomic_cmpxchg_i128_with_checked_addr() has no CHERI
+             * tag-invalidation of its own (unlike the i32/i64 checked-store
+             * paths), so wrap it explicitly, mirroring CASP below. STXP only
+             * writes when the exclusive-monitor compare succeeds, but that
+             * condition isn't available from the i128 helper, so invalidate
+             * unconditionally -- an over-invalidation on a failed store is
+             * safe, an uninvalidated tag on a successful one is not.
+             */
+            TCGv_i32 tcoi = handle_conditional_invalidate_start(
+                (TCGv_cap_checked_ptr)cpu_exclusive_addr, MO_128,
+                get_mem_index(s));
+#endif
             tcg_gen_atomic_cmpxchg_i128_with_checked_addr(t16,
                     (TCGv_cap_checked_ptr) cpu_exclusive_addr, c16, t16,
                                         get_mem_index(s), memop);
+#ifdef TARGET_CHERI
+            handle_conditional_invalidate_end(
+                (TCGv_cap_checked_ptr)cpu_exclusive_addr, tcoi,
+                tcg_constant_i32(1));
+#endif
 
             a = tcg_temp_new_i64();
             b = tcg_temp_new_i64();
@@ -3292,8 +3311,25 @@ static void gen_compare_and_swap_pair(DisasContext *s, int rs, int rt,
             tcg_gen_concat_i64_i128(cmp, s2, s1);
         }
 
+#ifdef TARGET_CHERI
+        /*
+         * tcg_gen_atomic_cmpxchg_i128_with_checked_addr() has no CHERI
+         * tag-invalidation of its own (unlike the i32/i64 checked-store
+         * paths), so wrap it explicitly. A CASP only writes when the
+         * comparison succeeds, but we don't get that condition back out
+         * of the i128 helper, so invalidate unconditionally -- an
+         * over-invalidation on a failed CAS is safe, an uninvalidated
+         * tag on a successful one is not.
+         */
+        TCGv_i32 tcoi =
+            handle_conditional_invalidate_start(clean_addr, MO_128, memidx);
+#endif
         tcg_gen_atomic_cmpxchg_i128_with_checked_addr(cmp, clean_addr, cmp, val,
                                               memidx, memop);
+#ifdef TARGET_CHERI
+        handle_conditional_invalidate_end(clean_addr, tcoi,
+                                          tcg_constant_i32(1));
+#endif
 
         if (s->be_data == MO_LE) {
             tcg_gen_extr_i128_i64(s1, s2, cmp);
