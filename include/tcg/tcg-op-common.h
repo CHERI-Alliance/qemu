@@ -793,13 +793,19 @@ void tcg_gen_qemu_st_i128_with_checked_addr(TCGv_i128, TCGv_cap_checked_ptr,
 // as to whether a tag clear should take place.
 void tcg_gen_qemu_st_i64_with_checked_addr_cond_invalidate(
     TCGv_i64 val, TCGv_cap_checked_ptr addr, TCGArg idx, MemOp memop,
-    bool invalidate);
-// To be used in conjunction with
-// tcg_gen_qemu_st_i64_with_checked_addr_cond_invalidate to manually clear a
-// tag
-void handle_conditional_invalidate(TCGv_cap_checked_ptr checked_addr,
-                                   MemOp memop, TCGArg mmu_idx,
-                                   TCGv_i32 store_happens);
+    bool invalidate, bool take_lock);
+
+/*
+ * To be used in conjunction with
+ * tcg_gen_qemu_st_i64_with_checked_addr_cond_invalidate to manually clear a
+ * tag. Call start before the operation, and end after. Pass the return of
+ * start as the @oi argument to end.
+ */
+
+TCGv_i32 handle_conditional_invalidate_start(TCGv_cap_checked_ptr checked_addr,
+                                             MemOp memop, TCGArg mmu_idx);
+void handle_conditional_invalidate_end(TCGv_cap_checked_ptr checked_addr,
+                                       TCGv_i32 oi, TCGv_i32 store_happens);
 
 /* Atomic ops */
 

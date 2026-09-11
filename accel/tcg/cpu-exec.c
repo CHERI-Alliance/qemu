@@ -44,6 +44,7 @@
 #include "tb-hash.h"
 #include "tb-context.h"
 #include "internal.h"
+#include "cheri_tagmem.h"
 
 /* -icount align implementation. */
 
@@ -638,6 +639,7 @@ void cpu_exec_step_atomic(CPUState *cpu)
         cpu_exec_exit(cpu);
     } else {
         cpu_exec_longjmp_cleanup(cpu);
+        cheri_tag_locks_exception_thrown(cpu);
     }
 
     /*
@@ -1089,6 +1091,7 @@ static int cpu_exec_setjmp(CPUState *cpu, SyncClocks *sc)
     /* Prepare setjmp context for exception handling. */
     if (unlikely(sigsetjmp(cpu->jmp_env, 0) != 0)) {
         cpu_exec_longjmp_cleanup(cpu);
+        cheri_tag_locks_exception_thrown(cpu);
     }
 
     return cpu_exec_loop(cpu, sc);

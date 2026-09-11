@@ -10,6 +10,19 @@
 
 #include "tcg/tcg-op-common.h"
 
+/*
+ * CHERI associates a lock with every capability sized word in order to
+ * provide tag memory. As this cost is already being paid, extra atomics
+ * are not needed for writes, although reads that do not require a tag may
+ * very well still need them.
+ */
+#ifdef TARGET_CHERI
+#define ALL_WRITES_ATOMIC 1
+#else
+#define ALL_WRITES_ATOMIC 0
+#endif
+
+
 #ifndef TARGET_LONG_BITS
 #error must include QEMU headers
 #endif
