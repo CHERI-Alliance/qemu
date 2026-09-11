@@ -189,10 +189,30 @@ void helper_store_exclusive_cap_via_cap(CPUArchState *env, uint32_t rs,
     temp_perms &= ~CAP_PERM_LOAD_CAP;
     cap_set_perms(env, &cbp, temp_perms);
 
+    tag_writer_lock_t low_lock = NULL;
+    tag_writer_lock_t high_lock = NULL;
+
     // Check first cap value equal
     if (success) {
+
+        /*
+         * Get both locks
+         * (for the strongest possible operation that might occur)
+         */
+        int mmu_indx = cpu_mmu_index(env, false);
+
+        cheri_lock_for_tag_set(env, addr, cb, NULL, _host_return_address,
+                               mmu_indx, &low_lock);
+        cheri_tag_writer_push_free_on_exception(env, low_lock);
+
+        if (cd2 != REG_NONE) {
+            cheri_lock_for_tag_set(env, addr + CHERI_CAP_SIZE, cb, NULL,
+                                   _host_return_address, mmu_indx, &high_lock);
+            cheri_tag_writer_push_free_on_exception(env, high_lock);
+        }
+
         load_cap_from_memory_raw_tag(env, &pesbt, &cursor, cb, &cbp, addr,
-                                     _host_return_address, NULL, true, &tag);
+                                     _host_return_address, NULL, false, &tag);
 
         if ((cursor != env->exclusive_val) || (pesbt != env->exclusive_high) ||
             (tag != env->exclusive_tag))
@@ -203,17 +223,27 @@ void helper_store_exclusive_cap_via_cap(CPUArchState *env, uint32_t rs,
     if (success && cd2 != REG_NONE) {
         load_cap_from_memory_raw_tag(env, &pesbt, &cursor, cb, &cbp,
                                      addr + CHERI_CAP_SIZE,
-                                     _host_return_address, NULL, true, &tag);
+                                     _host_return_address, NULL, false, &tag);
         if ((cursor != env->exclusive_val2) ||
             (pesbt != env->exclusive_high2) || (tag != env->exclusive_tag2))
             success = false;
     }
 
     if (success) {
-        store_cap_to_memory(env, cd, cb, addr, _host_return_address, true);
+        store_cap_to_memory(env, cd, cb, addr, _host_return_address, false);
         if (cd2 != REG_NONE)
             store_cap_to_memory(env, cd2, cb, addr + CHERI_CAP_SIZE,
-                                _host_return_address, true);
+                                _host_return_address, false);
+    }
+
+    if (high_lock) {
+        cheri_tag_writer_pop_free_on_exception(env);
+        cheri_tag_writer_release(high_lock);
+    }
+
+    if (low_lock) {
+        cheri_tag_writer_pop_free_on_exception(env);
+        cheri_tag_writer_release(low_lock);
     }
 
     env->exclusive_addr = -1;
@@ -245,12 +275,18 @@ static void swap_cap_via_cap_impl(CPUArchState *env, uint32_t cd, uint32_t cs,
         probe_cap_write(env, addr, CHERI_CAP_SIZE, mmu_index,
                         _host_return_address);
 
+    tag_writer_lock_t lock = NULL;
+
+    cheri_lock_for_tag_set(env, addr, cb, NULL, _host_return_address,
+                           cpu_mmu_index(env, false), &lock);
+    cheri_tag_writer_push_free_on_exception(env, lock);
+
     // load (without modifying cs as we will need it for the comparison)
 
     uint64_t pesbt;
     uint64_t cursor;
     bool tag = load_cap_from_memory_raw(env, &pesbt, &cursor, cb, cbp, addr,
-                                        _host_return_address, NULL, true);
+                                        _host_return_address, NULL, false);
 
     bool do_store;
 
@@ -264,7 +300,7 @@ static void swap_cap_via_cap_impl(CPUArchState *env, uint32_t cd, uint32_t cs,
 
     // Store
     if (do_store) {
-        store_cap_to_memory(env, cd, cb, addr, _host_return_address, true);
+        store_cap_to_memory(env, cd, cb, addr, _host_return_address, false);
     } else {
         cd_tagged = get_without_decompress_tag(env, cd);
         // Even if there is no store, we possibly need an MMU permission fault
@@ -272,6 +308,9 @@ static void swap_cap_via_cap_impl(CPUArchState *env, uint32_t cd, uint32_t cs,
             probe_write(env, addr, CHERI_CAP_SIZE, mmu_index,
                         _host_return_address);
     }
+
+    cheri_tag_writer_pop_free_on_exception(env);
+    cheri_tag_writer_release(lock);
 
     // Write back to cs
     update_compressed_capreg(env, cs, pesbt, tag, cursor);
