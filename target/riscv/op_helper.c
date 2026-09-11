@@ -203,21 +203,40 @@ static void do_cbo_zero(CPURISCVState *env, target_ulong address, uintptr_t ra)
 
     if (likely(mem)) {
 #ifdef TARGET_CHERI
-        RAMBlock *r;
-        ram_addr_t offs;
+        if (need_concurrent_tags()) {
+            /*
+             * Zero the block one capability-sized word at a time, holding
+             * each word's tag write lock across both its tag clear and its
+             * data zero. This keeps the two atomic as a unit so a
+             * concurrent hart's capability store to a word in this block
+             * can never race with this clear and leave a valid tag over
+             * zeroed data (or a zeroed tag over the other hart's data).
+             */
+            for (target_ulong off = 0; off < cbozlen; off += CHERI_CAP_SIZE) {
+                tag_writer_lock_t lock = NULL;
+                cheri_lock_for_tag_invalidate(env, address + off,
+                                              CHERI_CAP_SIZE, ra, mmu_idx,
+                                              &lock, NULL);
+                memset((char *)mem + off, 0, CHERI_CAP_SIZE);
+                cheri_tag_invalidate(env, address + off, CHERI_CAP_SIZE, ra,
+                                     mmu_idx, &lock, NULL);
+            }
+        } else {
+            RAMBlock *r;
+            ram_addr_t offs;
 
-        /* TODO: Memory update and tag change must be atomic. */
-        assert(!qemu_tcg_mttcg_enabled() ||
-                cpu_in_exclusive_context(env_cpu(env)));
-
-        rcu_read_lock(); /* protect r from changes while we use it */
-        r = qemu_ram_block_from_host(mem, /* round to page? */ false, &offs);
-        if (r) {
-            cheri_tag_phys_invalidate(env, r, offs, cbozlen, NULL);
+            rcu_read_lock(); /* protect r from changes while we use it */
+            r = qemu_ram_block_from_host(mem, /* round to page? */ false,
+                                         &offs);
+            if (r) {
+                cheri_tag_phys_invalidate(env, r, offs, cbozlen, NULL);
+            }
+            rcu_read_unlock();
+            memset(mem, 0, cbozlen);
         }
-        rcu_read_unlock();
-#endif
+#else
         memset(mem, 0, cbozlen);
+#endif
     } else {
         /*
          * This means that we're dealing with an I/O page. Section 4.2
