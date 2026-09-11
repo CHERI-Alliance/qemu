@@ -134,7 +134,8 @@ store_byte_and_clear_tag(CPUMIPSState *env, target_ulong vaddr, uint8_t val,
 #ifdef TARGET_CHERI
     // If we returned (i.e. write was successful) we also need to invalidate the
     // tags bit to ensure we are consistent with sb
-    cheri_tag_invalidate(env, vaddr, 1, retaddr, cpu_mmu_index(env, false));
+    cheri_tag_invalidate(env, vaddr, 1, retaddr, cpu_mmu_index(env, false),
+                         NULL, NULL);
 #endif
 }
 
@@ -147,7 +148,8 @@ store_u32_and_clear_tag(CPUMIPSState *env, target_ulong vaddr, uint32_t val,
 #ifdef TARGET_CHERI
     // If we returned (i.e. write was successful) we also need to invalidate the
     // tags bit to ensure we are consistent with sb
-    cheri_tag_invalidate(env, vaddr, 4, retaddr, cpu_mmu_index(env, false));
+    cheri_tag_invalidate(env, vaddr, 4, retaddr, cpu_mmu_index(env, false),
+                         NULL, NULL);
 #endif
 }
 

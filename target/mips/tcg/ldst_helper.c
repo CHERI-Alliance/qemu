@@ -101,7 +101,8 @@ static inline void invalidate_tags_store_left_right(CPUMIPSState *env,
                                                     uintptr_t retpc) {
 #ifdef TARGET_CHERI
     // swr/sdr/swl/sdl will never invalidate more than one capability
-    cheri_tag_invalidate(env, addr, 1, retpc, cpu_mmu_index(env, false));
+    cheri_tag_invalidate(env, addr, 1, retpc, cpu_mmu_index(env, false), NULL,
+                         NULL);
 #endif
 }
 
