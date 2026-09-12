@@ -692,12 +692,12 @@ void helper_tlb_flush_all(CPURISCVState *env)
     tlb_flush_all_cpus_synced(cs);
 }
 
-void helper_hyp_tlb_flush(CPURISCVState *env)
+static void hyp_tlb_flush_impl(CPURISCVState *env, uintptr_t retaddr)
 {
     CPUState *cs = env_cpu(env);
 
     if (env->virt_enabled) {
-        riscv_raise_exception(env, RISCV_EXCP_VIRT_INSTRUCTION_FAULT, GETPC());
+        riscv_raise_exception(env, RISCV_EXCP_VIRT_INSTRUCTION_FAULT, retaddr);
     }
 
     if (env->priv == PRV_M ||
@@ -706,17 +706,24 @@ void helper_hyp_tlb_flush(CPURISCVState *env)
         return;
     }
 
-    riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+    riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, retaddr);
+}
+
+void helper_hyp_tlb_flush(CPURISCVState *env)
+{
+    hyp_tlb_flush_impl(env, GETPC());
 }
 
 void helper_hyp_gvma_tlb_flush(CPURISCVState *env)
 {
+    uintptr_t retaddr = GETPC();
+
     if (env->priv == PRV_S && !env->virt_enabled &&
         get_field(env->mstatus, MSTATUS_TVM)) {
-        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, retaddr);
     }
 
-    helper_hyp_tlb_flush(env);
+    hyp_tlb_flush_impl(env, retaddr);
 }
 
 static int check_access_hlsv(CPURISCVState *env, bool x, uintptr_t ra)
