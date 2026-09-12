@@ -1236,6 +1236,9 @@ static void riscv_restore_state_to_opc(CPUState *cs,
 #endif
     riscv_update_pc(env, pc, xl, /*can_be_unrepresentable=*/false);
     env->bins = data[1];
+#ifdef CONFIG_DEBUG_TCG
+    env->_pc_is_current = true;
+#endif
 }
 
 static void riscv_cpu_reset_hold(Object *obj)
