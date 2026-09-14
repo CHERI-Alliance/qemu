@@ -742,19 +742,99 @@ static int check_access_hlsv(CPURISCVState *env, bool x, uintptr_t ra)
 
 #ifdef TARGET_CHERI
 /*
- * Prior to "target/riscv: Handle HLV, HSV via helpers", HLV/HSV were
- * translated inline and check_access() (the predecessor of
- * check_access_hlsv() above) gated *both* the CHERI "capmode" operand
- * (capability-register-relative access, via gen_cap_load_mem_idx()/
- * gen_cap_store_mem_idx() in trans_rvh.c.inc) and the plain-integer/DDC
- * operand. The capmode path still runs entirely at translate time and
- * never reaches the helper_hyp_h[ls]v_*() functions below (the only
- * other callers of check_access_hlsv()), so it needs its own call to
- * reproduce the same privilege gate.
+ * Runs check_access_hlsv() purely for its exception-raising side effect,
+ * ahead of the capability bounds/permission check that the capmode
+ * HLV/HSV path (do_hlv()/do_hsv()'s capmode branch and
+ * trans_hlvc()/trans_hsvc(), trans_rvh.c.inc) performs on the addressing
+ * capability register: an illegal- or virtual-instruction exception from
+ * an unprivileged or already-virtualized HLV/HSV must take priority over
+ * any capability exception the address itself might also be subject to.
  */
 void helper_hyp_check_access(CPURISCVState *env)
 {
     check_access_hlsv(env, false, GETPC());
+}
+
+/*
+ * Capability-register-relative counterparts of the plain-integer/DDC
+ * HLV/HSV helpers above (do_hlv()/do_hsv()'s capmode branch and
+ * trans_hlvc()/trans_hsvc(), trans_rvh.c.inc): the address bounds/permission
+ * check against the addressing capability register happens at translate
+ * time as usual, but the effective privilege for the memory access itself
+ * depends on hstatus.SPVP/vsstatus.SUM, which can only be resolved at
+ * runtime, so check_access_hlsv() is called here rather than baking
+ * ctx->mem_idx into a translate-time constant.
+ */
+target_ulong helper_hyp_load_checked(CPURISCVState *env, target_ulong addr,
+                                     uint32_t memop)
+{
+    uintptr_t ra = GETPC();
+    int mmu_idx = check_access_hlsv(env, false, ra);
+
+    switch ((MemOp)memop & MO_SSIZE) {
+    case MO_UB:
+        return cpu_ldb_mmu(env, addr, make_memop_idx(MO_UB, mmu_idx), ra);
+    case MO_SB:
+        return (target_ulong)(int8_t)cpu_ldb_mmu(
+            env, addr, make_memop_idx(MO_UB, mmu_idx), ra);
+    case MO_TEUW:
+        return cpu_ldw_mmu(env, addr, make_memop_idx(MO_TEUW, mmu_idx), ra);
+    case MO_TESW:
+        return (target_ulong)(int16_t)cpu_ldw_mmu(
+            env, addr, make_memop_idx(MO_TEUW, mmu_idx), ra);
+    case MO_TEUL:
+        return cpu_ldl_mmu(env, addr, make_memop_idx(MO_TEUL, mmu_idx), ra);
+    case MO_TESL:
+        return (target_ulong)(int32_t)cpu_ldl_mmu(
+            env, addr, make_memop_idx(MO_TEUL, mmu_idx), ra);
+    case MO_TEUQ:
+        return cpu_ldq_mmu(env, addr, make_memop_idx(MO_TEUQ, mmu_idx), ra);
+    default:
+        g_assert_not_reached();
+    }
+}
+
+void helper_hyp_store_checked(CPURISCVState *env, target_ulong addr,
+                              target_ulong val, uint32_t memop)
+{
+    uintptr_t ra = GETPC();
+    int mmu_idx = check_access_hlsv(env, false, ra);
+    /* Sign is meaningless for a store; match the sibling DDC-path helpers'
+     * unsigned-only oi below. */
+    MemOpIdx oi = make_memop_idx((MemOp)memop & ~MO_SIGN, mmu_idx);
+
+    switch ((MemOp)memop & MO_SIZE) {
+    case MO_8:
+        cpu_stb_mmu(env, addr, val, oi, ra);
+        break;
+    case MO_16:
+        cpu_stw_mmu(env, addr, val, oi, ra);
+        break;
+    case MO_32:
+        cpu_stl_mmu(env, addr, val, oi, ra);
+        break;
+    case MO_64:
+        cpu_stq_mmu(env, addr, val, oi, ra);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+void helper_hyp_load_cap_via_cap(CPURISCVState *env, uint32_t cd, uint32_t cb,
+                                 target_ulong addr)
+{
+    uintptr_t ra = GETPC();
+    int mmu_idx = check_access_hlsv(env, false, ra);
+    load_cap_via_cap_mmu_idx_impl(env, cd, cb, addr, mmu_idx, ra);
+}
+
+void helper_hyp_store_cap_via_cap(CPURISCVState *env, uint32_t cd,
+                                  uint32_t cb, target_ulong addr)
+{
+    uintptr_t ra = GETPC();
+    int mmu_idx = check_access_hlsv(env, false, ra);
+    store_cap_via_cap_mmu_idx_impl(env, cd, cb, addr, mmu_idx, ra);
 }
 #endif
 
