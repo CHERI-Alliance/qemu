@@ -1538,7 +1538,17 @@ static void raise_mmu_exception(CPURISCVState *env, target_ulong address,
     }
 
     if (first_stage) {
-        vm = get_field(env->satp, stap_mode);
+        /*
+         * An explicitly two-staged first-stage lookup (HS-mode issuing HLV
+         * et al with V=0) uses vsatp as the first-stage page table base
+         * register, not satp -- mirrors get_physical_address()'s own
+         * use_background selection.
+         */
+        if (two_stage && !env->virt_enabled) {
+            vm = get_field(env->vsatp, stap_mode);
+        } else {
+            vm = get_field(env->satp, stap_mode);
+        }
     } else {
         vm = get_field(env->hgatp, stap_mode);
     }
