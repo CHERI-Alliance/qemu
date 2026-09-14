@@ -186,9 +186,23 @@ DEF_HELPER_1(itrigger_match, void, env)
 DEF_HELPER_1(hyp_tlb_flush, void, env)
 DEF_HELPER_1(hyp_gvma_tlb_flush, void, env)
 #ifdef TARGET_CHERI
-/* Runs check_access_hlsv() for the CHERI capmode HLV/HSV translate-time
- * path, which bypasses the helper_hyp_h[ls]v_*() helpers below. */
+/*
+ * Capability-register-relative HLV/HSV: do_hlv()/do_hsv()'s capmode branch
+ * and trans_hlvc()/trans_hsvc() (trans_rvh.c.inc). hyp_check_access() runs
+ * check_access_hlsv() purely for its exception-raising side effect, ahead
+ * of the capability bounds/permission check on the addressing capability
+ * register; the hyp_{load,store}_* helpers below then run
+ * check_access_hlsv() again themselves to compute the mmu_idx at runtime
+ * for the actual access, rather than baking ctx->mem_idx into a
+ * translate-time constant.
+ */
 DEF_HELPER_FLAGS_1(hyp_check_access, TCG_CALL_NO_WG, void, env)
+DEF_HELPER_FLAGS_3(hyp_load_checked, TCG_CALL_NO_WG, tl, env, tl, i32)
+DEF_HELPER_FLAGS_4(hyp_store_checked, TCG_CALL_NO_WG, void, env, tl, tl, i32)
+DEF_HELPER_FLAGS_4(hyp_load_cap_via_cap, TCG_CALL_NO_WG, void, env, i32, i32,
+                   tl)
+DEF_HELPER_FLAGS_4(hyp_store_cap_via_cap, TCG_CALL_NO_WG, void, env, i32, i32,
+                   tl)
 #endif
 DEF_HELPER_FLAGS_2(hyp_hlv_bu, TCG_CALL_NO_WG, tl, env, tl)
 DEF_HELPER_FLAGS_2(hyp_hlv_hu, TCG_CALL_NO_WG, tl, env, tl)

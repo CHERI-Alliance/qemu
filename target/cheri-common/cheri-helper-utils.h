@@ -272,6 +272,21 @@ void store_cap_to_memory_mmu_index(CPUArchState *env, uint32_t cs, uint32_t cb,
                                    target_ulong vaddr, uintptr_t retpc,
                                    int mmu_idx, bool take_lock);
 
+/*
+ * Explicit-return-address counterparts of helper_load_cap_via_cap_mmu_idx()/
+ * helper_store_cap_via_cap_mmu_idx(): callers that need to call into these
+ * from another helper (rather than directly from translated code) must pass
+ * their own GETPC() through explicitly, since GETPC() inside the callee
+ * would otherwise capture the nested C call site instead of the guest
+ * instruction's actual JIT return address.
+ */
+void load_cap_via_cap_mmu_idx_impl(CPUArchState *env, uint32_t cd, uint32_t cb,
+                                   target_ulong addr, uint32_t mmu_idx,
+                                   uintptr_t retpc);
+void store_cap_via_cap_mmu_idx_impl(CPUArchState *env, uint32_t cd,
+                                    uint32_t cb, target_ulong addr,
+                                    uint32_t mmu_idx, uintptr_t retpc);
+
 void load_cap_from_memory(CPUArchState *env, uint32_t cd, uint32_t cb,
                           const cap_register_t *source, target_ulong vaddr,
                           uintptr_t retpc, hwaddr *physaddr, bool take_lock);

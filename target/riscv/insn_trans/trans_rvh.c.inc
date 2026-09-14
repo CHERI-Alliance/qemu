@@ -41,30 +41,24 @@ static void gen_helper_hyp_hlv_w(TCGv r, TCGv_env e, TCGv a)
 
 /*
  * do_hlv()/do_hsv() cover the HLV/HSV instructions proper (the ones that
- * take a plain GPR address operand). Upstream ("target/riscv: Handle HLV,
- * HSV via helpers") moved both the privilege check (now
- * check_access_hlsv(), target/riscv/op_helper.c) and the actual load/store
- * out of translate-time TCG generation and into runtime helper functions,
- * in preparation for computing mmu_idx at runtime.
+ * take a plain GPR address operand). The effective privilege for the access
+ * depends on hstatus.SPVP/vsstatus.SUM (check_access_hlsv(),
+ * target/riscv/op_helper.c), which is only known at runtime, so mmu_idx is
+ * computed inside a runtime helper rather than baked into a translate-time
+ * constant.
  *
- * On this fork, HLV/HSV also have a CHERI "capmode" operand: when
- * ctx->capmode is set, rs1 is a capability register and the access must go
- * through the capability-checked path (gen_cap_load_mem_idx()/
- * gen_cap_store_mem_idx(), trans_cheri.c.inc) instead; when it is clear,
- * the plain-integer access is DDC-relative and must be bounds-checked
- * against DDC. That capmode branch still runs entirely at translate time
- * (as it did before this commit) and never reaches the new
- * helper_hyp_h[ls]v_*() helpers, so:
- *  - it calls gen_helper_hyp_check_access() to reproduce the privilege
- *    check that check_access_hlsv() now performs for the helper path
- *    (previously both operands were gated by the same translate-time
- *    check_access(ctx), via ctx->hlsx/TB_FLAGS.HLSX -- removed by this
- *    commit).
- *  - the non-capmode/DDC case's bounds check now happens inside the
- *    helper_hyp_h[ls]v_*() helpers themselves (via check_ddc(), see
- *    op_helper.c), since the actual access moved there; it used to be
- *    generated inline at translate time via gen_ddc_interposed_ld_tl()/
- *    gen_ddc_interposed_st_tl().
+ * HLV/HSV also have a CHERI "capmode" operand: when ctx->capmode is set,
+ * rs1 is a capability register and the address must be bounds/permission
+ * checked against it (generate_cap_load_check_imm()/
+ * generate_cap_store_check_imm(), cheri-translate-utils.h) rather than
+ * against DDC. That check still runs at translate time, since it only
+ * depends on the capability register's static bounds, not on any
+ * runtime-only privilege state; the resulting checked address is then
+ * passed to helper_hyp_load_checked()/helper_hyp_store_checked()
+ * (op_helper.c), which resolve mmu_idx via check_access_hlsv() and perform
+ * the actual memory access, mirroring how the non-capmode/DDC case's bounds
+ * check (check_ddc(), op_helper.c) and memory access both happen inside the
+ * helper_hyp_h[ls]v_*() helpers below.
  */
 static bool do_hlv(DisasContext *ctx, arg_r2 *a, MemOp mop,
                    void (*func)(TCGv, TCGv_env, TCGv))
@@ -72,9 +66,14 @@ static bool do_hlv(DisasContext *ctx, arg_r2 *a, MemOp mop,
     decode_save_opc(ctx);
 #ifdef TARGET_CHERI
     if (ctx->capmode) {
-        int mem_idx = ctx->mem_idx | MMU_2STAGE_BIT;
         gen_helper_hyp_check_access(cpu_env);
-        return gen_cap_load_mem_idx(ctx, a->rd, a->rs1, 0, mem_idx, mop);
+        TCGv_cap_checked_ptr vaddr = tcg_temp_new_cap_checked();
+        generate_cap_load_check_imm(vaddr, a->rs1, 0, mop);
+        TCGv dest = dest_gpr(ctx, a->rd);
+        gen_helper_hyp_load_checked(dest, cpu_env, (TCGv)vaddr,
+                                    tcg_constant_i32(mop));
+        gen_set_gpr(ctx, a->rd, dest);
+        return true;
     }
 #endif
     TCGv dest = dest_gpr(ctx, a->rd);
@@ -90,9 +89,13 @@ static bool do_hsv(DisasContext *ctx, arg_r2_s *a, MemOp mop,
     decode_save_opc(ctx);
 #ifdef TARGET_CHERI
     if (ctx->capmode) {
-        int mem_idx = ctx->mem_idx | MMU_2STAGE_BIT;
         gen_helper_hyp_check_access(cpu_env);
-        return gen_cap_store_mem_idx(ctx, a->rs1, a->rs2, 0, mem_idx, mop);
+        TCGv_cap_checked_ptr vaddr = tcg_temp_new_cap_checked();
+        generate_cap_store_check_imm(vaddr, a->rs1, 0, mop);
+        TCGv data = get_gpr(ctx, a->rs2, EXT_NONE);
+        gen_helper_hyp_store_checked(cpu_env, (TCGv)vaddr, data,
+                                     tcg_constant_i32(mop));
+        return true;
     }
 #endif
     TCGv addr = get_gpr(ctx, a->rs1, EXT_NONE);
@@ -243,15 +246,12 @@ static bool trans_hsvc(DisasContext *ctx, arg_hsvc *a)
 {
     REQUIRE_EXT(ctx, RVH);
     decode_save_opc(ctx);
-    gen_helper_hyp_check_access(cpu_env);
 
-    TCGv_i32 tcg_idx = tcg_constant_i32(ctx->mem_idx | MMU_2STAGE_BIT);
     TCGv addr = get_gpr(ctx, a->cs1, EXT_NONE);
     TCGv_i32 tcg_cs1 = tcg_constant_i32(a->cs1);
     TCGv_i32 tcg_cs2 = tcg_constant_i32(a->cs2);
 
-    gen_helper_store_cap_via_cap_mmu_idx(cpu_env, tcg_cs2, tcg_cs1, addr,
-                                         tcg_idx);
+    gen_helper_hyp_store_cap_via_cap(cpu_env, tcg_cs2, tcg_cs1, addr);
     return true;
 }
 
@@ -259,15 +259,12 @@ static bool trans_hlvc(DisasContext *ctx, arg_hlvc *a)
 {
     REQUIRE_EXT(ctx, RVH);
     decode_save_opc(ctx);
-    gen_helper_hyp_check_access(cpu_env);
 
-    TCGv_i32 tcg_idx = tcg_constant_i32(ctx->mem_idx | MMU_2STAGE_BIT);
     TCGv addr = get_gpr(ctx, a->cs1, EXT_NONE);
     TCGv_i32 tcg_cs1 = tcg_constant_i32(a->cs1);
     TCGv_i32 tcg_cd = tcg_constant_i32(a->cd);
 
-    gen_helper_load_cap_via_cap_mmu_idx(cpu_env, tcg_cd, tcg_cs1, addr,
-                                        tcg_idx);
+    gen_helper_hyp_load_cap_via_cap(cpu_env, tcg_cd, tcg_cs1, addr);
     return true;
 }
 
