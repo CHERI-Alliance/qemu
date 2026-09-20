@@ -2807,6 +2807,9 @@ if have_system
     libfdt = static_library('fdt',
                             build_by_default: false,
                             sources: fdt_files,
+                            c_args: cc.get_supported_arguments(
+                              '-Wno-incompatible-pointer-types-discards-qualifiers',
+                              '-Wno-discarded-qualifiers'),
                             include_directories: fdt_inc)
     fdt = declare_dependency(link_with: libfdt,
                              include_directories: fdt_inc)
