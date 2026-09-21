@@ -3021,7 +3021,8 @@ static RISCVException write_vsscratch(CPURISCVState *env, int csrno,
 static RISCVException read_vsepc(CPURISCVState *env, int csrno,
                                  target_ulong *val)
 {
-    *val = GET_SPECIAL_REG_ARCH(env, vsepc, vsepcc);
+    *val = GET_SPECIAL_REG_ARCH(env, vsepc, vsepcc) &
+           ~(target_ulong)(riscv_has_ext(env, RVC) ? 1 : 3);
     return RISCV_EXCP_NONE;
 }
 
