@@ -81,7 +81,7 @@ static strList *strList_from_comma_list(const char *in)
     strList **tail = &res;
 
     while (in && in[0]) {
-        char *comma = strchr(in, ',');
+        const char *comma = strchr(in, ',');
         char *value;
 
         if (comma) {
