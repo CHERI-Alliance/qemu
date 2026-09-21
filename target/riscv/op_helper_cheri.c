@@ -363,20 +363,10 @@ static void lr_c_impl(CPUArchState *env, uint32_t dest_reg, uint32_t auth_reg,
      * For the reservation, we need the raw memory content without any fixups
      * (tag clearing, W stripped due to missing LM, ...).
      */
-    target_ulong pesbt;
-    target_ulong cursor;
-    bool tag = load_raw_cap_from_memory(env, &pesbt, &cursor, addr,
-                                        _host_return_address);
-    /* If this didn't trap, update the lr state: */
-    env->load_res = addr;
-    env->load_val = cursor;
-    env->load_pesbt = pesbt;
-    env->load_tag = tag;
-    log_changed_special_reg(env, "load_res", env->load_res, ~0u, 0);
-    log_changed_special_reg(env, "load_val", env->load_val, ~0u, 0);
-    log_changed_special_reg(env, "load_pesbt", env->load_pesbt, ~0u, 0);
-    log_changed_special_reg(env, "load_tag", (target_ulong)env->load_tag, ~0u,
-                            0);
+    target_ulong raw_pesbt;
+    target_ulong raw_cursor;
+    bool raw_tag = load_raw_cap_from_memory(env, &raw_pesbt, &raw_cursor, addr,
+                                            _host_return_address);
     /*
      * For the memory content that we store in cd, we have to read and apply
      * the fixups.
@@ -387,8 +377,20 @@ static void lr_c_impl(CPUArchState *env, uint32_t dest_reg, uint32_t auth_reg,
      * TODO: Could load_cap_from_memory_raw return an indication if fixups had
      * to be applied or not?
      */
-    tag = load_cap_from_memory_raw(env, &pesbt, &cursor, auth_reg, cbp, addr,
-                                   _host_return_address, NULL);
+    target_ulong pesbt;
+    target_ulong cursor;
+    bool tag = load_cap_from_memory_raw(env, &pesbt, &cursor, auth_reg, cbp,
+                                        addr, _host_return_address, NULL);
+    /* If this didn't trap, update the lr state: */
+    env->load_res = addr;
+    env->load_val = raw_cursor;
+    env->load_pesbt = raw_pesbt;
+    env->load_tag = raw_tag;
+    log_changed_special_reg(env, "load_res", env->load_res, ~0u, 0);
+    log_changed_special_reg(env, "load_val", env->load_val, ~0u, 0);
+    log_changed_special_reg(env, "load_pesbt", env->load_pesbt, ~0u, 0);
+    log_changed_special_reg(env, "load_tag", (target_ulong)env->load_tag, ~0u,
+                            0);
     update_compressed_capreg(env, dest_reg, pesbt, tag, cursor);
 }
 
