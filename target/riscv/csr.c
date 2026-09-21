@@ -3741,12 +3741,10 @@ static void write_cap_csr_reg(CPURISCVState *env,
     /* CLEN writes only for csrrw calls, all other writes are XLEN */
     if (clen) {
         if (csr_cap_info->flags & CSR_OP_IA_CONVERSION) {
-            bool changed = validate_cap_address(env, &src, &newval);
-            if (csr_cap_info->flags & CSR_OP_UPDATE_SCADDR) {
-                /* E.g. xtvec always invalidates sealed caps */
-                src = cap_scaddr(newval, src);
-            } else if (changed) {
-                /* Only use scaddr if validate changed the address (e.g. epc) */
+            validate_cap_address(env, &src, &newval);
+            if ((csr_cap_info->flags & CSR_OP_UPDATE_SCADDR) ||
+                newval != cap_get_cursor(&src)) {
+                /* E.g. xtvec, or when address legalization modified newval. */
                 src = cap_scaddr(newval, src);
             }
         }
@@ -3790,7 +3788,10 @@ static void write_xtvecc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
                          csr_cap_info->name);
     }
 
-    if (!is_representable_cap_with_addr(auth, new_tvec + RISCV_HICAUSE * 4)) {
+    target_ulong base_tvec = new_tvec & ~(target_ulong)3;
+    if (!is_representable_cap_with_addr(auth, base_tvec) ||
+        !is_representable_cap_with_addr(auth,
+                                        base_tvec + RISCV_HICAUSE * 4)) {
         error_report("Attempting to set vector register with unrepresentable "
                      "range (0x" TARGET_FMT_lx ") on %s: " PRINT_CAP_FMTSTR
                      "\r\n",
