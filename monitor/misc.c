@@ -1727,7 +1727,7 @@ void object_del_completion(ReadLineState *rs, int nb_args, const char *str)
 void sendkey_completion(ReadLineState *rs, int nb_args, const char *str)
 {
     int i;
-    char *sep;
+    const char *sep;
     size_t len;
 
     if (nb_args != 2) {
