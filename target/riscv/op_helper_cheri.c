@@ -110,7 +110,7 @@ static inline void do_csr_set_clear(CPUArchState *env, uint32_t csr,
     riscv_csr_cap_ops *csr_cap_info = get_csr_cap_info(csr);
 
     assert(csr_cap_info);
-    check_csr_cap_permissions(env, csr, perform_write, csr_cap_info, GETPC());
+    check_csr_cap_permissions(env, csr, perform_write, csr_cap_info, hostpc);
     /*
      * CSRR{S,C}* Always perform a read operation even for rd==0
      * https://riscv.github.io/riscv-isa-manual/snapshot/unprivileged/#csrinsts
