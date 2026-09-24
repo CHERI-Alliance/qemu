@@ -1199,11 +1199,31 @@ restart:
             return TRANSLATE_FAIL;
 #if defined(TARGET_CHERI_RISCV_V9) && !defined(TARGET_RISCV32)
         } else if ((pte & (PTE_CR | PTE_CRG)) == PTE_CRG) {
-            /* Reserved CHERI-extended PTE flags: no CR but CRG */
+            /* Reserved CHERI PTE flags: no CR but CRG */
+            qemu_log_mask(CPU_LOG_MMU,
+                          "%s Translate fail: Reserved CR=0 CRG=1\n",
+                          __func__);
             return TRANSLATE_CHERI_FAIL;
         } else if ((pte & (PTE_CR | PTE_CRM | PTE_CRG)) == (PTE_CR | PTE_CRG)) {
-            /* Reserved CHERI-extended PTE flags: CR and no CRM but CRG */
+            /* Reserved CHERI PTE flags: CR and no CRM but CRG */
+            qemu_log_mask(CPU_LOG_MMU,
+                          "%s Translate fail: Reserved CR=0 CRG=1 CRM=1\n",
+                          __func__);
             return TRANSLATE_CHERI_FAIL;
+#elif defined(TARGET_CHERI_RISCV_STD_093) && !defined(TARGET_RISCV32)
+        } else if (!cpu->cfg.ext_svyrg && (pte & PTE_CRG)) {
+            /* Reserved CHERI PTE flags: Svyrg disabled but CRG */
+            qemu_log_mask(CPU_LOG_MMU,
+                          "%s Translate fail: Reserved CRG without Svyrg\n",
+                          __func__);
+            return TRANSLATE_FAIL;
+#elif defined(TARGET_CHERI_RISCV_RVY) && !defined(TARGET_RISCV32)
+        } else if (!cpu->cfg.ext_svyrg && (pte & (PTE_RVY_FIELD & ~PTE_Y))) {
+            /* Reserved CHERI PTE flags: Svyrg disabled but YR|YW|YRG */
+            qemu_log_mask(CPU_LOG_MMU,
+                          "%s Translate fail: Reserved YR,YW,YRG without Svyrg\n",
+                          __func__);
+            return TRANSLATE_FAIL;
 #endif
         } else if ((pte & PTE_U) && ((mode != PRV_U) &&
                    (!sum || access_type == MMU_INST_FETCH))) {
