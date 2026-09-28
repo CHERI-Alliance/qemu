@@ -135,10 +135,11 @@ static inline void G_NORETURN raise_cheri_exception_impl_if_wnr(
 
 static inline void G_NORETURN raise_cheri_exception_impl(
     CPUArchState *env, CheriCapExcCause cause, unsigned regnum,
-    target_ulong addr, bool instavail, uintptr_t hostpc)
+    target_ulong addr, bool instavail, uintptr_t hostpc, bool is_instr)
 {
+    assert(!is_instr && "Should never be set for Morello");
     raise_cheri_exception_impl_if_wnr(env, cause, regnum, addr, instavail,
-                                      hostpc, false, false);
+                                      hostpc, is_instr, false);
 }
 
 static inline void G_NORETURN raise_load_tag_exception(CPUArchState *env,

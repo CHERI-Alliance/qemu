@@ -82,8 +82,9 @@ static inline void derive_cap_from_pcc(CPUArchState *env, uint32_t cd,
 // TODO: Still using this in a couple places however.
 static inline void check_cap(CPUArchState *env, const cap_register_t *cr,
                              uint32_t perm, target_ulong addr, uint16_t regnum,
-                             uint32_t len, bool instavail, uintptr_t pc)
+                             uint32_t len, uintptr_t pc)
 {
+    assert(!(perm & CAP_PERM_EXECUTE));
     CheriCapExcCause cause;
     /*
      * See section 5.6 in CHERI Architecture.
@@ -135,11 +136,10 @@ static inline void check_cap(CPUArchState *env, const cap_register_t *cr,
 
 do_exception:
 #ifdef TARGET_AARCH64
-    raise_cheri_exception_impl_if_wnr(env, cause, regnum, addr, instavail, pc,
-                                      !!(perm & CAP_PERM_EXECUTE),
+    raise_cheri_exception_impl_if_wnr(env, cause, regnum, addr, true, pc, false,
                                       !!(perm & CAP_PERM_STORE));
 #else
-    raise_cheri_exception_impl(env, cause, regnum, addr, instavail, pc);
+    raise_cheri_exception_impl(env, cause, regnum, addr, true, pc, false);
 #endif
 }
 
@@ -149,8 +149,7 @@ static inline target_ulong check_ddc(CPUArchState *env, uint32_t perm,
 {
     const cap_register_t *ddc = cheri_get_ddc(env);
     target_ulong addr = cheri_ddc_relative_addr(env, ddc_offset);
-    check_cap(env, ddc, perm, addr, CHERI_EXC_REGNUM_DDC, len,
-        /*instavail=*/true, retpc);
+    check_cap(env, ddc, perm, addr, CHERI_EXC_REGNUM_DDC, len, retpc);
     return addr;
 }
 
@@ -338,19 +337,29 @@ static inline QEMU_ALWAYS_INLINE target_ulong cap_check_common_reg(
 
     bool is_load = (required_perms & CAP_PERM_LOAD) != 0;
     bool in_bounds = cap_is_in_bounds(cbp, addr, size);
+#if defined(TARGET_CHERI_RISCV_RVY)
+    /*
+     * RVY reports all checks for AMOs (which require both R and W) with the
+     * store/AMO cause, including the missing-read-permission check.
+     */
+    const bool wnr = (required_perms & CAP_PERM_STORE) != 0;
+    const bool load_perm_wnr = wnr;
+#else
+    /* Unused on targets where raise_cheri_exception_addr_wnr discards it. */
+    const bool wnr G_GNUC_UNUSED = !is_load;
+    const bool load_perm_wnr G_GNUC_UNUSED = false;
+#endif
 
     if (!cbp->cr_tag) {
-        raise_cheri_exception_addr_wnr(env, CapEx_TagViolation, cb, addr,
-                                       !is_load);
+        raise_cheri_exception_addr_wnr(env, CapEx_TagViolation, cb, addr, wnr);
     } else if (!cap_is_unsealed(cbp)) {
-        raise_cheri_exception_addr_wnr(env, CapEx_SealViolation, cb, addr,
-                                       !is_load);
+        raise_cheri_exception_addr_wnr(env, CapEx_SealViolation, cb, addr, wnr);
     } else if (MISSING_REQUIRED_PERM(CAP_PERM_LOAD)) {
         raise_cheri_exception_addr_wnr(env, CapEx_PermitLoadViolation, cb, addr,
-                                       false);
+                                       load_perm_wnr);
     } else if (MISSING_REQUIRED_PERM(CAP_PERM_LOAD_CAP)) {
         raise_cheri_exception_addr_wnr(env, CapEx_PermitLoadCapViolation, cb,
-                                       addr, false);
+                                       addr, load_perm_wnr);
     } else if (!is_load || in_bounds) {
         if (MISSING_REQUIRED_PERM(CAP_PERM_STORE)) {
             raise_cheri_exception_addr_wnr(env, CapEx_PermitStoreViolation, cb,
@@ -372,7 +381,7 @@ static inline QEMU_ALWAYS_INLINE target_ulong cap_check_common_reg(
             " base=" TARGET_FMT_lx " top=" TARGET_FMT_lx "\n",
             addr, cap_get_base(cbp), cap_get_top(cbp));
         raise_cheri_exception_addr_wnr(env, CapEx_LengthViolation, cb, addr,
-                                       !is_load);
+                                       wnr);
     } else if (alignment_required &&
                !QEMU_IS_ALIGNED_P2(addr, alignment_required)) {
         if (unaligned_handler) {

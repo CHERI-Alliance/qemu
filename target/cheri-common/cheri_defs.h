@@ -43,6 +43,15 @@
 
 #define ASSERT_IF_CHERI() assert(0)
 
+/*
+ * The compressed capability headers are also included from target-independent
+ * code where the TARGET_* macros are poisoned, so the spec version has to be
+ * passed down as a separate define.
+ */
+#if defined(TARGET_CHERI_RISCV_RVY)
+#define CC128R_V099_FIELD_LAYOUT 1
+#endif
+
 #include "cheri-compressed-cap/cheri_compressed_cap.h"
 
 #define CHERI_DECLARE_ALIGNED_CC_CAP_T(suffix) \
@@ -153,7 +162,9 @@ typedef enum CheriPermissions {
     CAP_PERM_LOAD_CAP = CAP_PERM_LOAD | CAP_PERM_CAPABILITY,
     CAP_PERM_STORE_CAP = CAP_PERM_STORE | CAP_PERM_CAPABILITY,
     CAP_PERM_MUTABLE_LOAD = CAP_CC(PERM_LOAD_MUTABLE),
-#ifdef TARGET_CHERI_RISCV_STD_093
+#if defined(TARGET_CHERI_RISCV_RVY)
+    CAP_PERM_LOAD_GLOBAL = CAP_CC(PERM_ELEVATE_LEVEL),
+#elif defined(TARGET_CHERI_RISCV_STD_093)
     CAP_PERM_ELEVATE_LEVEL = CAP_CC(PERM_ELEVATE_LEVEL),
 #endif
 #else

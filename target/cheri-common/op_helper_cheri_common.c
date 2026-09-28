@@ -88,7 +88,8 @@ static DEFINE_CHERI_STAT(misc);
         if (CHERI_TAG_CLEAR_ON_INVALID(env))                                   \
             _cap_valid = false;                                                \
         else                                                                   \
-            raise_cheri_exception_impl(env, cause, reg, 0, true, pc);          \
+            raise_cheri_exception_impl(env, cause, reg, 0, true, pc,           \
+                                       /*is_instr=*/false);                    \
     } while (false)
 #define GET_HOST_RETPC_IF_TRAPPING_CHERI_ARCH() GET_HOST_RETPC()
 
@@ -157,8 +158,7 @@ void CHERI_HELPER_IMPL(ddc_check_bounds(CPUArchState *env, target_ulong addr,
     const cap_register_t *ddc = cheri_get_ddc(env);
     cheri_debug_assert(ddc->cr_tag && cap_is_unsealed(ddc) &&
                        "Should have been checked before bounds!");
-    check_cap(env, ddc, 0, addr, CHERI_EXC_REGNUM_DDC, num_bytes,
-              /*instavail=*/true, GETPC());
+    check_cap(env, ddc, 0, addr, CHERI_EXC_REGNUM_DDC, num_bytes, GETPC());
 }
 
 #ifdef TARGET_AARCH64
@@ -170,7 +170,7 @@ void CHERI_HELPER_IMPL(ddc_check_bounds_store(CPUArchState *env,
     cheri_debug_assert(ddc->cr_tag && cap_is_unsealed(ddc) &&
                        "Should have been checked before bounds!");
     check_cap(env, ddc, CAP_PERM_STORE, addr, CHERI_EXC_REGNUM_DDC, num_bytes,
-              /*instavail=*/true, GETPC());
+              GETPC());
 }
 #endif
 
@@ -180,8 +180,7 @@ void CHERI_HELPER_IMPL(pcc_check_bounds(CPUArchState *env, target_ulong addr,
     const cap_register_t *pcc = cheri_get_recent_pcc(env);
     cheri_debug_assert(pcc->cr_tag && cap_is_unsealed(pcc) &&
                        "Should have been checked before bounds!");
-    check_cap(env, pcc, 0, addr, CHERI_EXC_REGNUM_PCC, num_bytes,
-              /*instavail=*/true, GETPC());
+    check_cap(env, pcc, 0, addr, CHERI_EXC_REGNUM_PCC, num_bytes, GETPC());
 }
 
 void CHERI_HELPER_IMPL(cgetpccsetoffset(CPUArchState *env, uint32_t cd,
@@ -283,6 +282,16 @@ target_ulong CHERI_HELPER_IMPL(cgetperm(CPUArchState *env, uint32_t cb))
 #ifdef TARGET_CHERI_RISCV_STD_093
     /* The reserved 1-bits were not present in 0.9.3, zero them */
     perms &= ~(CAP_CC(PERMS_RESERVED_ONES));
+#elif defined(TARGET_CHERI_RISCV_RVY)
+    if (!cap_check_integrity(env, cbp)) {
+        /*
+         * On integrity check failure all allocated permission bits read as
+         * zero; only the hardwired one-bits (as reported for the NULL
+         * capability) remain set.
+         */
+        cap_register_t null_cap = make_null_capability(env);
+        perms = cap_get_all_perms(&null_cap);
+    }
 #endif
     return perms;
 }
@@ -335,6 +344,15 @@ target_ulong CHERI_HELPER_IMPL(cgettype(CPUArchState *env, uint32_t cb))
     }
 #endif
     return otype;
+}
+
+target_ulong CHERI_HELPER_IMPL(cgettop(CPUArchState *env, uint32_t cb))
+{
+    const cap_register_t *cbp = get_readonly_capreg(env, cb);
+    if (!cbp->cr_bounds_valid) {
+        return 0;
+    }
+    return cap_get_top(cbp);
 }
 
 /// Two operands (both capabilities)
@@ -1195,19 +1213,13 @@ target_ulong CHERI_HELPER_IMPL(ctestsubset(CPUArchState *env, uint32_t cb,
 {
     const cap_register_t *cbp = get_capreg_0_is_ddc(env, cb);
     const cap_register_t *ctp = get_readonly_capreg(env, ct);
-    bool is_subset = false;
     /*
      * CTestSubset: Test if capability is a subset of another
      */
-    if (cbp->cr_tag == ctp->cr_tag &&
-        /* is_cap_sealed(cbp) == is_cap_sealed(ctp) && */
-        cap_get_base(cbp) <= cap_get_base(ctp) &&
-        cap_get_top_full(ctp) <= cap_get_top_full(cbp) &&
-        (cap_get_all_perms(cbp) & cap_get_all_perms(ctp)) ==
-            cap_get_all_perms(ctp)) {
-        is_subset = true;
+    if (cbp->cr_tag == ctp->cr_tag) {
+        return (target_ulong)cap_is_subset(cbp, ctp);
     }
-    return (target_ulong)is_subset;
+    return (target_ulong)0;
 }
 
 target_ulong CHERI_HELPER_IMPL(cseqx(CPUArchState *env, uint32_t cb,
@@ -1420,7 +1432,24 @@ static void update_loaded_cap_perms(CPUArchState *env, target_ulong *pesbt,
         }
     }
 
-#if defined(TARGET_CHERI_RISCV_STD_093)
+#if defined(TARGET_CHERI_RISCV_RVY)
+    /*
+     * Zylevels1 (1.0 standard) Load Global (LG) squashing rules: loading via
+     * a capability without LG makes the result local, and additionally drops
+     * LG if the result is unsealed. Note: LG is cleared even if the loaded
+     * capability was already local, otherwise it could still be used to load
+     * global capabilities.
+     */
+    if (source->cr_lvbits > 0 &&
+        !cap_has_perms(source, CAP_PERM_LOAD_GLOBAL)) {
+        qemu_maybe_log_instr_extra(
+            env, "Zylevels1: Squashing GL flag and LG permission\n");
+        perms &= ~CAP_PERM_GLOBAL;
+        if (cap_is_unsealed(&tmp)) {
+            perms &= ~CAP_PERM_LOAD_GLOBAL;
+        }
+    }
+#elif defined(TARGET_CHERI_RISCV_STD_093)
     /*
      * Any unsealed capability with its tag set to 1 that is loaded from memory
      * has its EL-permission cleared and its Capability Level (CL) restricted to
@@ -1794,8 +1823,7 @@ void CHERI_HELPER_IMPL(raise_exception_pcc_perms_not_if(
     CPUArchState *env, target_ulong addr, uint32_t required_perms))
 {
     const cap_register_t *pcc = cheri_get_recent_pcc(env);
-    check_cap(env, pcc, required_perms, addr, CHERI_EXC_REGNUM_PCC, 1,
-              /*instavail=*/true, GETPC());
+    check_cap(env, pcc, required_perms, addr, CHERI_EXC_REGNUM_PCC, 1, GETPC());
     __builtin_unreachable();
 }
 
@@ -1834,8 +1862,7 @@ void CHERI_HELPER_IMPL(raise_exception_ddc_bounds(CPUArchState *env,
     const cap_register_t *ddc = cheri_get_ddc(env);
     cheri_debug_assert(ddc->cr_tag && cap_is_unsealed(ddc) &&
                        "Should have been checked before bounds!");
-    check_cap(env, ddc, 0, addr, CHERI_EXC_REGNUM_DDC, num_bytes,
-              /*instavail=*/true, GETPC());
+    check_cap(env, ddc, 0, addr, CHERI_EXC_REGNUM_DDC, num_bytes, GETPC());
     error_report("%s should not return! DDC= " PRINT_CAP_FMTSTR, __func__,
                  PRINT_CAP_ARGS(cheri_get_ddc(env)));
     tcg_abort();

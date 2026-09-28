@@ -92,7 +92,7 @@ typedef struct DisasContext {
 #ifdef TARGET_CHERI
     bool capmode;
     bool hybrid;
-    bool cre;
+    bool y_enabled;
 #ifdef TARGET_CHERI_RISCV_V9
     bool cheri_v9_semantics;
 #endif
@@ -910,10 +910,15 @@ static bool pred_hybrid(DisasContext *ctx)
 }
 #endif
 
-#ifdef TARGET_CHERI_RISCV_STD
+#ifdef TARGET_CHERI_RISCV_STD_093
 static bool pred_cre(DisasContext *ctx)
 {
-    return ctx->cre;
+    return ctx->y_enabled;
+}
+#elif defined(TARGET_CHERI_RISCV_RVY)
+static bool pred_rvy(DisasContext *ctx)
+{
+    return ctx->y_enabled;
 }
 #endif
 
@@ -1341,13 +1346,13 @@ static bool trans_c_hint(DisasContext *ctx, arg_c_hint *a)
     }
 
 /* Stubs needed for mode-dependent compressed instructions */
-TRANS_STUB(lc)
-TRANS_STUB(sc)
-TRANS_STUB(caddi)
-TRANS_STUB(cmv)
-TRANS_STUB(lr_c)
-TRANS_STUB(sc_c)
-TRANS_STUB(amoswap_c)
+TRANS_STUB(ly)
+TRANS_STUB(sy)
+TRANS_STUB(yaddi)
+TRANS_STUB(ymv)
+TRANS_STUB(lr_y)
+TRANS_STUB(sc_y)
+TRANS_STUB(amoswap_y)
 #else
 static bool trans_sq(DisasContext *ctx, arg_sq *a) { return false; }
 #endif
@@ -1432,7 +1437,7 @@ static void riscv_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->cheri_v9_semantics = cpu->cfg.ext_cheri_v9;
 #endif
     ctx->hybrid = riscv_feature(env, RISCV_FEATURE_CHERI_HYBRID);
-    ctx->cre = riscv_cpu_mode_cre(env);
+    ctx->y_enabled = riscv_cpu_mode_y(env);
 #endif
     ctx->priv_ver = env->priv_ver;
 #if !defined(CONFIG_USER_ONLY)

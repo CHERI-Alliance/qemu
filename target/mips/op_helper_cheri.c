@@ -778,7 +778,7 @@ void CHERI_HELPER_IMPL(ccheck_load_pcrel(CPUArchState *env, target_ulong addr,
     // Also we don't need PCC.cursor to be current since we are only looking at
     // the bounds
     check_cap(env, cheri_get_recent_pcc(env), CAP_PERM_LOAD, addr, /*regnum=*/0,
-              len, /*instavail=*/true, GETPC());
+              len, GETPC());
 }
 
 static const char *cheri_cap_reg[] = {

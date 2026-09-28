@@ -23,13 +23,13 @@ jobs:
           - host: linux
             runs-on: the-capable-hub-aws-ci-amd64
             container: capablehub/tch-ubuntu-24-builder
-            targets: "arm-softmmu,aarch64-softmmu,morello-softmmu,mips64-softmmu,mips64cheri128-softmmu,riscv64-softmmu,riscv64xcheri-softmmu,riscv32-softmmu,riscv32xcheri-softmmu,x86_64-softmmu,riscv32cheristd-softmmu,riscv64cheristd-softmmu"
+            targets: "arm-softmmu,aarch64-softmmu,morello-softmmu,mips64-softmmu,mips64cheri128-softmmu,riscv64-softmmu,riscv64xcheri-softmmu,riscv32-softmmu,riscv32xcheri-softmmu,x86_64-softmmu,riscv32cheristd-softmmu,riscv64cheristd-softmmu,riscv32y-softmmu,riscv64y-softmmu"
           - host: macos
             runs-on: macos-latest
             container: ''
             # The host-specific code (9pfs in particular) is compiled once for
             # all targets, so a subset is enough to cover the macOS-only paths.
-            targets: "aarch64-softmmu,riscv64-softmmu,riscv64cheristd-softmmu,x86_64-softmmu"
+            targets: "aarch64-softmmu,riscv64-softmmu,riscv64cheristd-softmmu,riscv32y-softmmu,riscv64y-softmmu,x86_64-softmmu"
 
     steps:
       - uses: actions/checkout@v5

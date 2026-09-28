@@ -111,7 +111,7 @@
   # Opcode of all zeros is illegal; rd != 0, nzuimm == 0 is reserved.
   illegal         000  000 000 00 --- 00
   addi            000  ... ... .. ... 00 @c_addi4spn ?!pred_capmode
-  caddi           000  ... ... .. ... 00 @c_caddi4spn ?pred_capmode
+  yaddi           000  ... ... .. ... 00 @c_caddi4spn ?pred_capmode
 }
 lw                010  ... ... .. ... 00 @cl_w
 sw                110  ... ... .. ... 00 @cs_w
@@ -120,26 +120,26 @@ sw                110  ... ... .. ... 00 @cs_w
 {
   lq              001  ... ... .. ... 00 @cl_q ?!pred_rv64_capmode
   c_fld           001  ... ... .. ... 00 @cl_d ?!pred_rv64_capmode
-  lc              001  ... ... .. ... 00 @cl_q ?pred_rv64_capmode
+  ly              001  ... ... .. ... 00 @cl_q ?pred_rv64_capmode
 }
 {
   # RV64C
   ld              011  ... ... .. ... 00 @cl_d
   # RV32C
-  lc              011  ... ... .. ... 00 @cl_d ?pred_capmode
-  c_flw             011  ... ... .. ... 00 @cl_w ?!pred_capmode
+  ly              011  ... ... .. ... 00 @cl_d ?pred_capmode
+  c_flw           011  ... ... .. ... 00 @cl_w ?!pred_capmode
 }
 {
   sq              101  ... ... .. ... 00 @cs_q ?!pred_rv64_capmode
   c_fsd           101  ... ... .. ... 00 @cs_d ?!pred_rv64_capmode
-  sc              101  ... ... .. ... 00 @cs_q ?pred_rv64_capmode
+  sy              101  ... ... .. ... 00 @cs_q ?pred_rv64_capmode
 }
 {
   # RV64C
   sd              111  ... ... .. ... 00 @cs_d
   # RV32C
-  sc              111  ... ... .. ... 00 @cs_d ?pred_capmode
-  c_fsw             111  ... ... .. ... 00 @cs_w ?!pred_capmode
+  sy              111  ... ... .. ... 00 @cs_d ?pred_capmode
+  c_fsw           111  ... ... .. ... 00 @cs_w ?!pred_capmode
 }
 
 # *** RV32/64C Standard Extension (Quadrant 1) ***
@@ -151,7 +151,7 @@ addi              010 .  .....  ..... 01 @c_li
 {
   illegal         011 0  -----  00000 01 # c.addi16sp and c.lui, RES nzimm=0
   addi            011 .  00010  ..... 01 @c_addi16sp ?!pred_capmode
-  caddi           011 .  00010  ..... 01 @c_caddi16sp ?pred_capmode
+  yaddi           011 .  00010  ..... 01 @c_caddi16sp ?pred_capmode
   lui             011 .  .....  ..... 01 @c_lui
 }
 {
@@ -194,7 +194,7 @@ addw              100 1 11 ... 01 ... 01 @cs_2
   jalr            100 0  .....  00000 10 @c_jalr rd=0  # C.JR
   addi            100 0  .....  ..... 10 @c_mv  ?pred_xcheri  # Keep old xcheri semantics for now
   addi            100 0  .....  ..... 10 @c_mv  ?!pred_capmode
-  cmv             100 0  .....  ..... 10 @c_cmv ?pred_capmode
+  ymv             100 0  .....  ..... 10 @c_cmv ?pred_capmode
 }
 {
   ebreak          100 1  00000  00000 10
@@ -208,7 +208,7 @@ sw                110 .  .....  ..... 10 @c_swsp
   lq              001  ... ... .. ... 10 @c_lqsp ?!pred_rv64_capmode
   c_fld           001 .  .....  ..... 10 @c_ldsp ?!pred_rv64_capmode
   c64_illegal     001 -  00000  ----- 10         ?pred_rv64_capmode # RES rd=0
-  lc              001 .  .....  ..... 10 @c_lqsp ?pred_rv64_capmode
+  ly              001 .  .....  ..... 10 @c_lqsp ?pred_rv64_capmode
 }
 {
   # RV64C
@@ -217,19 +217,19 @@ sw                110 .  .....  ..... 10 @c_swsp
   # RV32C
   c_flw             011 .  .....  ..... 10 @c_lwsp ?!pred_capmode
   illegal         011 -  00000  ----- 10         ?pred_capmode # RES rd=0
-  lc              011 .  .....  ..... 10 @c_ldsp ?pred_capmode
+  ly              011 .  .....  ..... 10 @c_ldsp ?pred_capmode
 }
 {
   sq              101  ... ... .. ... 10 @c_sqsp ?!pred_rv64_capmode
   c_fsd           101   ......  ..... 10 @c_sdsp ?!pred_rv64_capmode
-  sc              101   ......  ..... 10 @c_sqsp ?pred_rv64_capmode
+  sy              101   ......  ..... 10 @c_sqsp ?pred_rv64_capmode
 }
 {
   # RV64C
   sd              111 .  .....  ..... 10 @c_sdsp
   # RV32C
   c_fsw             111 .  .....  ..... 10 @c_swsp ?!pred_capmode
-  sc              111 .  .....  ..... 10 @c_sdsp ?pred_capmode
+  sy              111 .  .....  ..... 10 @c_sdsp ?pred_capmode
 }
 
 

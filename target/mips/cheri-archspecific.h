@@ -98,7 +98,7 @@ static inline G_NORETURN void do_raise_c2_exception_noreg(CPUMIPSState *env, uin
 
 static inline void G_NORETURN raise_cheri_exception_impl(
     CPUArchState *env, CheriCapExcCause cause, unsigned regnum,
-    target_ulong addr, bool instavail, uintptr_t hostpc)
+    target_ulong addr, bool instavail, uintptr_t hostpc, bool is_instr)
 {
     if (!instavail)
         env->error_code |= EXCP_INST_NOTAVAIL;
@@ -140,7 +140,7 @@ static inline bool validate_jump_target(CPUMIPSState *env,
 {
     if (!cap_is_in_bounds(cap, addr, 4)) {
         raise_cheri_exception_impl(env, CapEx_LengthViolation, regnum, addr,
-                                   true, retpc);
+                                   true, retpc, true);
     }
     if (!QEMU_IS_ALIGNED(addr, 4)) {
         do_raise_c0_exception_impl(env, EXCP_AdEL, addr, retpc);

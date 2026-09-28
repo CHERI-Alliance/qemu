@@ -495,8 +495,12 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env, bool hs_mode_trap)
         mstatus_mask |= MSTATUS_FS;
     }
     bool current_virt = riscv_cpu_virt_enabled(env);
-#if defined(TARGET_CHERI_RISCV_STD)
+#if defined(TARGET_CHERI_RISCV_STD_093)
     mstatus_mask |= MSTATUS64_UCRG;
+#elif defined(TARGET_CHERI_RISCV_RVY) && !defined(TARGET_RISCV32)
+    if (env_archcpu(env)->cfg.ext_svyrg) {
+        mstatus_mask |= MSTATUS64_YRGE | MSTATUS64_SYRG | MSTATUS64_UYRG;
+    }
 #endif
     g_assert(riscv_has_ext(env, RVH));
 
@@ -851,16 +855,47 @@ static int get_physical_address_pmp(CPURISCVState *env, int *prot,
 static void pte_print(target_ulong pte, int level)
 {
     qemu_log_mask(
-        CPU_LOG_MMU, "PTE - " TARGET_FMT_lx " %s%s%s%s%s%s%s%s%s%s %d\n", pte,
-#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
-        pte & PTE_CRG ? "CRG" : "", pte & PTE_CW ? "CW" : "",
+        CPU_LOG_MMU, "PTE - " TARGET_FMT_lx " %s%s%s%s%s%s%s%s%s%s%s %d\n",
+        pte,
+#if defined(TARGET_CHERI_RISCV_RVY) && !defined(TARGET_RISCV32)
+        pte & PTE_YR ? "YR," : "", pte & PTE_YRG ? "YRG," : "",
+        pte & PTE_YW ? "YW," : "", pte & PTE_YD ? "YD," : "",
+#elif defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
+        pte & PTE_CRG ? "CRG" : "", pte & PTE_CW ? "CW" : "", "", "",
 #else
-        "", "",
+        "", "", "", "",
 #endif
         pte & PTE_R ? "R" : "", pte & PTE_W ? "W" : "", pte & PTE_X ? "X" : "",
         pte & PTE_A ? "A" : "", pte & PTE_U ? "U" : "", pte & PTE_D ? "D" : "",
-        pte & PTE_A ? "A" : "", pte & PTE_V ? "V" : "", level);
+        pte & PTE_V ? "V" : "", level);
 }
+
+#if defined(TARGET_CHERI_RISCV_RVY) && !defined(TARGET_RISCV32)
+/* Svyrg redefines the whole pte.rvy field when sstatus.YRGE is set. */
+static bool riscv_cpu_svyrg_active(CPURISCVState *env)
+{
+    return env_archcpu(env)->cfg.ext_svyrg && (env->mstatus & MSTATUS64_YRGE);
+}
+
+/*
+ * Whether a capability store (with the to-be-stored tag set) to this leaf
+ * PTE must raise a CHERI Store/AMO Page Fault. Callers must only check this
+ * for accesses that actually store a set tag (MMU_DATA_CAP_STORE).
+ */
+static bool rvy_cap_store_page_fault(CPURISCVState *env, target_ulong pte)
+{
+    if (riscv_cpu_svyrg_active(env)) {
+        /*
+         * pte.yw gates capability stores. With pte.yw set but pte.yd
+         * clear, capability dirty tracking also raises the fault (the
+         * Svade scheme; Svadu hardware updates are not implemented).
+         */
+        return !(pte & PTE_YW) || !(pte & PTE_YD);
+    }
+    /* Base RV64Y behavior: pte.rvy[3] (pte.y) gates capability stores. */
+    return !(pte & PTE_Y);
+}
+#endif
 
 /* get_physical_address - get the physical address for this virtual address
  *
@@ -1129,7 +1164,15 @@ restart:
 #endif
         } else if (!(pte & (PTE_R | PTE_W | PTE_X))) {
             /* Inner PTE, continue walking */
-#if defined(TARGET_CHERI_RISCV_STD_093) && !defined(TARGET_RISCV32)
+#if defined(TARGET_CHERI_RISCV_RVY) && !defined(TARGET_RISCV32)
+            if (pte & PTE_RVY_FIELD) {
+                /* The rvy field is reserved in non-leaf PTEs. */
+                qemu_log_mask(CPU_LOG_MMU,
+                              "%s Translate fail: rvy set in non-leaf PTE\n",
+                              __func__);
+                return TRANSLATE_FAIL;
+            }
+#elif defined(TARGET_CHERI_RISCV_STD) && !defined(TARGET_RISCV32)
             if (pte & PTE_CW) {
                 /* This bit on a leaf node is illegal regardless of cheripte */
                 qemu_log_mask(CPU_LOG_MMU,
@@ -1201,10 +1244,17 @@ restart:
             qemu_log_mask(CPU_LOG_MMU, "%s Translate fail: X bit not set\n",
                           __func__);
             return TRANSLATE_FAIL;
-#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
+#if defined(TARGET_CHERI_RISCV_RVY) && !defined(TARGET_RISCV32)
+        } else if (access_type == MMU_DATA_CAP_STORE &&
+                   rvy_cap_store_page_fault(env, pte)) {
+            qemu_log_mask(CPU_LOG_MMU,
+                          "%s Translate fail: capability store denied by "
+                          "pte.rvy on level %d\n", __func__, i);
+            return TRANSLATE_CHERI_FAIL;
+#elif defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
         } else if (access_type == MMU_DATA_CAP_STORE && !(pte & PTE_CW)
-#if defined(TARGET_CHERI_RISCV_STD_093)
-                   && cpu->cfg.cheri_pte
+#if defined(TARGET_CHERI_RISCV_STD)
+                   && cpu->cfg.ext_svyrg
 #endif
         ) {
             /* CW inhibited */
@@ -1221,7 +1271,7 @@ restart:
             return TRANSLATE_FAIL;
 #endif
 #if RISCV_PTE_TRAPPY
-        } else if ((access_type == MMU_DATA_STORE) && !(pte & PTE_D)) {
+        } else if (access_type == MMU_DATA_STORE && !(pte & PTE_D)) {
             /* PTE not marked as dirty */
             qemu_log_mask(CPU_LOG_MMU, "%s Translate fail: D not set\n",
                           __func__);
@@ -1327,7 +1377,8 @@ restart:
                  (access_type == MMU_DATA_CAP_STORE) || (pte & PTE_D))) {
                 *prot |= PAGE_WRITE;
             }
-#if defined(TARGET_CHERI_RISCV_V9) && !defined(TARGET_RISCV32)
+#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
+#if defined(TARGET_CHERI_RISCV_V9)
             if ((pte & PTE_CR) == 0) {
                 if ((pte & PTE_CRM) == 0) {
                     *prot |= PAGE_LC_CLEAR;
@@ -1350,11 +1401,49 @@ restart:
             if ((pte & PTE_CW) == 0) {
                 *prot |= PAGE_SC_TRAP;
             }
+#elif defined(TARGET_CHERI_RISCV_RVY) && !defined(TARGET_RISCV32)
+            if (riscv_cpu_svyrg_active(env)) {
+                /* Loads: see the pte.yr/pte.yrg summary table (Svyrg). */
+                if (!(pte & PTE_YR)) {
+                    if (!(pte & PTE_YRG)) {
+                        /* yr=0, yrg=0: clear the loaded tag. */
+                        *prot |= PAGE_LC_CLEAR;
+                    }
+                    /* yr=0, yrg=1: normal operation. */
+                } else {
+                    /*
+                     * yr=1: trap (CHERI Load Capability Fault) when pte.yrg
+                     * does not match the sstatus generation for the page
+                     * kind. PAGE_LC_TRAP only faults when the loaded tag is
+                     * set, i.e. we trap precisely rather than conservatively.
+                     */
+                    target_ulong xyrg_bit =
+                        (pte & PTE_U) ? MSTATUS64_UYRG : MSTATUS64_SYRG;
+                    if (!!(pte & PTE_YRG) != !!(env->mstatus & xyrg_bit)) {
+                        *prot |= PAGE_LC_TRAP;
+                    }
+                }
+            } else if (!(pte & PTE_Y)) {
+                /*
+                 * Base RV64Y behavior: with pte.rvy[3] (pte.y) clear, all
+                 * capability loads have the loaded tag cleared.
+                 */
+                *prot |= PAGE_LC_CLEAR;
+            }
+            /*
+             * Stores with a set tag were already rejected above via
+             * rvy_cap_store_page_fault() for MMU_DATA_CAP_STORE accesses;
+             * mark the TLB entry so that tag writes through a TLB entry
+             * created by a non-capability access still force a refill.
+             */
+            if (rvy_cap_store_page_fault(env, pte)) {
+                *prot |= PAGE_SC_TRAP;
+            }
 #elif defined(TARGET_CHERI_RISCV_STD_093) && !defined(TARGET_RISCV32)
             bool pte_crg = (pte & PTE_CRG);
             bool status_ucrg = (env->mstatus & SSTATUS64_UCRG);
             /* TODO: Probably shouldn't update the TLB if we are trapping */
-            if (cpu->cfg.cheri_pte) {
+            if (cpu->cfg.ext_svyrg) {
                 if (!(pte & PTE_CW)) {
                     /* CW inhibited */
                     *prot |= PAGE_LC_CLEAR;
@@ -1375,6 +1464,7 @@ restart:
                     }
                 }
             }
+#endif
 #endif
             return TRANSLATE_SUCCESS;
         }
@@ -1758,6 +1848,14 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
         pmp_violation = true;
     }
 
+#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
+    if (ret == TRANSLATE_SUCCESS &&
+        access_type == MMU_DATA_CAP_STORE &&
+        (prot & PAGE_SC_TRAP)) {
+        ret = TRANSLATE_CHERI_FAIL;
+    }
+#endif
+
     if (ret == TRANSLATE_SUCCESS) {
         MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
 #ifdef TARGET_CHERI
@@ -1858,7 +1956,8 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         case RISCV_EXCP_INST_PAGE_FAULT:
         case RISCV_EXCP_LOAD_PAGE_FAULT:
         case RISCV_EXCP_STORE_PAGE_FAULT:
-#if defined(TARGET_CHERI_RISCV_V9) && !defined(TARGET_RISCV32)
+#if (defined(TARGET_CHERI_RISCV_V9) || defined(TARGET_CHERI_RISCV_RVY)) &&     \
+    !defined(TARGET_RISCV32)
         case RISCV_EXCP_LOAD_CAP_PAGE_FAULT:
         case RISCV_EXCP_STORE_AMO_CAP_PAGE_FAULT:
 #endif
@@ -1869,22 +1968,31 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         case RISCV_EXCP_VIRT_INSTRUCTION_FAULT:
             tval = env->bins;
             break;
-#ifdef TARGET_CHERI
+#if defined(TARGET_CHERI)
+#if defined(TARGET_CHERI_RISCV_RVY)
+        case RISCV_EXCP_CHERI_INST:
+        case RISCV_EXCP_CHERI_LOAD:
+        case RISCV_EXCP_CHERI_STORE:
+#else
         case RISCV_EXCP_CHERI:
+#endif
             qemu_log_instr_or_mask_msg(
                 env, CPU_LOG_INT, "Got CHERI trap %s, caused by register %d\n",
                 cheri_cause_str(env->last_cap_cause), env->last_cap_index);
             tcg_debug_assert(env->last_cap_cause < 32);
             tcg_debug_assert(env->last_cap_index < 64);
-#ifdef TARGET_CHERI_RISCV_STD_093
+#if defined(TARGET_CHERI_RISCV_RVY)
+            tval = env->badaddr;
+#elif defined(TARGET_CHERI_RISCV_STD_093)
+            /* Older versions of the standard used the tval2 CSRs */
             tcg_debug_assert(env->last_cap_type <= CapEx093_Type_Last);
             /* Remap cap causes to the 0.9.3 values. */
             cheri_exc_info = cheri093_cap_cause(env->last_cap_cause);
             tcg_debug_assert(cheri_exc_info <= CapEx093_Last);
-            tval = env->badaddr;
             cheri_exc_info |= env->last_cap_type << 16;
             env->last_cap_type = CapEx093_Type_None;
 #else
+            /* ISAv9 does not report the address, but instead cap cause+reg. */
             tval = env->last_cap_cause | env->last_cap_index << 5;
 #endif
             env->last_cap_cause = -1;
@@ -1974,7 +2082,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         env->htval = htval;
         riscv_log_instr_csr_changed(env, CSR_HTVAL);
 
-#ifdef TARGET_CHERI_RISCV_STD_093
+#if defined(TARGET_CHERI_RISCV_STD_093)
         if (cause == RISCV_EXCP_CHERI) {
             env->stval2 = cheri_exc_info;
             riscv_log_instr_csr_changed(env, CSR_STVAL2);
@@ -2024,7 +2132,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         env->mtval = tval;
         riscv_log_instr_csr_changed(env, CSR_MTVAL);
         env->mtval2 = mtval2;
-#ifdef TARGET_CHERI_RISCV_STD_093
+#if defined(TARGET_CHERI_RISCV_STD_093)
         /*
          * We do not set the mtval2 to guest_phys_fault_add in the
          * cheri exception case and report cause/type instead.

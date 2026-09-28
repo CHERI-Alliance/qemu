@@ -562,7 +562,11 @@
 #define MSTATUS64_SD        0x8000000000000000ULL
 #define MSTATUSH128_SD      0x8000000000000000ULL
 
-#if defined(TARGET_CHERI_RISCV_STD_093)
+#if defined(TARGET_CHERI_RISCV_RVY)
+#define MSTATUS64_UYRG      BIT_ULL(61)
+#define MSTATUS64_SYRG      BIT_ULL(60)
+#define MSTATUS64_YRGE      BIT_ULL(59)
+#elif defined(TARGET_CHERI_RISCV_STD_093)
 #define MSTATUS64_UCRG      BIT_ULL(61)
 #endif
 
@@ -597,7 +601,11 @@ typedef enum {
 #define SSTATUS32_SD        0x80000000
 #define SSTATUS64_SD        0x8000000000000000ULL
 
-#if defined(TARGET_CHERI_RISCV_STD_093)
+#if defined(TARGET_CHERI_RISCV_RVY)
+#define SSTATUS64_UYRG      BIT_ULL(61)
+#define SSTATUS64_SYRG      BIT_ULL(60)
+#define SSTATUS64_YRGE      BIT_ULL(59)
+#elif defined(TARGET_CHERI_RISCV_STD_093)
 #define SSTATUS64_UCRG      BIT_ULL(61)
 #endif
 
@@ -682,12 +690,25 @@ typedef enum {
 #define PTE_CR              0x4000000000000000 /* Cap Read */
 #define PTE_CW              0x8000000000000000 /* Cap Write */
 #define PTE_RESERVED 0x07C0000000000000ULL /* Reserved bits */
+#elif defined(TARGET_CHERI_RISCV_RVY) && !defined(TARGET_RISCV32)
+/*
+ * The 4-bit pte.rvy field (bits 58:55). With Svyrg enabled
+ * (sstatus.YRGE=1) all four bits are defined as below; otherwise only
+ * pte.rvy[3] (called pte.y) has meaning and gates capability accesses.
+ */
+#define PTE_YR              BIT_ULL(55) /* Capability readable */
+#define PTE_YRG             BIT_ULL(56) /* Capability read generation */
+#define PTE_YW              BIT_ULL(57) /* Capability writable */
+#define PTE_YD              BIT_ULL(58) /* Capability dirty */
+#define PTE_Y               PTE_YD /* Capability read/write (sstatus.YRGE=0) */
+#define PTE_RVY_FIELD       (PTE_YR | PTE_YRG | PTE_YW | PTE_YD)
+#define PTE_RESERVED        (BIT_ULL(54) | BIT_ULL(59) | BIT_ULL(60))
 #elif defined(TARGET_CHERI_RISCV_STD_093) && !defined(TARGET_RISCV32)
-#define PTE_CRG BIT_ULL(59) /* Cap Read Generation */
-#define PTE_CW  BIT_ULL(60) /* Cap Write */
-#define PTE_RESERVED 0x040000000000000ULL /* Reserved bits */
+#define PTE_CRG             BIT_ULL(59) /* Cap Read Generation */
+#define PTE_CW              BIT_ULL(60) /* Cap Write */
+#define PTE_RESERVED        0x040000000000000ULL /* Reserved bits */
 #else
-#define PTE_RESERVED 0x1FC0000000000000ULL /* Reserved bits */
+#define PTE_RESERVED        0x1FC0000000000000ULL /* Reserved bits */
 #endif
 
 /* Page table PPN shift amount */
@@ -726,12 +747,25 @@ typedef enum RISCVException {
     RISCV_EXCP_VIRT_INSTRUCTION_FAULT = 0x16,
     RISCV_EXCP_STORE_GUEST_AMO_ACCESS_FAULT = 0x17,
 #ifdef TARGET_CHERI
-#if defined(TARGET_CHERI_RISCV_V9) && !defined(TARGET_RISCV32)
+#if defined(TARGET_CHERI_RISCV_RVY)
+    RISCV_EXCP_CHERI_INST = 32,
+    RISCV_EXCP_CHERI_LOAD = 33,
+    RISCV_EXCP_CHERI_STORE = 34,
+    RISCV_EXCP_LOAD_CAP_PAGE_FAULT = 35,
+    RISCV_EXCP_STORE_AMO_CAP_PAGE_FAULT = 36,
+/*
+ * A missing ASR permission is reported as an illegal instruction.
+ */
+#define RISCV_EXCP_CHERI_ASR RISCV_EXCP_ILLEGAL_INST
+#else
+    RISCV_EXCP_CHERI = 0x1c,
+#define RISCV_EXCP_CHERI_ASR RISCV_EXCP_CHERI
+#if !defined(TARGET_CHERI_RISCV_STD_093)
     RISCV_EXCP_LOAD_CAP_PAGE_FAULT = 0x1a,
     RISCV_EXCP_STORE_AMO_CAP_PAGE_FAULT = 0x1b,
 #endif
-    RISCV_EXCP_CHERI = 0x1c,
 #endif
+#endif /* TARGET_CHERI */
 } RISCVException;
 
 #define RISCV_HICAUSE                            0x3f
@@ -801,7 +835,12 @@ typedef enum RISCVException {
 #define MENVCFG_CBIE                       (3UL << 4)
 #define MENVCFG_CBCFE                      BIT(6)
 #define MENVCFG_CBZE                       BIT(7)
-#define MENVCFG_CRE                        BIT(28)
+#if defined(TARGET_CHERI_RISCV_RVY)
+/* RVY v0.9.9 moved the CHERI enable bit from 28 to 9. */
+#define MENVCFG_Y                          BIT(9)
+#else
+#define MENVCFG_Y                          BIT(28)
+#endif
 #define MENVCFG_PBMTE                      (1ULL << 62)
 #define MENVCFG_STCE                       (1ULL << 63)
 
@@ -813,13 +852,13 @@ typedef enum RISCVException {
 #define SENVCFG_CBIE                       MENVCFG_CBIE
 #define SENVCFG_CBCFE                      MENVCFG_CBCFE
 #define SENVCFG_CBZE                       MENVCFG_CBZE
-#define SENVCFG_CRE                        MENVCFG_CRE
+#define SENVCFG_Y                          MENVCFG_Y
 
 #define HENVCFG_FIOM                       MENVCFG_FIOM
 #define HENVCFG_CBIE                       MENVCFG_CBIE
 #define HENVCFG_CBCFE                      MENVCFG_CBCFE
 #define HENVCFG_CBZE                       MENVCFG_CBZE
-#define HENVCFG_CRE                        MENVCFG_CRE
+#define HENVCFG_Y                          MENVCFG_Y
 #define HENVCFG_PBMTE                      MENVCFG_PBMTE
 #define HENVCFG_STCE                       MENVCFG_STCE
 

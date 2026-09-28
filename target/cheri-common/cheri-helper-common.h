@@ -69,6 +69,7 @@ DEF_HELPER_2(cgetoffset, tl, env, i32)
 DEF_HELPER_2(cgetsealed, tl, env, i32)
 DEF_HELPER_2(cgettag, tl, env, i32)
 DEF_HELPER_2(cgettype, tl, env, i32)
+DEF_HELPER_2(cgettop, tl, env, i32)
 
 // Two operands (cap cap)
 DEF_HELPER_3(ccleartag, void, env, i32, i32)

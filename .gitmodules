@@ -67,3 +67,6 @@
 [submodule "subprojects/libvfio-user"]
 	path = subprojects/libvfio-user
 	url = https://gitlab.com/qemu-project/libvfio-user.git
+[submodule "tests/rvy"]
+	path = tests/rvy
+	url = https://github.com/arichardson/basic-rvy-tests.git
