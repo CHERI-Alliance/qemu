@@ -851,6 +851,9 @@ static inline void gen_reg_modified_cap(DisasContext *ctx, int regnum)
                                   gp_register_offset(regnum), regnum,
                                   LRI_GPR_ACCESS);
     }
+#if defined(TARGET_RISCV) && defined(CONFIG_RVFI_DII)
+    gen_helper_rvfi_changed_capreg(cpu_env, tcg_constant_i32(regnum));
+#endif
 }
 
 static inline void gen_reg_modified_int_base(DisasContext *ctx,

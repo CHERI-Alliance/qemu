@@ -55,4 +55,8 @@ extern int smp_cores;
 extern int smp_threads;
 #endif
 
+#ifdef CONFIG_RVFI_DII
+extern int rvfi_client_fd;
+#endif
+
 #endif
