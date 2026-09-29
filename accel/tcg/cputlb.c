@@ -1266,19 +1266,30 @@ void tlb_set_page_full(CPUState *cpu, int mmu_idx,
 
     if (prot & PAGE_LC_CLEAR) {
         desc->fulltlb[index].tagmem_read |= TLBENTRYCAP_FLAG_CLEAR;
+        tagmem = 0;
     }
     if (prot & PAGE_LC_TRAP) {
         desc->fulltlb[index].tagmem_read |= TLBENTRYCAP_FLAG_TRAP;
+        tagmem = 0;
     }
     if (prot & PAGE_LC_TRAP_ANY) {
         desc->fulltlb[index].tagmem_read |= TLBENTRYCAP_FLAG_TRAP_ANY;
+        tagmem = 0;
     }
     if (prot & PAGE_SC_CLEAR) {
         desc->fulltlb[index].tagmem_write |= TLBENTRYCAP_FLAG_CLEAR;
+        tagmem = 0;
     }
     if (prot & PAGE_SC_TRAP) {
         desc->fulltlb[index].tagmem_write |= TLBENTRYCAP_FLAG_TRAP;
+        tagmem = 0;
     }
+
+    /*
+     * Pages without tag memory have nothing for fast paths to lock or read.
+     * So they take slow path, like pages with tag flags.
+     */
+    tn.tagmem = tagmem == (uintptr_t)ALL_ZERO_TAGBLK ? NULL : (void *)tagmem;
 
 #endif
     desc->fulltlb[index].phys_addr = paddr_page;

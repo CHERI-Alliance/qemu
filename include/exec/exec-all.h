@@ -409,6 +409,42 @@ static inline void tlb_flush_range_by_mmuidx_all_cpus_synced(CPUState *cpu,
 {
 }
 #endif
+
+#if defined(TARGET_CHERI) && !defined(CONFIG_USER_ONLY)
+/*
+ * Return the tlb entry for a hit on plain RAM with a tag block, else NULL.
+ * Any TLB access flags in the comparator force us to use the slow path.
+ */
+static inline CPUTLBEntry *
+probe_access_fast_common(CPUArchState *env, int mmu_idx, target_ulong addr,
+                         MMUAccessType access_type)
+{
+    CPUTLBEntry *entry = tlb_entry(env, mmu_idx, addr);
+    target_ulong cmp;
+
+    addr &= TARGET_PAGE_MASK;
+    switch (access_type) {
+    case MMU_DATA_LOAD:
+        cmp = entry->addr_read;
+        break;
+    case MMU_DATA_STORE:
+    case MMU_DATA_CAP_STORE:
+        cmp = tlb_addr_write(entry);
+        break;
+    case MMU_INST_FETCH:
+        cmp = entry->addr_code;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    if (cmp != addr) {
+        return NULL;
+    }
+
+    return entry->tagmem ? entry : NULL;
+}
+#endif /* TARGET_CHERI && !CONFIG_USER_ONLY */
+
 /**
  * probe_access:
  * @env: CPUArchState
@@ -434,10 +470,40 @@ void *probe_write(CPUArchState *env, target_ulong addr, int size, int mmu_idx,
 
 void *probe_read(CPUArchState *env, target_ulong addr, int size, int mmu_idx,
                  uintptr_t retaddr);
+static inline void *
+probe_read_fast(CPUArchState *env, target_ulong addr, int size, int mmu_idx,
+                uintptr_t retaddr, void **tagmem)
+{
+    *tagmem = NULL;
+#if defined(TARGET_CHERI) && !defined(CONFIG_USER_ONLY)
+    CPUTLBEntry *entry = probe_access_fast_common(env, mmu_idx, addr,
+                                                  MMU_DATA_LOAD);
+    if (likely(entry)) {
+        *tagmem = entry->tagmem;
+        return (void *)((uintptr_t)addr + entry->addend);
+    }
+#endif /* TARGET_CHERI && !CONFIG_USER_ONLY */
+    return probe_read(env, addr, size, mmu_idx, retaddr);
+}
 
 #ifdef TARGET_CHERI
 void *probe_cap_write(CPUArchState *env, target_ulong addr, int size,
                       int mmu_idx, uintptr_t retaddr);
+static inline void *
+probe_cap_write_fast(CPUArchState *env, target_ulong addr, int size,
+                     int mmu_idx, uintptr_t retaddr, void **tagmem)
+{
+    *tagmem = NULL;
+#ifndef CONFIG_USER_ONLY
+    CPUTLBEntry *entry = probe_access_fast_common(env, mmu_idx, addr,
+                                                  MMU_DATA_CAP_STORE);
+    if (likely(entry)) {
+        *tagmem = entry->tagmem;
+        return (void *)((uintptr_t)addr + entry->addend);
+    }
+#endif
+    return probe_cap_write(env, addr, size, mmu_idx, retaddr);
+}
 #endif
 
 /**
@@ -462,6 +528,26 @@ void *probe_cap_write(CPUArchState *env, target_ulong addr, int size,
 int probe_access_flags(CPUArchState *env, target_ulong addr, int size,
                        MMUAccessType access_type, int mmu_idx,
                        bool nonfault, void **phost, uintptr_t retaddr);
+
+static inline int
+probe_access_flags_fast(CPUArchState *env, target_ulong addr, int size,
+                       MMUAccessType access_type, int mmu_idx,
+                       bool nonfault, void **phost, void **tagmem,
+                       uintptr_t retaddr)
+{
+    *tagmem = NULL;
+#if defined(TARGET_CHERI) && !defined(CONFIG_USER_ONLY)
+    CPUTLBEntry *entry = probe_access_fast_common(env, mmu_idx, addr,
+                                                  access_type);
+    if (likely(entry)) {
+        *phost = (void *)((uintptr_t)addr + entry->addend);
+        *tagmem = entry->tagmem;
+        return 0;
+    }
+#endif /* TARGET_CHERI && !CONFIG_USER_ONLY */
+    return probe_access_flags(env, addr, size, access_type, mmu_idx,
+                              nonfault, phost, retaddr);
+}
 
 #ifndef CONFIG_USER_ONLY
 /**
