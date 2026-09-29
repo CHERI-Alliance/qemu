@@ -45,6 +45,16 @@
 #include "cheri-helper-utils.h"
 #include "cheri_tagmem.h"
 
+#if TARGET_LONG_BITS == 32
+#define ld_cap_word_p ldl_p
+#define st_cap_word_p stl_p
+#elif TARGET_LONG_BITS == 64
+#define ld_cap_word_p ldq_p
+#define st_cap_word_p stq_p
+#else
+#error "Unhandled target long width"
+#endif
+
 #ifndef TARGET_CHERI
 #error "This file should only be compiled for CHERI"
 #endif
@@ -1433,6 +1443,123 @@ target_ulong CHERI_HELPER_IMPL(cap_check_addr(CPUArchState *env,
                                 /*unaligned_handler=*/NULL);
 }
 
+static void update_loaded_cap_perms(CPUArchState *env, target_ulong *pesbt,
+                                    const cap_register_t *source);
+
+/*
+ * Fast paths don't write instruction log or RVFI-DII trace so only use
+ * when neither is active.
+ */
+static inline bool cap_ldst_fast_path_enabled(CPUArchState *env)
+{
+#if defined(TARGET_RISCV) && defined(CONFIG_RVFI_DII)
+    return false;
+#else
+    return !qemu_log_instr_enabled(env);
+#endif
+}
+
+/*
+ * Loads without taking the tag block's lock; vaddr must already be checked
+ * against cbp. Returns false if fast path is off, no fast TLB entry is
+ * available, or a writer took/held the lock; in which case nothing is changed
+ * and the caller must use the slow path.
+ */
+static bool load_cap_fast(CPUArchState *env, uint32_t dstreg,
+                          const cap_register_t *cbp, target_ulong vaddr)
+{
+    unsigned long seq;
+    target_ulong pesbt;
+    target_ulong cursor;
+    bool tag;
+    CPUTLBEntry *entry;
+    CheriTagBlock *tagmem;
+    char *host;
+
+    if (!cap_ldst_fast_path_enabled(env)) {
+        return false;
+    }
+    cheri_debug_assert(QEMU_IS_ALIGNED(vaddr, CHERI_CAP_SIZE));
+    entry = probe_access_fast_common(env,
+            cpu_mmu_index(env, false), vaddr, MMU_DATA_LOAD);
+    if (entry == NULL) {
+        return false;
+    }
+    tagmem = entry->tagmem;
+    host = (char *)((uintptr_t)vaddr + entry->addend);
+    if (!tagblock_begin_read(tagmem, &seq)) {
+        return false;
+    }
+    tag = __tagblock_tag_get(tagmem, page_vaddr_to_tag_offset(vaddr));
+    pesbt = ld_cap_word_p(host + CHERI_MEM_OFFSET_METADATA) ^ CAP_MEM_XOR_MASK;
+    cursor = ld_cap_word_p(host + CHERI_MEM_OFFSET_CURSOR);
+    if (!tagblock_end_read(tagmem, seq)) {
+        /* Read was pre-empted by a write lock so fallback to slowpath */
+        return false;
+    }
+    if (!cap_has_perms(cbp, CAP_PERM_LOAD_CAP)) {
+        /* Clear the tag if authorising cap doesn't have load cap permission */
+        tag = false;
+    }
+    env->statcounters_cap_read++;
+    if (tag) {
+        update_loaded_cap_perms(env, &pesbt, cbp);
+        env->statcounters_cap_read_tagged++;
+    }
+    update_compressed_capreg(env, dstreg, pesbt, tag, cursor);
+    return true;
+}
+
+/*
+ * Stores the capability, holding the tag block's lock while the tag and both
+ * words are written. Returns false, having changed nothing, if the fast path
+ * is off (e.g. when logging) or the page has no fast TLB entry with tag
+ * memory; the caller must then take the slow path.
+ */
+static bool store_cap_fast(CPUArchState *env, uint32_t valreg,
+                          const cap_register_t *cbp, target_ulong vaddr)
+{
+    unsigned long seq;
+    target_ulong pesbt;
+    target_ulong cursor;
+    bool tag;
+    CheriTagBlock *tagmem;
+    CPUTLBEntry *entry;
+    char *host;
+
+    if (!cap_ldst_fast_path_enabled(env)) {
+        return false;
+    }
+    cheri_debug_assert(QEMU_IS_ALIGNED(vaddr, CHERI_CAP_SIZE));
+    entry = probe_access_fast_common(env,
+            cpu_mmu_index(env, false), vaddr, MMU_DATA_CAP_STORE);
+    if (entry == NULL) {
+        return false;
+    }
+    tagmem = entry->tagmem;
+    host = (char *)((uintptr_t)vaddr + entry->addend);
+    cursor = get_capreg_cursor(env, valreg);
+    pesbt = get_capreg_pesbt(env, valreg) ^ CAP_MEM_XOR_MASK;
+    tag = cheri_will_store_tag(env, cbp, valreg);
+
+    /* Acquire the write lock */
+    seq = tagblock_lock_write(tagmem);
+    if (tag) {
+        __tagblock_tag_set(tagmem, page_vaddr_to_tag_offset(vaddr));
+    } else {
+        __tagblock_tag_clear(tagmem, page_vaddr_to_tag_offset(vaddr));
+    }
+    st_cap_word_p(host + CHERI_MEM_OFFSET_METADATA, pesbt);
+    st_cap_word_p(host + CHERI_MEM_OFFSET_CURSOR, cursor);
+    /* Release the write lock */
+    tagblock_unlock_write_fast(tagmem, seq);
+    env->statcounters_cap_write++;
+    if (tag) {
+        env->statcounters_cap_write_tagged++;
+    }
+    return true;
+}
+
 /// Capability loads and stores
 void CHERI_HELPER_IMPL(load_cap_via_cap(CPUArchState *env, uint32_t dstreg,
                                         target_ulong addr, uint32_t authreg))
@@ -1445,6 +1572,10 @@ void CHERI_HELPER_IMPL(load_cap_via_cap(CPUArchState *env, uint32_t dstreg,
                              CHERI_CAP_SIZE, _host_return_address, cbp,
                              CHERI_CAP_SIZE, raise_unaligned_load_exception);
 
+    if (load_cap_fast(env, dstreg, cbp, checked_addr)) {
+        return;
+    }
+    /* Fall back to slow path */
     load_cap_from_memory(env, dstreg, authreg, cbp, checked_addr,
                          _host_return_address, /*physaddr_out=*/NULL, true);
 }
@@ -1474,6 +1605,10 @@ void CHERI_HELPER_IMPL(store_cap_via_cap(CPUArchState *env, uint32_t valreg,
                              addr, CHERI_CAP_SIZE, _host_return_address, cbp,
                              CHERI_CAP_SIZE, raise_unaligned_store_exception);
 
+    if (store_cap_fast(env, valreg, cbp, checked_addr)) {
+        return;
+    }
+    /* Fall back to slow path */
     store_cap_to_memory(env, valreg, authreg, checked_addr,
                         _host_return_address, true);
 }
@@ -1640,17 +1775,9 @@ retry:
     // NULL capabilities have an all-zeroes representation.
     if (likely(host)) {
         // Fast path, host address in TLB
-#if TARGET_LONG_BITS == 32
-#define ld_cap_word_p ldl_p
-#elif TARGET_LONG_BITS == 64
-#define ld_cap_word_p ldq_p
-#else
-#error "Unhandled target long width"
-#endif
         *pesbt = ld_cap_word_p((char *)host + CHERI_MEM_OFFSET_METADATA) ^
                  CAP_MEM_XOR_MASK;
         *cursor = ld_cap_word_p((char *)host + CHERI_MEM_OFFSET_CURSOR);
-#undef ld_cap_word_p
     } else {
         // Slow path for e.g. IO regions.
         qemu_maybe_log_instr_extra(env, "Using slow path for load from guest "
@@ -1821,17 +1948,9 @@ void store_cap_to_memory_mmu_index(CPUArchState *env, uint32_t cs,
     // When writing back pesbt we have to XOR with the NULL mask to ensure that
     // NULL capabilities have an all-zeroes representation.
     if (likely(host)) {
-#if TARGET_LONG_BITS == 32
-#define st_cap_word_p stl_p
-#elif TARGET_LONG_BITS == 64
-#define st_cap_word_p stq_p
-#else
-#error "Unhandled target long width"
-#endif
         // Fast path, host address in TLB
         st_cap_word_p((char*)host + CHERI_MEM_OFFSET_METADATA, pesbt_for_mem);
         st_cap_word_p((char*)host + CHERI_MEM_OFFSET_CURSOR, cursor);
-#undef st_cap_word_p
     } else {
         // Slow path for e.g. IO regions.
         cheri_tag_writer_push_free_on_exception(env, lock);
