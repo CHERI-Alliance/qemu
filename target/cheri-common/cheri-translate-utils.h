@@ -594,11 +594,8 @@ static inline void gen_vector_copy(TCGv_ptr dest_ptr, TCGv_ptr source_ptr,
                                    uint32_t dest_off, uint32_t source_off,
                                    size_t min_size, size_t max_size)
 {
-    // Use largest chunk as possible
-    size_t copy_chunk =
-        (TCG_TARGET_HAS_v256 && (min_size >= 32))
-            ? 32
-            : ((TCG_TARGET_HAS_v128 && (min_size >= 16)) ? 16 : 8);
+    /* Use 16-byte chunks if possible, using larger chunks hurts performance */
+    size_t copy_chunk = (TCG_TARGET_HAS_v128 && (min_size >= 16)) ? 16 : 8;
     size_t mask = copy_chunk - 1;
     size_t copy_size = (min_size + mask) & ~mask;
     cheri_debug_assert(copy_size <= max_size);
