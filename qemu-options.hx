@@ -4671,6 +4671,19 @@ SRST
     Generate debugger exception when a capability fault is taken.
 ERST
 
+#ifdef CONFIG_TAG_TRACE
+DEF("cheri-tag-trace", 0, QEMU_OPTION_cheri_tag_trace, \
+    "-cheri-tag-trace     Record where CHERI capability tags are cleared from startup\n", QEMU_ARCH_ALL)
+SRST
+``-cheri-tag-trace``
+    Start recording where CHERI capability tags are cleared as soon as the
+    machine starts, rather than waiting for the ``cheri_tag_trace on`` monitor
+    command or the guest's start instruction. The recorded clear site of an
+    untagged capability is reported (with ``-d int``) when a tag violation is
+    raised on it. Only available when configured with ``--enable-tag-trace``.
+ERST
+#endif
+
 #ifdef CONFIG_RVFI_DII
 DEF("rvfi-dii-port", HAS_ARG, QEMU_OPTION_rvfi_dii_port, \
     "-rvfi-dii-port <port>     Run QEMU in RVFI-DII mode, listing on <port>\n", QEMU_ARCH_RISCV)

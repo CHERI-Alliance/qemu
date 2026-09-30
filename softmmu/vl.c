@@ -187,6 +187,10 @@ static bool opt_one_insn_per_tb;
 bool cheri_c2e_on_unrepresentable = false;
 bool cheri_debugger_on_unrepresentable = false;
 bool cheri_debugger_on_trap = false;
+#ifdef CONFIG_TAG_TRACE
+/* Set before any code is translated, so no switch/flush is needed. */
+bool cheri_tag_trace_active;
+#endif
 static uint64_t cl_breakpoint = 0L;
 static uint64_t cl_breakcount = 0L;
 
@@ -3520,6 +3524,11 @@ void qemu_init(int argc, char **argv)
             case QEMU_OPTION_cheri_debugger_on_trap:
                 cheri_debugger_on_trap = true;
                 break;
+#ifdef CONFIG_TAG_TRACE
+            case QEMU_OPTION_cheri_tag_trace:
+                cheri_tag_trace_active = true;
+                break;
+#endif
 #ifdef CONFIG_RVFI_DII
             case QEMU_OPTION_rvfi_dii_debug:
                 rvfi_debug_output = true;
