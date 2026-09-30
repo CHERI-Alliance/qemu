@@ -11453,7 +11453,7 @@ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
         helper_rebuild_hflags_a64(env, new_el);
     }
 
-    set_aarch_reg_value(&env->pc, addr, GETPC());
+    set_aarch_reg_value(&env->pc, addr, TAG_TRACE_PC(env, GETPC()));
 
     qemu_maybe_log_instr_extra(env, "Took exception to EL%d. PSTATE: 0x%x\n",
                                new_el, pstate_read(env));

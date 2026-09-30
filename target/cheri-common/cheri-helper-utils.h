@@ -70,7 +70,7 @@ static inline void derive_cap_from_pcc(CPUArchState *env, uint32_t cd,
         if (cap_get_tag(pccp)) {
             became_unrepresentable(env, cd, oob_info, retpc);
         }
-        cap_mark_unrepresentable(new_addr, &result, retpc);
+        cap_mark_unrepresentable(new_addr, &result, TAG_TRACE_PC(env, retpc));
     } else {
         result._cr_cursor = new_addr;
         check_out_of_bounds_stat(env, oob_info, &result, retpc);
@@ -173,13 +173,15 @@ static inline void cheri_update_pcc_for_exc_handler(cap_register_t *pcc,
                               PRINT_CAP_ARGS(pcc));
         }
     }
+    /* The instruction being trapped is the one to blame for a tag clear. */
+    target_ulong trap_pc = cap_get_cursor(pcc);
     *pcc = *src_cap;
     // FIXME: KCC must not be sealed
     if (!cap_is_unsealed(pcc)) {
         error_report("Sealed PCC set for exception"
                      " handler, detagging: " PRINT_CAP_FMTSTR "\r",
                      PRINT_CAP_ARGS(pcc));
-        cap_set_tag(pcc, false, TAG_CAUSE_SEALED_TRAP_VECTOR, GETPC());
+        cap_set_tag(pcc, false, TAG_CAUSE_SEALED_TRAP_VECTOR, trap_pc);
     }
     if (!cap_get_tag(pcc)) {
         error_report("Invalid PCC in exception handler: " PRINT_CAP_FMTSTR "\r",
@@ -198,6 +200,8 @@ static inline void cheri_update_pcc_for_exc_return(cap_register_t *pcc,
      */
     assert(cap_has_perms(pcc, CAP_ACCESS_SYS_REGS) &&
            "Attempting to return from exception without ASR in PCC");
+    /* The exception return instruction is the one to blame for a tag clear. */
+    target_ulong xret_pc = cap_get_cursor(pcc);
     *pcc = *src_cap;
     /*
      * On exception return we unseal sentry capabilities (if the address
@@ -211,7 +215,7 @@ static inline void cheri_update_pcc_for_exc_return(cap_register_t *pcc,
             error_report("Sentry PCC in exception return with different target "
                          "addr: " PRINT_CAP_FMTSTR "\r",
                          PRINT_CAP_ARGS(pcc));
-            cap_set_tag(pcc, false, TAG_CAUSE_SENTRY_MISMATCH, GETPC());
+            cap_set_tag(pcc, false, TAG_CAUSE_SENTRY_MISMATCH, xret_pc);
         }
     } else if (cap_get_tag(pcc) && !cap_is_unsealed(pcc)) {
         if (new_cursor == cap_get_cursor(pcc)) {
@@ -220,7 +224,7 @@ static inline void cheri_update_pcc_for_exc_return(cap_register_t *pcc,
         } else {
             error_report("Sealed target PCC in exception return" PRINT_CAP_FMTSTR "\r",
                          PRINT_CAP_ARGS(pcc));
-            cap_set_tag(pcc, false, TAG_CAUSE_SEALED_TRAP_VECTOR, GETPC());
+            cap_set_tag(pcc, false, TAG_CAUSE_SEALED_TRAP_VECTOR, xret_pc);
         }
     }
     cheri_update_pcc(pcc, new_cursor, /*can_be_unrepresentable=*/true);
@@ -427,4 +431,5 @@ void cheri_jump_and_link_checked(CPUArchState *env, uint32_t link_reg,
                                  target_ulong target_addr, uint32_t flags,
                                  uintptr_t _host_return_address);
 
-cap_register_t cap_scaddr(target_ulong addr, cap_register_t dest);
+cap_register_t cap_scaddr(target_ulong addr, cap_register_t dest,
+                          target_ulong pc);

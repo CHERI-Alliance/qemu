@@ -190,6 +190,19 @@ static inline target_ulong cpu_get_current_pc_checked(CPUArchState *env)
     return cpu_get_recent_pc(env);
 }
 
+#ifdef CONFIG_TAG_TRACE
+/*
+ * Guest PC of the instruction executing when a helper was entered from host
+ * address @retpc, for recording where a tag was cleared. Unlike
+ * cpu_get_current_pc() this leaves the CPU state untouched, so it is safe to
+ * call from helpers declared as not writing TCG globals.
+ */
+target_ulong cheri_tag_trace_guest_pc(CPUArchState *env, uintptr_t retpc);
+#define TAG_TRACE_PC(env, retpc) cheri_tag_trace_guest_pc(env, retpc)
+#else
+#define TAG_TRACE_PC(env, retpc) ((target_ulong)0)
+#endif
+
 static inline target_ulong PC_ADDR(CPUArchState *env)
 {
 #ifdef CONFIG_DEBUG_TCG
