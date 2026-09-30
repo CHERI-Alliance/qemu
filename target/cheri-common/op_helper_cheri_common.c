@@ -1650,6 +1650,9 @@ bool load_cap_from_memory_raw_tag_mmu_idx(
 
     /* Skip fixups if the caller wants the exact raw capability, see above. */
     if (!all_raw) {
+#ifdef CONFIG_TAG_TRACE
+        const bool mem_tag = tag;
+#endif
         if (raw_tag) {
             *raw_tag = tag;
         }
@@ -1658,6 +1661,21 @@ bool load_cap_from_memory_raw_tag_mmu_idx(
         if (tag) {
             update_loaded_cap_perms(env, pesbt, source);
         }
+#ifdef CONFIG_TAG_TRACE
+        env->tag_trace_load_cause = TAG_CAUSE_IS_TAGGED;
+        env->tag_trace_load_pc = -1;
+        if (!tag && mem_tag) {
+            /* Tagged in memory, but this load was not allowed to keep it. */
+            env->tag_trace_load_cause = TAG_CAUSE_LOAD_NO_CAP_PERM;
+            env->tag_trace_load_pc = TAG_TRACE_PC(env, retpc);
+        } else if (!tag &&
+                   !cheri_tag_trace_site_lookup(cheri_tag_trace_mem_get(host),
+                                                &env->tag_trace_load_pc,
+                                                &env->tag_trace_load_cause)) {
+            env->tag_trace_load_cause = TAG_CAUSE_INITIALISATION;
+            env->tag_trace_load_pc = -1;
+        }
+#endif
     }
 
     env->statcounters_cap_read++;
@@ -1722,6 +1740,10 @@ cap_register_t load_and_decompress_cap_from_memory_raw(
 #endif
     CAP_cc(decompress_raw_ext)(pesbt, cursor, tag, lvbits, &result);
     result.cr_extra = CREG_FULLY_DECOMPRESSED;
+#ifdef CONFIG_TAG_TRACE
+    result.tag_clear_cause = env->tag_trace_load_cause;
+    result.tag_clear_pc = env->tag_trace_load_pc;
+#endif
     return result;
 }
 
@@ -1761,6 +1783,12 @@ const char *cheri_tag_cause_str(uint32_t cause)
     case TAG_CAUSE_UNDEFINED: return "undefined";
     case TAG_CAUSE_INTEGER_OP: return "integer write";
     case TAG_CAUSE_DEFERRED: return "deferred";
+    case TAG_CAUSE_STORE_NO_CAP_PERM:
+        return "stored without capability permission";
+    case TAG_CAUSE_STORE_LOCAL:
+        return "local capability stored without permission";
+    case TAG_CAUSE_LOAD_NO_CAP_PERM:
+        return "loaded without capability permission";
     default: return "unknown";
     }
 }
@@ -1792,6 +1820,7 @@ void load_cap_from_memory(CPUArchState *env, uint32_t cd, uint32_t cb,
     bool tag = load_cap_from_memory_raw(env, &pesbt, &cursor, cb, source, vaddr,
                                         retpc, physaddr, take_lock);
     update_compressed_capreg(env, cd, pesbt, tag, cursor);
+    cheri_tag_trace_set_loaded(env, cd);
 }
 
 /*
@@ -1811,6 +1840,7 @@ void store_cap_to_memory_mmu_index(CPUArchState *env, uint32_t cs,
     }
 #endif
     bool tag = get_capreg_tag_filtered(env, cs);
+    uint32_t strip_cause G_GNUC_UNUSED = 0;
 #if defined(TARGET_CHERI_RISCV_STD)
     RISCVCPU *cpu = env_archcpu(env);
     const cap_register_t *cbp = get_capreg_or_special(env, cb);
@@ -1820,6 +1850,9 @@ void store_cap_to_memory_mmu_index(CPUArchState *env, uint32_t cs,
      * but not C.
      */
     if (!cap_has_perms(cbp, CAP_PERM_STORE_CAP)) {
+        if (tag) {
+            strip_cause = TAG_CAUSE_STORE_NO_CAP_PERM;
+        }
         tag = false;
     }
 
@@ -1827,6 +1860,9 @@ void store_cap_to_memory_mmu_index(CPUArchState *env, uint32_t cs,
     if ((cpu->cfg.lvbits > 0) && !cap_has_perms(cbp, CAP_PERM_STORE_LOCAL)) {
         const cap_register_t *csp = get_capreg_or_special(env, cs);
         if (!cap_has_perms(csp, CAP_PERM_GLOBAL)) {
+            if (tag) {
+                strip_cause = TAG_CAUSE_STORE_LOCAL;
+            }
             tag = false;
         }
     }
@@ -1846,6 +1882,21 @@ void store_cap_to_memory_mmu_index(CPUArchState *env, uint32_t cs,
      */
     tag_writer_lock_t lock = NULL;
 
+#ifdef CONFIG_TAG_TRACE
+    /* Where the stored value lost its tag, carried into memory with it. */
+    uint32_t trace_site = 0;
+    if (!tag) {
+        if (strip_cause) {
+            trace_site =
+                cheri_tag_trace_site(TAG_TRACE_PC(env, retpc), strip_cause);
+        } else {
+            const cap_register_t *csp =
+                get_cap_in_gpregs(cheri_get_gpcrs(env), cs);
+            trace_site = cheri_tag_trace_site(csp->tag_clear_pc,
+                                              csp->tag_clear_cause);
+        }
+    }
+#endif
     env->statcounters_cap_write++;
     void *host = NULL;
     if (tag) {
@@ -1870,6 +1921,9 @@ void store_cap_to_memory_mmu_index(CPUArchState *env, uint32_t cs,
         st_cap_word_p((char*)host + CHERI_MEM_OFFSET_METADATA, pesbt_for_mem);
         st_cap_word_p((char*)host + CHERI_MEM_OFFSET_CURSOR, cursor);
 #undef st_cap_word_p
+#ifdef CONFIG_TAG_TRACE
+        cheri_tag_trace_mem_set(env, host, trace_site);
+#endif
     } else {
         // Slow path for e.g. IO regions.
         /*

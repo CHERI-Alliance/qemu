@@ -62,6 +62,9 @@
 #define TAG_CAUSE_UNDEFINED (1 << 12)
 #define TAG_CAUSE_INTEGER_OP (1 << 13)
 #define TAG_CAUSE_DEFERRED (1 << 14)
+#define TAG_CAUSE_STORE_NO_CAP_PERM (1 << 15)
+#define TAG_CAUSE_STORE_LOCAL (1 << 16)
+#define TAG_CAUSE_LOAD_NO_CAP_PERM (1 << 17)
 
 // clang-format off
 #include "cheri_compressed_cap_64.h"

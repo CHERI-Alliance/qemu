@@ -352,6 +352,7 @@ void HELPER(amoswap_cap)(CPUArchState *env, uint32_t dest_reg,
     // Store succeeded -> we can update cd
     update_compressed_capreg(env, dest_reg, loaded_pesbt, loaded_tag,
                              loaded_cursor);
+    cheri_tag_trace_set_loaded(env, dest_reg);
 }
 
 static void lr_c_impl(CPUArchState *env, uint32_t dest_reg, uint32_t auth_reg,
@@ -397,6 +398,7 @@ static void lr_c_impl(CPUArchState *env, uint32_t dest_reg, uint32_t auth_reg,
     log_changed_special_reg(env, "load_tag", (target_ulong)env->load_tag, ~0u,
                             0);
     update_compressed_capreg(env, dest_reg, pesbt, tag, cursor);
+    cheri_tag_trace_set_loaded(env, dest_reg);
 }
 
 void HELPER(lr_c_modedep)(CPUArchState *env, uint32_t dest_reg, uint32_t addr_reg)

@@ -872,6 +872,11 @@ typedef struct CPUArchState {
     uint64_t statcounters_cap_read_tagged;
     uint64_t statcounters_cap_write;
     uint64_t statcounters_cap_write_tagged;
+#ifdef CONFIG_TAG_TRACE
+    /* Tag trace provenance of the last capability loaded from memory. */
+    uint32_t tag_trace_load_cause;
+    target_ulong tag_trace_load_pc;
+#endif
 
     uint64_t statcounters_imprecise_setbounds;
     uint64_t statcounters_unrepresentable_caps;
