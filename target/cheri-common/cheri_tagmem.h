@@ -222,6 +222,19 @@ void cheri_tag_phys_invalidate(CPUArchState *env, RAMBlock *ram,
                                const target_ulong *vaddr);
 void cheri_tag_init(MemoryRegion *mr, uint64_t memory_size);
 
+#ifdef CONFIG_TAG_TRACE
+/*
+ * Tag trace provenance for memory. A site ID names a (guest PC, cause) pair
+ * describing where a tag was cleared; site 0 means no recorded clear.
+ */
+uint32_t cheri_tag_trace_site(target_ulong pc, uint32_t cause);
+bool cheri_tag_trace_site_lookup(uint32_t site, target_ulong *pc,
+                                 uint32_t *cause);
+/* Record @site for the granule at RAM host address @host. */
+void cheri_tag_trace_mem_set(CPUArchState *env, void *host, uint32_t site);
+uint32_t cheri_tag_trace_mem_get(void *host);
+#endif
+
 /**
  * Generic tag invalidation function to be called for a *single* data store:
  * Note: this will currently invalidate at most two tags (as can happen
