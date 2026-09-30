@@ -397,6 +397,23 @@ static inline void update_compressed_capreg(CPUArchState *env, unsigned regnum,
     }
 }
 
+/*
+ * Give GP register @regnum the tag trace provenance of the capability just
+ * loaded from memory into it with update_compressed_capreg().
+ */
+static inline void cheri_tag_trace_set_loaded(CPUArchState *env,
+                                              unsigned regnum)
+{
+#ifdef CONFIG_TAG_TRACE
+    if (regnum == NULL_CAPREG_INDEX) {
+        return;
+    }
+    cap_register_t *cap = get_cap_in_gpregs(cheri_get_gpcrs(env), regnum);
+    cap->tag_clear_cause = env->tag_trace_load_cause;
+    cap->tag_clear_pc = env->tag_trace_load_pc;
+#endif
+}
+
 static inline target_ulong get_capreg_pesbt(CPUArchState *env, unsigned regnum)
 {
     GPCapRegs *gpcrs = cheri_get_gpcrs(env);
