@@ -578,7 +578,16 @@ cap_mark_unrepresentable(target_ulong addr, cap_register_t *cr, target_ulong pc)
 #ifdef TARGET_CHERI_RISCV_STD
     lvbits = cr->cr_lvbits;
 #endif
+#ifdef CONFIG_TAG_TRACE
+    /* Decompressing rebuilds *cr; keep the clear just recorded above. */
+    uint32_t tag_clear_cause = cr->tag_clear_cause;
+    target_ulong tag_clear_pc = cr->tag_clear_pc;
+#endif
     CAP_cc(decompress_raw_ext)(cr->cr_pesbt, addr, false, lvbits, cr);
+#ifdef CONFIG_TAG_TRACE
+    cr->tag_clear_cause = tag_clear_cause;
+    cr->tag_clear_pc = tag_clear_pc;
+#endif
     cr->cr_extra = CREG_FULLY_DECOMPRESSED;
     return cr;
 }

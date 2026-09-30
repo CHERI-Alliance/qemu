@@ -934,6 +934,15 @@ static inline void gen_lazy_cap_set_int_cond(DisasContext *ctx, int regnum,
     tcg_gen_st_tl(null_pesbt, cpu_env,
                   gp_register_offset(regnum) +
                       offsetof(cap_register_t, cr_pesbt));
+#ifdef CONFIG_TAG_TRACE
+    /* An integer result replaces whatever capability provenance was here. */
+    tcg_gen_st_i32(tcg_constant_i32(TAG_CAUSE_INTEGER_OP), cpu_env,
+                   gp_register_offset(regnum) +
+                       offsetof(cap_register_t, tag_clear_cause));
+    tcg_gen_st_tl(tcg_constant_tl(-1), cpu_env,
+                  gp_register_offset(regnum) +
+                      offsetof(cap_register_t, tag_clear_pc));
+#endif
 }
 
 static inline void gen_lazy_cap_set_int(DisasContext *ctx, int regnum)
@@ -984,6 +993,8 @@ static inline void gen_sp_set_decompressed_int(DisasContext *ctx, size_t offset)
     TCGv_i32 cause = tcg_constant_i32(TAG_CAUSE_INTEGER_OP);
     tcg_gen_st_i32(cause, cpu_env,
                    offset + offsetof(cap_register_t, tag_clear_cause));
+    tcg_gen_st_tl(tcg_constant_tl(-1), cpu_env,
+                  offset + offsetof(cap_register_t, tag_clear_pc));
 #endif
 }
 

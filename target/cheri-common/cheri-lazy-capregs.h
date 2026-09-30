@@ -127,10 +127,25 @@ _update_from_compressed(GPCapRegs *gpcrs, unsigned regnum, bool tag)
     CPUArchState *env = container_of(gpcrs, CPUArchState, gpcapregs);
     lvbits = env_archcpu(env)->cfg.lvbits;
 #endif
+#ifdef CONFIG_TAG_TRACE
+    /*
+     * Decompressing rebuilds the whole register, but the tag trace fields
+     * describe where an untagged value lost its tag and must survive.
+     */
+    const cap_register_t *traced = get_cap_in_gpregs(gpcrs, regnum);
+    uint32_t tag_clear_cause = traced->tag_clear_cause;
+    target_ulong tag_clear_pc = traced->tag_clear_pc;
+#endif
     // Note: The _cr_cusor field is always valid. All others are lazy.
     CAP_cc(decompress_raw_ext)(get_cap_in_gpregs(gpcrs, regnum)->cr_pesbt,
                                get_cap_in_gpregs(gpcrs, regnum)->_cr_cursor,
                                tag, lvbits, get_cap_in_gpregs(gpcrs, regnum));
+#ifdef CONFIG_TAG_TRACE
+    if (!tag) {
+        get_cap_in_gpregs(gpcrs, regnum)->tag_clear_cause = tag_clear_cause;
+        get_cap_in_gpregs(gpcrs, regnum)->tag_clear_pc = tag_clear_pc;
+    }
+#endif
     set_capreg_state(gpcrs, regnum, CREG_FULLY_DECOMPRESSED);
     return get_cap_in_gpregs(gpcrs, regnum);
 }
@@ -364,6 +379,12 @@ static inline void update_compressed_capreg(CPUArchState *env, unsigned regnum,
     get_cap_in_gpregs(gpcrs, regnum)->_cr_cursor = cursor;
     get_cap_in_gpregs(gpcrs, regnum)->cr_pesbt = pesbt;
     CapRegState new_state = tag ? CREG_TAGGED_CAP : CREG_UNTAGGED_CAP;
+#ifdef CONFIG_TAG_TRACE
+    /* An untagged value written this way has no known clear site. */
+    get_cap_in_gpregs(gpcrs, regnum)->tag_clear_cause =
+        tag ? TAG_CAUSE_IS_TAGGED : TAG_CAUSE_INITIALISATION;
+    get_cap_in_gpregs(gpcrs, regnum)->tag_clear_pc = -1;
+#endif
     set_capreg_state(gpcrs, regnum, new_state);
     cheri_debug_assert(get_capreg_state(gpcrs, regnum) == new_state);
     sanity_check_capreg(gpcrs, regnum);
