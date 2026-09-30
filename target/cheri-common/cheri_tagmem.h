@@ -230,9 +230,30 @@ void cheri_tag_init(MemoryRegion *mr, uint64_t memory_size);
 uint32_t cheri_tag_trace_site(target_ulong pc, uint32_t cause);
 bool cheri_tag_trace_site_lookup(uint32_t site, target_ulong *pc,
                                  uint32_t *cause);
-/* Record @site for the granule at RAM host address @host. */
-void cheri_tag_trace_mem_set(CPUArchState *env, void *host, uint32_t site);
-uint32_t cheri_tag_trace_mem_get(void *host);
+extern bool cheri_tag_trace_mem_in_use;
+void cheri_tag_trace_mem_set_slow(CPUArchState *env, void *host,
+                                  uint32_t site);
+uint32_t cheri_tag_trace_mem_get_slow(void *host);
+
+/*
+ * Record @site for the granule at RAM host address @host. Until any
+ * granule has a site, clearing one (site 0) is a no-op, and inline so that
+ * data stores do not pay for a call.
+ */
+static inline void cheri_tag_trace_mem_set(CPUArchState *env, void *host,
+                                           uint32_t site)
+{
+    if (site != 0 || qatomic_read(&cheri_tag_trace_mem_in_use)) {
+        cheri_tag_trace_mem_set_slow(env, host, site);
+    }
+}
+
+static inline uint32_t cheri_tag_trace_mem_get(void *host)
+{
+    return qatomic_read(&cheri_tag_trace_mem_in_use)
+               ? cheri_tag_trace_mem_get_slow(host)
+               : 0;
+}
 /* Whether the memory at host address @host (NULL for MMIO) stores tags. */
 bool cheri_tag_trace_mem_has_tags(void *host);
 /*

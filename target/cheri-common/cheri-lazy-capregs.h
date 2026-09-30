@@ -317,6 +317,20 @@ static inline void update_capreg(CPUArchState *env, unsigned regnum,
     GPCapRegs *gpcrs = cheri_get_gpcrs(env);
     cap_register_t *target = get_cap_in_gpregs(gpcrs, regnum);
     *target = *newval;
+#ifdef TAG_TRACE_INSN_PC
+    /*
+     * Clears inside the compressed capability library record a cause but
+     * cannot know the PC; they reach a register here within the same
+     * instruction, so attribute them to it.
+     */
+    if (cheri_tag_trace_is_active() && !target->cr_tag &&
+        target->tag_clear_pc == (target_ulong)-1 &&
+        target->tag_clear_cause != TAG_CAUSE_INITIALISATION &&
+        target->tag_clear_cause != TAG_CAUSE_IS_TAGGED &&
+        target->tag_clear_cause != TAG_CAUSE_INTEGER_OP) {
+        target->tag_clear_pc = env->tag_trace_insn_pc;
+    }
+#endif
     /*
      * Update the compressed values for fast access from TCG
      * NOTE: This is only needed if pesbt has fallen out of sync.

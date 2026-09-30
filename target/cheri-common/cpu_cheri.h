@@ -198,9 +198,19 @@ static inline target_ulong cpu_get_current_pc_checked(CPUArchState *env)
  * call from helpers declared as not writing TCG globals.
  */
 target_ulong cheri_tag_trace_guest_pc(CPUArchState *env, uintptr_t retpc);
+#ifdef TAG_TRACE_INSN_PC
+/*
+ * The target's translated code records each instruction's PC while tracing
+ * is active, so no unwinding is needed. @retpc is unused.
+ */
+#define TAG_TRACE_PC(env, retpc)                                               \
+    (cheri_tag_trace_is_active() ? (env)->tag_trace_insn_pc                   \
+                                 : (target_ulong)-1)
+#else
 #define TAG_TRACE_PC(env, retpc)                                               \
     (cheri_tag_trace_is_active() ? cheri_tag_trace_guest_pc(env, retpc)       \
                                  : (target_ulong)-1)
+#endif
 const char *cheri_tag_cause_str(uint32_t cause);
 /*
  * Log (under -d int) where the tag of capability register @regnum was

@@ -1625,6 +1625,15 @@ static void riscv_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
 #endif
 
     ctx->ol = ctx->xl;
+#if defined(TARGET_CHERI) && defined(CONFIG_TAG_TRACE)
+    if (cheri_tag_trace_is_active()) {
+        /* Tag clears made by this instruction are attributed to this PC. */
+        TCGv insn_pc = tcg_temp_new();
+        gen_pc_plus_diff(insn_pc, ctx, 0);
+        tcg_gen_st_tl(insn_pc, cpu_env,
+                      offsetof(CPURISCVState, tag_trace_insn_pc));
+    }
+#endif
     decode_opc(env, ctx, opcode16);
     ctx->base.pc_next += ctx->cur_insn_len;
     gen_rvfi_dii_set_field_const_i64(PC, pc_wdata, ctx->base.pc_next);

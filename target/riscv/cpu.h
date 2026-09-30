@@ -41,6 +41,10 @@
  * 1: Original instruction opcode
  */
 #define TARGET_INSN_START_EXTRA_WORDS 1
+#if defined(TARGET_CHERI) && defined(CONFIG_TAG_TRACE)
+/* env->tag_trace_insn_pc is maintained; see TAG_TRACE_PC(). */
+#define TAG_TRACE_INSN_PC 1
+#endif
 
 #define CPU_INTERRUPT_CLIC CPU_INTERRUPT_TGT_EXT_0
 
@@ -484,6 +488,11 @@ struct CPUArchState {
     /* Tag trace provenance of the last capability loaded from memory. */
     uint32_t tag_trace_load_cause;
     target_ulong tag_trace_load_pc;
+    /*
+     * Guest PC of the instruction being executed, kept up to date by
+     * translated code while tag tracing is active (TAG_TRACE_INSN_PC).
+     */
+    target_ulong tag_trace_insn_pc;
 #endif
 
     uint64_t statcounters_imprecise_setbounds;
