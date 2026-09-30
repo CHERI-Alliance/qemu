@@ -246,6 +246,202 @@ static inline QEMU_ALWAYS_INLINE CheriTagBlock *cheri_tag_block(size_t tag_index
     return qatomic_load_acquire(&tagmem[tagbock_index]);
 }
 
+#ifdef CONFIG_TAG_TRACE
+typedef struct TagTraceSite {
+    target_ulong pc;
+    uint32_t cause;
+} TagTraceSite;
+
+#define TAG_TRACE_SITE_CHUNK_BITS 12
+#define TAG_TRACE_SITE_CHUNK_SIZE (1u << TAG_TRACE_SITE_CHUNK_BITS)
+#define TAG_TRACE_SITE_CHUNKS 4096
+
+/*
+ * Sites are only ever appended. Readers index the chunks without locking;
+ * a site's contents are published before any granule can hold its ID.
+ */
+static TagTraceSite *tag_trace_sites[TAG_TRACE_SITE_CHUNKS];
+static uint32_t tag_trace_nsites = 1;
+static uint64_t tag_trace_dropped_sites;
+static GHashTable *tag_trace_site_ids;
+static QemuMutex tag_trace_site_lock;
+/* Set once any granule has been given a site, to keep stores cheap before. */
+static bool tag_trace_mem_in_use;
+
+static void __attribute__((constructor)) tag_trace_site_init(void)
+{
+    qemu_mutex_init(&tag_trace_site_lock);
+}
+
+static guint tag_trace_site_hash(gconstpointer p)
+{
+    const TagTraceSite *site = p;
+    return (guint)site->pc ^ (guint)((uint64_t)site->pc >> 32) ^
+           (site->cause * 0x9e3779b1u);
+}
+
+static gboolean tag_trace_site_equal(gconstpointer a, gconstpointer b)
+{
+    const TagTraceSite *x = a, *y = b;
+    return x->pc == y->pc && x->cause == y->cause;
+}
+
+uint32_t cheri_tag_trace_site(target_ulong pc, uint32_t cause)
+{
+    if (cause == TAG_CAUSE_INITIALISATION || cause == TAG_CAUSE_IS_TAGGED) {
+        return 0;
+    }
+    TagTraceSite key = { .pc = pc, .cause = cause };
+    uint32_t id;
+
+    qemu_mutex_lock(&tag_trace_site_lock);
+    if (!tag_trace_site_ids) {
+        tag_trace_site_ids =
+            g_hash_table_new(tag_trace_site_hash, tag_trace_site_equal);
+    }
+    gpointer found = g_hash_table_lookup(tag_trace_site_ids, &key);
+    if (found) {
+        id = GPOINTER_TO_UINT(found);
+    } else if (tag_trace_nsites ==
+               TAG_TRACE_SITE_CHUNKS * TAG_TRACE_SITE_CHUNK_SIZE) {
+        tag_trace_dropped_sites++;
+        warn_report_once("CHERI tag trace site table full, new clear sites "
+                         "in memory will not be recorded");
+        id = 0;
+    } else {
+        id = tag_trace_nsites++;
+        TagTraceSite **chunkp =
+            &tag_trace_sites[id >> TAG_TRACE_SITE_CHUNK_BITS];
+        if (!*chunkp) {
+            qatomic_store_release(chunkp,
+                                  g_new0(TagTraceSite,
+                                         TAG_TRACE_SITE_CHUNK_SIZE));
+        }
+        TagTraceSite *site = &(*chunkp)[id & (TAG_TRACE_SITE_CHUNK_SIZE - 1)];
+        *site = key;
+        g_hash_table_insert(tag_trace_site_ids, site, GUINT_TO_POINTER(id));
+    }
+    qemu_mutex_unlock(&tag_trace_site_lock);
+    return id;
+}
+
+bool cheri_tag_trace_site_lookup(uint32_t id, target_ulong *pc,
+                                 uint32_t *cause)
+{
+    if (id == 0) {
+        return false;
+    }
+    TagTraceSite *chunk = qatomic_load_acquire(
+        &tag_trace_sites[id >> TAG_TRACE_SITE_CHUNK_BITS]);
+    cheri_debug_assert(chunk);
+    const TagTraceSite *site = &chunk[id & (TAG_TRACE_SITE_CHUNK_SIZE - 1)];
+    *pc = site->pc;
+    *cause = site->cause;
+    return true;
+}
+
+static uint32_t *tag_trace_mem_slot(RAMBlock *ram, ram_addr_t offset,
+                                    bool alloc)
+{
+    const uint64_t tag = offset / CHERI_CAP_SIZE;
+    const size_t blk = tag >> CAP_TAGBLK_SHFT;
+    const size_t nblks = num_tagblocks(ram);
+
+    if (blk >= nblks) {
+        return NULL;
+    }
+    uint32_t **blocks = qatomic_load_acquire(&ram->cheri_tag_trace);
+    if (!blocks) {
+        if (!alloc) {
+            return NULL;
+        }
+        uint32_t **fresh = g_new0(uint32_t *, nblks);
+        blocks = qatomic_cmpxchg(&ram->cheri_tag_trace, NULL, fresh);
+        if (blocks) {
+            g_free(fresh);
+        } else {
+            blocks = fresh;
+        }
+    }
+    uint32_t *slots = qatomic_load_acquire(&blocks[blk]);
+    if (!slots) {
+        if (!alloc) {
+            return NULL;
+        }
+        uint32_t *fresh = g_new0(uint32_t, CAP_TAGBLK_SIZE);
+        slots = qatomic_cmpxchg(&blocks[blk], NULL, fresh);
+        if (slots) {
+            g_free(fresh);
+        } else {
+            slots = fresh;
+        }
+    }
+    return &slots[CAP_TAGBLK_IDX(tag)];
+}
+
+void cheri_tag_trace_mem_set(CPUArchState *env, void *host, uint32_t site)
+{
+    ram_addr_t offset;
+
+    if (!host || (site == 0 && !qatomic_read(&tag_trace_mem_in_use))) {
+        return;
+    }
+    RAMBlock *ram = qemu_ram_block_from_host(host, false, &offset);
+    if (!ram || !ram->cheri_tags) {
+        return;
+    }
+    if (site == 0) {
+        uint32_t *slot = tag_trace_mem_slot(ram, offset, false);
+        if (slot) {
+            qatomic_store_release(slot, 0);
+        }
+        return;
+    }
+    /*
+     * Data stores only reach the tag invalidation path, which also clears
+     * these entries, on pages that have a tag block. Give this page one so
+     * an entry can never outlive the value it describes.
+     */
+    const uint64_t tag = offset / CHERI_CAP_SIZE;
+    if (!cheri_tag_block(tag, ram)) {
+        cheri_tag_new_tagblk(ram, tag);
+        tlb_flush_all_cpus_synced(env_cpu(env));
+        tlb_flush(env_cpu(env));
+    }
+    qatomic_set(&tag_trace_mem_in_use, true);
+    qatomic_store_release(tag_trace_mem_slot(ram, offset, true), site);
+}
+
+uint32_t cheri_tag_trace_mem_get(void *host)
+{
+    ram_addr_t offset;
+
+    if (!host || !qatomic_read(&tag_trace_mem_in_use)) {
+        return 0;
+    }
+    RAMBlock *ram = qemu_ram_block_from_host(host, false, &offset);
+    if (!ram || !ram->cheri_tags) {
+        return 0;
+    }
+    uint32_t *slot = tag_trace_mem_slot(ram, offset, false);
+    return slot ? qatomic_load_acquire(slot) : 0;
+}
+
+static void tag_trace_mem_clear_range(RAMBlock *ram, ram_addr_t start,
+                                      ram_addr_t end)
+{
+    if (!qatomic_read(&tag_trace_mem_in_use)) {
+        return;
+    }
+    for (ram_addr_t addr = start; addr < end; addr += CHERI_CAP_SIZE) {
+        uint32_t *slot = tag_trace_mem_slot(ram, addr, false);
+        if (slot) {
+            qatomic_store_release(slot, 0);
+        }
+    }
+}
+#endif /* CONFIG_TAG_TRACE */
+
 static inline QEMU_ALWAYS_INLINE bool tagmem_get_tag(void *tagmem, size_t index,
                                                      tag_reader_lock_t *lock)
 {
@@ -812,6 +1008,10 @@ static void *cheri_tag_invalidate_one(CPUArchState *env, target_ulong vaddr,
     }
 
     tagmem_clear_tag(tagmem, tag_offset, lock, lock_only);
+#ifdef CONFIG_TAG_TRACE
+    /* The granule now holds plain data, not a traced capability. */
+    cheri_tag_trace_mem_set(env, host_addr, 0);
+#endif
     return host_addr;
 }
 
@@ -871,6 +1071,9 @@ void cheri_tag_phys_invalidate(CPUArchState *env, RAMBlock *ram,
             }
         }
     }
+#ifdef CONFIG_TAG_TRACE
+    tag_trace_mem_clear_range(ram, startaddr, endaddr);
+#endif
 }
 
 /*

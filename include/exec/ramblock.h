@@ -51,6 +51,13 @@ struct RAMBlock {
 
     /* Bitmap of CHERI tag bits */
     struct CheriTagMem *cheri_tags;
+#ifdef CONFIG_TAG_TRACE
+    /*
+     * Per tag block, lazily allocated: the tag trace site recorded for each
+     * untagged capability-sized granule (0 for none).
+     */
+    uint32_t **cheri_tag_trace;
+#endif
 
     /*
      * bitmap to track already cleared dirty bitmap.  When the bit is
