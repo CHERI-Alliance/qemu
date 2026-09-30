@@ -551,6 +551,13 @@ target_ulong HELPER(gcmode)(CPUArchState *env, uint32_t cs1)
     return cap_get_exec_mode(cs1p) == CHERI_EXEC_CAPMODE ? 0 : 1;
 }
 
+#ifdef CONFIG_TAG_TRACE
+void HELPER(cheri_tag_trace_switch)(CPUArchState *env, uint32_t on)
+{
+    cheri_tag_trace_set_active(on);
+}
+#endif
+
 void HELPER(scmode)(CPUArchState *env, uint32_t cd, uint32_t cs1,
                     target_ulong imm)
 {
