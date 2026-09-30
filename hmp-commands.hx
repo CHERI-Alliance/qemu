@@ -1819,6 +1819,24 @@ ERST
         .cmd        = hmp_cheri_log_buffer,
     },
 
+#if defined(TARGET_CHERI) && defined(CONFIG_TAG_TRACE)
+    {
+        .name       = "cheri_tag_trace",
+        .args_type  = "state:s?",
+        .params     = "[on|off]",
+        .help       = "start/stop CHERI tag clear tracing, or show its state",
+        .cmd        = hmp_cheri_tag_trace,
+    },
+
+SRST
+``cheri_tag_trace`` [``on``\|``off``]
+  Start or stop recording where CHERI capability tags are cleared (builds
+  configured with ``--enable-tag-trace``). Starting discards provenance
+  recorded before. With no argument, show whether tracing is on and how many
+  distinct clear sites have been recorded.
+ERST
+#endif
+
 SRST
 ``cheri_trace_buffer_size`` *buffer_size*
   Set the instruction trace buffer size to the given number of entries..

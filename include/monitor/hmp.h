@@ -183,4 +183,5 @@ void hmp_info_mtree(Monitor *mon, const QDict *qdict);
 void hmp_info_cryptodev(Monitor *mon, const QDict *qdict);
 
 void hmp_cheri_log_buffer(Monitor *mon, const QDict *qdict);
+void hmp_cheri_tag_trace(Monitor *mon, const QDict *qdict);
 #endif

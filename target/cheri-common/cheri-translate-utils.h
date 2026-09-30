@@ -935,13 +935,15 @@ static inline void gen_lazy_cap_set_int_cond(DisasContext *ctx, int regnum,
                   gp_register_offset(regnum) +
                       offsetof(cap_register_t, cr_pesbt));
 #ifdef CONFIG_TAG_TRACE
-    /* An integer result replaces whatever capability provenance was here. */
-    tcg_gen_st_i32(tcg_constant_i32(TAG_CAUSE_INTEGER_OP), cpu_env,
-                   gp_register_offset(regnum) +
-                       offsetof(cap_register_t, tag_clear_cause));
-    tcg_gen_st_tl(tcg_constant_tl(-1), cpu_env,
-                  gp_register_offset(regnum) +
-                      offsetof(cap_register_t, tag_clear_pc));
+    if (cheri_tag_trace_is_active()) {
+        /* An integer result replaces any capability provenance here. */
+        tcg_gen_st_i32(tcg_constant_i32(TAG_CAUSE_INTEGER_OP), cpu_env,
+                       gp_register_offset(regnum) +
+                           offsetof(cap_register_t, tag_clear_cause));
+        tcg_gen_st_tl(tcg_constant_tl(-1), cpu_env,
+                      gp_register_offset(regnum) +
+                          offsetof(cap_register_t, tag_clear_pc));
+    }
 #endif
 }
 
@@ -990,11 +992,13 @@ static inline void gen_sp_set_decompressed_int(DisasContext *ctx, size_t offset)
     tcg_gen_movi_tl(temp, CAP_CC(NULL_EXP));
     tcg_gen_st8_tl(temp, cpu_env, offset + offsetof(cap_register_t, cr_exp));
 #ifdef CONFIG_TAG_TRACE
-    TCGv_i32 cause = tcg_constant_i32(TAG_CAUSE_INTEGER_OP);
-    tcg_gen_st_i32(cause, cpu_env,
-                   offset + offsetof(cap_register_t, tag_clear_cause));
-    tcg_gen_st_tl(tcg_constant_tl(-1), cpu_env,
-                  offset + offsetof(cap_register_t, tag_clear_pc));
+    if (cheri_tag_trace_is_active()) {
+        TCGv_i32 cause = tcg_constant_i32(TAG_CAUSE_INTEGER_OP);
+        tcg_gen_st_i32(cause, cpu_env,
+                       offset + offsetof(cap_register_t, tag_clear_cause));
+        tcg_gen_st_tl(tcg_constant_tl(-1), cpu_env,
+                      offset + offsetof(cap_register_t, tag_clear_pc));
+    }
 #endif
 }
 
@@ -1188,8 +1192,10 @@ static inline void gen_cap_set_tag(DisasContext *ctx, int regnum, TCGv tagbit,
     }
 
 #ifdef CONFIG_TAG_TRACE
-    gen_helper_qemu_update_tag_cause(cpu_env, tcg_constant_i32(regnum),
-                                     tcg_cause);
+    if (cheri_tag_trace_is_active()) {
+        gen_helper_qemu_update_tag_cause(cpu_env, tcg_constant_i32(regnum),
+                                         tcg_cause);
+    }
 #endif
 }
 
@@ -1204,12 +1210,14 @@ static inline void gen_cap_clear_tag(DisasContext *ctx, int regnum)
         gen_lazy_cap_set_state(ctx, regnum, CREG_UNTAGGED_CAP);
     }
 #ifdef CONFIG_TAG_TRACE
-    /*
-     * In this case we are grouping the possible causes to be UNSEALED
-     * more granularity may be desirable
-     */
-    gen_helper_qemu_update_tag_cause(cpu_env, tcg_constant_i32(regnum),
-                                     tcg_constant_i32(TAG_CAUSE_DEFERRED));
+    if (cheri_tag_trace_is_active()) {
+        /*
+         * In this case we are grouping the possible causes to be UNSEALED
+         * more granularity may be desirable
+         */
+        gen_helper_qemu_update_tag_cause(cpu_env, tcg_constant_i32(regnum),
+                                         tcg_constant_i32(TAG_CAUSE_DEFERRED));
+    }
 #endif
 }
 
@@ -1632,12 +1640,14 @@ static inline void gen_cap_set_cursor(DisasContext *ctx, int regnum,
     }
 
 #ifdef CONFIG_TAG_TRACE
-    /*
-     * In this case we are grouping the possible causes to be UNSEALED
-     * more granularity may be desirable
-     */
-    gen_helper_qemu_update_tag_cause(cpu_env, tcg_constant_i32(regnum),
-                                     tcg_constant_i32(TAG_CAUSE_UNSEALED));
+    if (cheri_tag_trace_is_active()) {
+        /*
+         * In this case we are grouping the possible causes to be UNSEALED
+         * more granularity may be desirable
+         */
+        gen_helper_qemu_update_tag_cause(cpu_env, tcg_constant_i32(regnum),
+                                         tcg_constant_i32(TAG_CAUSE_UNSEALED));
+    }
 #endif
 }
 
@@ -1823,12 +1833,14 @@ static inline void gen_cap_add_fast(DisasContext *ctx, int regnum,
     disas_capreg_state_include(ctx, regnum, CREG_UNTAGGED_CAP);
 
 #ifdef CONFIG_TAG_TRACE
-    /*
-     * In this case we are grouping the possible causes to be UNSEALED
-     * more granularity may be desirable
-     */
-    gen_helper_qemu_update_tag_cause(cpu_env, tcg_constant_i32(regnum),
-                                     tcg_constant_i32(TAG_CAUSE_UNSEALED));
+    if (cheri_tag_trace_is_active()) {
+        /*
+         * In this case we are grouping the possible causes to be UNSEALED
+         * more granularity may be desirable
+         */
+        gen_helper_qemu_update_tag_cause(cpu_env, tcg_constant_i32(regnum),
+                                         tcg_constant_i32(TAG_CAUSE_UNSEALED));
+    }
 #endif
 }
 
@@ -1872,12 +1884,14 @@ static inline void gen_cap_untag_if_sealed(DisasContext *ctx, int regnum)
         tcg_gen_and_tl(type, type, tag);
         tcg_gen_st8_tl(type, cpu_env, offset);
 #ifdef CONFIG_TAG_TRACE
-        /*
-         * In this case we are grouping the possible causes to be UNSEALED
-         * more granularity may be desirable
-         */
-        gen_helper_qemu_update_tag_cause(cpu_env, tcg_constant_i32(regnum),
-                                         tcg_cause);
+        if (cheri_tag_trace_is_active()) {
+            /*
+             * In this case we are grouping the possible causes to be UNSEALED
+             * more granularity may be desirable
+             */
+            gen_helper_qemu_update_tag_cause(cpu_env, tcg_constant_i32(regnum),
+                                             tcg_cause);
+        }
 #endif
     } else {
         // If not fully decompressed its probably just worth branching over a

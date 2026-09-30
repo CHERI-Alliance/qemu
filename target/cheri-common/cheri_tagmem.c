@@ -43,6 +43,15 @@
 // XXX: use hbitmap? Or a different data structure?
 #include "qemu/bitmap.h"
 #include "glib/ghash.h"
+#ifdef CONFIG_TAG_TRACE
+#include "exec/ramlist.h"
+#include "exec/tb-flush.h"
+#include "sysemu/runstate.h"
+#include "monitor/hmp.h"
+#include "monitor/monitor.h"
+#include "qapi/qmp/qdict.h"
+#include "cheri-lazy-capregs.h"
+#endif
 
 #if defined(TARGET_MIPS)
 #include "cheri_utils.h"
@@ -434,6 +443,115 @@ bool cheri_tag_trace_mem_has_tags(void *host)
         host ? qemu_ram_block_from_host(host, false, &offset) : NULL;
 
     return ram && ram->cheri_tags;
+}
+
+bool cheri_tag_trace_active = true;
+/* State requested by a switch that has not been applied yet. */
+static bool tag_trace_switch_pending;
+static bool tag_trace_switch_target;
+
+/*
+ * Forget all register and memory provenance. While collection was off,
+ * registers and memory changed without their provenance being maintained,
+ * so anything recorded before could now describe the wrong value.
+ * Runs with all vCPUs stopped.
+ */
+static void tag_trace_forget_all(void)
+{
+    CPUState *cpu;
+    RAMBlock *ram;
+
+    CPU_FOREACH(cpu) {
+        CPUArchState *env = cpu->env_ptr;
+        GPCapRegs *gpcrs = cheri_get_gpcrs(env);
+        for (unsigned i = 0; i < NUM_LAZY_CAP_REGS; i++) {
+            cap_register_t *cap = get_cap_in_gpregs(gpcrs, i);
+            cap->tag_clear_cause = get_capreg_tag(env, i)
+                                       ? TAG_CAUSE_IS_TAGGED
+                                       : TAG_CAUSE_INITIALISATION;
+            cap->tag_clear_pc = -1;
+        }
+    }
+
+    /*
+     * Zero rather than free: device DMA can still reach
+     * tag_trace_mem_clear_range() from outside the vCPUs.
+     */
+    RCU_READ_LOCK_GUARD();
+    RAMBLOCK_FOREACH(ram) {
+        uint32_t **blocks = qatomic_load_acquire(&ram->cheri_tag_trace);
+        if (!blocks) {
+            continue;
+        }
+        for (size_t i = 0; i < num_tagblocks(ram); i++) {
+            uint32_t *slots = qatomic_load_acquire(&blocks[i]);
+            if (slots) {
+                memset(slots, 0, CAP_TAGBLK_SIZE * sizeof(*slots));
+            }
+        }
+    }
+    qatomic_set(&tag_trace_mem_in_use, false);
+}
+
+static void tag_trace_switch_work(CPUState *cpu, run_on_cpu_data data)
+{
+    bool on = data.host_int;
+
+    qatomic_set(&tag_trace_switch_pending, false);
+    if (on == cheri_tag_trace_active) {
+        return;
+    }
+    if (on) {
+        tag_trace_forget_all();
+    }
+    qatomic_set(&cheri_tag_trace_active, on);
+    /* Translated code checks the switch when it is generated. */
+    tb_flush(cpu);
+}
+
+void cheri_tag_trace_set_active(bool on)
+{
+    if (!current_cpu && !runstate_is_running()) {
+        /* No vCPU is executing, so there is nothing to wait for. */
+        tag_trace_switch_work(first_cpu, RUN_ON_CPU_HOST_INT(on));
+        return;
+    }
+    qatomic_set(&tag_trace_switch_target, on);
+    qatomic_set(&tag_trace_switch_pending, true);
+    async_safe_run_on_cpu(first_cpu, tag_trace_switch_work,
+                          RUN_ON_CPU_HOST_INT(on));
+}
+
+void hmp_cheri_tag_trace(Monitor *mon, const QDict *qdict)
+{
+    const char *state = qdict_get_try_str(qdict, "state");
+
+    if (state) {
+        if (!strcmp(state, "on")) {
+            cheri_tag_trace_set_active(true);
+        } else if (!strcmp(state, "off")) {
+            cheri_tag_trace_set_active(false);
+        } else {
+            monitor_printf(mon, "Expected 'on' or 'off'\n");
+        }
+        return;
+    }
+    qemu_mutex_lock(&tag_trace_site_lock);
+    uint32_t nsites = tag_trace_nsites - 1;
+    uint64_t dropped = tag_trace_dropped_sites;
+    qemu_mutex_unlock(&tag_trace_site_lock);
+    monitor_printf(mon, "CHERI tag trace: %s",
+                   cheri_tag_trace_is_active() ? "on" : "off");
+    if (qatomic_read(&tag_trace_switch_pending)) {
+        monitor_printf(mon, " (switching %s)",
+                       qatomic_read(&tag_trace_switch_target) ? "on" : "off");
+    }
+    monitor_printf(mon, "\n");
+    monitor_printf(mon, "  clear sites recorded: %" PRIu32 "\n", nsites);
+    if (dropped) {
+        monitor_printf(mon, "  clear sites dropped (table full): %" PRIu64
+                       "\n", dropped);
+    }
 }
 
 static void tag_trace_mem_clear_range(RAMBlock *ram, ram_addr_t start,

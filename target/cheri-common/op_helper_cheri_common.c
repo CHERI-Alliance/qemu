@@ -1662,9 +1662,12 @@ bool load_cap_from_memory_raw_tag_mmu_idx(
             update_loaded_cap_perms(env, pesbt, source);
         }
 #ifdef CONFIG_TAG_TRACE
-        env->tag_trace_load_cause = TAG_CAUSE_IS_TAGGED;
+        env->tag_trace_load_cause = tag ? TAG_CAUSE_IS_TAGGED
+                                        : TAG_CAUSE_INITIALISATION;
         env->tag_trace_load_pc = -1;
-        if (!tag && mem_tag) {
+        if (!cheri_tag_trace_is_active()) {
+            /* Not collecting: loaded values carry no provenance. */
+        } else if (!tag && mem_tag) {
             /*
              * Tagged in memory, but this load was not allowed to keep it,
              * either by the page (checked first by
@@ -1810,7 +1813,8 @@ void cheri_tag_trace_report(CPUArchState *env, unsigned regnum)
 {
     const cap_register_t *cap = get_capreg_or_special(env, regnum);
 
-    if (!qemu_loglevel_mask(CPU_LOG_INT) || cap_get_tag(cap)) {
+    if (!cheri_tag_trace_is_active() || !qemu_loglevel_mask(CPU_LOG_INT) ||
+        cap_get_tag(cap)) {
         return;
     }
     if (cap->tag_clear_pc == (target_ulong)-1) {
@@ -1898,7 +1902,7 @@ void store_cap_to_memory_mmu_index(CPUArchState *env, uint32_t cs,
 #ifdef CONFIG_TAG_TRACE
     /* Where the stored value lost its tag, carried into memory with it. */
     uint32_t trace_site = 0;
-    if (!tag) {
+    if (!tag && cheri_tag_trace_is_active()) {
         if (strip_cause) {
             trace_site =
                 cheri_tag_trace_site(TAG_TRACE_PC(env, retpc), strip_cause);

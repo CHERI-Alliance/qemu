@@ -1031,6 +1031,10 @@ void helper_qemu_update_tag_cause(CPUArchState *env, uint32_t regnum,
     cap_register_t *capreg = get_cap_in_gpregs(gpcrs, regnum);
     bool tagged;
 
+    if (!cheri_tag_trace_is_active()) {
+        return;
+    }
+
     switch (capreg->cr_extra) {
     case CREG_INTEGER:
     case CREG_UNTAGGED_CAP:
