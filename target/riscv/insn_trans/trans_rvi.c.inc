@@ -475,6 +475,22 @@ static void gen_sltu_i128(TCGv retl, TCGv reth,
 
 static bool trans_slti(DisasContext *ctx, arg_slti *a)
 {
+#if defined(TARGET_CHERI) && defined(CONFIG_TAG_TRACE)
+    /*
+     * slti zero, zero, 0x3b / 0x3e start / stop CHERI tag trace collection,
+     * independently of the instruction tracing controls below. The switch
+     * flushes translated code, so resume from the next instruction.
+     */
+    if (unlikely(a->rd == 0 && a->rs1 == 0 &&
+                 (a->imm == 0x3b || a->imm == 0x3e))) {
+        gen_helper_cheri_tag_trace_switch(cpu_env,
+                                          tcg_constant_i32(a->imm == 0x3b));
+        gen_update_pc(ctx, ctx->cur_insn_len);
+        tcg_gen_exit_tb(NULL, 0);
+        ctx->base.is_jmp = DISAS_NORETURN;
+        return true;
+    }
+#endif
 #ifdef CONFIG_TCG_LOG_INSTR
     /*
      * If instruction tracing is enabled, we use slti zero, zero, <magic>

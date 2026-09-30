@@ -94,6 +94,9 @@ DEF_HELPER_3(sc_c_cap, tl, env, i32, i32)
 DEF_HELPER_2(modesw, void, env, int)
 DEF_HELPER_2(gcmode, tl, env, i32)
 DEF_HELPER_4(scmode, void, env, i32, i32, tl)
+#ifdef CONFIG_TAG_TRACE
+DEF_HELPER_FLAGS_2(cheri_tag_trace_switch, TCG_CALL_NO_RWG, void, env, i32)
+#endif
 DEF_HELPER_3(scss, tl, env, i32, i32)
 #endif
 
