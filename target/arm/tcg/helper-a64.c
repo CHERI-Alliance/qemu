@@ -846,12 +846,15 @@ void HELPER(exception_return)(CPUARMState *env, uint64_t new_pc)
 
         if (cap_return) {
             env->pc = env->elr_el[cur_el];
-            if (no_system)
-                cap_set_tag(&(env->pc.cap), false, TAG_CAUSE_PERMS, GETPC());
+            if (no_system) {
+                cap_set_tag(&(env->pc.cap), false, TAG_CAUSE_PERMS,
+                            TAG_TRACE_PC(env, GETPC()));
+            }
         }
 
         if (!cap_is_unsealed(&env->pc.cap)) {
-            cap_set_tag(&env->pc.cap, false, TAG_CAUSE_UNSEALED, GETPC());
+            cap_set_tag(&env->pc.cap, false, TAG_CAUSE_UNSEALED,
+                        TAG_TRACE_PC(env, GETPC()));
         }
 #endif
 
@@ -887,7 +890,7 @@ void HELPER(exception_return)(CPUARMState *env, uint64_t new_pc)
             }
         }
 
-        set_aarch_reg_value(&env->pc, new_pc, GETPC());
+        set_aarch_reg_value(&env->pc, new_pc, TAG_TRACE_PC(env, GETPC()));
 
         qemu_maybe_log_instr_extra(
             env, "Exception return from EL%d to EL%d. PSTATE: 0x%x\n", cur_el,

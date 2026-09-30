@@ -2187,7 +2187,7 @@ static target_ulong riscv_intr_pc(CPURISCVState *env, target_ulong tvec,
                  * so we only need to check the vector table itself here.
                  */
                 env->xtvt_fetch = true;
-                tvt = cap_scaddr(tbase, tvt);
+                tvt = cap_scaddr(tbase, tvt, TAG_TRACE_PC(env, GETPC()));
 
                 uintptr_t _host_return_address = GETPC();
                 if (!cap_get_tag(&tvt)) {
@@ -2645,7 +2645,7 @@ void update_special_register(CPURISCVState *env, cap_register_t *scr,
         qemu_log_instr_extra(env, "Attempting to modify sealed %s: "
             PRINT_CAP_FMTSTR "\n", name, PRINT_CAP_ARGS(scr));
         // Clear the tag bit and update the cursor:
-        cap_mark_unrepresentable(new_cursor, scr, GETPC());
+        cap_mark_unrepresentable(new_cursor, scr, TAG_TRACE_PC(env, GETPC()));
     } else if (!is_representable_cap_with_addr(scr, new_cursor)) {
         error_report(
             "Attempting to set unrepresentable cursor (0x" TARGET_FMT_lx
@@ -2654,7 +2654,7 @@ void update_special_register(CPURISCVState *env, cap_register_t *scr,
         qemu_log_instr_extra(env, "Attempting to set unrepresentable cursor (0x"
             TARGET_FMT_lx ") on %s: " PRINT_CAP_FMTSTR "\r\n", new_cursor,
             name, PRINT_CAP_ARGS(scr));
-        cap_mark_unrepresentable(new_cursor, scr, GETPC());
+        cap_mark_unrepresentable(new_cursor, scr, TAG_TRACE_PC(env, GETPC()));
     } else {
         scr->_cr_cursor = new_cursor;
     }

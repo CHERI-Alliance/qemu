@@ -57,11 +57,25 @@ static inline bool cap_get_tag(const cap_register_t *cap)
     return CAP_cc(get_tag(cap));
 }
 
+/*
+ * @pcval is the guest PC recorded as the clearing instruction when this call
+ * clears a tag (see TAG_TRACE_PC()); it is ignored without CONFIG_TAG_TRACE.
+ */
 static inline cap_register_t cap_set_tag(cap_register_t *cap, bool tag,
                                          uint32_t cause, target_ulong pcval)
 {
-
-    return CAP_cc(set_tag(cap, tag, cause));
+#ifdef CONFIG_TAG_TRACE
+    /* Mirrors the condition under which set_tag records a new clear cause. */
+    bool new_clear =
+        !tag && (cap->cr_tag || cause == TAG_CAUSE_INITIALISATION);
+#endif
+    CAP_cc(set_tag)(cap, tag, cause);
+#ifdef CONFIG_TAG_TRACE
+    if (new_clear) {
+        cap->tag_clear_pc = pcval;
+    }
+#endif
+    return *cap;
 }
 
 static inline target_ulong cap_get_cursor(const cap_register_t *c)

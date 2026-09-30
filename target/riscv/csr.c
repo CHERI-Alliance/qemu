@@ -4574,10 +4574,10 @@ static void write_cap_csr_reg(CPURISCVState *env,
             bool changed = validate_cap_address(env, &src, &newval);
             if (csr_cap_info->flags & CSR_OP_UPDATE_SCADDR) {
                 /* E.g. xtvec always invalidates sealed caps */
-                src = cap_scaddr(newval, src);
+                src = cap_scaddr(newval, src, TAG_TRACE_PC(env, GETPC()));
             } else if (changed) {
                 /* Only use scaddr if validate changed the address (e.g. epc) */
-                src = cap_scaddr(newval, src);
+                src = cap_scaddr(newval, src, TAG_TRACE_PC(env, GETPC()));
             }
         }
         /* Otherwise just fall through to direct write */
@@ -4586,7 +4586,7 @@ static void write_cap_csr_reg(CPURISCVState *env,
             /* For XLEN writes we ignore the result as we always use scaddr */
             (void)validate_cap_address(env, &csr, &newval);
         }
-        src = cap_scaddr(newval, csr);
+        src = cap_scaddr(newval, csr, TAG_TRACE_PC(env, GETPC()));
     }
     /* Log the value and write it. */
     *get_cap_csr(env, csr_cap_info->reg_num) = src;
@@ -4657,7 +4657,7 @@ static void write_xtvecc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
         // caution this directly modifies the tareget csr register in integer
         // mode this should be ok, as it is invalidating the tag which is the
         // intended action
-        cap_mark_unrepresentable(new_tvec, auth, GETPC());
+        cap_mark_unrepresentable(new_tvec, auth, TAG_TRACE_PC(env, GETPC()));
     }
 
     write_cap_csr_reg(env, csr_cap_info, src, new_tvec, clen);
@@ -4690,10 +4690,11 @@ static cap_register_t read_xepcc(CPURISCVState *env,
             warn_report("Invalidating sealed %s (contained an unaligned "
                         "capability): " PRINT_CAP_FMTSTR,
                         csr_cap_info->name, PRINT_CAP_ARGS(&retval));
-            cap_set_tag(&retval, false, TAG_CAUSE_SEALED_UNALIGNED, GETPC());
+            cap_set_tag(&retval, false, TAG_CAUSE_SEALED_UNALIGNED,
+                        TAG_TRACE_PC(env, GETPC()));
         }
 
-        cap_set_cursor(&retval, val, GETPC());
+        cap_set_cursor(&retval, val, TAG_TRACE_PC(env, GETPC()));
     }
 
     return retval;
@@ -4712,7 +4713,7 @@ static void rmw_xtvtscaddrc(CPURISCVState *env, riscv_csr_cap_ops *cap,
      */
     int auth_csrnum = cap->reg_num + 1 + (newval & 1);
     cap_register_t retval = *get_cap_csr(env, auth_csrnum);
-    *dst = cap_scaddr(newval & ~1, retval);
+    *dst = cap_scaddr(newval & ~1, retval, TAG_TRACE_PC(env, GETPC()));
 }
 
 

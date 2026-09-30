@@ -412,7 +412,8 @@ void helper_branch_sealed_pair(CPUArchState *env, uint32_t cn, uint32_t cm,
         cap_set_unsealed(&target);
         cap_set_unsealed(&data);
     } else {
-        cap_set_tag(&target, false, TAG_CAUSE_UNSEALED, GETPC());
+        cap_set_tag(&target, false, TAG_CAUSE_UNSEALED,
+                    TAG_TRACE_PC(env, GETPC()));
     }
 
     update_capreg(env, CINVOKE_DATA_REGNUM, &data);
