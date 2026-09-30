@@ -32,3 +32,11 @@ of this should apply to a FreeBSD or Linux host as well.
 ```
 
 2. Determine the commands that need to be run by executing `cheribuild.py qemu --pretend` and copying those.
+
+
+Tracing where capability tags are cleared
+-----------------------------------------
+
+The RISC-V CHERI targets can record where each capability lost its tag and
+report it when a tag violation is raised (`--enable-tag-trace`). See
+[README.CHERI-tag-tracing.md](README.CHERI-tag-tracing.md).
