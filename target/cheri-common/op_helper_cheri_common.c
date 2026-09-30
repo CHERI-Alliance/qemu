@@ -1740,6 +1740,47 @@ target_ulong cheri_tag_trace_guest_pc(CPUArchState *env, uintptr_t retpc)
     }
     return data[0];
 }
+
+const char *cheri_tag_cause_str(uint32_t cause)
+{
+    switch (cause) {
+    case TAG_CAUSE_INITIALISATION: return "no recorded clear";
+    case TAG_CAUSE_IS_TAGGED: return "still tagged";
+    case TAG_CAUSE_UNSEALED: return "sealed capability modified";
+    case TAG_CAUSE_UNREPRESENTABLE: return "unrepresentable address";
+    case TAG_CAUSE_BOUNDS_INVALID: return "invalid bounds";
+    case TAG_CAUSE_DECOMPRESS: return "decompression";
+    case TAG_CAUSE_SEALED_TRAP_VECTOR: return "sealed trap vector";
+    case TAG_CAUSE_SENTRY_MISMATCH: return "sentry address mismatch";
+    case TAG_CAUSE_SEALED_UNALIGNED: return "sealed unaligned";
+    case TAG_CAUSE_NULL_AUTH: return "untagged authorising capability";
+    case TAG_CAUSE_SEAL_INVALID: return "invalid seal";
+    case TAG_CAUSE_CLEAR_TAG: return "explicit tag clear";
+    case TAG_CAUSE_PERMS: return "insufficient permissions";
+    case TAG_CAUSE_NON_CANONICAL: return "non-canonical";
+    case TAG_CAUSE_UNDEFINED: return "undefined";
+    case TAG_CAUSE_INTEGER_OP: return "integer write";
+    case TAG_CAUSE_DEFERRED: return "deferred";
+    default: return "unknown";
+    }
+}
+
+void cheri_tag_trace_report(CPUArchState *env, unsigned regnum)
+{
+    const cap_register_t *cap = get_capreg_or_special(env, regnum);
+
+    if (!qemu_loglevel_mask(CPU_LOG_INT) || cap_get_tag(cap)) {
+        return;
+    }
+    if (cap->tag_clear_pc == (target_ulong)-1) {
+        qemu_log("Tag trace: register %u untagged (%s), clearing pc unknown\n",
+                 regnum, cheri_tag_cause_str(cap->tag_clear_cause));
+    } else {
+        qemu_log("Tag trace: register %u untagged (%s) at pc " TARGET_FMT_lx
+                 "\n", regnum, cheri_tag_cause_str(cap->tag_clear_cause),
+                 (target_ulong)cap->tag_clear_pc);
+    }
+}
 #endif
 
 void load_cap_from_memory(CPUArchState *env, uint32_t cd, uint32_t cb,
