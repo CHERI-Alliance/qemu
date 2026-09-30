@@ -1056,7 +1056,7 @@ void helper_qemu_update_tag_cause(CPUArchState *env, uint32_t regnum,
     } else if (capreg->tag_clear_cause == TAG_CAUSE_IS_TAGGED ||
                capreg->tag_clear_cause == TAG_CAUSE_INITIALISATION) {
         capreg->tag_clear_cause = cause;
-        capreg->tag_clear_pc = cheri_tag_trace_guest_pc(env, GETPC());
+        capreg->tag_clear_pc = TAG_TRACE_PC(env, GETPC());
     }
 }
 #endif

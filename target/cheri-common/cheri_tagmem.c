@@ -275,7 +275,7 @@ static uint64_t tag_trace_dropped_sites;
 static GHashTable *tag_trace_site_ids;
 static QemuMutex tag_trace_site_lock;
 /* Set once any granule has been given a site, to keep stores cheap before. */
-static bool tag_trace_mem_in_use;
+bool cheri_tag_trace_mem_in_use;
 
 static void __attribute__((constructor)) tag_trace_site_init(void)
 {
@@ -388,11 +388,12 @@ static uint32_t *tag_trace_mem_slot(RAMBlock *ram, ram_addr_t offset,
     return &slots[CAP_TAGBLK_IDX(tag)];
 }
 
-void cheri_tag_trace_mem_set(CPUArchState *env, void *host, uint32_t site)
+void cheri_tag_trace_mem_set_slow(CPUArchState *env, void *host,
+                                  uint32_t site)
 {
     ram_addr_t offset;
 
-    if (!host || (site == 0 && !qatomic_read(&tag_trace_mem_in_use))) {
+    if (!host) {
         return;
     }
     RAMBlock *ram = qemu_ram_block_from_host(host, false, &offset);
@@ -417,15 +418,15 @@ void cheri_tag_trace_mem_set(CPUArchState *env, void *host, uint32_t site)
         tlb_flush_all_cpus_synced(env_cpu(env));
         tlb_flush(env_cpu(env));
     }
-    qatomic_set(&tag_trace_mem_in_use, true);
+    qatomic_set(&cheri_tag_trace_mem_in_use, true);
     qatomic_store_release(tag_trace_mem_slot(ram, offset, true), site);
 }
 
-uint32_t cheri_tag_trace_mem_get(void *host)
+uint32_t cheri_tag_trace_mem_get_slow(void *host)
 {
     ram_addr_t offset;
 
-    if (!host || !qatomic_read(&tag_trace_mem_in_use)) {
+    if (!host) {
         return 0;
     }
     RAMBlock *ram = qemu_ram_block_from_host(host, false, &offset);
@@ -489,7 +490,7 @@ static void tag_trace_forget_all(void)
             }
         }
     }
-    qatomic_set(&tag_trace_mem_in_use, false);
+    qatomic_set(&cheri_tag_trace_mem_in_use, false);
 }
 
 static void tag_trace_switch_work(CPUState *cpu, run_on_cpu_data data)
@@ -556,7 +557,7 @@ void hmp_cheri_tag_trace(Monitor *mon, const QDict *qdict)
 static void tag_trace_mem_clear_range(RAMBlock *ram, ram_addr_t start,
                                       ram_addr_t end)
 {
-    if (!qatomic_read(&tag_trace_mem_in_use)) {
+    if (!qatomic_read(&cheri_tag_trace_mem_in_use)) {
         return;
     }
     for (ram_addr_t addr = start; addr < end; addr += CHERI_CAP_SIZE) {
