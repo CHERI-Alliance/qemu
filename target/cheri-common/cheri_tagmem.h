@@ -235,6 +235,12 @@ void cheri_tag_trace_mem_set(CPUArchState *env, void *host, uint32_t site);
 uint32_t cheri_tag_trace_mem_get(void *host);
 /* Whether the memory at host address @host (NULL for MMIO) stores tags. */
 bool cheri_tag_trace_mem_has_tags(void *host);
+/*
+ * Start or stop collecting tag trace provenance on all CPUs. Takes effect
+ * once every vCPU has left its current translation block; starting forgets
+ * all previously recorded provenance.
+ */
+void cheri_tag_trace_set_active(bool on);
 #endif
 
 /**
