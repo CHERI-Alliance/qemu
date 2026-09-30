@@ -45,6 +45,11 @@ static inline void G_NORETURN raise_cheri_exception_with_093_type(
     CPUArchState *env, CheriCapExcCause cause, uint8_t type093, unsigned regnum,
     target_ulong addr, bool instavail, uintptr_t hostpc)
 {
+#ifdef CONFIG_TAG_TRACE
+    if (cause == CapEx_TagViolation) {
+        cheri_tag_trace_report(env, regnum);
+    }
+#endif
     env->badaddr = addr;
     env->last_cap_cause = cause;
     env->last_cap_index = regnum;

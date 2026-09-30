@@ -199,6 +199,12 @@ static inline target_ulong cpu_get_current_pc_checked(CPUArchState *env)
  */
 target_ulong cheri_tag_trace_guest_pc(CPUArchState *env, uintptr_t retpc);
 #define TAG_TRACE_PC(env, retpc) cheri_tag_trace_guest_pc(env, retpc)
+const char *cheri_tag_cause_str(uint32_t cause);
+/*
+ * Log (under -d int) where the tag of capability register @regnum was
+ * cleared, for reporting alongside a tag-violation exception on it.
+ */
+void cheri_tag_trace_report(CPUArchState *env, unsigned regnum);
 #else
 #define TAG_TRACE_PC(env, retpc) ((target_ulong)0)
 #endif
