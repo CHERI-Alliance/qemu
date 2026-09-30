@@ -445,7 +445,6 @@ bool cheri_tag_trace_mem_has_tags(void *host)
     return ram && ram->cheri_tags;
 }
 
-bool cheri_tag_trace_active = true;
 /* State requested by a switch that has not been applied yet. */
 static bool tag_trace_switch_pending;
 static bool tag_trace_switch_target;

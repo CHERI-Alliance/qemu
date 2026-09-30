@@ -59,9 +59,10 @@ static inline bool cap_get_tag(const cap_register_t *cap)
 
 #ifdef CONFIG_TAG_TRACE
 /*
- * Whether tag trace provenance is currently being collected. Changed only
- * by cheri_tag_trace_set_active(), with all vCPUs stopped and translated
- * code flushed, so translation-time checks of it cannot go stale.
+ * Whether tag trace provenance is currently being collected: off unless
+ * -cheri-tag-trace is given. After startup it is changed only by
+ * cheri_tag_trace_set_active(), with all vCPUs stopped and translated code
+ * flushed, so translation-time checks of it cannot go stale.
  */
 extern bool cheri_tag_trace_active;
 
