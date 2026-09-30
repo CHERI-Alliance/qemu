@@ -427,6 +427,15 @@ uint32_t cheri_tag_trace_mem_get(void *host)
     return slot ? qatomic_load_acquire(slot) : 0;
 }
 
+bool cheri_tag_trace_mem_has_tags(void *host)
+{
+    ram_addr_t offset;
+    RAMBlock *ram =
+        host ? qemu_ram_block_from_host(host, false, &offset) : NULL;
+
+    return ram && ram->cheri_tags;
+}
+
 static void tag_trace_mem_clear_range(RAMBlock *ram, ram_addr_t start,
                                       ram_addr_t end)
 {

@@ -233,6 +233,8 @@ bool cheri_tag_trace_site_lookup(uint32_t site, target_ulong *pc,
 /* Record @site for the granule at RAM host address @host. */
 void cheri_tag_trace_mem_set(CPUArchState *env, void *host, uint32_t site);
 uint32_t cheri_tag_trace_mem_get(void *host);
+/* Whether the memory at host address @host (NULL for MMIO) stores tags. */
+bool cheri_tag_trace_mem_has_tags(void *host);
 #endif
 
 /**

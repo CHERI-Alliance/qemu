@@ -1665,8 +1665,18 @@ bool load_cap_from_memory_raw_tag_mmu_idx(
         env->tag_trace_load_cause = TAG_CAUSE_IS_TAGGED;
         env->tag_trace_load_pc = -1;
         if (!tag && mem_tag) {
-            /* Tagged in memory, but this load was not allowed to keep it. */
-            env->tag_trace_load_cause = TAG_CAUSE_LOAD_NO_CAP_PERM;
+            /*
+             * Tagged in memory, but this load was not allowed to keep it,
+             * either by the page (checked first by
+             * cheri_tag_prot_clear_or_trap()) or by the authority.
+             */
+            env->tag_trace_load_cause = (prot & PAGE_LC_CLEAR)
+                                            ? TAG_CAUSE_LOAD_PAGE
+                                            : TAG_CAUSE_LOAD_NO_CAP_PERM;
+            env->tag_trace_load_pc = TAG_TRACE_PC(env, retpc);
+        } else if (!tag && !cheri_tag_trace_mem_has_tags(host)) {
+            /* Any tag stored here was lost when it was written. */
+            env->tag_trace_load_cause = TAG_CAUSE_NO_TAG_MEMORY;
             env->tag_trace_load_pc = TAG_TRACE_PC(env, retpc);
         } else if (!tag &&
                    !cheri_tag_trace_site_lookup(cheri_tag_trace_mem_get(host),
@@ -1789,6 +1799,9 @@ const char *cheri_tag_cause_str(uint32_t cause)
         return "local capability stored without permission";
     case TAG_CAUSE_LOAD_NO_CAP_PERM:
         return "loaded without capability permission";
+    case TAG_CAUSE_LOAD_PAGE: return "loaded from page without capability read";
+    case TAG_CAUSE_NO_TAG_MEMORY:
+        return "loaded from memory without tag storage";
     default: return "unknown";
     }
 }
