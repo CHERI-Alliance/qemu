@@ -1041,12 +1041,15 @@ static void create_fdt_socket_memory(HobgoblinState *s,
     HobgoblinClass *hc = HOBGOBLIN_MACHINE_GET_CLASS(s);
 
     uint64_t dram0_base = hc->dram[0].base;
-    uint64_t dram1_base = hc->dram[1].base;
+    uint64_t dram_size = 0;
+    for (int i = 0; i < hc->dram_banks; i++) {
+        dram_size += hc->dram[i].size;
+    }
 
     char *name = g_strdup_printf("/memory@%" PRIx64, dram0_base);
     qemu_fdt_add_subnode(mc->fdt, name);
     qemu_fdt_setprop_cells(mc->fdt, name, "reg", dram0_base >> 32, dram0_base,
-                           dram1_base >> 32, dram1_base);
+                           dram_size >> 32, dram_size);
     qemu_fdt_setprop_string(mc->fdt, name, "device_type", "memory");
     riscv_socket_fdt_write_id(mc, mc->fdt, name, socket);
     g_free(name);
@@ -1837,13 +1840,17 @@ static void create_fdt(HobgoblinState *s, const memmapEntry_t *memmap,
         qemu_fdt_setprop_string(mc->fdt, "/chosen", "stdout-path",
                                 "serial0:115200n8");
 
+        HobgoblinClass *hc = HOBGOBLIN_MACHINE_GET_CLASS(s);
+
         create_fdt_aliases(s, memmap);
         create_fdt_sockets(s, memmap, is_32_bit, l2cache_phandle,
                            intc_phandles);
         create_fdt_l2cache(s, l2cache_phandle);
         create_fdt_virtio(s, memmap, irq_mmio_phandle);
-        create_fdt_pcie(s, memmap, irq_mmio_phandle, pcie0_phandle,
-                        pcie1_phandle);
+        if (hc->board_type == BOARD_TYPE_VCU118 && MAPVERSION(s) == V2) {
+            create_fdt_pcie(s, memmap, irq_mmio_phandle, pcie0_phandle,
+                            pcie1_phandle);
+        }
         create_fdt_plic(s, memmap, irq_mmio_phandle, intc_phandles);
         create_fdt_axi(s, memmap, irq_mmio_phandle, fmc_axi_phandle,
                        axi_phandle);
