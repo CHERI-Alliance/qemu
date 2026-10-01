@@ -202,8 +202,8 @@ vu_gpa_to_va(VuDev *dev, uint64_t *plen, uint64_t guest_addr)
             if ((guest_addr + *plen) > (r->gpa + r->size)) {
                 *plen = r->gpa + r->size - guest_addr;
             }
-            return (void *)(uintptr_t)
-                guest_addr - r->gpa + r->mmap_addr + r->mmap_offset;
+            return (void *)(uintptr_t)r->mmap_addr +
+                (guest_addr - r->gpa + r->mmap_offset);
         }
     }
 
@@ -221,8 +221,8 @@ qva_to_va(VuDev *dev, uint64_t qemu_addr)
         VuDevRegion *r = &dev->regions[i];
 
         if ((qemu_addr >= r->qva) && (qemu_addr < (r->qva + r->size))) {
-            return (void *)(uintptr_t)
-                qemu_addr - r->qva + r->mmap_addr + r->mmap_offset;
+            return (void *)(uintptr_t)r->mmap_addr +
+                (qemu_addr - r->qva + r->mmap_offset);
         }
     }
 
