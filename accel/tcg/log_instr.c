@@ -846,6 +846,16 @@ void qemu_log_instr_init(CPUState *cpu)
             RUN_ON_CPU_HOST_INT(QEMU_LOG_INSTR_LOGLEVEL_ALL));
 }
 
+void qemu_log_instr_finalize(CPUState *cpu)
+{
+    cpu_log_instr_state_t *cpulog = &cpu->log_state;
+
+    if (cpulog->instr_info) {
+        g_array_free(cpulog->instr_info, TRUE);
+        cpulog->instr_info = NULL;
+    }
+}
+
 static void
 do_log_buffer_resize(CPUState *cpu, run_on_cpu_data data)
 {

@@ -256,6 +256,9 @@ static void cpu_common_finalize(Object *obj)
 {
     CPUState *cpu = CPU(obj);
 
+#ifdef CONFIG_TCG_LOG_INSTR
+    qemu_log_instr_finalize(cpu);
+#endif
     qemu_mutex_destroy(&cpu->work_mutex);
 }
 
