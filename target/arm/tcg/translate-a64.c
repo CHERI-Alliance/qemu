@@ -3492,6 +3492,7 @@ static bool trans_LD_lit(DisasContext *s, arg_ldlit *a)
 {
     bool iss_sf = ldst_iss_sf(a->sz, a->sign, false);
     TCGv_i64 tcg_rt = cpu_reg(s, a->rt);
+    /* Not a tcg_constant: arm_bounds_checked() writes the address in place. */
     TCGv_i64 dirty_addr = tcg_temp_new_i64();
     TCGv_cap_checked_ptr clean_addr;
     MemOp memop = finalize_memop(s, a->sz + a->sign * MO_SIGN);
@@ -3515,6 +3516,7 @@ static bool trans_LD_lit_v(DisasContext *s, arg_ldlit *a)
         return true;
     }
     memop = finalize_memop_asimd(s, a->sz);
+    /* Not a tcg_constant: arm_bounds_checked() writes the address in place. */
     dirty_addr = tcg_temp_new_i64();
     gen_pc_plus_diff(s, dirty_addr, a->imm);
     clean_addr = arm_bounds_checked(s, dirty_addr, 1 << a->sz, 0, true, false,

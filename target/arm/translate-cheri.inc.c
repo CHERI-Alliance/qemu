@@ -316,7 +316,9 @@ static inline __attribute__((always_inline)) bool load_store_implementation(
             // rounded to a cap.
             addr_imm = (ctx->pc_curr + imm) & ~(CHERI_CAP_SIZE - 1);
         }
-        addr = tcg_constant_i64(addr_imm);
+        /* Not a tcg_constant: addr may be modified in place below. */
+        addr = tcg_temp_new_i64();
+        tcg_gen_movi_i64(addr, addr_imm);
     } else {
         // Things with a base (still unchecked)
         addr = read_cpu_reg_maybe_0(ctx, rn);
