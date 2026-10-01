@@ -766,6 +766,7 @@ struct MemoryRegion {
     bool nonvolatile;
     bool rom_device;
     bool flush_coalesced_mmio;
+    bool end_tb_on_write;
     uint8_t dirty_log_mask;
     bool is_iommu;
     RAMBlock *ram_block;
@@ -2105,6 +2106,21 @@ void memory_region_flush_rom_device(MemoryRegion *mr, hwaddr addr, hwaddr size);
  * @readonly: whether rhe region is to be ROM or RAM.
  */
 void memory_region_set_readonly(MemoryRegion *mr, bool readonly);
+
+/**
+ * memory_region_set_end_tb_on_write: Make TCG stores to a region precise
+ *
+ * A TCG vCPU store to a region with this set is executed as the last
+ * instruction of its translation block, so any interrupt the write makes
+ * deliverable to the storing vCPU is taken before the next instruction
+ * rather than at the end of the original translation block. Intended for
+ * interrupt-controller registers that the hart writes to raise its own
+ * interrupts. Only useful on MMIO regions.
+ *
+ * @mr: the region being updated.
+ * @end_tb: whether stores to the region end the translation block.
+ */
+void memory_region_set_end_tb_on_write(MemoryRegion *mr, bool end_tb);
 
 /**
  * memory_region_set_nonvolatile: Turn a memory region non-volatile

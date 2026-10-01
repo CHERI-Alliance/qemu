@@ -1053,6 +1053,13 @@ static void register_subpage(FlatView *fv, MemoryRegionSection *section)
     } else {
         subpage = container_of(existing->mr, subpage_t, iomem);
     }
+    /*
+     * The TLB only sees the subpage, so it carries the flag for the whole
+     * page if any region within it needs stores to end the TB.
+     */
+    if (section->mr->end_tb_on_write) {
+        subpage->iomem.end_tb_on_write = true;
+    }
     start = section->offset_within_address_space & ~TARGET_PAGE_MASK;
     end = start + int128_get64(section->size) - 1;
     subpage_register(subpage, start, end,
