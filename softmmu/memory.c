@@ -2374,6 +2374,11 @@ void memory_region_set_readonly(MemoryRegion *mr, bool readonly)
     }
 }
 
+void memory_region_set_end_tb_on_write(MemoryRegion *mr, bool end_tb)
+{
+    mr->end_tb_on_write = end_tb;
+}
+
 void memory_region_set_nonvolatile(MemoryRegion *mr, bool nonvolatile)
 {
     if (mr->nonvolatile != nonvolatile) {

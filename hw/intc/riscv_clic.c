@@ -920,6 +920,7 @@ static void riscv_clic_view_realize(DeviceState *dev, Error **errp)
 
     memory_region_init_io(&clicview->mmio, OBJECT(clicview), &riscv_clic_ops,
                           clicview, TYPE_RISCV_CLIC_VIEW, clic->clic_size);
+    memory_region_set_end_tb_on_write(&clicview->mmio, true);
     sysbus_init_mmio(SYS_BUS_DEVICE(clicview), &clicview->mmio);
 }
 
@@ -1018,6 +1019,7 @@ static RISCVCLICView *riscv_clic_view_create(RISCVCLICState *clic,
 
     memory_region_init_io(&clicview->mmio, OBJECT(dev), &riscv_clic_ops,
                           clicview, TYPE_RISCV_CLIC_VIEW, clic->clic_size);
+    memory_region_set_end_tb_on_write(&clicview->mmio, true);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, clicbase);
 
     return clicview;

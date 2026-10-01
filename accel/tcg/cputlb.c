@@ -1471,6 +1471,16 @@ static void io_writex(CPUArchState *env, CPUTLBEntryFull *full,
     if (!cpu->can_do_io) {
         cpu_io_recompile(cpu, retaddr);
     }
+    if (unlikely(mr->end_tb_on_write)) {
+        /*
+         * Re-execute the store as a single-instruction TB so that the
+         * interrupt check at the start of the next TB sees its effects.
+         */
+        TranslationBlock *tb = tcg_tb_lookup(retaddr);
+        if (tb && tb->icount > 1) {
+            cpu_io_recompile(cpu, retaddr);
+        }
+    }
     cpu->mem_io_pc = retaddr;
 
     /*
