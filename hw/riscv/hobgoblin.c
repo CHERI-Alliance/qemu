@@ -674,8 +674,8 @@ static void hobgoblin_add_axi_ethernet(HobgoblinState *s, int eth_num,
     const memmapEntry_t *mem_dma = &memmap[dma_memmap];
     NICInfo *nd = &nd_table[eth_num];
     const char *eth_model = TYPE_XILINX_AXI_ETHERNET;
-    const char *eth_name = g_strdup_printf("xilinx-eth%d", eth_num);
-    const char *dma_name = g_strdup_printf("xilinx-dma%d", eth_num);
+    g_autofree char *eth_name = g_strdup_printf("xilinx-eth%d", eth_num);
+    g_autofree char *dma_name = g_strdup_printf("xilinx-dma%d", eth_num);
 
     qemu_check_nic_model(nd, eth_model);
 
@@ -755,6 +755,7 @@ static void hobgoblin_add_nvemu(HobgoblinState *s)
      * missing mem backend).
      */
     if (!sysbus_realize_and_unref(ss, &e)) {
+        error_free(e);
         object_unparent(OBJECT(s->nvemu));
         s->nvemu = NULL;
         return;
@@ -976,6 +977,7 @@ static void create_fdt_socket_cpus(HobgoblinState *s, int socket,
     size_t ext_len;
 
     for (cpu = 0; cpu < mc->smp.cores; cpu++) {
+        g_autofree char *isa_base = NULL;
 
         cpu_name = g_strdup_printf("/cpus/cpu@%d", s->soc.hartid_base + cpu);
         qemu_fdt_add_subnode(mc->fdt, cpu_name);
@@ -984,8 +986,8 @@ static void create_fdt_socket_cpus(HobgoblinState *s, int socket,
         name = custom_riscv_isa_string(&s->soc.harts[cpu], is_32_bit);
         qemu_fdt_setprop_string(mc->fdt, cpu_name, "riscv,isa", name);
 
-        qemu_fdt_setprop_string(mc->fdt, cpu_name, "riscv,isa-base",
-                                g_strndup(name, 5));
+        isa_base = g_strndup(name, 5);
+        qemu_fdt_setprop_string(mc->fdt, cpu_name, "riscv,isa-base", isa_base);
 
         formatted_ext = format_extensions(name + 4, &ext_len);
         qemu_fdt_setprop(mc->fdt, cpu_name, "riscv,isa-extensions",
