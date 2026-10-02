@@ -580,6 +580,9 @@ static void rv64_codasip_1110_apex_cpu_init(Object *obj)
     cpu->cfg.ext_cheri = true;
     cpu->cfg.ext_zyhybrid = true;
 #endif
+#ifndef CONFIG_USER_ONLY
+    set_satp_mode_max_supported(cpu, VM_1_10_SV57);
+#endif
     codasip_base_configure_extensions(cpu);
 }
 static void rv64_codasip_y730_quartz_cpu_init(Object *obj)
@@ -599,6 +602,9 @@ static void rv64_codasip_y730_quartz_cpu_init(Object *obj)
     cpu->cfg.ext_zkn = true;
     cpu->cfg.ext_zks = true;
     env->priv_ver = PRIV_VERSION_1_12_0;
+#ifndef CONFIG_USER_ONLY
+    set_satp_mode_max_supported(cpu, VM_1_10_MBARE);
+#endif
     codasip_base_configure_extensions(cpu);
 }
 #endif /* TARGET_CHERI */
@@ -687,6 +693,9 @@ static void rv64_codasip_a730_flint_cpu_init(Object *obj)
     cpu->cfg.ext_zbkc = true;
 
     env->priv_ver = PRIV_VERSION_1_12_0;
+#ifndef CONFIG_USER_ONLY
+    set_satp_mode_max_supported(cpu, VM_1_10_SV39);
+#endif
     codasip_base_configure_extensions(cpu);
 }
 
@@ -697,6 +706,9 @@ static void rv64_codasip_h730_garnet_cpu_init(Object *obj)
     set_misa(env, MXL_RV64, RVI | RVM | RVA | RVF | RVD | RVC | RVS | RVU);
 
     cpu->cfg.mmu = false;
+#ifndef CONFIG_USER_ONLY
+    set_satp_mode_max_supported(cpu, VM_1_10_MBARE);
+#endif
     codasip_base_configure_extensions(cpu);
     env->priv_ver = PRIV_VERSION_1_12_0;
 }
@@ -716,6 +728,9 @@ static void rv64_codasip_1110_aria_cpu_init(Object *obj)
     cpu->cfg.ext_zkn = true; /* Implies zb-kb,kc,kx,nd,ne,nh */
     cpu->cfg.ext_zks = true; /* implies zb-kb,kc,kx,ksed,kh */
     cpu->cfg.ext_zcb = true;
+#ifndef CONFIG_USER_ONLY
+    set_satp_mode_max_supported(cpu, VM_1_10_SV57);
+#endif
     codasip_base_configure_extensions(cpu);
 }
 
@@ -733,6 +748,9 @@ static void rv64_codasip_1110_aster_cpu_init(Object *obj)
 
     cpu->cfg.ext_zkr = true;
     cpu->cfg.ext_zcb = true;
+#ifndef CONFIG_USER_ONLY
+    set_satp_mode_max_supported(cpu, VM_1_10_SV57);
+#endif
     codasip_base_configure_extensions(cpu);
 }
 static void rv128_base_cpu_init(Object *obj)
@@ -864,6 +882,9 @@ static void rv32_codasip_v739_spinel_cpu_init(Object *obj)
     cpu->cfg.ext_zkr = true;
     cpu->cfg.ext_zkn = true; /* Implies zb-kb,kc,kx,nd,ne,nh */
     cpu->cfg.ext_zks = true; /* implies zb-kb,kc,kx,ksed,kh */
+#ifndef CONFIG_USER_ONLY
+    set_satp_mode_max_supported(cpu, VM_1_10_MBARE);
+#endif
     codasip_base_configure_extensions(cpu);
 
     cpu->cfg.ext_zcb = true;
@@ -888,6 +909,9 @@ static void rv32_codasip_v730_shine_cpu_init(Object *obj)
     cpu->cfg.pmp = false;
     cpu->cfg.ext_zfhmin = true;
     cpu->cfg.ext_zbkc = true;
+#ifndef CONFIG_USER_ONLY
+    set_satp_mode_max_supported(cpu, VM_1_10_MBARE);
+#endif
     codasip_base_configure_extensions(cpu);
 }
 #endif /* TARGET_CHERI */
@@ -903,6 +927,9 @@ static void rv32_codasip_l730_glim_cpu_init(Object *obj)
     cpu->cfg.pmp = true;
     cpu->cfg.ext_zfhmin = true;
     cpu->cfg.ext_zbkc = true;
+#ifndef CONFIG_USER_ONLY
+    set_satp_mode_max_supported(cpu, VM_1_10_MBARE);
+#endif
     codasip_base_configure_extensions(cpu);
 
     cpu->cfg.ext_smclic = true;
@@ -922,6 +949,9 @@ static void rv32_codasip_l739_topaz_cpu_init(Object *obj)
     cpu->cfg.mmu = false;
     cpu->cfg.pmp = true;
     cpu->cfg.ext_zfhmin = true;
+#ifndef CONFIG_USER_ONLY
+    set_satp_mode_max_supported(cpu, VM_1_10_MBARE);
+#endif
     codasip_base_configure_extensions(cpu);
 
     cpu->cfg.ext_smclic = true;
