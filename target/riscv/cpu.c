@@ -751,6 +751,8 @@ static void rv64_codasip_1110_aria_cpu_init(Object *obj)
 #ifndef CONFIG_USER_ONLY
     set_satp_mode_max_supported(cpu, VM_1_10_SV57);
 #endif
+    cpu->cfg.vlen = 256;
+    cpu->cfg.elen = 64;
     cpu->cfg.pmu_num = CODASIP_1110_PMU_NUM;
     codasip_base_configure_extensions(cpu);
 }
@@ -772,6 +774,8 @@ static void rv64_codasip_1110_aster_cpu_init(Object *obj)
 #ifndef CONFIG_USER_ONLY
     set_satp_mode_max_supported(cpu, VM_1_10_SV57);
 #endif
+    cpu->cfg.vlen = 256;
+    cpu->cfg.elen = 64;
     cpu->cfg.pmu_num = CODASIP_1110_PMU_NUM;
     codasip_base_configure_extensions(cpu);
 }
