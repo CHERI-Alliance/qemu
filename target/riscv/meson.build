@@ -70,6 +70,7 @@ riscv_ss.add(when: 'CONFIG_RVFI_DII', if_true: files('rvfi_dii.c'))
 riscv_system_ss = ss.source_set()
 riscv_system_ss.add(files(
   'arch_dump.c',
+  'codasip_csr.c',
   'pmp.c',
   'debug.c',
   'monitor.c',

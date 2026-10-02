@@ -630,6 +630,7 @@
 #define CSR_JVT             0x017
 
 /* Codasip Custom CSRs */
+#define CSR_MEXCAUSE      0x7d4
 #define CSR_MFG_CTRL      0x7e0
 #define CSR_MCACHESTATUS  0xfe4
 #define CSR_MDCACHECTRL   0x7e5

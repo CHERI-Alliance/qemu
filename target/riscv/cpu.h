@@ -1062,6 +1062,8 @@ extern const bool valid_vm_1_10_32[], valid_vm_1_10_64[];
 void riscv_get_csr_ops(int csrno, riscv_csr_operations *ops);
 void riscv_set_csr_ops(int csrno, riscv_csr_operations *ops);
 
+void codasip_register_custom_csrs(RISCVCPU *cpu);
+
 void riscv_cpu_register_gdb_regs_for_features(CPUState *cs);
 
 #ifdef TARGET_CHERI

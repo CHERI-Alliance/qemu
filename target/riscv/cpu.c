@@ -468,6 +468,10 @@ static void codasip_base_configure_extensions(RISCVCPU *cpu)
     }
     cpu->cfg.ext_sstc = true;
     cpu->cfg.ext_sscofpmf = true;
+
+#ifndef CONFIG_USER_ONLY
+    codasip_register_custom_csrs(cpu);
+#endif
 }
 
 #if defined(TARGET_RISCV64)
