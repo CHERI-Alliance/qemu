@@ -439,6 +439,10 @@ static void riscv_any_cpu_init(Object *obj)
     cpu->cfg.pmp = true;
 }
 
+/* Programmable HPM counters (mhpmcounter3 upwards) per Codasip core */
+#define CODASIP_7_SERIES_PMU_NUM 4
+#define CODASIP_1110_PMU_NUM (RV_MAX_MHPMCOUNTERS - 3)
+
 /*
  * A base set of extensions supported by most codeasip cores
  * largely covering rva22 which we can then replace with official rva22 profile
@@ -563,6 +567,7 @@ static void rv64_codasip_x730_lux_cpu_init(Object *obj)
 #ifndef CONFIG_USER_ONLY
     set_satp_mode_max_supported(RISCV_CPU(obj), VM_1_10_SV39);
 #endif
+    cpu->cfg.pmu_num = CODASIP_7_SERIES_PMU_NUM;
     codasip_base_configure_extensions(cpu);
 }
 
@@ -594,6 +599,7 @@ static void rv64_codasip_1110_apex_cpu_init(Object *obj)
 #ifndef CONFIG_USER_ONLY
     set_satp_mode_max_supported(cpu, VM_1_10_SV57);
 #endif
+    cpu->cfg.pmu_num = CODASIP_1110_PMU_NUM;
     codasip_base_configure_extensions(cpu);
 }
 static void rv64_codasip_y730_quartz_cpu_init(Object *obj)
@@ -616,6 +622,7 @@ static void rv64_codasip_y730_quartz_cpu_init(Object *obj)
 #ifndef CONFIG_USER_ONLY
     set_satp_mode_max_supported(cpu, VM_1_10_MBARE);
 #endif
+    cpu->cfg.pmu_num = CODASIP_7_SERIES_PMU_NUM;
     codasip_base_configure_extensions(cpu);
 }
 #endif /* TARGET_CHERI */
@@ -707,6 +714,7 @@ static void rv64_codasip_a730_flint_cpu_init(Object *obj)
 #ifndef CONFIG_USER_ONLY
     set_satp_mode_max_supported(cpu, VM_1_10_SV39);
 #endif
+    cpu->cfg.pmu_num = CODASIP_7_SERIES_PMU_NUM;
     codasip_base_configure_extensions(cpu);
 }
 
@@ -720,6 +728,7 @@ static void rv64_codasip_h730_garnet_cpu_init(Object *obj)
 #ifndef CONFIG_USER_ONLY
     set_satp_mode_max_supported(cpu, VM_1_10_MBARE);
 #endif
+    cpu->cfg.pmu_num = CODASIP_7_SERIES_PMU_NUM;
     codasip_base_configure_extensions(cpu);
     env->priv_ver = PRIV_VERSION_1_12_0;
 }
@@ -742,6 +751,7 @@ static void rv64_codasip_1110_aria_cpu_init(Object *obj)
 #ifndef CONFIG_USER_ONLY
     set_satp_mode_max_supported(cpu, VM_1_10_SV57);
 #endif
+    cpu->cfg.pmu_num = CODASIP_1110_PMU_NUM;
     codasip_base_configure_extensions(cpu);
 }
 
@@ -762,6 +772,7 @@ static void rv64_codasip_1110_aster_cpu_init(Object *obj)
 #ifndef CONFIG_USER_ONLY
     set_satp_mode_max_supported(cpu, VM_1_10_SV57);
 #endif
+    cpu->cfg.pmu_num = CODASIP_1110_PMU_NUM;
     codasip_base_configure_extensions(cpu);
 }
 static void rv128_base_cpu_init(Object *obj)
@@ -896,6 +907,7 @@ static void rv32_codasip_v739_spinel_cpu_init(Object *obj)
 #ifndef CONFIG_USER_ONLY
     set_satp_mode_max_supported(cpu, VM_1_10_MBARE);
 #endif
+    cpu->cfg.pmu_num = CODASIP_7_SERIES_PMU_NUM;
     codasip_base_configure_extensions(cpu);
 
     cpu->cfg.ext_zcb = true;
@@ -923,6 +935,7 @@ static void rv32_codasip_v730_shine_cpu_init(Object *obj)
 #ifndef CONFIG_USER_ONLY
     set_satp_mode_max_supported(cpu, VM_1_10_MBARE);
 #endif
+    cpu->cfg.pmu_num = CODASIP_7_SERIES_PMU_NUM;
     codasip_base_configure_extensions(cpu);
 }
 #endif /* TARGET_CHERI */
@@ -941,6 +954,7 @@ static void rv32_codasip_l730_glim_cpu_init(Object *obj)
 #ifndef CONFIG_USER_ONLY
     set_satp_mode_max_supported(cpu, VM_1_10_MBARE);
 #endif
+    cpu->cfg.pmu_num = CODASIP_7_SERIES_PMU_NUM;
     codasip_base_configure_extensions(cpu);
 
     cpu->cfg.ext_smclic = true;
@@ -963,6 +977,7 @@ static void rv32_codasip_l739_topaz_cpu_init(Object *obj)
 #ifndef CONFIG_USER_ONLY
     set_satp_mode_max_supported(cpu, VM_1_10_MBARE);
 #endif
+    cpu->cfg.pmu_num = CODASIP_7_SERIES_PMU_NUM;
     codasip_base_configure_extensions(cpu);
 
     cpu->cfg.ext_smclic = true;
