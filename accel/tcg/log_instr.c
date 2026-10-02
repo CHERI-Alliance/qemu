@@ -809,6 +809,7 @@ static void qemu_log_instr_info_destroy(gpointer data)
 void qemu_log_instr_init(CPUState *cpu)
 {
     cpu_log_instr_state_t *cpulog = &cpu->log_state;
+    assert(cpulog->instr_info == NULL);
     GArray *iinfo_ring = g_array_sized_new(FALSE, TRUE,
         sizeof(cpu_log_instr_info_t), reset_entry_buffer_size);
     cpu_log_instr_info_t *iinfo = NULL;
