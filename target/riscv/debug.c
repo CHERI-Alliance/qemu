@@ -559,7 +559,7 @@ void riscv_cpu_debug_excp_handler(CPUState *cs)
     CPURISCVState *env = &cpu->env;
 
 #ifdef CONFIG_RVFI_DII
-    if (rvfi_client_fd && cs->singlestep_enabled) {
+    if (rvfi_dii_enabled() && cs->singlestep_enabled) {
         rvfi_dii_communicate(cs, env, false);
         return;
     }
