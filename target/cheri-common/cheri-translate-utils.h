@@ -852,7 +852,13 @@ static inline void gen_reg_modified_cap(DisasContext *ctx, int regnum)
                                   LRI_GPR_ACCESS);
     }
 #if defined(TARGET_RISCV) && defined(CONFIG_RVFI_DII)
-    gen_helper_rvfi_changed_capreg(cpu_env, tcg_constant_i32(regnum));
+    {
+        TCGv cursor = tcg_temp_new();
+        gen_cap_get_cursor(ctx, regnum, cursor);
+        gen_rvfi_dii_set_field_const_i8(INTEGER, rd_addr, regnum);
+        gen_rvfi_dii_set_field_zext_tl(INTEGER, rd_wdata, cursor);
+        tcg_temp_free(cursor);
+    }
 #endif
 }
 
