@@ -16,7 +16,7 @@ jobs:
     runs-on: ${{ matrix.runs-on }}
     container: ${{ matrix.container }}
     env:
-      ASAN_OPTIONS: "halt_on_error=1:abort_on_error=1:print_summary=1:detect_leaks=0"
+      ASAN_OPTIONS: "halt_on_error=1:abort_on_error=1:print_summary=1"
       UBSAN_OPTIONS: "halt_on_error=1:abort_on_error=1:print_summary=1:print_stacktrace=1"
 
     strategy:
