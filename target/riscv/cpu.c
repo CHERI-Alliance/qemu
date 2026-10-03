@@ -793,10 +793,12 @@ static void riscv_cpu_reset(DeviceState *dev)
     /* Need to initialize this since Type_None has a non-zero value. */
     env->last_cap_type = CapEx093_Type_None;
 #ifdef CONFIG_RVFI_DII
-    /* TestRIG assumes that CHERI extensions are enabled */
-    env->mseccfg |= MSECCFG_CRE;
-    env->menvcfg |= MENVCFG_CRE;
-    env->senvcfg |= SENVCFG_CRE;
+    if (rvfi_dii_enabled()) {
+        /* TestRIG assumes that CHERI extensions are enabled */
+        env->mseccfg |= MSECCFG_CRE;
+        env->menvcfg |= MENVCFG_CRE;
+        env->senvcfg |= SENVCFG_CRE;
+    }
 #endif
 #endif
 
