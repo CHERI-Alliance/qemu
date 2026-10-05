@@ -4,7 +4,7 @@
 ; git-subrepo command. See https://github.com/git-commands/git-subrepo#readme
 ;
 [subrepo]
-	remote = https://github.com/CTSRD-CHERI/cheri-compressed-cap
+	remote = https://github.com/CHERI-Alliance/cheri-compressed-cap
 	branch = master
 	commit = 78a34ba5cdb853ba601a292bcdd4a780e6ae9c64
 	parent = f1580454d752ab1309a82128d24b4ea4a8da855d
