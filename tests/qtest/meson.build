@@ -236,7 +236,8 @@ qtests_s390x = \
    'migration-test']
 
 qtests_riscv32 = \
-  (config_all_devices.has_key('CONFIG_SIFIVE_E_AON') ? ['sifive-e-aon-watchdog-test'] : [])
+  (config_all_devices.has_key('CONFIG_SIFIVE_E_AON') ? ['sifive-e-aon-watchdog-test'] : []) + \
+  (config_all_devices.has_key('CONFIG_RISCV_CLIC') ? ['riscv32-clic-test'] : [])
 
 qos_test_ss = ss.source_set()
 qos_test_ss.add(
