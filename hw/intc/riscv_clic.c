@@ -241,7 +241,13 @@ static void do_setirq(RISCVCLICState *clic)
         locked = true;
         qemu_mutex_lock_iothread();
     }
-    qemu_set_irq(clic->cpu_irq, 1);
+    if (qtest_enabled()) {
+        /* Report which interrupt was selected for delivery */
+        qemu_set_irq(clic->cpu_irq,
+                     qtest_encode_irq(clic->exccode & RISCV_EXCP_CLIC_IRQ, 1));
+    } else {
+        qemu_set_irq(clic->cpu_irq, 1);
+    }
     if (locked) {
         qemu_mutex_unlock_iothread();
     }
