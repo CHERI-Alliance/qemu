@@ -43,6 +43,10 @@
 
 #define ASSERT_IF_CHERI() assert(0)
 
+#if defined(TARGET_CHERI_RISCV_STD_093)
+#define CC_NEED_RVY_VERSION 903
+#endif
+
 #include "cheri-compressed-cap/cheri_compressed_cap.h"
 
 #define CHERI_DECLARE_ALIGNED_CC_CAP_T(suffix) \
