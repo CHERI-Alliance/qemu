@@ -7,6 +7,6 @@
 	remote = https://github.com/CHERI-Alliance/cheri-compressed-cap
 	branch = master
 	commit = 78a34ba5cdb853ba601a292bcdd4a780e6ae9c64
-	parent = f1580454d752ab1309a82128d24b4ea4a8da855d
+	parent = 25d97b6e00d77641e0f030936e5d669927f1d252
 	cmdver = 0.4.9
 	method = rebase
