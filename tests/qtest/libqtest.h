@@ -352,6 +352,15 @@ void qtest_module_load(QTestState *s, const char *prefix, const char *libname);
 bool qtest_get_irq(QTestState *s, int num);
 
 /**
+ * qtest_irq_delivered:
+ * @s: #QTestState instance to operate on.
+ * @num: Interrupt to observe.
+ *
+ * Returns: Is @num interrupt delivered or not.
+ */
+bool qtest_irq_delivered(QTestState *s, int num);
+
+/**
  * qtest_irq_intercept_in:
  * @s: #QTestState instance to operate on.
  * @string: QOM path of a device.

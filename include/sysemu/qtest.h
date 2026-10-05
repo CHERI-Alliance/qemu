@@ -34,6 +34,8 @@ void qtest_server_set_send_handler(void (*send)(void *, const char *),
                                  void *opaque);
 void qtest_server_inproc_recv(void *opaque, const char *buf);
 
+int qtest_encode_irq(int irqn, int level);
+
 int64_t qtest_get_virtual_clock(void);
 
 #endif

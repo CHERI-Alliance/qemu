@@ -48,7 +48,8 @@ struct QTest {
 
 bool qtest_allowed;
 
-static DeviceState *irq_intercept_dev;
+static DeviceState *irq_intercept_dev_in;
+static DeviceState *irq_intercept_dev_out;
 static FILE *qtest_log_fp;
 static QTest *qtest;
 static GString *inbuf;
@@ -59,6 +60,14 @@ static void (*qtest_server_send)(void*, const char*);
 static void *qtest_server_send_opaque;
 
 #define FMT_timeval "%.06f"
+
+/*
+ * Encoding for passing the specific IRQ information from an interrupt handler
+ * to QTest. This needs to support CLIC, which has a 12-bit interrupt number.
+ */
+#define QTEST_IRQN              0x0fff
+#define QTEST_IRQN_SHIFT        0
+#define QTEST_IRQ_LEVEL_SHIFT   12
 
 /**
  * DOC: QTest Protocol
@@ -310,6 +319,18 @@ void qtest_sendf(CharBackend *chr, const char *fmt, ...)
     va_end(ap);
 }
 
+/* Encode the IRQ number and level for QTest */
+int qtest_encode_irq(int irqn, int level)
+{
+    return (irqn & QTEST_IRQN) | (level << QTEST_IRQ_LEVEL_SHIFT);
+}
+
+static void qtest_decode_irq(int value, int *irqn, int *level)
+{
+    *irqn = value & QTEST_IRQN;
+    *level = value >> QTEST_IRQ_LEVEL_SHIFT;
+}
+
 static void qtest_irq_handler(void *opaque, int n, int level)
 {
     qemu_irq old_irq = *(qemu_irq *)opaque;
@@ -319,6 +340,16 @@ static void qtest_irq_handler(void *opaque, int n, int level)
         CharBackend *chr = &qtest->qtest_chr;
         irq_levels[n] = level;
         qtest_send_prefix(chr);
+        if (level > 1) {
+            int delivered_irq_num, pin_level;
+            qtest_decode_irq(level, &delivered_irq_num, &pin_level);
+            qtest_sendf(chr, "IRQ %s %d\n",
+                        "delivered", delivered_irq_num);
+            qtest_send_prefix(chr);
+            qtest_sendf(chr, "IRQ %s %d\n",
+                        pin_level ? "raise" : "lower", n);
+            return;
+        }
         qtest_sendf(chr, "IRQ %s %d\n",
                     level ? "raise" : "lower", n);
     }
@@ -388,6 +419,10 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
         || strcmp(words[0], "irq_intercept_in") == 0) {
         DeviceState *dev;
         NamedGPIOList *ngl;
+        bool is_outbound = words[0][14] == 'o';
+        /* Inbound and outbound GPIOs may be intercepted on different devices */
+        DeviceState **intercept_dev =
+            is_outbound ? &irq_intercept_dev_out : &irq_intercept_dev_in;
 
         g_assert(words[1]);
         dev = DEVICE(object_resolve_path(words[1], NULL));
@@ -397,9 +432,9 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
             return;
         }
 
-        if (irq_intercept_dev) {
+        if (*intercept_dev) {
             qtest_send_prefix(chr);
-            if (irq_intercept_dev != dev) {
+            if (*intercept_dev != dev) {
                 qtest_send(chr, "FAIL IRQ intercept already enabled\n");
             } else {
                 qtest_send(chr, "OK\n");
@@ -412,7 +447,7 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
             if (ngl->name) {
                 continue;
             }
-            if (words[0][14] == 'o') {
+            if (is_outbound) {
                 int i;
                 for (i = 0; i < ngl->num_out; ++i) {
                     qemu_irq *disconnected = g_new0(qemu_irq, 1);
@@ -427,7 +462,7 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
                                       ngl->num_in);
             }
         }
-        irq_intercept_dev = dev;
+        *intercept_dev = dev;
         qtest_send_prefix(chr);
         qtest_send(chr, "OK\n");
     } else if (strcmp(words[0], "set_irq_in") == 0) {
