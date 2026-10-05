@@ -39,6 +39,7 @@
 #include "cheri_utils.h"
 #include "cheri-lazy-capregs.h"
 #include "cheri-bounds-stats.h"
+#include "cheri_tagmem.h"
 #include "tcg/tcg.h"
 #include "tcg/tcg-op.h"
 #include "exec/exec-all.h"
@@ -432,11 +433,12 @@ bool load_cap_from_memory_raw_tag(CPUArchState *env, target_ulong *pesbt,
                                   const cap_register_t *source,
                                   target_ulong vaddr, uintptr_t retpc,
                                   hwaddr *physaddr, bool take_lock,
-                                  bool *raw_tag);
+                                  tag_reader_lock_t *snapshot, bool *raw_tag);
 bool load_cap_from_memory_raw_tag_mmu_idx(
     CPUArchState *env, target_ulong *pesbt, target_ulong *cursor, uint32_t cb,
     const cap_register_t *source, target_ulong vaddr, uintptr_t retpc,
-    hwaddr *physaddr, bool take_lock, bool *raw_tag, int mmu_idx, bool all_raw);
+    hwaddr *physaddr, bool take_lock, tag_reader_lock_t *snapshot,
+    bool *raw_tag, int mmu_idx, bool all_raw);
 /* Useful for the load+branch capability helpers. */
 cap_register_t load_and_decompress_cap_from_memory_raw(
     CPUArchState *env, uint32_t cb, const cap_register_t *source,
