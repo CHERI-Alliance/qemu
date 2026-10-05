@@ -773,6 +773,9 @@ void riscv_cpu_set_mode(CPURISCVState *env, target_ulong newpriv)
      * preemptive context switch. As a result, do both.
      */
     env->load_res = -1;
+#if defined(TARGET_CHERI)
+    env->load_seq = 0;
+#endif
 
 #ifdef CONFIG_TCG_LOG_INSTR
     qemu_log_instr_cpu_mode_t mode;

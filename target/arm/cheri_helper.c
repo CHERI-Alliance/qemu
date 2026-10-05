@@ -52,7 +52,7 @@ void helper_load_cap_via_cap_mmu_idx(CPUArchState *env, uint32_t cd,
     target_ulong cursor;
     bool tag = load_cap_from_memory_raw_tag_mmu_idx(
         env, &pesbt, &cursor, cb, cbp, addr, _host_return_address, NULL, true,
-        NULL, mmu_idx, /* all_raw */ false);
+        NULL, NULL, mmu_idx, /* all_raw */ false);
     update_compressed_capreg(env, cd, pesbt, tag, cursor);
 }
 
@@ -135,13 +135,14 @@ void helper_load_exclusive_cap_via_cap(CPUArchState *env, uint32_t cd,
     bool raw_tag;
     bool tag1 = load_cap_from_memory_raw_tag(
         env, &env->exclusive_high, &env->exclusive_val, cb, cbp, addr,
-        _host_return_address, NULL, true, &raw_tag);
+        _host_return_address, NULL, true, NULL, &raw_tag);
     env->exclusive_tag = raw_tag;
 
     if (cd2 != REG_NONE) {
         bool tag2 = load_cap_from_memory_raw_tag(
             env, &env->exclusive_high2, &env->exclusive_val2, cb, cbp,
-            addr + CHERI_CAP_SIZE, _host_return_address, NULL, true, &raw_tag);
+            addr + CHERI_CAP_SIZE, _host_return_address, NULL, true, NULL,
+            &raw_tag);
         env->exclusive_tag2 = raw_tag;
         update_compressed_capreg(env, cd2, env->exclusive_high2, tag2,
                                  env->exclusive_val2);
@@ -217,7 +218,8 @@ void helper_store_exclusive_cap_via_cap(CPUArchState *env, uint32_t rs,
         }
 
         load_cap_from_memory_raw_tag(env, &pesbt, &cursor, cb, &cbp, addr,
-                                     _host_return_address, NULL, false, &tag);
+                                     _host_return_address, NULL, false, NULL,
+                                     &tag);
 
         if ((cursor != env->exclusive_val) || (pesbt != env->exclusive_high) ||
             (tag != env->exclusive_tag))
@@ -228,7 +230,8 @@ void helper_store_exclusive_cap_via_cap(CPUArchState *env, uint32_t rs,
     if (success && cd2 != REG_NONE) {
         load_cap_from_memory_raw_tag(env, &pesbt, &cursor, cb, &cbp,
                                      addr + CHERI_CAP_SIZE,
-                                     _host_return_address, NULL, false, &tag);
+                                     _host_return_address, NULL, false, NULL,
+                                     &tag);
         if ((cursor != env->exclusive_val2) ||
             (pesbt != env->exclusive_high2) || (tag != env->exclusive_tag2))
             success = false;

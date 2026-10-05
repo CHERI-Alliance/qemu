@@ -193,6 +193,17 @@ struct CPUArchState {
     target_ulong load_val;
 #ifdef TARGET_CHERI
     target_ulong load_pesbt;
+    /*
+     * tagblock that lr.c last used, NULL or ALL_ZERO_TAGBLK for memory
+     * without tagblocks.
+     */
+    void *load_tagmem;
+    /*
+     * Sequence number of the tagblock that lr.c used.
+     * sc.c only succeeds if we hold the lock on that tagblock, and seqlock
+     * is load_seq + 1
+     */
+    unsigned long load_seq;
     bool load_tag;
 #endif
 

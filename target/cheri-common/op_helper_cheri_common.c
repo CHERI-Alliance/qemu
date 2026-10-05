@@ -1593,7 +1593,8 @@ static void update_loaded_cap_perms(CPUArchState *env, target_ulong *pesbt,
 bool load_cap_from_memory_raw_tag_mmu_idx(
     CPUArchState *env, target_ulong *pesbt, target_ulong *cursor, uint32_t cb,
     const cap_register_t *source, target_ulong vaddr, uintptr_t retpc,
-    hwaddr *physaddr, bool take_lock, bool *raw_tag, int mmu_idx, bool all_raw)
+    hwaddr *physaddr, bool take_lock, tag_reader_lock_t *snapshot,
+    bool *raw_tag, int mmu_idx, bool all_raw)
 {
     /*
      * If all_raw is set, we return tag, pesbt and cursor exactly as they are
@@ -1630,11 +1631,11 @@ bool load_cap_from_memory_raw_tag_mmu_idx(
 retry:
     read_lock.tagmem = NULL;
     read_lock.success = true;
+    read_lock.seq = 0;
     if (take_lock) {
         cheri_tag_get(env, vaddr, cb, physaddr, &prot, retpc, mmu_idx,
                       host, tagmem, &read_lock);
     }
-
     // When writing back pesbt we have to XOR with the NULL mask to ensure that
     // NULL capabilities have an all-zeroes representation.
     if (likely(host)) {
@@ -1664,6 +1665,9 @@ retry:
                              host, tagmem, take_lock ? &read_lock : NULL);
     if (unlikely(!read_lock.success)) {
         goto retry;
+    }
+    if (snapshot) {
+        *snapshot = read_lock;
     }
 
 #if defined(CONFIG_TCG_LOG_INSTR)
@@ -1719,7 +1723,7 @@ bool load_raw_cap_from_memory(CPUArchState *env, target_ulong *pesbt,
 {
     return load_cap_from_memory_raw_tag_mmu_idx(env, pesbt, cursor, 0, NULL,
                                                 vaddr, retpc, NULL, true, NULL,
-                                                cpu_mmu_index(env, false),
+                                                NULL, cpu_mmu_index(env, false),
                                                 /* all_raw */ true);
 }
 
@@ -1728,11 +1732,11 @@ bool load_cap_from_memory_raw_tag(CPUArchState *env, target_ulong *pesbt,
                                   const cap_register_t *source,
                                   target_ulong vaddr, uintptr_t retpc,
                                   hwaddr *physaddr, bool take_lock,
-                                  bool *raw_tag)
+                                  tag_reader_lock_t *snapshot, bool *raw_tag)
 {
     return load_cap_from_memory_raw_tag_mmu_idx(
         env, pesbt, cursor, cb, source, vaddr, retpc, physaddr, take_lock,
-        raw_tag, cpu_mmu_index(env, false),
+        snapshot, raw_tag, cpu_mmu_index(env, false),
         /* all_raw */ false);
 }
 
@@ -1742,7 +1746,7 @@ bool load_cap_from_memory_raw(CPUArchState *env, target_ulong *pesbt,
                               uintptr_t retpc, hwaddr *physaddr, bool take_lock)
 {
     return load_cap_from_memory_raw_tag(env, pesbt, cursor, cb, source, vaddr,
-                                        retpc, physaddr, take_lock, NULL);
+                                        retpc, physaddr, take_lock, NULL, NULL);
 }
 
 cap_register_t load_and_decompress_cap_from_memory_raw(
