@@ -81,11 +81,6 @@
 #define CC128M_MANDATORY_LEVEL_BITS 1
 #define CC128M_MAX_LEVEL_BITS CC64_MANDATORY_LEVEL_BITS
 
-/* Use __uint128 to represent 65 bit length */
-__extension__ typedef unsigned __int128 cc128m_length_t;
-__extension__ typedef signed __int128 cc128m_offset_t;
-typedef uint64_t cc128m_addr_t;
-typedef int64_t cc128m_saddr_t;
 #include "cheri_compressed_cap_macros.h"
 
 /* ignore ISO C restricts enumerator values to range of 'int' */

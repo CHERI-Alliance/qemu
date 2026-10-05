@@ -8,15 +8,16 @@
  * checking all combinations.
  */
 enum {
-    ENC_C = _CC_BIT64(0),
-    ENC_W = _CC_BIT64(1),
-    ENC_R = _CC_BIT64(2),
-    ENC_X = _CC_BIT64(3),
-    ENC_ASR = _CC_BIT64(4),
-    ENC_LM = _CC_BIT64(5),
-    ENC_EL = _CC_BIT64(6),
-    ENC_SL = _CC_BIT64(7),
-    INT_MODE_ENCODED = _CC_BIT64(_CC_N(FIELD_AP_SIZE)),
+    _AP_SHIFT = _CC_N(FIELD_AP_START) - _CC_N(FIELD_AP_M_START),
+    ENC_C = _CC_BIT64(_AP_SHIFT + 0),
+    ENC_W = _CC_BIT64(_AP_SHIFT + 1),
+    ENC_R = _CC_BIT64(_AP_SHIFT + 2),
+    ENC_X = _CC_BIT64(_AP_SHIFT + 3),
+    ENC_ASR = _CC_BIT64(_AP_SHIFT + 4),
+    ENC_LM = _CC_BIT64(_AP_SHIFT + 5),
+    ENC_EL = _CC_BIT64(_AP_SHIFT + 6),
+    ENC_SL = _CC_BIT64(_AP_SHIFT + 7),
+    INT_MODE_ENCODED = _CC_BIT64(_CC_N(FIELD_MODE_START) - _CC_N(FIELD_AP_M_START)),
 };
 // AP compression
 TEST_CASE_M_AP_COMP(LVB_0, 0, CAP_AP_R, ENC_R)
@@ -41,7 +42,11 @@ TEST_CASE_M_AP_DECOMP(LVB_1, ENC_X | ENC_R | ENC_W | ENC_EL, 0, CAP_AP_X | CAP_A
 TEST_CASE("Reprentability with TOP>MAX_TOP", "[representable]") {
     auto cap = TestAPICC::make_max_perms_cap(0xffff002d01ffc000, 0xffff002d02013ff6, 0xffff002d027fc000,
                                              TestAPICC::MODE_INT, /*lvbits=*/0);
+#if CC_NEED_RVY_VERSION >= 909
+    CHECK(cap.cr_pesbt == 0xf007f00003ff7ff9);
+#else
     CHECK(cap.cr_pesbt == 0x1f3f00003ff7ff9);
+#endif
     CHECK(!TestAPICC::sail_precise_is_representable(cap, 0));
     CHECK(!_cc_N(_fast_is_representable_new_addr)(&cap, 0));
     // The following line used to assert with cdp->_cr_top <= ((cc128_length_t)1u << 64)
@@ -105,7 +110,11 @@ TEST_CASE("bounds encoding exponent 0", "[bounds]") {
      *
      * top == 0x20, base == 0x0
      */
+#if CC_NEED_RVY_VERSION >= 909
+    CHECK(cap.cr_pesbt == 0xf007f00004080000);
+#else
     CHECK(cap.cr_pesbt == 0x01f3f00004080000);
+#endif
     CHECK(cc128r_set_execution_mode(&cap, CC128R_MODE_CAP));
     cc128r_set_permissions(&cap, 0);
     CHECK(cap.cr_pesbt == 0x0000000004080000);
@@ -126,7 +135,11 @@ TEST_CASE("bounds encoding exponent > 0", "[bounds]") {
      * LCout = 0, LMSB = 1
      * c_t = 0, c_b = 0
      */
+#if CC_NEED_RVY_VERSION >= 909
+    CHECK(cap.cr_pesbt == 0xf007f00001334105);
+#else
     CHECK(cap.cr_pesbt == 0x01f3f00001334105);
+#endif
     CHECK(cc128r_set_execution_mode(&cap, CC128R_MODE_CAP));
     cc128r_set_permissions(&cap, 0);
     CHECK(cap.cr_pesbt == 0x0000000001334105);

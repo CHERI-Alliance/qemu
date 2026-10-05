@@ -64,11 +64,6 @@
 // The encoding allows for up to two levels, but the current implementation is limited to one level bit.
 #define CC64R_MAX_LEVEL_BITS 1
 
-/* Use uint64_t to represent 33 bit length */
-typedef uint64_t cc64r_length_t;
-typedef int64_t cc64r_offset_t;
-typedef uint32_t cc64r_addr_t;
-typedef int32_t cc64r_saddr_t;
 #include "cheri_compressed_cap_macros.h"
 typedef enum _CC_N(Mode) { _CC_N(MODE_CAP) = 0, _CC_N(MODE_INT) = 1 } _CC_N(Mode);
 
@@ -228,7 +223,11 @@ static inline _cc_addr_t _cc_N(get_all_permissions)(const _cc_cap_t* cap) {
                    CC64R_PERM_ELEVATE_LEVEL | CC64R_PERM_STORE_LEVEL;
             break;
         case 1: // Execute + Data & Cap RO
+#if CC_NEED_RVY_VERSION >= 909
+            res |= CC64R_PERM_CAPABILITY | CC64R_PERM_LOAD_MUTABLE | CC64R_PERM_ELEVATE_LEVEL;
+#else
             res |= CC64R_PERM_CAPABILITY | CC64R_PERM_LOAD_MUTABLE | CC64R_PERM_ELEVATE_LEVEL | CC64R_PERM_STORE_LEVEL;
+#endif
             break;
         case 2: // Execute + Data & Cap RW
             res |= CC64R_PERM_WRITE | CC64R_PERM_CAPABILITY | CC64R_PERM_LOAD_MUTABLE | CC64R_PERM_ELEVATE_LEVEL |
@@ -331,7 +330,13 @@ static inline bool _cc_N(set_permissions)(_cc_cap_t* cap, _cc_addr_t permissions
             CC64R_PERM_ACCESS_SYS_REGS:
             res |= 0;
             break;
-        case CC64R_PERM_READ | CC64R_PERM_CAPABILITY | CC64R_PERM_LOAD_MUTABLE: res |= 2; break;
+        case CC64R_PERM_READ | CC64R_PERM_CAPABILITY | CC64R_PERM_LOAD_MUTABLE:
+#if CC_NEED_RVY_VERSION >= 909
+            if (permissions & maybe_sl)
+                valid = false;
+#endif
+            res |= 2;
+            break;
         case CC64R_PERM_READ | CC64R_PERM_WRITE | CC64R_PERM_CAPABILITY | CC64R_PERM_LOAD_MUTABLE: res |= 4; break;
         case CC64R_PERM_READ | CC64R_PERM_WRITE: res |= 6; break;
         default: valid = false;
