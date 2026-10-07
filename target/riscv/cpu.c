@@ -1239,6 +1239,20 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
                 return;
             }
         }
+#elif defined(TARGET_CHERI_RISCV_RVY)
+        if (cpu->cfg.rvy_spec) {
+            const char *ver = cpu->cfg.rvy_spec +
+                              (cpu->cfg.rvy_spec[0] == 'v');
+            if (!g_strcmp0(ver, "0.9.10")) {
+                cpu->cfg.rvy_ver = RVY_VERSION_0_9_10;
+            } else if (!g_strcmp0(ver, "0.9.9")) {
+                cpu->cfg.rvy_ver = RVY_VERSION_0_9_9;
+            } else {
+                error_setg(errp, "Unsupported RVY spec version '%s'",
+                           cpu->cfg.rvy_spec);
+                return;
+            }
+        }
 #endif
         /* When Zylg is enabled we have 1 level bits (local/global). */
         cpu->cfg.lvbits = (uint8_t)cpu->cfg.ext_zylg;
@@ -1394,6 +1408,7 @@ static Property riscv_cpu_extensions[] = {
     DEFINE_PROP_BOOL("Zylevels1", RISCVCPU, cfg.ext_zylg, false),
 #if defined(TARGET_CHERI_RISCV_RVY)
     DEFINE_PROP_BOOL("Svyrg", RISCVCPU, cfg.ext_svyrg, false),
+    DEFINE_PROP_STRING("rvy_spec", RISCVCPU, cfg.rvy_spec),
 #elif defined(TARGET_CHERI_RISCV_STD_093)
     DEFINE_PROP_UINT8("cheri_levels", RISCVCPU, cfg._compat_cheri_levels, 0),
     DEFINE_PROP_BOOL("cheri_pte", RISCVCPU, cfg.ext_svyrg, false),

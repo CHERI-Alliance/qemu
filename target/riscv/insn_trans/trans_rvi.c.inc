@@ -197,13 +197,32 @@ static bool gen_branch(DisasContext *ctx, arg_b *a, TCGCond cond)
     return true;
 }
 
+/* BEQ/BNE with rs1 <= rs2 were reserved in capability mode in 0.9.9. */
+static bool rvy_branch_encoding_reserved(DisasContext *ctx G_GNUC_UNUSED,
+                                         int rs1 G_GNUC_UNUSED,
+                                         int rs2 G_GNUC_UNUSED)
+{
+#ifdef TARGET_CHERI_RISCV_RVY
+    return ctx->cfg_ptr->rvy_ver == RVY_VERSION_0_9_9 &&
+           ctx->capmode && rs1 <= rs2;
+#else
+    return false;
+#endif
+}
+
 static bool trans_beq(DisasContext *ctx, arg_beq *a)
 {
+    if (rvy_branch_encoding_reserved(ctx, a->rs1, a->rs2)) {
+        return false;
+    }
     return gen_branch(ctx, a, TCG_COND_EQ);
 }
 
 static bool trans_bne(DisasContext *ctx, arg_bne *a)
 {
+    if (rvy_branch_encoding_reserved(ctx, a->rs1, a->rs2)) {
+        return false;
+    }
     return gen_branch(ctx, a, TCG_COND_NE);
 }
 
@@ -926,6 +945,40 @@ static inline bool is_cap_csr(uint32_t csrno)
 #endif
 }
 
+static inline void remap_rvy_csr(DisasContext *ctx G_GNUC_UNUSED,
+                                 int *csrno G_GNUC_UNUSED)
+{
+#ifdef TARGET_CHERI_RISCV_RVY
+    /* Remap 0.9.9 ddc and *tidc CSR numbers and reject the 0.9.10 ones. */
+    if (ctx->cfg_ptr->rvy_ver == RVY_VERSION_0_9_9) {
+        switch (*csrno) {
+        case 0x416:
+            *csrno = CSR_DDC;
+            break;
+        case 0x480:
+            *csrno = CSR_UTIDC;
+            break;
+        case 0x580:
+            *csrno = CSR_STIDC;
+            break;
+        case 0xa80:
+            *csrno = CSR_VSTIDC;
+            break;
+        case 0x780:
+            *csrno = CSR_MTIDC;
+            break;
+        case CSR_DDC:
+        case CSR_UTIDC:
+        case CSR_STIDC:
+        case CSR_VSTIDC:
+        case CSR_MTIDC:
+            *csrno = 0; /* Unallocated CSR -> RISCV_EXCP_ILLEGAL_INST */
+            break;
+        }
+    }
+#endif
+}
+
 static bool do_csr_post(DisasContext *ctx)
 {
     /* The helper may raise ILLEGAL_INSN -- record binv for unwind. */
@@ -1024,6 +1077,7 @@ static bool do_csrrw_i128(DisasContext *ctx, int rd, int rc,
 static bool trans_csrrw(DisasContext *ctx, arg_csrrw *a)
 {
     RISCVMXL xl = get_xl(ctx);
+    remap_rvy_csr(ctx, &a->csr);
     if (xl < MXL_RV128) {
 #ifdef TARGET_CHERI
         if (is_cap_csr(a->csr)) {
@@ -1068,6 +1122,7 @@ static bool trans_csrrw(DisasContext *ctx, arg_csrrw *a)
 
 static bool trans_csrrs(DisasContext *ctx, arg_csrrs *a)
 {
+    remap_rvy_csr(ctx, &a->csr);
 #ifdef TARGET_CHERI
     if (is_cap_csr(a->csr)) {
         gen_helper_csrrs_cap(cpu_env, tcg_constant_i32(a->csr),
@@ -1108,6 +1163,7 @@ static bool trans_csrrs(DisasContext *ctx, arg_csrrs *a)
 
 static bool trans_csrrc(DisasContext *ctx, arg_csrrc *a)
 {
+    remap_rvy_csr(ctx, &a->csr);
 #ifdef TARGET_CHERI
     if (is_cap_csr(a->csr)) {
         gen_helper_csrrc_cap(cpu_env, tcg_constant_i32(a->csr),
@@ -1148,6 +1204,7 @@ static bool trans_csrrc(DisasContext *ctx, arg_csrrc *a)
 static bool trans_csrrwi(DisasContext *ctx, arg_csrrwi *a)
 {
     RISCVMXL xl = get_xl(ctx);
+    remap_rvy_csr(ctx, &a->csr);
     if (xl < MXL_RV128) {
 #ifdef TARGET_CHERI
         if (is_cap_csr(a->csr)) {
@@ -1192,6 +1249,7 @@ static bool trans_csrrwi(DisasContext *ctx, arg_csrrwi *a)
 
 static bool trans_csrrsi(DisasContext *ctx, arg_csrrsi *a)
 {
+    remap_rvy_csr(ctx, &a->csr);
 #ifdef TARGET_CHERI
     if (is_cap_csr(a->csr)) {
         gen_helper_csrrsi_cap(cpu_env, tcg_constant_i32(a->csr),
@@ -1232,6 +1290,7 @@ static bool trans_csrrsi(DisasContext *ctx, arg_csrrsi *a)
 
 static bool trans_csrrci(DisasContext *ctx, arg_csrrci * a)
 {
+    remap_rvy_csr(ctx, &a->csr);
 #ifdef TARGET_CHERI
     if (is_cap_csr(a->csr)) {
         gen_helper_csrrci_cap(cpu_env, tcg_constant_i32(a->csr),

@@ -1119,6 +1119,7 @@ typedef enum {
     rv_op_lr_y,
     rv_op_amoswap_y,
     rv_op_sc_y,
+    rv_op_srliy_099,
 } rv_op;
 
 /* structures */
@@ -2485,6 +2486,7 @@ const rv_opcode_data opcode_data[] = {
     [rv_op_lr_y] = { "lr.y", rv_codec_r_l, rv_fmt_aqrl_rd_rs1, NULL, 0, 0, 0 },
     [rv_op_amoswap_y] = { "amoswap.y", rv_codec_r_a, rv_fmt_aqrl_rd_rs2_rs1, NULL, 0, 0, 0 },
     [rv_op_sc_y] = { "sc.y", rv_codec_r_a, rv_fmt_aqrl_rd_rs2_rs1, NULL, 0, 0, 0 },
+    [rv_op_srliy_099] = { "srliy", rv_codec_i_sh7, rv_fmt_rd_rs1_imm, NULL, 0, 0, 0 },
 };
 
 /* CSR names */
@@ -2771,7 +2773,7 @@ static rv_opcode decode_cheri_inst(rv_inst inst) {
     }
 }
 
-static rv_opcode decode_cheri_rvy(rv_inst inst)
+static rv_opcode decode_cheri_rvy(rv_inst inst, rv_isa isa)
 {
     int func3 = ((inst >> 12) & 0b111);
     int func7 = ((inst >> 25) & 0b1111111);
@@ -2845,6 +2847,11 @@ static rv_opcode decode_cheri_rvy(rv_inst inst)
     case 5:
         if ((inst >> 29) == 7) {
             return rv_op_ybndswi;
+        }
+        /* srliy was only defined for shamt == XLEN in 0.9.9. */
+        if ((inst >> 27) == 0 &&
+            ((inst >> 20) & 0x7f) == (isa == rv32 ? 32 : 64)) {
+            return rv_op_srliy_099;
         }
         break;
     }
@@ -4288,7 +4295,7 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa, int flags)
             break;
         case 30:
             if (flags & RISCV_DIS_FLAG_CHERI_RVY) {
-                op = decode_cheri_rvy(inst);
+                op = decode_cheri_rvy(inst, isa);
                 break;
             }
             switch (((inst >> 22) & 0b1111111000) | ((inst >> 12) & 0b0000000111)) {

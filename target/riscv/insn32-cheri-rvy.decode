@@ -87,3 +87,6 @@ sy              ....... ..... ..... 010 ..... 1111011 @s ?pred_rvy
 lr_y            00010.. 00000 ..... 011 ..... 1111011 @atom_ld ?pred_rvy
 amoswap_y       00001.. ..... ..... 011 ..... 1111011 @atom_st ?pred_rvy
 sc_y            00011.. ..... ..... 011 ..... 1111011 @atom_st ?pred_rvy
+
+### Shifts (0.9.9 compatibility)
+srliy_099       00000 shamt:7 ..... 101 ..... 1111011 %cs1 %rd ?pred_rvy
