@@ -722,7 +722,25 @@ TRANSLATE_INT_CAP_CAP_HELPER(yss, scss)
 TRANSLATE_CAP_CAP_CAP(yunseals)
 TRANSLATE_CAP_CAP_INT(ypermc)
 
-TRANSLATE_INT_CAP_HELPER(yhir, cgethigh)
+static bool trans_yhir(DisasContext *ctx, arg_rc *a)
+{
+    /* yhir was encoded as srliy rd, cs1, XLEN in 0.9.9. */
+    if (ctx->cfg_ptr->rvy_ver == RVY_VERSION_0_9_9) {
+        return false;
+    }
+    return gen_cheri_int_cap(ctx, a, &gen_helper_cgethigh);
+}
+
+static bool trans_srliy_099(DisasContext *ctx, arg_srliy_099 *a)
+{
+    /* Only a shift by the current XLEN is valid in 0.9.9 compat mode. */
+    if (ctx->cfg_ptr->rvy_ver != RVY_VERSION_0_9_9 ||
+        a->shamt != get_xlen(ctx)) {
+        return false;
+    }
+    return gen_cheri_int_cap(ctx, &(arg_rc){ .rd = a->rd, .cs1 = a->cs1 },
+                             &gen_helper_cgethigh);
+}
 static bool trans_yhiw(DisasContext *ctx, arg_crr *a)
 {
     if (a->cd == 0) {
