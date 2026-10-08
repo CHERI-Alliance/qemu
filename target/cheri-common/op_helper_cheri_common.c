@@ -457,31 +457,53 @@ void cheri_jump_and_link_checked(CPUArchState *env, uint32_t link_reg,
                                  target_ulong target_addr, uint32_t flags,
                                  uintptr_t _host_return_address)
 {
+    cap_register_t next_pcc = *target;
+
 #ifdef TARGET_RISCV
-    /* On RISC-V we mask the LSB of the target to match JALR behaviour. */
+    /*
+     * On RISC-V we mask the LSB of the target to match JALR behaviour.
+     * However, we must refuse to unseal capabilities when the target
+     * address LSB is non-zero.
+     * Similary, if the jump-and-link offset is non-zero, clear the tag.
+     */
+    if (!cap_is_unsealed(&next_pcc) && (target_addr & 1) != 0) {
+#if CHERI_CONTROLFLOW_CHECK_AT_TARGET
+        next_pcc.cr_tag = 0;
+#else
+        raise_cheri_exception_branch(env, CapEx_SealViolation, target_reg);
+#endif
+    }
     target_addr &= ~(target_ulong)1;
 #endif
-    /* Morello takes the exception at the target. */
-#if !CHERI_CONTROLFLOW_CHECK_AT_TARGET
-    if (!target->cr_tag) {
+
+    /* Morello and RVY take the exception at the target. */
+#if CHERI_CONTROLFLOW_CHECK_AT_TARGET
+#ifdef TARGET_CHERI_RISCV_RVY
+    if (!cap_is_unsealed(&next_pcc) &&
+        target_addr != cap_get_cursor(&next_pcc)) {
+        next_pcc.cr_tag = 0;
+    }
+#endif
+#else
+    if (!next_pcc.cr_tag) {
         raise_cheri_exception_branch(env, CapEx_TagViolation, target_reg);
-    } else if (cap_is_sealed_with_type(target) ||
-               (!cap_is_unsealed(target) &&
-                target_addr != cap_get_cursor(target))) {
+    } else if (cap_is_sealed_with_type(&next_pcc) ||
+               (!cap_is_unsealed(&next_pcc) &&
+                target_addr != cap_get_cursor(&next_pcc))) {
         /*
          * Note: "sentry" caps can be called using cjalr, but only if the
          * immediate offset is 0, i.e. target_addr==target.address.
          */
         raise_cheri_exception_branch(env, CapEx_SealViolation, target_reg);
-    } else if (!cap_has_perms(target, CAP_PERM_EXECUTE)) {
+    } else if (!cap_has_perms(&next_pcc, CAP_PERM_EXECUTE)) {
         raise_cheri_exception_branch(env, CapEx_PermitExecuteViolation,
                                      target_reg);
-    } else if (!validate_jump_target(env, target, target_addr, target_reg,
+    } else if (!validate_jump_target(env, &next_pcc, target_addr, target_reg,
                                      _host_return_address)) {
         assert(false && "Should have raised an exception");
     }
 #endif
-    cheri_jump_and_link(env, target, target_addr, link_reg, link_pc, flags);
+    cheri_jump_and_link(env, &next_pcc, target_addr, link_reg, link_pc, flags);
 }
 
 void CHERI_HELPER_IMPL(cjalr(CPUArchState *env, uint32_t cd,
