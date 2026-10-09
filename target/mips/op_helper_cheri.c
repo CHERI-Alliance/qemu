@@ -316,6 +316,21 @@ void CHERI_HELPER_IMPL(cgetpcc(CPUArchState *env, uint32_t cd))
     update_capreg(env, cd, cheri_get_current_pcc(env));
 }
 
+void CHERI_HELPER_IMPL(ccheckperm(CPUArchState *env, uint32_t cs,
+                                  target_ulong rt))
+{
+    GET_HOST_RETPC();
+    const cap_register_t *csp = get_readonly_capreg(env, cs);
+    /*
+     * CCheckPerm: Raise exception if don't have permission
+     */
+    if (!csp->cr_tag) {
+        raise_cheri_exception(env, CapEx_TagViolation, cs);
+    } else if ((cap_get_all_perms(csp) & rt) != rt) {
+        raise_cheri_exception(env, CapEx_UserDefViolation, cs);
+    }
+}
+
 /* Note: not using CHERI_HELPER_IMPL since it cannot trap */
 void helper_cmovz(CPUArchState *env, uint32_t cd, uint32_t cs, target_ulong rs)
 {

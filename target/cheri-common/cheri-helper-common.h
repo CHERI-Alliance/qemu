@@ -80,7 +80,6 @@ DEF_HELPER_3(cinvoke, void, env, i32, i32)
 #endif
 
 // Two operands (cap int)
-DEF_HELPER_3(ccheckperm, void, env, i32, tl)
 DEF_HELPER_3(cgetpccsetoffset, void, env, i32, tl)
 DEF_HELPER_3(cgetpccincoffset, void, env, i32, tl)
 DEF_HELPER_3(cgetpccsetaddr, void, env, i32, tl)
