@@ -577,22 +577,6 @@ void CHERI_HELPER_IMPL(csealentry(CPUArchState *env, uint32_t cd, uint32_t cs))
     update_capreg(env, cd, &result);
 }
 
-/// Two operands (capability and int)
-void CHERI_HELPER_IMPL(ccheckperm(CPUArchState *env, uint32_t cs,
-                                  target_ulong rt))
-{
-    GET_HOST_RETPC();
-    const cap_register_t *csp = get_readonly_capreg(env, cs);
-    /*
-     * CCheckPerm: Raise exception if don't have permission
-     */
-    if (!csp->cr_tag) {
-        raise_cheri_exception(env, CapEx_TagViolation, cs);
-    } else if ((cap_get_all_perms(csp) & rt) != rt) {
-        raise_cheri_exception(env, CapEx_UserDefViolation, cs);
-    }
-}
-
 /// Two operands (int int)
 
 static target_ulong crap_impl(CPUArchState *env, target_ulong len)
