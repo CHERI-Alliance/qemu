@@ -551,7 +551,15 @@ static inline void gen_riscv_log_instr(DisasContext *ctx, uint32_t opcode,
 void cheri_tcg_save_pc(DisasContextBase *db)
 {
     DisasContext *ctx = container_of(db, DisasContext, base);
-    gen_update_pc(ctx, 0);
+    /*
+     * Make cpu_pc exact but leave ctx->pc_save alone: this is called on
+     * exception paths that may only be reached through a runtime branch
+     * (e.g. gen_check_branch_target_dynamic()). With CF_PCREL, updating
+     * pc_save here would make later gen_pc_plus_diff() calls on the
+     * fall-through path compute from a cpu_pc that was never updated.
+     */
+    gen_pc_plus_diff(cpu_pc, ctx, 0);
+    gen_mark_pc_updated();
 }
 // We have to call gen_update_pc() before setting DISAS_NORETURN (see
 // generate_exception())
