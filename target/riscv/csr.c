@@ -1383,7 +1383,24 @@ static RISCVException read_medeleg(CPURISCVState *env, int csrno,
 static RISCVException write_medeleg(CPURISCVState *env, int csrno,
                                     target_ulong val)
 {
-    env->medeleg = (env->medeleg & ~DELEGABLE_EXCPS) | (val & DELEGABLE_EXCPS);
+    uint64_t mask = DELEGABLE_EXCPS & (target_ulong)-1;
+    env->medeleg = (env->medeleg & ~mask) | (val & mask);
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException read_medelegh(CPURISCVState *env, int csrno,
+                                    target_ulong *val)
+{
+    *val = env->medeleg >> 32;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_medelegh(CPURISCVState *env, int csrno,
+                                     target_ulong val)
+{
+    uint64_t mask = DELEGABLE_EXCPS & ~UINT64_C(0xffffffff);
+    uint64_t valh = (uint64_t)val << 32;
+    env->medeleg = (env->medeleg & ~mask) | (valh & mask);
     return RISCV_EXCP_NONE;
 }
 
@@ -2612,7 +2629,24 @@ static RISCVException read_hedeleg(CPURISCVState *env, int csrno,
 static RISCVException write_hedeleg(CPURISCVState *env, int csrno,
                                     target_ulong val)
 {
-    env->hedeleg = val & vs_delegable_excps;
+    uint64_t mask = vs_delegable_excps & (target_ulong)-1;
+    env->hedeleg = (env->hedeleg & ~mask) | (val & mask);
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException read_hedelegh(CPURISCVState *env, int csrno,
+                                    target_ulong *val)
+{
+    *val = env->hedeleg >> 32;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_hedelegh(CPURISCVState *env, int csrno,
+                                     target_ulong val)
+{
+    uint64_t mask = vs_delegable_excps & ~UINT64_C(0xffffffff);
+    uint64_t valh = (uint64_t)val << 32;
+    env->hedeleg = (env->hedeleg & ~mask) | (valh & mask);
     return RISCV_EXCP_NONE;
 }
 
@@ -4331,6 +4365,8 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
 
     [CSR_MSTATUSH]    = { "mstatush",   any32, read_mstatush,
                           write_mstatush                                   },
+    [CSR_MEDELEGH]    = { "medelegh",   any32, read_medelegh,
+                          write_medelegh                                   },
 
     /* Machine Trap Handling */
     [CSR_MSCRATCH] = { "mscratch", any,  read_mscratch, write_mscratch,
@@ -4415,6 +4451,9 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_HSTATUS]     = { "hstatus",     hmode,   read_hstatus, write_hstatus,
                           .min_priv_ver = PRIV_VERSION_1_12_0                },
     [CSR_HEDELEG]     = { "hedeleg",     hmode,   read_hedeleg, write_hedeleg,
+                          .min_priv_ver = PRIV_VERSION_1_12_0                },
+    [CSR_HEDELEGH]    = { "hedelegh",    hmode32, read_hedelegh,
+                          write_hedelegh,
                           .min_priv_ver = PRIV_VERSION_1_12_0                },
     [CSR_HIDELEG]     = { "hideleg",     hmode,   NULL,   NULL, rmw_hideleg,
                           .min_priv_ver = PRIV_VERSION_1_12_0                },
