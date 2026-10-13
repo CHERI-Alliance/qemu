@@ -1651,7 +1651,7 @@ int probe_access_full(CPUArchState *env, vaddr addr, int size,
 
     /* Handle clean RAM pages.  */
     if (unlikely(flags & TLB_NOTDIRTY)) {
-        notdirty_write(env_cpu(env), addr, 1, *pfull, retaddr);
+        notdirty_write(env_cpu(env), addr, size ? size : 1, *pfull, retaddr);
         flags &= ~TLB_NOTDIRTY;
     }
 
@@ -1674,7 +1674,7 @@ int probe_access_full_mmu(CPUArchState *env, vaddr addr, int size,
 
     /* Handle clean RAM pages.  */
     if (unlikely(flags & TLB_NOTDIRTY)) {
-        notdirty_write(env_cpu(env), addr, 1, *pfull, 0);
+        notdirty_write(env_cpu(env), addr, size ? size : 1, *pfull, 0);
         flags &= ~TLB_NOTDIRTY;
     }
 
@@ -1695,7 +1695,7 @@ int probe_access_flags(CPUArchState *env, vaddr addr, int size,
 
     /* Handle clean RAM pages. */
     if (unlikely(flags & TLB_NOTDIRTY)) {
-        notdirty_write(env_cpu(env), addr, 1, full, retaddr);
+        notdirty_write(env_cpu(env), addr, size ? size : 1, full, retaddr);
         flags &= ~TLB_NOTDIRTY;
     }
 
@@ -1735,7 +1735,7 @@ probe_access_inlined(CPUArchState *env, vaddr addr, int size,
 
         /* Handle clean RAM pages.  */
         if (flags & TLB_NOTDIRTY) {
-            notdirty_write(env_cpu(env), addr, 1, full, retaddr);
+            notdirty_write(env_cpu(env), addr, size ? size : 1, full, retaddr);
         }
     }
 
