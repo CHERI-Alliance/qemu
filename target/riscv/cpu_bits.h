@@ -161,6 +161,7 @@
 
 /* 32-bit only */
 #define CSR_MSTATUSH        0x310
+#define CSR_MEDELEGH        0x312
 
 /* Machine Trap Handling */
 #define CSR_MSCRATCH        0x340
@@ -241,6 +242,7 @@
 /* Hpervisor CSRs */
 #define CSR_HSTATUS         0x600
 #define CSR_HEDELEG         0x602
+#define CSR_HEDELEGH        0x612
 #define CSR_HIDELEG         0x603
 #define CSR_HIE             0x604
 #define CSR_HCOUNTEREN      0x606
