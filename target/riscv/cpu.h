@@ -92,7 +92,6 @@ enum {
     RISCV_FEATURE_DEBUG,
     RISCV_FEATURE_CHERI,
     RISCV_FEATURE_CHERI_HYBRID,
-    RISCV_FEATURE_STID,
 };
 
 /* Privileged specification version */
@@ -369,19 +368,12 @@ struct CPUArchState {
     target_ulong mhpmevent_val[RV_MAX_MHPMEVENTS];
 
 #ifdef TARGET_CHERI
-    /* zstid registers */
+    /* Thread ID registers */
     cap_register_t mtidc;
     cap_register_t stidc;
     cap_register_t utidc;
     cap_register_t vstidc;
     cap_register_t stidc_hs;
-#else
-    /* zstid registers in integer mode */
-    target_ulong mtid;
-    target_ulong stid;
-    target_ulong utid;
-    target_ulong vstid;
-    target_ulong stid_hs;
 #endif
 
 #ifdef TARGET_CHERI_RISCV_V9

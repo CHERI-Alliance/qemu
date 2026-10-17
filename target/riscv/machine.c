@@ -199,31 +199,6 @@ static const VMStateDescription vmstate_rv128 = {
 };
 #endif
 
-static bool stid_needed(void *opaque)
-{
-    RISCVCPU *cpu = opaque;
-    CPURISCVState *env = &cpu->env;
-
-    return riscv_feature(env, RISCV_FEATURE_STID);
-}
-
-static const VMStateDescription vmstate_threadid = {
-    .name = "cpu/threadid",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .needed = stid_needed,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINTTL_OR_CAP(env.mtid, env.mtidc, RISCVCPU),
-        VMSTATE_UINTTL_OR_CAP(env.stid, env.stidc, RISCVCPU),
-        VMSTATE_UINTTL_OR_CAP(env.utid, env.utidc, RISCVCPU),
-        VMSTATE_UINTTL_OR_CAP(env.vstid, env.vstidc, RISCVCPU),
-        VMSTATE_UINTTL_OR_CAP(env.stid_hs, env.stidc_hs, RISCVCPU),
-
-        VMSTATE_END_OF_LIST()
-    }
-};
-
-
 static bool kvmtimer_needed(void *opaque)
 {
     return kvm_enabled();
@@ -385,6 +360,13 @@ const VMStateDescription vmstate_riscv_cpu = {
                              vmstate_pmu_ctr_state, PMUCTRState),
         VMSTATE_UINTTL_ARRAY(env.mhpmevent_val, RISCVCPU, RV_MAX_MHPMEVENTS),
         VMSTATE_UINTTL_ARRAY(env.mhpmeventh_val, RISCVCPU, RV_MAX_MHPMEVENTS),
+#ifdef TARGET_CHERI
+        VMSTATE_CAP(env.mtidc, RISCVCPU),
+        VMSTATE_CAP(env.stidc, RISCVCPU),
+        VMSTATE_CAP(env.utidc, RISCVCPU),
+        VMSTATE_CAP(env.vstidc, RISCVCPU),
+        VMSTATE_CAP(env.stidc_hs, RISCVCPU),
+#endif
         VMSTATE_UINT64_OR_CAP(env.sscratch, env.sscratchc, RISCVCPU),
         VMSTATE_UINT64_OR_CAP(env.mscratch, env.mscratchc, RISCVCPU),
         VMSTATE_UINT64(env.mfromhost, RISCVCPU),
@@ -403,7 +385,6 @@ const VMStateDescription vmstate_riscv_cpu = {
 #endif
         &vmstate_kvmtimer,
         &vmstate_envcfg,
-        &vmstate_threadid,
         &vmstate_debug,
         NULL
     }
