@@ -80,6 +80,7 @@
 @c_swsp    ... . .....  ..... .. &s      imm=%uimm_6bit_sw rs1=2 rs2=%rs2_5
 @c_li      ... . .....  ..... .. &i      imm=%imm_ci rs1=0 %rd
 @c_hinti   ... . .....  ..... .. &i      imm=0 rs1=0 %rd
+@c_hinti_z ... . .....  ..... .. &i      imm=0 rs1=0 rd=0
 @c_lui     ... . .....  ..... .. &u      imm=%imm_lui %rd
 @c_jalr    ... . .....  ..... .. &i      imm=0 rs1=%rd
 @c_mv      ... . ..... .....  .. &i      imm=0 rs1=%rs2_5 %rd
@@ -98,6 +99,7 @@
 @c_shift2       ... . .. ... ..... .. \
                 &shift rd=%rd rs1=%rd shamt=%shlimm_6bit
 @c_hintshift2   ... . .....  ..... .. &i imm=0 rd=%rd rs1=%rd
+@c_hintshift2_z ... . .....  ..... .. &i imm=0 rd=0 rs1=0
 
 @c_andi         ... . .. ... ..... .. &i imm=%imm_ci rs1=%rs1_3 rd=%rs1_3
 
@@ -145,7 +147,9 @@ sw                110  ... ... .. ... 00 @cs_w
 
 # *** RV32/64C Standard Extension (Quadrant 1) ***
 {
-  c_hint          000 0  .....  00000 01 @c_hinti
+  c_hint          000 0  00000  00000 01 @c_hinti_z
+  c_hint          000 0  .....  00000 01 @c_hinti ?!pred_rvy_capmode
+  illegal         000 0  -----  00000 01          ?pred_rvy_capmode
   addi            000 .  .....  ..... 01 @ci
 }
 addi              010 .  .....  ..... 01 @c_li
@@ -156,11 +160,13 @@ addi              010 .  .....  ..... 01 @c_li
   lui             011 .  .....  ..... 01 @c_lui
 }
 {
-  c_hint          100 0 00 ...  00000 01 @c_hintshift  # c.srli64 is a HINT for rv32/64
+  c_hint          100 0 00 ...  00000 01 @c_hintshift ?!pred_rvy_capmode  # c.srli64 is a HINT for rv32/64
+  illegal         100 0 00 ---  00000 01              ?pred_rvy_capmode
   srli            100 . 00 ...  ..... 01 @c_shift
 }
 {
-  c_hint          100 0 01 ...  00000 01 @c_hintshift  # c.srai64 is a HINT for rv32/64
+  c_hint          100 0 01 ...  00000 01 @c_hintshift ?!pred_rvy_capmode  # c.srai64 is a HINT for rv32/64
+  illegal         100 0 01 ---  00000 01              ?pred_rvy_capmode
   srai            100 . 01 ...  ..... 01 @c_shift
 }
 andi              100 . 10 ...  ..... 01 @c_andi
@@ -183,7 +189,9 @@ addw              100 1 11 ... 01 ... 01 @cs_2
 
 # *** RV32/64C Standard Extension (Quadrant 2) ***
 {
-  c_hint          000 0  .....  00000 10 @c_hintshift2  # c.slli64 is a HINT for rv32/64
+  c_hint          000 0  00000  00000 10 @c_hintshift2_z  # c.slli64 is a HINT for rv32/64
+  c_hint          000 0  .....  00000 10 @c_hintshift2 ?!pred_rvy_capmode
+  illegal         000 0  -----  00000 10               ?pred_rvy_capmode
   slli            000 .  .....  ..... 10 @c_shift2
 }
 {
