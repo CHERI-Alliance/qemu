@@ -3531,73 +3531,6 @@ static RISCVException write_upmbase(CPURISCVState *env, int csrno,
     write_mstatus(env, csrno, mstatus);
     return RISCV_EXCP_NONE;
 }
-#ifndef TARGET_CHERI
-static RISCVException stid(CPURISCVState *env, int csrno)
-{
-    if (riscv_feature(env, RISCV_FEATURE_STID)) {
-        return RISCV_EXCP_NONE;
-    }
-
-    return RISCV_EXCP_ILLEGAL_INST;
-}
-/* Thread ID (Zstid) */
-static RISCVException read_mtid(CPURISCVState *env, int csrno,
-                                target_ulong *val)
-{
-    *val = env->mtid;
-    return RISCV_EXCP_NONE;
-}
-
-static RISCVException write_mtid(CPURISCVState *env, int csrno,
-                                 target_ulong val)
-{
-    env->mtid = val;
-    return RISCV_EXCP_NONE;
-}
-
-static RISCVException read_stid(CPURISCVState *env, int csrno,
-                                target_ulong *val)
-{
-    *val = env->stid;
-    return RISCV_EXCP_NONE;
-}
-
-static RISCVException write_stid(CPURISCVState *env, int csrno,
-                                 target_ulong val)
-{
-    env->stid = val;
-    return RISCV_EXCP_NONE;
-}
-
-static RISCVException read_vstid(CPURISCVState *env, int csrno,
-                                 target_ulong *val)
-{
-    *val = env->vstid;
-    return RISCV_EXCP_NONE;
-}
-
-static RISCVException write_vstid(CPURISCVState *env, int csrno,
-                                  target_ulong val)
-{
-    env->vstid = val;
-    return RISCV_EXCP_NONE;
-}
-
-static RISCVException read_utid(CPURISCVState *env, int csrno,
-                                target_ulong *val)
-{
-    *val = env->utid;
-    return RISCV_EXCP_NONE;
-}
-
-static RISCVException write_utid(CPURISCVState *env, int csrno,
-                                 target_ulong val)
-{
-    env->utid = val;
-    return RISCV_EXCP_NONE;
-}
-#endif
-
 #endif
 
 #ifdef TARGET_CHERI
@@ -4883,12 +4816,6 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_HPMCOUNTER30H]  = { "hpmcounter30h",  ctr32,  read_hpmcounterh },
     [CSR_HPMCOUNTER31H]  = { "hpmcounter31h",  ctr32,  read_hpmcounterh },
 
-#if !defined(TARGET_CHERI)
-    [CSR_MTID]           = { "mtid", stid,  read_mtid, write_mtid },
-    [CSR_STID]           = { "stid", stid,  read_stid, write_stid },
-    [CSR_UTID]           = { "utid", stid,  read_utid, write_utid },
-    [CSR_VSTID]          = { "vstid", stid,  read_vstid, write_vstid },
-#endif /* !TARGET_CHERI */
     [CSR_MHPMCOUNTER3H]  = { "mhpmcounter3h",  mctr32,  read_hpmcounterh,
                              write_mhpmcounterh                         },
     [CSR_MHPMCOUNTER4H]  = { "mhpmcounter4h",  mctr32,  read_hpmcounterh,
