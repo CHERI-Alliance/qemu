@@ -40,6 +40,11 @@ bool translator_use_goto_tb(DisasContextBase *db, target_ulong dest)
     if (tb_cflags(db->tb) & CF_NO_GOTO_TB) {
         return false;
     }
+#ifdef TARGET_CHERI
+    if (!in_pcc_bounds(db, dest)) {
+        return false;
+    }
+#endif
 
     /* Check for the dest on the same page as the start of the TB.  */
     return ((db->pc_first ^ dest) & TARGET_PAGE_MASK) == 0;

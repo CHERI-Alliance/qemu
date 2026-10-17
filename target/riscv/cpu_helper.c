@@ -1798,6 +1798,31 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     qemu_log_mask(CPU_LOG_MMU, "%s ad %" VADDR_PRIx " rw %d mmu_idx %d\n",
                   __func__, address, access_type, mmu_idx);
 
+#ifdef TARGET_CHERI
+    if (access_type == MMU_INST_FETCH && !probe) {
+        const cap_register_t *pcc = _cheri_get_pcc_unchecked(env);
+        unsigned min_insn_size = (address == PC_ADDR(env) &&
+                                  !riscv_has_ext(env, RVC)) ? 4 : 2;
+        if (!pcc->cr_tag) {
+            raise_cheri_exception_impl(env, CapEx_TagViolation,
+                                       CHERI_EXC_REGNUM_PCC, address, true,
+                                       retaddr, CHERI_ACCESS_FETCH);
+        } else if (!cap_is_unsealed(pcc)) {
+            raise_cheri_exception_impl(env, CapEx_SealViolation,
+                                       CHERI_EXC_REGNUM_PCC, address, true,
+                                       retaddr, CHERI_ACCESS_FETCH);
+        } else if (!cap_has_perms(pcc, CAP_PERM_EXECUTE)) {
+            raise_cheri_exception_impl(env, CapEx_PermitExecuteViolation,
+                                       CHERI_EXC_REGNUM_PCC, address, true,
+                                       retaddr, CHERI_ACCESS_FETCH);
+        } else if (!cap_is_in_bounds(pcc, address, min_insn_size)) {
+            raise_cheri_exception_impl(env, CapEx_LengthViolation,
+                                       CHERI_EXC_REGNUM_PCC, address, true,
+                                       retaddr, CHERI_ACCESS_FETCH);
+        }
+    }
+#endif
+
     /* MPRV does not affect the virtual-machine load/store
        instructions, HLV, HLVX, and HSV. */
     if (riscv_cpu_two_stage_lookup(mmu_idx)) {
