@@ -1433,6 +1433,11 @@ static void decode_opc(CPURISCVState *env, DisasContext *ctx, uint16_t opcode)
             }
         }
     } else {
+        gen_check_pcc_bounds_next_inst(ctx, 4);
+        if (unlikely(ctx->base.is_jmp == DISAS_NORETURN)) {
+            ctx->pc_succ_insn = ctx->base.pc_next + 4;
+            return;
+        }
 #ifdef CONFIG_RVFI_DII
         // We have to avoid memory accesses for injected instructions since
         // the PC could point somewhere invalid.
@@ -1447,7 +1452,6 @@ static void decode_opc(CPURISCVState *env, DisasContext *ctx, uint16_t opcode)
         uint32_t opcode32 = opcode;
         opcode32 = deposit32(opcode32, 16, 16, next_16);
         gen_riscv_log_instr32(ctx, opcode32);
-        gen_check_pcc_bounds_next_inst(ctx, 4);
         ctx->opcode = opcode32;
         ctx->pc_succ_insn = ctx->base.pc_next + 4;
         gen_rvfi_dii_set_field_const_i64(INST, insn, opcode32);
@@ -1534,6 +1538,20 @@ static void riscv_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
     CPURISCVState *env = cpu->env_ptr;
+#ifdef TARGET_CHERI
+    if (unlikely(!have_cheri_tb_flags(ctx, TB_FLAG_CHERI_PCC_EXECUTABLE) ||
+                 (ctx->base.num_insns == 1 &&
+                  !in_pcc_bounds(&ctx->base, ctx->base.pc_next)))) {
+        ctx->base.pc_next += 2;
+        ctx->base.is_jmp = DISAS_NORETURN;
+        return;
+    }
+    gen_check_pcc_bounds_next_inst(ctx, 2);
+    if (unlikely(ctx->base.is_jmp == DISAS_NORETURN)) {
+        ctx->base.pc_next += 2;
+        return;
+    }
+#endif
 #ifdef CONFIG_RVFI_DII
     // We have to avoid memory accesses for injected instructions since
     // the PC could point somewhere invalid.

@@ -1833,8 +1833,11 @@ void CHERI_HELPER_IMPL(raise_exception_pcc_bounds(CPUArchState *env,
     cheri_debug_assert(!cap_is_in_bounds(cheri_get_current_pcc(env), addr,
                                          num_bytes == 0 ? 1 : num_bytes));
 #if CHERI_CONTROLFLOW_CHECK_AT_TARGET
-    cheri_update_pcc((cap_register_t *)_cheri_get_pcc_unchecked(env), addr,
-                     /*can_be_unrep=*/true);
+    cap_register_t *pcc = (cap_register_t *)_cheri_get_pcc_unchecked(env);
+    cheri_update_pcc(pcc, addr, /*can_be_unrep=*/true);
+    if (!pcc->cr_tag) {
+        raise_pcc_fault(env, CapEx_TagViolation, addr);
+    }
 #endif
     raise_pcc_fault(env, CapEx_LengthViolation, addr);
 }
