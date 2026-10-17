@@ -950,12 +950,21 @@ static bool pred_cre(DisasContext *ctx)
 {
     return ctx->y_enabled;
 }
-#elif defined(TARGET_CHERI_RISCV_RVY)
+#endif
+
 static bool pred_rvy(DisasContext *ctx)
 {
+#ifdef TARGET_CHERI_RISCV_RVY
     return ctx->y_enabled;
-}
+#else
+    return false;
 #endif
+}
+
+static bool pred_rvy_capmode(DisasContext *ctx)
+{
+    return pred_rvy(ctx) && pred_capmode(ctx);
+}
 
 /* Include the auto-generated decoder for 32 bit insn */
 #include "decode-insn32.c.inc"
