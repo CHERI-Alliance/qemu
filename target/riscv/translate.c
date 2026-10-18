@@ -882,6 +882,17 @@ EX_SH(12)
     }                                            \
 } while (0)
 
+/* RVY reserves memory accesses with rs1=x0 in capability mode. */
+#ifdef TARGET_CHERI_RISCV_RVY
+#define REQUIRE_CAPMODE_RS1_NOT_ZERO(ctx, rs1) do { \
+    if ((ctx)->capmode && (rs1) == 0) {             \
+        return false;                               \
+    }                                               \
+} while (0)
+#else
+#define REQUIRE_CAPMODE_RS1_NOT_ZERO(ctx, rs1) do { } while (0)
+#endif
+
 static int ex_rvc_register(DisasContext *ctx, int reg)
 {
     return 8 + reg;

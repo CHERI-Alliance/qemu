@@ -129,6 +129,7 @@ static inline bool gen_cheri_cap_loadstore(DisasContext *ctx, int srcdst,
                                            int auth, target_long imm,
                                            cheri_cap_loadstore_helper *gen_func)
 {
+    REQUIRE_CAPMODE_RS1_NOT_ZERO(ctx, auth);
     TCGv addr = tcg_temp_new();
     gen_cap_get_cursor(ctx, auth, addr);
     if (imm != 0) {
@@ -304,6 +305,7 @@ static inline bool gen_cap_load_mem_idx(DisasContext *ctx, int32_t rd,
                                         int32_t cs, target_long offset,
                                         int mem_idx, MemOp op)
 {
+    REQUIRE_CAPMODE_RS1_NOT_ZERO(ctx, cs);
     // FIXME: just do everything in the helper
     TCGv value = tcg_temp_new();
     TCGv_cap_checked_ptr vaddr = tcg_temp_new_cap_checked();
@@ -386,6 +388,7 @@ static inline bool gen_cap_store_mem_idx(DisasContext *ctx, int32_t addr_regnum,
                                          int32_t val_regnum, target_long offset,
                                          int mem_idx, MemOp op)
 {
+    REQUIRE_CAPMODE_RS1_NOT_ZERO(ctx, addr_regnum);
     // FIXME: just do everything in the helper
     TCGv_cap_checked_ptr vaddr = tcg_temp_new_cap_checked();
     generate_cap_store_check_imm(vaddr, addr_regnum, offset, op);
@@ -402,9 +405,8 @@ static inline bool gen_cap_store(DisasContext *ctx, int32_t addr_regnum,
                                  int32_t val_regnum, target_long offset,
                                  MemOp op)
 {
-    gen_cap_store_mem_idx(ctx, addr_regnum, val_regnum, offset, ctx->mem_idx,
-                          op);
-    return true;
+    return gen_cap_store_mem_idx(ctx, addr_regnum, val_regnum, offset,
+                                 ctx->mem_idx, op);
 }
 
 #ifdef TARGET_CHERI_RISCV_V9
@@ -469,6 +471,7 @@ static inline bool lr_y_impl(DisasContext *ctx, arg_atomic *a,
                              cheri_cap_cap_helper *helper)
 {
     REQUIRE_EXT(ctx, RVA);
+    REQUIRE_CAPMODE_RS1_NOT_ZERO(ctx, a->rs1);
     if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
         // In a parallel context, stop the world and single step.
         gen_helper_exit_atomic(cpu_env);
@@ -506,6 +509,7 @@ static inline bool sc_y_impl(DisasContext *ctx, arg_atomic *a,
                              cheri_int_cap_cap_helper *helper)
 {
     REQUIRE_EXT(ctx, RVA);
+    REQUIRE_CAPMODE_RS1_NOT_ZERO(ctx, a->rs1);
     if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
         // In a parallel context, stop the world and single step.
         gen_helper_exit_atomic(cpu_env);
@@ -543,6 +547,7 @@ static inline bool trans_sc_c_cap(DisasContext *ctx, arg_sc_c_cap *a)
 static inline bool trans_amoswap_y(DisasContext *ctx, arg_atomic *a)
 {
     REQUIRE_EXT(ctx, RVA);
+    REQUIRE_CAPMODE_RS1_NOT_ZERO(ctx, a->rs1);
     if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
         // In a parallel context, stop the world and single step.
         gen_helper_exit_atomic(cpu_env);
