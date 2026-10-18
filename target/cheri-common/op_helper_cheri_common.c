@@ -235,10 +235,17 @@ target_ulong CHERI_HELPER_IMPL(cgetaddr(CPUArchState *env, uint32_t cb))
 
 target_ulong CHERI_HELPER_IMPL(cgetbase(CPUArchState *env, uint32_t cb))
 {
+    const cap_register_t *cbp = get_readonly_capreg(env, cb);
+#ifdef TARGET_CHERI_RISCV_RVY
+    if (!cap_check_integrity(env, cbp)) {
+        /* On integrity check failure, the base reads as zero */
+        return 0;
+    }
+#endif
     /*
      * CGetBase: Move Base to a General-Purpose Register.
      */
-    return (target_ulong)cap_get_base(get_readonly_capreg(env, cb));
+    return (target_ulong)cap_get_base(cbp);
 }
 
 target_ulong CHERI_HELPER_IMPL(cgethigh(CPUArchState *env, uint32_t cb))
@@ -252,13 +259,21 @@ target_ulong CHERI_HELPER_IMPL(cgethigh(CPUArchState *env, uint32_t cb))
 
 target_ulong CHERI_HELPER_IMPL(cgetlen(CPUArchState *env, uint32_t cb))
 {
+    const cap_register_t *cbp = get_readonly_capreg(env, cb);
+#ifdef TARGET_CHERI_RISCV_RVY
+    if (!cap_check_integrity(env, cbp)) {
+        /* On integrity check failure, the length reads as zero */
+        return 0;
+    }
+#endif
+
     /*
      * CGetLen: Move Length to a General-Purpose Register.
      *
      * Note: For 128-bit Capabilities we must handle len >= 2^64:
      * cap_get_length_sat() converts 1 << 64 to UINT64_MAX
      */
-    return (target_ulong)cap_get_length_sat(get_readonly_capreg(env, cb));
+    return (target_ulong)cap_get_length_sat(cbp);
 }
 
 target_ulong CHERI_HELPER_IMPL(cgetperm(CPUArchState *env, uint32_t cb))
@@ -341,6 +356,12 @@ target_ulong CHERI_HELPER_IMPL(cgettype(CPUArchState *env, uint32_t cb))
 target_ulong CHERI_HELPER_IMPL(cgettop(CPUArchState *env, uint32_t cb))
 {
     const cap_register_t *cbp = get_readonly_capreg(env, cb);
+#ifdef TARGET_CHERI_RISCV_RVY
+    if (!cap_check_integrity(env, cbp)) {
+        /* On integrity check failure, the top reads as zero */
+        return 0;
+    }
+#endif
     if (!cbp->cr_bounds_valid) {
         return 0;
     }
