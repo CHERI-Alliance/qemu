@@ -125,6 +125,8 @@ static inline bool cheri_in_capmode(CPUArchState *env)
 }
 #endif
 
+static inline bool cheri_is_enabled(CPUArchState *env);
+
 // Note: this function does not check the bounds of pcc!
 static inline bool cheri_cap_perms_valid_for_exec(const cap_register_t *pcc)
 {
@@ -137,6 +139,8 @@ static inline bool cheri_cap_perms_valid_for_exec(const cap_register_t *pcc)
 // Note: can't use an inline function here since TranslationBlock isn't defined
 #define tb_in_capmode(tb)                                                      \
     ((tb->cheri_flags & TB_FLAG_CHERI_CAPMODE) == TB_FLAG_CHERI_CAPMODE)
+#define tb_cheri_enabled(tb)                                                   \
+    ((tb->cheri_flags & TB_FLAG_CHERI_ENABLED) == TB_FLAG_CHERI_ENABLED)
 
 static inline void
 cheri_cpu_get_tb_cpu_state(CPUArchState *env, const cap_register_t *pcc,
@@ -146,6 +150,9 @@ cheri_cpu_get_tb_cpu_state(CPUArchState *env, const cap_register_t *pcc,
     *pcc_base = cap_get_base(pcc);
     *pcc_top = cap_get_top(pcc);
     cheri_debug_assert(*cheri_flags == 0);
+    if (cheri_is_enabled(env)) {
+        *cheri_flags |= TB_FLAG_CHERI_ENABLED;
+    }
 #ifndef TARGET_AARCH64 /* Morello looks at PSTATE.C64 instead */
     if (cheri_in_capmode(env)) {
         *cheri_flags |= TB_FLAG_CHERI_CAPMODE;

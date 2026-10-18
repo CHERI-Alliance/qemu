@@ -1452,6 +1452,13 @@ void itc_reconfigure(struct MIPSITUState *tag);
 /* helper.c */
 target_ulong exception_resume_pc(CPUMIPSState *env);
 
+#ifdef TARGET_CHERI
+static inline bool cheri_is_enabled(CPUMIPSState *env)
+{
+    return true;
+}
+#endif
+
 static inline void
 mips_cpu_get_tb_cpu_state(CPUMIPSState *env, target_ulong *pc,
                           target_ulong *cs_base, target_ulong *pcc_base,

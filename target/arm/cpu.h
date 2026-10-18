@@ -3391,6 +3391,11 @@ FIELD(TBFLAG_CHERI, SCTLRSA, 11, 1)
 #define TBFLAG_CHERI_SIZE TBFLAG_END(TBFLAG_CHERI_SCTLRSA)
 _Static_assert(TBFLAG_CHERI_SIZE <= 32, "");
 
+static inline bool cheri_is_enabled(CPUARMState *env)
+{
+    return FIELD_EX32(env->chflags, TBFLAG_CHERI, CAP_ENABLED) != 0;
+}
+
 #endif /* TARGET_CHERI */
 
 /*

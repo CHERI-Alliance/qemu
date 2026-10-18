@@ -2284,7 +2284,7 @@ static inline bool capabilities_enabled_exception(DisasContext *ctx)
 {
     // Flag bits only encode an exception is needed, not which one. The helper
     // will do that.
-    if (!GET_FLAG(ctx, CAP_ENABLED)) {
+    if (!have_cheri_tb_flags(ctx, TB_FLAG_CHERI_ENABLED)) {
         ctx->base.is_jmp = DISAS_NORETURN;
         gen_a64_update_pc(ctx, 0);
         gen_helper_check_capabilities_enabled_exception(cpu_env);
