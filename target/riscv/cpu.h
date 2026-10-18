@@ -1173,6 +1173,11 @@ static inline bool riscv_cpu_mode_cre(CPURISCVState *env)
     return false;
 #endif
 }
+
+static inline bool cheri_is_enabled(CPURISCVState *env)
+{
+    return riscv_cpu_mode_cre(env);
+}
 #endif
 
 #endif /* RISCV_CPU_H */

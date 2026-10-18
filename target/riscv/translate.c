@@ -1467,7 +1467,7 @@ static void riscv_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->cheri_v9_semantics = cpu->cfg.ext_cheri_v9;
 #endif
     ctx->hybrid = riscv_feature(env, RISCV_FEATURE_CHERI_HYBRID);
-    ctx->cre = riscv_cpu_mode_cre(env);
+    ctx->cre = tb_cheri_enabled(ctx->base.tb);
 #endif
     ctx->priv_ver = env->priv_ver;
 #if !defined(CONFIG_USER_ONLY)
