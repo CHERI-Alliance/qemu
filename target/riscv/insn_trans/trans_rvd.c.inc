@@ -45,6 +45,7 @@ static bool trans_fld(DisasContext *ctx, arg_fld *a)
 
     REQUIRE_FPU;
     REQUIRE_EXT(ctx, RVD);
+    REQUIRE_CAPMODE_RS1_NOT_ZERO(ctx, a->rs1);
     const MemOp mop = MO_TEUQ;
     addr = get_capmode_dependent_load_addr(ctx, a->rs1, a->imm, mop);
 
@@ -62,6 +63,7 @@ static bool trans_fsd(DisasContext *ctx, arg_fsd *a)
 
     REQUIRE_FPU;
     REQUIRE_EXT(ctx, RVD);
+    REQUIRE_CAPMODE_RS1_NOT_ZERO(ctx, a->rs1);
     const MemOp mop = MO_TEUQ;
     addr = get_capmode_dependent_store_addr(ctx, a->rs1, a->imm, mop);
 

@@ -40,6 +40,7 @@ static inline bool gen_lr_impl(DisasContext *ctx, TCGv_cap_checked_ptr addr,
 
 static inline bool gen_lr(DisasContext *ctx, arg_atomic *a, MemOp mop)
 {
+    REQUIRE_CAPMODE_RS1_NOT_ZERO(ctx, a->rs1);
     TCGv_cap_checked_ptr addr =
         get_capmode_dependent_load_addr(ctx, a->rs1, 0, mop);
     bool result = gen_lr_impl(ctx, addr, a, mop);
@@ -113,6 +114,7 @@ static inline bool gen_sc_impl(DisasContext *ctx, TCGv_cap_checked_ptr addr,
 
 static inline bool gen_sc(DisasContext *ctx, arg_atomic *a, MemOp mop)
 {
+    REQUIRE_CAPMODE_RS1_NOT_ZERO(ctx, a->rs1);
     TCGv_cap_checked_ptr addr =
         get_capmode_dependent_store_addr(ctx, a->rs1, 0, mop);
     cheri_debug_assert((mop & MO_ALIGN) && "store-conditional must be aligned");
@@ -125,6 +127,7 @@ static bool gen_amo(DisasContext *ctx, arg_atomic *a,
                     void(*func)(TCGv, TCGv_cap_checked_ptr, TCGv, TCGArg, MemOp),
                     MemOp mop)
 {
+    REQUIRE_CAPMODE_RS1_NOT_ZERO(ctx, a->rs1);
     TCGv dest = dest_gpr(ctx, a->rd);
     TCGv_cap_checked_ptr src1 = get_capmode_dependent_rmw_addr(ctx, a->rs1, 0, mop);
     TCGv src2 = get_gpr(ctx, a->rs2, EXT_NONE);

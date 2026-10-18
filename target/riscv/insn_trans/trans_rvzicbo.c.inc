@@ -31,6 +31,7 @@
 static bool trans_cbo_clean(DisasContext *ctx, arg_cbo_clean *a)
 {
     REQUIRE_ZICBOM(ctx);
+    REQUIRE_CAPMODE_RS1_NOT_ZERO(ctx, a->rs1);
     /*
      * Ignore the zicbom instructions for cheri. Like for cbo.zero, we'll need
      * separate helpers for cheri that make the required checks.
@@ -47,6 +48,7 @@ static bool trans_cbo_clean(DisasContext *ctx, arg_cbo_clean *a)
 static bool trans_cbo_flush(DisasContext *ctx, arg_cbo_flush *a)
 {
     REQUIRE_ZICBOM(ctx);
+    REQUIRE_CAPMODE_RS1_NOT_ZERO(ctx, a->rs1);
 #ifndef TARGET_CHERI
     gen_helper_cbo_clean_flush(cpu_env, get_gpr(ctx, a->rs1, EXT_NONE));
 #else
@@ -58,6 +60,7 @@ static bool trans_cbo_flush(DisasContext *ctx, arg_cbo_flush *a)
 static bool trans_cbo_inval(DisasContext *ctx, arg_cbo_inval *a)
 {
     REQUIRE_ZICBOM(ctx);
+    REQUIRE_CAPMODE_RS1_NOT_ZERO(ctx, a->rs1);
 #ifndef TARGET_CHERI
     gen_helper_cbo_inval(cpu_env, get_gpr(ctx, a->rs1, EXT_NONE));
 #else
@@ -69,6 +72,7 @@ static bool trans_cbo_inval(DisasContext *ctx, arg_cbo_inval *a)
 static bool trans_cbo_zero(DisasContext *ctx, arg_cbo_zero *a)
 {
     REQUIRE_ZICBOZ(ctx);
+    REQUIRE_CAPMODE_RS1_NOT_ZERO(ctx, a->rs1);
 #ifdef TARGET_CHERI
     gen_helper_cbo_zero_cap(cpu_env, tcg_constant_i32(a->rs1));
 #else

@@ -49,6 +49,7 @@ static bool trans_flh(DisasContext *ctx, arg_flh *a)
 
     REQUIRE_FPU;
     REQUIRE_ZFH_OR_ZFHMIN(ctx);
+    REQUIRE_CAPMODE_RS1_NOT_ZERO(ctx, a->rs1);
     addr = get_capmode_dependent_load_addr(ctx, a->rs1, a->imm, mop);
     dest = cpu_fpr[a->rd];
     tcg_gen_qemu_ld_i64_with_checked_addr(dest, addr, ctx->mem_idx, mop);
@@ -66,6 +67,7 @@ static bool trans_fsh(DisasContext *ctx, arg_fsh *a)
 
     REQUIRE_FPU;
     REQUIRE_ZFH_OR_ZFHMIN(ctx);
+    REQUIRE_CAPMODE_RS1_NOT_ZERO(ctx, a->rs1);
     addr = get_capmode_dependent_store_addr(ctx, a->rs1, a->imm, mop);
     tcg_gen_qemu_st_i64_with_checked_addr(cpu_fpr[a->rs2], addr, ctx->mem_idx,
                                           mop);
