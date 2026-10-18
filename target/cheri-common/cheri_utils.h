@@ -272,9 +272,20 @@ cap_has_invalid_perms_encoding(G_GNUC_UNUSED CPUArchState *env,
                                const cap_register_t *c)
 {
 #ifdef TARGET_CHERI_RISCV_STD
+    cheri_debug_assert(c->cr_lvbits == env_archcpu(env)->cfg.lvbits);
     target_ulong perms = cap_get_all_perms(c);
     CheriExecMode mode = cap_get_exec_mode(c);
-    return fix_up_ap(env, &perms) || fix_up_exec_mode(env, &mode, perms);
+    if (fix_up_ap(env, &perms) || fix_up_exec_mode(env, &mode, perms)) {
+        return true;
+    }
+    /*
+     * TODO: This should be handled by cheri-compressed-cap.
+     * Also verify that re-encoding the decoded permissions reproduces the
+     * original metadata bits (catching reserved RV32 quadrant encodings that
+     * decode to 0 permissions and RV64 AP[7:6] bits when lvbits == 0).
+     */
+    cap_register_t copy = *c;
+    return !cap_set_perms(env, &copy, perms) || copy.cr_pesbt != c->cr_pesbt;
 #else
     return false;
 #endif
