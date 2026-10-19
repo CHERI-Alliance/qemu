@@ -3865,8 +3865,9 @@ static void write_xtvecc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
     }
 
     if (!cap_has_perms(auth, CAP_ACCESS_SYS_REGS)) {
-        warn_report_once("Setting %s without ASR permission (likely a bug)",
-                         csr_cap_info->name);
+        warn_report_once("Setting %s to a capability without ASR permission: "
+                         PRINT_CAP_FMTSTR,
+                         csr_cap_info->name, PRINT_CAP_ARGS(auth));
     }
 
     target_ulong base_tvec = new_tvec & ~(target_ulong)3;
