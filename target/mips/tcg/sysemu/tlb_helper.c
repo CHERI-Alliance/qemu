@@ -541,10 +541,6 @@ static int r4k_map_address(CPUMIPSState *env, hwaddr *physical, int *prot,
                     return TLBRET_S;
                 }
             }
-
-            if (n ? tlb->S1 : tlb->S0) {
-                *prot |= PAGE_SC_TRAP;
-            }
 #else
             if (access_type == MMU_INST_FETCH && (n ? tlb->XI1 : tlb->XI0)) {
                 return TLBRET_XI;
@@ -573,6 +569,9 @@ static int r4k_map_address(CPUMIPSState *env, hwaddr *physical, int *prot,
                 }
 
 #if defined(TARGET_CHERI)
+                if (n ? tlb->S1 : tlb->S0) {
+                    *prot |= PAGE_SC_TRAP;
+                }
                 if (n ? tlb->L1 : tlb->L0) {
                     *prot |= PAGE_LC_CLEAR;
                 }
