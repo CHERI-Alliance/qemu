@@ -422,9 +422,15 @@ void cheri_tag_invalidate_impl(CPUArchState *env, target_ulong vaddr,
                                  lock_only);
         return;
     }
-    // Unaligned store -> can cross a capabiblity alignment boundary and
-    // therefore invalidate two tags. It can also cross pages
-    size_t ntags = tag_end.value - tag_start.value + 1;
+
+    /*
+     * Unaligned store -> can cross a capability alignment boundary and
+     * therefore invalidate two tags. It can also cross pages.
+     * It can also wrap the address space, so the offset difference should be
+     * computed modulo the number of capability sized granules.
+     */
+    size_t ntags = ((tag_end.value - tag_start.value) &
+            ((target_ulong)-1 / CHERI_CAP_SIZE)) + 1;
     assert(ntags == 2 && "Should invalidate at most two tag bits here");
     // Note: we always do a new page lookup here since unaligned stores
     // should be rare and the probing should be fast if it's in the QEMU TLB
@@ -462,8 +468,8 @@ void cheri_tag_invalidate_impl(CPUArchState *env, target_ulong vaddr,
 #endif
 #endif
     tag_writer_lock_t done = NULL;
-    for (target_ulong addr = tag_offset_to_addr(tag_start);
-         addr <= tag_offset_to_addr(tag_end); addr += CHERI_CAP_SIZE) {
+    target_ulong addr = tag_offset_to_addr(tag_start);
+    for (size_t i = 0; i < ntags; i++, addr += CHERI_CAP_SIZE) {
         cheri_tag_invalidate_one(env, addr, CHERI_CAP_SIZE, pc, mmu_idx,
                                  first, done, lock_only);
         if (first && (*first)) {
