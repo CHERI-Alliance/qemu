@@ -1,3 +1,31 @@
+# Generic "-cpu rv64,..." / "-cpu rv32,..." equivalents of the named Codasip
+# CPUs defined in target/riscv/cpu.c.  Each string enables the same ISA
+# extensions, MMU type, PMP, PMU counter count and privileged spec version as
+# the named CPU, so that extra extension properties can be appended to it
+# (the named CPUs do not accept extension properties).  The generic CPUs do
+# not register the Codasip custom CSRs.
+#
+# The strings are for the riscv{32,64}cheristd targets; the cores without
+# CHERI turn the CHERI extensions off explicitly, since the generic CPUs
+# enable them by default on those targets.
 
-export CODASIP_X730="rv64,i=on,m=on,a=on,f=on,d=on,c=on,s=on,h=off,mmu=on,pmp=off,Zyhybrid=on,Svucrg=on,y=on,u=on,zicbom=on,zicboz=on,zba=on,zbb=on,zbc=on,zbs=on,Zfhmin=on,svinval=on,zish4add=on,zca=on,zcd=on,zcf=off,zbkb=on,Zihintpause=on,sstc=on,sscofpmf=on,priv_spec=v1.12.0,zcb=on,svpbmt=on,Zylevels1=on,svinval=true,svnapot=true"
+# RV64, CHERI
+export CODASIP_X730="rv64,i=on,m=on,a=on,f=on,d=on,c=on,s=on,u=on,h=off,v=off,priv_spec=v1.12.0,mmu=on,pmp=off,sv39=on,pmu-num=4,Zicsr=on,Zifencei=on,Zihintpause=on,zicbom=on,zicboz=on,cbom_blocksize=64,cboz_blocksize=64,zba=on,zbb=on,zbc=off,zbs=on,zbkb=on,zbkc=on,zkt=on,Zfhmin=on,Zfa=off,Zawrs=off,zca=on,zcb=on,zcd=on,zcf=off,svinval=on,svnapot=on,svpbmt=on,svadu=off,sstc=on,sscofpmf=on,y=on,Zyhybrid=on,Zylevels1=on,Svucrg=on,zish4add=on"
+export CODASIP_X730_LUX="$CODASIP_X730"
+export CODASIP_Y730_QUARTZ="rv64,i=on,m=on,a=on,f=on,d=on,c=on,s=on,u=on,h=off,v=off,priv_spec=v1.12.0,mmu=off,pmp=off,sv39=off,pmu-num=4,Zicsr=on,Zifencei=on,Zihintpause=on,zicbom=on,zicboz=on,cbom_blocksize=64,cboz_blocksize=64,zba=on,zbb=on,zbc=off,zbs=on,zkr=on,zkn=on,zks=on,zkt=on,Zfhmin=on,Zfa=off,Zawrs=off,zcb=on,svadu=off,sstc=on,sscofpmf=on,y=on,Zyhybrid=on,Zylevels1=on,Svucrg=off,zish4add=on"
+export CODASIP_1110_APEX="rv64,i=on,m=on,a=on,f=on,d=on,c=on,s=on,u=on,h=off,v=off,priv_spec=v1.12.0,mmu=on,pmp=off,sv57=on,pmu-num=29,Zicsr=on,Zifencei=on,Zihintpause=on,zicbom=on,zicboz=on,cbom_blocksize=64,cboz_blocksize=64,zba=on,zbb=on,zbc=off,zbs=on,zkr=on,zkn=on,zks=on,zkt=on,Zfhmin=on,Zfa=off,Zawrs=off,zcb=on,svinval=on,svnapot=on,svpbmt=on,svadu=off,sstc=on,sscofpmf=on,y=on,Zyhybrid=on,Zylevels1=on,Svucrg=on,zish4add=on"
 
+# RV64, no CHERI
+export CODASIP_A730_FLINT="rv64,i=on,m=on,a=on,f=on,d=on,c=on,s=on,u=on,h=off,v=off,priv_spec=v1.12.0,mmu=on,pmp=off,sv39=on,pmu-num=4,Zicsr=on,Zifencei=on,Zihintpause=on,zicbom=on,zicboz=on,cbom_blocksize=64,cboz_blocksize=64,zba=on,zbb=on,zbc=off,zbs=on,zbkc=on,zkt=on,Zfhmin=on,Zfa=off,Zawrs=off,zcb=on,svinval=on,svnapot=on,svpbmt=on,svadu=off,sstc=on,sscofpmf=on,y=off,Zyhybrid=off,zish4add=off"
+export CODASIP_H730_GARNET="rv64,i=on,m=on,a=on,f=on,d=on,c=on,s=on,u=on,h=off,v=off,priv_spec=v1.12.0,mmu=off,pmp=off,sv39=off,pmu-num=4,Zicsr=on,Zifencei=on,Zihintpause=on,zicbom=on,zicboz=on,cbom_blocksize=64,cboz_blocksize=64,zba=on,zbb=on,zbc=off,zbs=on,zkt=on,Zfhmin=on,Zfa=off,Zawrs=off,zcb=on,svadu=off,sstc=on,sscofpmf=on,y=off,Zyhybrid=off,zish4add=off"
+export CODASIP_1110_ARIA="rv64,i=on,m=on,a=on,f=on,d=on,c=on,s=on,u=on,h=off,v=on,vlen=256,elen=64,priv_spec=v1.12.0,mmu=on,pmp=off,sv57=on,pmu-num=29,Zicsr=on,Zifencei=on,Zihintpause=on,zicbom=on,zicboz=on,cbom_blocksize=64,cboz_blocksize=64,zba=on,zbb=on,zbc=off,zbs=on,zkr=on,zkn=on,zks=on,zkt=on,Zfhmin=on,Zfa=off,Zawrs=off,zcb=on,svinval=on,svnapot=on,svpbmt=on,svadu=off,sstc=on,sscofpmf=on,y=off,Zyhybrid=off,zish4add=off"
+export CODASIP_1110_ASTER="rv64,i=on,m=on,a=on,f=on,d=on,c=on,s=on,u=on,h=off,v=on,vlen=256,elen=64,priv_spec=v1.12.0,mmu=on,pmp=off,sv57=on,pmu-num=29,Zicsr=on,Zifencei=on,Zihintpause=on,zicbom=on,zicboz=on,cbom_blocksize=64,cboz_blocksize=64,zba=on,zbb=on,zbc=off,zbs=on,zkr=on,zkt=on,Zfhmin=on,Zfa=off,Zawrs=off,zcb=on,svinval=on,svnapot=on,svpbmt=on,svadu=off,sstc=on,sscofpmf=on,y=off,Zyhybrid=off,zish4add=off"
+
+# RV32, CHERI
+export CODASIP_V739_SPINEL="rv32,i=on,m=on,a=on,f=on,d=on,c=on,s=on,u=on,h=off,v=off,priv_spec=v1.12.0,mmu=off,pmp=off,sv32=off,pmu-num=4,Zicsr=on,Zifencei=on,Zihintpause=on,zicbom=on,zicboz=on,cbom_blocksize=64,cboz_blocksize=64,zba=on,zbb=on,zbc=off,zbs=on,zbkb=on,zkr=on,zkn=on,zks=on,zkt=on,Zfhmin=on,Zfa=off,Zawrs=off,zcb=on,zcf=on,svadu=off,sstc=on,sscofpmf=on,smclic=on,ssclic=on,smclicshv=on,smclicconfig=on,y=on,Zyhybrid=on,Zylevels1=on,Svucrg=off,zish4add=on"
+export CODASIP_V739="$CODASIP_V739_SPINEL"
+
+# RV32, no CHERI
+export CODASIP_V730_SHINE="rv32,i=on,m=on,a=on,f=on,d=off,c=on,s=on,u=on,h=off,v=off,priv_spec=v1.12.0,mmu=off,pmp=off,sv32=off,pmu-num=4,Zicsr=on,Zifencei=on,Zihintpause=on,zicbom=on,zicboz=on,cbom_blocksize=64,cboz_blocksize=64,zba=on,zbb=on,zbc=off,zbs=on,zbkc=on,zkt=on,Zfhmin=on,Zfa=off,Zawrs=off,zcb=on,zcf=on,svadu=off,sstc=on,sscofpmf=on,y=off,Zyhybrid=off,zish4add=off"
+export CODASIP_L730_GLIM="rv32,i=on,m=on,a=on,f=on,d=off,c=on,s=on,u=on,h=off,v=off,priv_spec=v1.12.0,mmu=off,pmp=on,sv32=off,pmu-num=4,Zicsr=on,Zifencei=on,Zihintpause=on,zicbom=on,zicboz=on,cbom_blocksize=64,cboz_blocksize=64,zba=on,zbb=on,zbc=off,zbs=on,zbkc=on,zkt=on,Zfhmin=on,Zfa=off,Zawrs=off,zcb=on,zcf=on,svadu=off,sstc=on,sscofpmf=on,smclic=on,ssclic=on,smclicshv=on,smclicconfig=on,y=off,Zyhybrid=off,zish4add=off"
+export CODASIP_L739_TOPAZ="rv32,i=on,m=on,a=on,f=on,d=off,c=on,s=on,u=on,h=off,v=off,priv_spec=v1.12.0,mmu=off,pmp=on,sv32=off,pmu-num=4,Zicsr=on,Zifencei=on,Zihintpause=on,zicbom=on,zicboz=on,cbom_blocksize=64,cboz_blocksize=64,zba=on,zbb=on,zbc=off,zbs=on,zkt=on,Zfhmin=on,Zfa=off,Zawrs=off,zcb=on,zcf=on,svadu=off,sstc=on,sscofpmf=on,smclic=on,ssclic=on,smclicshv=on,smclicconfig=on,y=off,Zyhybrid=off,zish4add=off"
