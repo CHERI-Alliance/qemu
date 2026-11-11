@@ -2852,7 +2852,11 @@ static MemTxResult flatview_write_continue(FlatView *fv, hwaddr addr,
         } else {
             /* RAM case */
             ram_ptr = qemu_ram_ptr_length(mr->ram_block, addr1, &l, false);
+#if defined(TARGET_CHERI)
+            cheri_phys_memcpy(NULL, mr->ram_block, addr1, ram_ptr, buf, l);
+#else
             memcpy(ram_ptr, buf, l);
+#endif
             invalidate_and_set_dirty(mr, addr1, l);
         }
 
@@ -3142,7 +3146,11 @@ static inline MemTxResult address_space_write_rom_internal(AddressSpace *as,
             ram_ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
             switch (type) {
             case WRITE_DATA:
+#if defined(TARGET_CHERI)
+                cheri_phys_memcpy(NULL, mr->ram_block, addr1, ram_ptr, buf, l);
+#else
                 memcpy(ram_ptr, buf, l);
+#endif
                 invalidate_and_set_dirty(mr, addr1, l);
                 break;
             case FLUSH_CACHE:
@@ -3475,7 +3483,18 @@ int64_t address_space_cache_init(MemoryRegionCache *cache,
 
     mr = cache->mrs.mr;
     memory_region_ref(mr);
+#if defined(TARGET_CHERI)
+    /*
+     * A writable cache over tagged RAM must not get a writable pointer as this
+     * would bypass the tagblock lock/unlock mechanism.
+     * Instead fall back to slow path.
+     */
+    if (is_write && mr->ram_block && mr->ram_block->cheri_tags) {
+        cache->ptr = NULL;
+    } else if (memory_access_is_direct(mr, is_write)) {
+#else
     if (memory_access_is_direct(mr, is_write)) {
+#endif
         /* We don't care about the memory attributes here as we're only
          * doing this if we found actual RAM, which behaves the same
          * regardless of attributes; so UNSPECIFIED is fine.
