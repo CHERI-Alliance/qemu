@@ -596,6 +596,88 @@ void cheri_tag_phys_invalidate(CPUArchState *env, RAMBlock *ram,
     }
 }
 
+void *cheri_tag_phys_invalidate_begin(CPUArchState *env, RAMBlock *ram,
+                                      ram_addr_t ram_offset, size_t *len)
+{
+    CheriTagBlock *tagblk;
+    size_t end_idx;
+    size_t blk_offset;
+    size_t start_idx, cap_idx;
+    int nr, bits_to_clear, word;
+    unsigned long mask_to_clear;
+
+    /*
+     * The ram offset is the offset into the ramblock. We need to convert this
+     * into capability indices
+     */
+    start_idx = ram_offset / CHERI_CAP_SIZE;
+    blk_offset = ram_offset % CHERI_TAG_BLOCK_SIZE;
+
+    /* Limit the operation to a single tag block */
+    *len = *len + blk_offset < CHERI_TAG_BLOCK_SIZE ? *len :
+        CHERI_TAG_BLOCK_SIZE - blk_offset;
+
+    end_idx = DIV_ROUND_UP(blk_offset + *len, CHERI_CAP_SIZE);
+    if (ram->cheri_tags == NULL) {
+        /* Nothing to lock */
+        return NULL;
+    }
+
+    tagblk = cheri_tag_block(start_idx, ram);
+    if (!tagblk) {
+        /* Attempt to allocate a new tagblock */
+        tagblk = cheri_tag_new_tagblk(ram, start_idx);
+    }
+    tagblock_lock_write(tagblk);
+    if (*len == 0) {
+        return tagblk;
+    }
+    cap_idx = blk_offset / CHERI_CAP_SIZE;
+    mask_to_clear = BITMAP_FIRST_WORD_MASK(cap_idx);
+    nr = end_idx - cap_idx;
+    bits_to_clear = BITS_PER_LONG - (cap_idx % BITS_PER_LONG);
+    word = BIT_WORD(cap_idx);
+    while (nr - bits_to_clear >= 0) {
+        qatomic_set(&tagblk->tag_bitmap[word],
+                    qatomic_read(&tagblk->tag_bitmap[word]) & ~mask_to_clear);
+        nr -= bits_to_clear;
+        bits_to_clear = BITS_PER_LONG;
+        mask_to_clear = ~0UL;
+        word++;
+    }
+    if (nr) {
+        mask_to_clear &= BITMAP_LAST_WORD_MASK(end_idx);
+        qatomic_set(&tagblk->tag_bitmap[word],
+                    qatomic_read(&tagblk->tag_bitmap[word]) & ~mask_to_clear);
+    }
+    return tagblk;
+}
+
+void cheri_tag_phys_invalidate_end(void *tagblock)
+{
+    if (tagblock) {
+        tagblock_unlock_write(tagblock);
+    }
+}
+
+void cheri_phys_memcpy(CPUArchState *env, RAMBlock *ram,
+                       ram_addr_t ram_offset, uint8_t *dst,
+                       const uint8_t *src, size_t len)
+{
+    void *tagblk;
+    size_t towrite = len;
+    while (towrite) {
+        tagblk = cheri_tag_phys_invalidate_begin(env, ram, ram_offset,
+                                                 &towrite);
+        memcpy(dst, src, towrite);
+        cheri_tag_phys_invalidate_end(tagblk);
+        src += towrite;
+        dst += towrite;
+        ram_offset += towrite;
+        len -= towrite;
+        towrite = len;
+    }
+}
 /*
  * TODO: Basically nothing uses this physical address. Tag set probably should
  * not have to return it.

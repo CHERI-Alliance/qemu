@@ -404,6 +404,30 @@ void *cheri_tagmem_for_addr(CPUArchState *env, target_ulong vaddr,
                             RAMBlock *ram, ram_addr_t ram_offset, size_t size,
                             int *prot, bool tag_write);
 
+/* Helpers for writes to tagged RAM */
+
+/*
+ * Lock a tagblock for write and clear the tags the write will cover.
+ * The updated len indicates how many bytes were invalidated (limited by the
+ * tagblock length).
+ * Returns the locked tagblock, else NULL if the associated memory has no tags.
+ */
+void *cheri_tag_phys_invalidate_begin(CPUArchState *env, RAMBlock *ram,
+                                      ram_addr_t ram_offset, size_t *len);
+
+/* Releases the locked tagblock, does nothing if it is null */
+void cheri_tag_phys_invalidate_end(void *tagblock);
+
+/*
+ * Copy a host buffer into tagged memory clearing tags
+ * Copies the memory from src to dst in chunks the size that a tagblock
+ * can cover. Acquires a tag block and clears the tags in it if the memory has
+ * tags, else just copies.
+ */
+void cheri_phys_memcpy(CPUArchState *env, RAMBlock *ram,
+                       ram_addr_t ram_offset, uint8_t *dst,
+                       const uint8_t *src, size_t len);
+
 /**
  * Fetch a single tag for use by the debug stub.
  */
