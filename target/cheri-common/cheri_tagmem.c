@@ -603,8 +603,10 @@ void *cheri_tag_phys_invalidate_begin(CPUArchState *env, RAMBlock *ram,
     size_t end_idx;
     size_t blk_offset;
     size_t start_idx, cap_idx;
-    int nr, bits_to_clear, word;
+    int i, nr, bits_to_clear, word;
     unsigned long mask_to_clear;
+    bool old_tag;
+    ram_addr_t ram_addr;
 
     /*
      * The ram offset is the offset into the ramblock. We need to convert this
@@ -637,6 +639,20 @@ void *cheri_tag_phys_invalidate_begin(CPUArchState *env, RAMBlock *ram,
     nr = end_idx - cap_idx;
     bits_to_clear = BITS_PER_LONG - (cap_idx % BITS_PER_LONG);
     word = BIT_WORD(cap_idx);
+    if (unlikely(env && qemu_log_instr_enabled(env))) {
+        /* Before we clear the bits we need to log any that are set */
+        for (ram_addr = QEMU_ALIGN_DOWN(ram_offset, CHERI_CAP_SIZE),
+                i = cap_idx; i < end_idx; i++, ram_addr += CHERI_CAP_SIZE) {
+            old_tag = __tagblock_tag_get(tagblk, i);
+            if (old_tag) {
+                qemu_log_instr_extra(
+                    env,
+                    "    Cap Tag ramaddr Write [" RAM_ADDR_FMT
+                    "] %d -> 0\n",
+                    ram_addr, old_tag);
+            }
+        }
+    }
     while (nr - bits_to_clear >= 0) {
         qatomic_set(&tagblk->tag_bitmap[word],
                     qatomic_read(&tagblk->tag_bitmap[word]) & ~mask_to_clear);
