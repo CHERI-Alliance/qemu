@@ -1354,7 +1354,7 @@ restart:
                 break;
             }
 
-            /* Page table updates need to be atomic with MTTCG enabled */
+            /* Page table updates need to be atomic with MTTCG enabled. */
             if (updated_pte != pte) {
                 /*
                  * - if accessed or dirty bits need updating, and the PTE is
@@ -1371,19 +1371,35 @@ restart:
                 if (memory_region_is_ram(mr)) {
                     target_ulong *pte_pa =
                         qemu_map_ram_ptr(mr->ram_block, addr1);
+#if defined(TARGET_CHERI)
+                    /*
+                     * For CHERI PTE writes are considered data writes and must
+                     * safely clear a tag if one is present, so no load or
+                     * store sees the new PTE with the old tag.
+                     */
+                    size_t len = sizeof(target_ulong);
+                    void *tagblk = cheri_tag_phys_invalidate_begin(env,
+                            mr->ram_block, addr1, &len);
+#endif /* TARGET_CHERI */
 #if TCG_OVERSIZED_GUEST
                     /* MTTCG is not enabled on oversized TCG guests so
                      * page table updates do not need to be atomic */
                     *pte_pa = pte = updated_pte;
-#else
+#if defined(TARGET_CHERI)
+                    cheri_tag_phys_invalidate_end(tagblk);
+#endif /* TARGET_CHERI */
+#else /* TCG_OVERSIZED_GUEST */
                     target_ulong old_pte =
                         qatomic_cmpxchg(pte_pa, pte, updated_pte);
+#if defined(TARGET_CHERI)
+                    cheri_tag_phys_invalidate_end(tagblk);
+#endif /* TARGET_CHERI */
                     if (old_pte != pte) {
                         goto restart;
                     } else {
                         pte = updated_pte;
                     }
-#endif
+#endif /* TCG_OVERSIZED_GUEST */
                 } else {
                     /* misconfigured PTE in ROM (AD bits are not preset) or
                      * PTE is in IO space and can't be updated atomically */
