@@ -62,13 +62,9 @@
  * FIXME: rewrite using somethign more like the upcoming MTE changes
  * (https://github.com/rth7680/qemu/commits/tgt-arm-mte-user)
  *
- * XXX: I/O threads still exist even without MTTCG and need to have tag
- * clearing be atomic with their writes. Currently various places just write to
- * guest memory directly and then we tag clear in invalidate_and_set_dirty.
- * Well-behaved guests should not be touching memory handed off to DMA-capable
- * devices but a malicious guest could repeatedly DMA powerful capability bit
- * patterns on top of valid capabilities and try to race to read in between the
- * DMA write and the tag invalidate.
+ * I/O threads are also protected. Writes clear tags as required under the tag
+ * block's write lock. A device mapping hides tags until the unmap which will
+ * invalidate the tags.
  */
 
 #ifndef CAP_TAG_GET_MANY_SHFT

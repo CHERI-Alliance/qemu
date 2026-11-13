@@ -2713,9 +2713,6 @@ static void invalidate_and_set_dirty(MemoryRegion *mr, hwaddr addr,
                                      hwaddr length)
 {
     uint8_t dirty_log_mask = memory_region_get_dirty_log_mask(mr);
-#if defined(TARGET_CHERI)
-    ram_addr_t ram_offset = addr;
-#endif
     addr += memory_region_get_ram_addr(mr);
 
     /* No early return if dirty_log_mask is or becomes 0, because
@@ -2732,14 +2729,10 @@ static void invalidate_and_set_dirty(MemoryRegion *mr, hwaddr addr,
         dirty_log_mask &= ~(1 << DIRTY_MEMORY_CODE);
     }
     cpu_physical_memory_set_dirty_range(addr, length, dirty_log_mask);
-
-#if defined(TARGET_CHERI)
-    /* Invalidate the CHERI memory tags. */
-    if (mr->ram_block) {
-        cheri_tag_phys_invalidate(NULL, mr->ram_block, ram_offset, length,
-                                  NULL);
-    }
-#endif
+    /*
+     * No need for CHERI variants to clear tags. All callers that write tagged
+     * RAM clear the tags.
+     */
 }
 
 void memory_region_flush_rom_device(MemoryRegion *mr, hwaddr addr, hwaddr size)
