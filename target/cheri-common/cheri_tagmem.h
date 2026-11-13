@@ -86,6 +86,18 @@ void cheri_tag_phys_invalidate_external(RAMBlock *ram,
 typedef struct CheriTagBlock_s {
     unsigned long seqlock;
     DECLARE_BITMAP(tag_bitmap, TAGS_PER_PAGE);
+    /*
+     * Bitmap indicating capabilities currently in a device writable mapping
+     * written by DMA add/remove functions.
+     */
+    DECLARE_BITMAP(dma_bitmap, TAGS_PER_PAGE);
+    /*
+     * Pointer to TAGS_PER_PAGE sized array, each entry contains the number of
+     * additional mappings covering it
+     * Written by DMA add/remove functions, allocated on first overlap. Freed
+     * when no more capabilities are marked.
+     */
+    uint16_t *num_overlaps;
 } __attribute__((aligned(64))) CheriTagBlock;
 
 /* Opaque types for locks */
@@ -197,9 +209,15 @@ static inline QEMU_ALWAYS_INLINE bool
 __tagblock_tag_get(CheriTagBlock *block, size_t index)
 {
     unsigned long *p = (unsigned long *)block->tag_bitmap + BIT_WORD(index);
+    unsigned long *d = (unsigned long *)block->dma_bitmap + BIT_WORD(index);
+    /*
+     * DMA bits and tag bits only change when a writer holds a lock. So
+     * if a change happens during the read, the caller's tagblock_end_read will
+     * see this and retry.
+     */
     unsigned long word = qatomic_read(p);
-
-    return (word & BIT_MASK(index)) != 0;
+    unsigned long result_word = ~qatomic_read(d) & word;
+    return ((result_word & BIT_MASK(index)) != 0);
 }
 
 static inline QEMU_ALWAYS_INLINE void
@@ -218,6 +236,33 @@ __tagblock_tag_clear(CheriTagBlock *block, size_t index)
     unsigned long word = qatomic_read(p) & ~BIT_MASK(index);
 
     qatomic_set(p, word);
+}
+
+/* Helpers to access the dma_bitmap */
+static inline QEMU_ALWAYS_INLINE bool
+__tagblock_dma_get(CheriTagBlock *block, size_t index)
+{
+    unsigned long *d = (unsigned long *)block->dma_bitmap + BIT_WORD(index);
+    unsigned long word = qatomic_read(d);
+    return ((word & BIT_MASK(index)) != 0);
+}
+
+static inline QEMU_ALWAYS_INLINE void
+__tagblock_dma_set(CheriTagBlock *block, size_t index)
+{
+    unsigned long *d = (unsigned long *)block->dma_bitmap + BIT_WORD(index);
+    unsigned long word = qatomic_read(d) | BIT_MASK(index);
+
+    qatomic_set(d, word);
+}
+
+static inline QEMU_ALWAYS_INLINE void
+__tagblock_dma_clear(CheriTagBlock *block, size_t index)
+{
+    unsigned long *d = (unsigned long *)block->dma_bitmap + BIT_WORD(index);
+    unsigned long word = qatomic_read(d) & ~BIT_MASK(index);
+
+    qatomic_set(d, word);
 }
 
 static inline void cheri_tag_writer_release(tag_writer_lock_t lock)
@@ -427,6 +472,30 @@ void cheri_tag_phys_invalidate_end(void *tagblock);
 void cheri_phys_memcpy(CPUArchState *env, RAMBlock *ram,
                        ram_addr_t ram_offset, uint8_t *dst,
                        const uint8_t *src, size_t len);
+
+/*
+ * Used to begin the invalidation of tags for a range that can cover more than
+ * a single block. Sets the dma bits for the whole range so that reads of
+ * the range will get clear tags. Handles overlapping ranges by counting
+ * the number of overlaps. If there are more overlaps than can be represented
+ * in the structure, returns with len == 0 (never a shortened value).
+ * If *len is zero then nothing was marked and end must not be called.
+ */
+void cheri_tag_phys_invalidate_range_begin(RAMBlock *ram, ram_addr_t offset,
+                                           size_t *len);
+
+/*
+ * Clears the tags for an address range that can cover more than a block.
+ * The range passed must match that used for the begin operation.
+ * Len must be the value that begin left in *len, access_len is the number of
+ * bytes the device wrote clamped to len.
+ * The tags of the capabilities the written bytes touch are cleared, and the
+ * whole mapping is removed. Passing a range that doesn't match what was given
+ * to begin results in tags being hidden for good, or makes them visible too
+ * early.
+ */
+void cheri_tag_phys_invalidate_range_end(RAMBlock *ram, ram_addr_t offset,
+                                         size_t len, size_t access_len);
 
 /**
  * Fetch a single tag for use by the debug stub.

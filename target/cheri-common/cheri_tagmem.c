@@ -207,7 +207,7 @@ tagblock_clear_locktag_with_lock_and_release(CheriTagBlock *block,
 static inline QEMU_ALWAYS_INLINE int
 tagmem_get_tag_many(CheriTagBlock *tagmem, target_ulong vaddr)
 {
-    unsigned long res;
+    unsigned long res, not_dma;
     unsigned long index = page_vaddr_to_tag_offset(vaddr);
     while (1) {
         unsigned long seq;
@@ -215,7 +215,9 @@ tagmem_get_tag_many(CheriTagBlock *tagmem, target_ulong vaddr)
             cpu_relax();
             continue;
         }
-        res = qatomic_read(tagmem->tag_bitmap + BIT_WORD(index));
+        /* Mask so that a tag reads as set only when its dma bit is clear. */
+        not_dma = ~qatomic_read(tagmem->dma_bitmap + BIT_WORD(index));
+        res = qatomic_read(tagmem->tag_bitmap + BIT_WORD(index)) & not_dma;
         if (tagblock_end_read(tagmem, seq)) {
             break;
         }
@@ -320,6 +322,249 @@ void *cheri_tagmem_for_addr(CPUArchState *env, target_ulong vaddr,
     }
 
     return ALL_ZERO_TAGBLK;
+}
+
+/*
+ * Given a ram_block address range (block start address, range start address
+ * and length in bytes), return the index within the block of the start/end
+ * clipping to the block's start and end addresses. If the range doesn't fall
+ * in the block's range return false.
+ * block_start and range_offset are both offsets within the RAM block (not
+ * addresses). The end parameter is exclusive of the range.
+ */
+static bool tag_idx_for_range(ram_addr_t block_start,
+                              ram_addr_t range_offset, size_t len,
+                              size_t *first, size_t *end)
+{
+    ram_addr_t clipped_start = MAX(block_start, range_offset);
+    ram_addr_t clipped_end = MIN(block_start + CHERI_TAG_BLOCK_SIZE,
+            range_offset + len);
+
+    if (clipped_start >= clipped_end) {
+        /* Outside range of the block */
+        return false;
+    }
+    *first = (clipped_start - block_start) / CHERI_CAP_SIZE;
+    *end = DIV_ROUND_UP(clipped_end - block_start, CHERI_CAP_SIZE);
+    return true;
+}
+
+typedef enum {
+    ITER_OP_INVAL = 0, /* Prevent 0 initialised ops appearing valid */
+    ITER_OP_SET,
+    ITER_OP_CLEAR,
+    ITER_OP_ANYSET,
+} Bit_Iter_Op;
+
+/*
+ * Iterate over a range of a dma or tag bitmap and run the provided operation.
+ * Range is specified in block local indices.
+ * Assumes a lock is held for the resource.
+ * The operation can be ITER_OP_SET, ITER_OP_CLEAR or ITER_OP_ANYSET
+ * Return value only meaningful for anyset where it indicates if any bits are
+ * set in the target range.
+ */
+static bool bitmap_range_iter(unsigned long *bitmap, size_t start_idx,
+                              size_t end_idx, Bit_Iter_Op op)
+{
+
+    unsigned long mask_operand; /* Mask representing bits to set/clear/test */
+    unsigned long word;
+    int nr, bits_to_clear;
+    unsigned long res = 0;
+
+    mask_operand = BITMAP_FIRST_WORD_MASK(start_idx);
+    nr = end_idx - start_idx;
+    bits_to_clear = BITS_PER_LONG - (start_idx % BITS_PER_LONG);
+    word = BIT_WORD(start_idx);
+    while (nr - bits_to_clear >= 0) {
+        switch (op) {
+        case ITER_OP_CLEAR:
+            qatomic_set(&bitmap[word],
+                    qatomic_read(&bitmap[word]) & ~mask_operand);
+        break;
+        case ITER_OP_SET:
+            qatomic_set(&bitmap[word],
+                    qatomic_read(&bitmap[word]) | mask_operand);
+        break;
+        case ITER_OP_ANYSET:
+            /*
+             * Only holders of the lock call this function, so we are
+             * fine to do a plain read here.
+             */
+            res |= (bitmap[word] & mask_operand);
+        break;
+        default:
+            g_assert_not_reached();
+        }
+        nr -= bits_to_clear;
+        bits_to_clear = BITS_PER_LONG;
+        mask_operand = ~0UL;
+        word++;
+    }
+    if (nr) {
+        mask_operand &= BITMAP_LAST_WORD_MASK(end_idx);
+        switch (op) {
+        case ITER_OP_CLEAR:
+            qatomic_set(&bitmap[word],
+                    qatomic_read(&bitmap[word]) & ~mask_operand);
+        break;
+        case ITER_OP_SET:
+            qatomic_set(&bitmap[word],
+                    qatomic_read(&bitmap[word]) | mask_operand);
+        break;
+        case ITER_OP_ANYSET:
+            res |= (bitmap[word] & mask_operand);
+        break;
+        default:
+            g_assert_not_reached();
+        }
+    }
+    return res != 0;
+}
+
+/*
+ * Add a DMA mapping for the supplied range of the provided block.
+ * Caller holds the tagblock lock.
+ */
+static bool add_block_dma_mapping(CheriTagBlock *tagblk, size_t start,
+                                  size_t end)
+{
+    if (!bitmap_range_iter(tagblk->dma_bitmap, start, end, ITER_OP_ANYSET)) {
+        /* No bits in the requested range are set */
+        bitmap_range_iter(tagblk->dma_bitmap, start, end, ITER_OP_SET);
+        return true;
+    }
+    if (tagblk->num_overlaps == NULL) {
+        tagblk->num_overlaps = g_new0(uint16_t, TAGS_PER_PAGE);
+    }
+    /* Check pass, do this first so if we fail nothing changed */
+    for (size_t idx = start; idx < end; idx++) {
+        if (test_bit(idx, tagblk->dma_bitmap) &&
+                tagblk->num_overlaps[idx] == UINT16_MAX) {
+            return false;
+        }
+    }
+    /*
+     * Apply pass.
+     * Set unset bits.
+     * If bits are already set then increment its counter
+     */
+    for (size_t idx = start; idx < end; idx++) {
+        if (test_bit(idx, tagblk->dma_bitmap)) {
+            tagblk->num_overlaps[idx]++;
+        } else {
+            __tagblock_dma_set(tagblk, idx);
+        }
+    }
+    return true;
+}
+
+/*
+ * Remove the DMA mapping for the range in the given block.
+ * Reduce the overlap count for tags that have one, or unset the bit for
+ * those that do not.
+ */
+static void remove_block_dma_mapping(CheriTagBlock *tagblk, size_t start,
+                                     size_t end)
+{
+    for (size_t idx = start; idx < end; idx++) {
+        cheri_debug_assert(test_bit(idx, tagblk->dma_bitmap));
+    }
+    if (!tagblk->num_overlaps) {
+        /* No overlaps so we can bulk clear the dma bits */
+        bitmap_range_iter(tagblk->dma_bitmap, start, end, ITER_OP_CLEAR);
+        return;
+    }
+    /*
+     * Iterate over the range. Clear the dma flag for capabilities that have
+     * no overlap. Decrement the count for those that do.
+     */
+    for (size_t idx = start; idx < end; idx++) {
+        if (tagblk->num_overlaps[idx]) {
+            tagblk->num_overlaps[idx]--;
+        } else {
+            __tagblock_dma_clear(tagblk, idx);
+        }
+    }
+    if (!bitmap_range_iter(tagblk->dma_bitmap, 0, TAGS_PER_PAGE,
+                           ITER_OP_ANYSET)) {
+        g_free(tagblk->num_overlaps);
+        tagblk->num_overlaps = NULL;
+    }
+}
+
+void cheri_tag_phys_invalidate_range_begin(RAMBlock *ram, ram_addr_t offset,
+                                           size_t *len)
+{
+    CheriTagBlock *tagblk;
+    ram_addr_t blk_start, blk_end;
+    size_t requested_len;
+    size_t first = 0, last = 0;
+    if (ram->cheri_tags == NULL || len == NULL || *len == 0) {
+        return;
+    }
+    requested_len = *len;
+    /*
+     * Iterate over each tagblock in the range.
+     * Start is offset rounded down
+     * end is offset + len unrounded.
+     */
+    for (ram_addr_t blk = blk_start =
+            QEMU_ALIGN_DOWN(offset, CHERI_TAG_BLOCK_SIZE);
+            blk < offset + *len; blk += CHERI_TAG_BLOCK_SIZE) {
+        tagblk = cheri_tag_block(blk / CHERI_CAP_SIZE, ram);
+        if (!tagblk) {
+            /* Attempt to allocate a new tagblock */
+            tagblk = cheri_tag_new_tagblk(ram, blk / CHERI_CAP_SIZE);
+        }
+        tagblock_lock_write(tagblk);
+        tag_idx_for_range(blk, offset, *len, &first, &last);
+        if (!add_block_dma_mapping(tagblk, first, last)) {
+            *len = 0;
+            blk_end = blk;
+            tagblock_unlock_write(tagblk);
+            /*
+             * Need to undo the blocks we added.
+             * Loop up using the variables we already have
+             */
+            for (blk = blk_start; blk < blk_end;
+                    blk += CHERI_TAG_BLOCK_SIZE) {
+                tagblk = cheri_tag_block(blk / CHERI_CAP_SIZE, ram);
+                tagblock_lock_write(tagblk);
+                tag_idx_for_range(blk, offset, requested_len, &first, &last);
+                remove_block_dma_mapping(tagblk, first, last);
+                tagblock_unlock_write(tagblk);
+            }
+            return;
+        }
+        tagblock_unlock_write(tagblk);
+    }
+}
+
+void cheri_tag_phys_invalidate_range_end(RAMBlock *ram, ram_addr_t offset,
+                                         size_t len, size_t access_len)
+{
+    CheriTagBlock *tagblk;
+    size_t first = 0, last = 0;
+    if (ram->cheri_tags == NULL || len == 0) {
+        return;
+    }
+    access_len = MIN(len, access_len);
+    for (ram_addr_t blk = QEMU_ALIGN_DOWN(offset, CHERI_TAG_BLOCK_SIZE);
+            blk < offset + len; blk += CHERI_TAG_BLOCK_SIZE) {
+        tagblk = cheri_tag_block(blk / CHERI_CAP_SIZE, ram);
+        if (!tagblk) {
+            g_assert_not_reached();
+        }
+        tagblock_lock_write(tagblk);
+        if (tag_idx_for_range(blk, offset, access_len, &first, &last)) {
+            bitmap_range_iter(tagblk->tag_bitmap, first, last, ITER_OP_CLEAR);
+        }
+        tag_idx_for_range(blk, offset, len, &first, &last);
+        remove_block_dma_mapping(tagblk, first, last);
+        tagblock_unlock_write(tagblk);
+    }
 }
 
 static inline void *get_tagmem_from_iotlb_entry(CPUArchState *env,
