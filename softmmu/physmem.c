@@ -3393,6 +3393,25 @@ void *address_space_map(AddressSpace *as,
     memory_region_ref(mr);
     *plen = flatview_extend_translation(fv, addr, len, mr, xlat,
                                         l, is_write, attrs);
+#if defined(TARGET_CHERI)
+    if (is_write && mr->ram_block && mr->ram_block->cheri_tags) {
+        size_t invalidate_len = *plen;
+        /*
+         * Mark that we are mapping the address range for dma use. This will
+         * cause tag reads for the associated range to return 0.
+         * If this fails because of too many overlapping mappings then
+         * *invalidate_len is returned as zero and the mapping makes no change.
+         */
+        cheri_tag_phys_invalidate_range_begin(mr->ram_block, xlat,
+                                              &invalidate_len);
+        if (invalidate_len == 0) {
+            /* Mapping has failed due to too many overlapping mappings */
+            memory_region_unref(mr);
+            *plen = 0;
+            return NULL;
+        }
+    }
+#endif /* TARGET_CHERI */
     fuzz_dma_read_cb(addr, *plen, mr);
     ptr = qemu_ram_ptr_length(mr->ram_block, xlat, plen, true);
 
@@ -3413,6 +3432,12 @@ void address_space_unmap(AddressSpace *as, void *buffer, hwaddr len,
         mr = memory_region_from_host(buffer, &addr1);
         assert(mr != NULL);
         if (is_write) {
+#if defined(TARGET_CHERI)
+            if (mr->ram_block && mr->ram_block->cheri_tags) {
+                cheri_tag_phys_invalidate_range_end(mr->ram_block, addr1, len,
+                                                    access_len);
+            }
+#endif /* TARGET_CHERI */
             invalidate_and_set_dirty(mr, addr1, access_len);
         }
         if (xen_enabled()) {
