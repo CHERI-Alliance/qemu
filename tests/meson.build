@@ -81,6 +81,7 @@ test('decodetree', sh,
 
 if 'CONFIG_TCG' in config_all
   subdir('fp')
+  subdir('cheri')
   # Include rvy/src directly as tests/rvy/meson.build is a standalone project.
   # The suite uses custom_target(build_subdir:), which needs Meson 1.10.
   if meson.version().version_compare('>=1.10.0')
