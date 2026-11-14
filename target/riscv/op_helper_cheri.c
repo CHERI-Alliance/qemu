@@ -277,14 +277,27 @@ void HELPER(modesw)(CPUArchState *env, int to_capmode)
                       to_capmode ? CHERI_EXEC_CAPMODE : CHERI_EXEC_INTMODE);
 }
 
+/* Write lock for a capability rmw. Memory without tags gets a dummy lock */
+static tag_writer_lock_t lock_for_cap_rmw(CPUArchState *env, target_ulong addr,
+                                          uint32_t reg, uintptr_t retpc)
+{
+    tag_writer_lock_t lock = NULL, unused = NULL;
+    cheri_lock_for_tag_set(env, addr, reg, NULL, retpc,
+                           cpu_mmu_index(env, false), &lock);
+    if (lock == TAG_LOCK_NONE) {
+        /* No tag memory, so get a dummy lock */
+        get_dummy_locks(addr, &lock, &unused);
+    }
+    cheri_tag_writer_push_free_on_exception(env, lock);
+    return lock;
+}
+
 void HELPER(amoswap_cap)(CPUArchState *env, uint32_t dest_reg,
                          uint32_t addr_reg, uint32_t val_reg)
 {
     uintptr_t _host_return_address = GETPC();
-    assert(!qemu_tcg_mttcg_enabled() ||
-           (cpu_in_exclusive_context(env_cpu(env)) &&
-            "Should have raised EXCP_ATOMIC"));
     target_long addr = get_capreg_cursor(env, addr_reg);
+
     if (!cheri_in_capmode(env)) {
         addr = cheri_ddc_relative_addr(env, addr);
         addr_reg = CHERI_EXC_REGNUM_DDC;
@@ -329,6 +342,9 @@ void HELPER(amoswap_cap)(CPUArchState *env, uint32_t dest_reg,
     }
     if (addr == env->load_res) {
         env->load_res = -1; // Invalidate LR/SC to the same address
+#if defined(TARGET_CHERI)
+        env->load_seq = 0;
+#endif
     }
     /* Store/AMO page faults take priority over load capability faults. */
     if (cheri_will_store_tag(env, cbp, val_reg)) {
@@ -342,12 +358,19 @@ void HELPER(amoswap_cap)(CPUArchState *env, uint32_t dest_reg,
     // load_cap_from_memory call overwrites that register
     target_ulong loaded_pesbt;
     target_ulong loaded_cursor;
+
+    tag_writer_lock_t lock = lock_for_cap_rmw(env, addr, addr_reg,
+                                              _host_return_address);
     bool loaded_tag =
         load_cap_from_memory_raw(env, &loaded_pesbt, &loaded_cursor, addr_reg,
-                                 cbp, addr, _host_return_address, NULL);
+                                 cbp, addr, _host_return_address, NULL, false);
     // The store may still trap, so we must only update the dest register after
     // the store succeeded.
-    store_cap_to_memory(env, val_reg, addr_reg, addr, _host_return_address);
+    store_cap_to_memory(env, val_reg, addr_reg, addr, _host_return_address,
+                        false);
+    cheri_tag_writer_pop_free_on_exception(env);
+    cheri_tag_writer_release(lock);
+
     // Store succeeded -> we can update cd
     update_compressed_capreg(env, dest_reg, loaded_pesbt, loaded_tag,
                              loaded_cursor);
@@ -356,9 +379,6 @@ void HELPER(amoswap_cap)(CPUArchState *env, uint32_t dest_reg,
 static void lr_c_impl(CPUArchState *env, uint32_t dest_reg, uint32_t auth_reg,
                       target_ulong addr, uintptr_t _host_return_address)
 {
-    assert(!qemu_tcg_mttcg_enabled() ||
-           (cpu_in_exclusive_context(env_cpu(env)) &&
-            "Should have raised EXCP_ATOMIC"));
     const cap_register_t *cbp = get_load_store_base_cap(env, auth_reg);
     /* All checks for LR.Y are reported as load faults. */
     if (!cbp->cr_tag) {
@@ -389,8 +409,11 @@ static void lr_c_impl(CPUArchState *env, uint32_t dest_reg, uint32_t auth_reg,
      */
     target_ulong raw_pesbt;
     target_ulong raw_cursor;
-    bool raw_tag = load_raw_cap_from_memory(env, &raw_pesbt, &raw_cursor, addr,
-                                            _host_return_address);
+    tag_reader_lock_t snapshot;
+    bool raw_tag = load_cap_from_memory_raw_tag_mmu_idx(env, &raw_pesbt,
+            &raw_cursor, 0, NULL, addr, _host_return_address, NULL,
+            true /* take lock */, &snapshot, NULL, cpu_mmu_index(env, false),
+            true /* all_raw */);
     /*
      * For the memory content that we store in cd, we have to read and apply
      * the fixups.
@@ -404,12 +427,15 @@ static void lr_c_impl(CPUArchState *env, uint32_t dest_reg, uint32_t auth_reg,
     target_ulong pesbt;
     target_ulong cursor;
     bool tag = load_cap_from_memory_raw(env, &pesbt, &cursor, auth_reg, cbp,
-                                        addr, _host_return_address, NULL);
+                                        addr, _host_return_address, NULL,
+                                        true);
     /* If this didn't trap, update the lr state: */
     env->load_res = addr;
     env->load_val = raw_cursor;
     env->load_pesbt = raw_pesbt;
     env->load_tag = raw_tag;
+    env->load_tagmem = snapshot.tagmem;
+    env->load_seq = snapshot.seq;
     log_changed_special_reg(env, "load_res", env->load_res, ~0u, 0);
     log_changed_special_reg(env, "load_val", env->load_val, ~0u, 0);
     log_changed_special_reg(env, "load_pesbt", env->load_pesbt, ~0u, 0);
@@ -446,9 +472,6 @@ static target_ulong sc_c_impl(CPUArchState *env, uint32_t addr_reg,
                               uint32_t val_reg, target_ulong addr,
                               uintptr_t _host_return_address)
 {
-    assert(!qemu_tcg_mttcg_enabled() ||
-        (cpu_in_exclusive_context(env_cpu(env)) &&
-            "Should have raised EXCP_ATOMIC"));
     const cap_register_t *auth_cap = get_load_store_base_cap(env, addr_reg);
 
     /* All checks for SC.Y are reported as store/AMO faults. */
@@ -487,10 +510,13 @@ static target_ulong sc_c_impl(CPUArchState *env, uint32_t addr_reg,
 
     // Save the expected addr
     const target_ulong expected_addr = env->load_res;
+    const unsigned long expected_seq = env->load_seq;
+    void *const expected_tagmem = env->load_tagmem;
     // Clear the load reservation, since an SC must fail if there is
     // an SC to any address, in between an LR and SC pair.
     // We do this regardless of success/failure.
     env->load_res = -1;
+    env->load_seq = 0;
     log_changed_special_reg(env, "load_res", env->load_res, ~0u, 0);
     if (cheri_will_store_tag(env, auth_cap, val_reg)) {
         probe_cap_write(env, addr, CHERI_CAP_SIZE, cpu_mmu_index(env, false),
@@ -499,43 +525,64 @@ static target_ulong sc_c_impl(CPUArchState *env, uint32_t addr_reg,
         probe_write(env, addr, CHERI_CAP_SIZE, cpu_mmu_index(env, false),
                     _host_return_address);
     }
+    bool store_fails;
     if (addr != expected_addr) {
+        store_fails = true;
         goto sc_failed;
     }
-
-#ifdef CONFIG_RVFI_DII
-    /* The read that is part of the cmpxchg should not be visible in traces. */
-    uint32_t old_rmask = env->rvfi_dii_trace.MEM.rvfi_mem_rmask;
-#endif
     /*
-     * For the reservation check below, we want to verify that the memory
-     * content has not changed since the lr. We need the "raw" memory content
-     * without tag clearing or LM fixups.
+     * Now perform the "cmpxchg" operation by checking if the current values
+     * in memory are the same as the ones that the load-reserved observed.
+     * The load_cap_from_memory_raw_tag_mmu_idx performs the load and returns
+     * the new tag value
      */
-    target_ulong curr_pesbt;
-    target_ulong curr_cursor;
-    bool curr_tag = load_raw_cap_from_memory(env, &curr_pesbt, &curr_cursor,
-                                             addr, _host_return_address);
-#ifdef CONFIG_RVFI_DII
-    /* The read that is part of the cmpxchg should not be visible in traces. */
-    env->rvfi_dii_trace.MEM.rvfi_mem_rmask = old_rmask;
-#endif
+    target_ulong current_pesbt;
+    target_ulong current_cursor;
+    bool current_tag;
 
-    /* check that the reservation from the last lr is still valid */
-    if (curr_cursor != env->load_val || curr_pesbt != env->load_pesbt ||
-        curr_tag != env->load_tag) {
-        goto sc_failed;
+    tag_writer_lock_t lock = lock_for_cap_rmw(env, addr, addr_reg,
+                                              _host_return_address);
+
+#ifdef CONFIG_RVFI_DII
+    /*
+     * The load_cap_from_memory_raw_tag_mmu_idx will appear as load, which we
+     * do not want, so preserve the old value of rmask so that we can restore
+     * after making the RVFI_DII trace stay intact.
+     */
+    uint32_t old_rmask = env->rvfi_dii_trace.MEM.rvfi_mem_rmask;
+#endif /* CONFIG_RVFI_DII */
+    current_tag = load_cap_from_memory_raw_tag_mmu_idx(
+            env, &current_pesbt, &current_cursor, 0, NULL, addr,
+            _host_return_address, NULL, false, NULL, NULL,
+            cpu_mmu_index(env, false), true);
+#ifdef CONFIG_RVFI_DII
+    /* Restore the rmask */
+    env->rvfi_dii_trace.MEM.rvfi_mem_rmask = old_rmask;
+#endif /* CONFIG_RVFI_DII */
+    store_fails = current_cursor != env->load_val ||
+                  current_pesbt != env->load_pesbt ||
+                  current_tag != env->load_tag;
+    if (expected_tagmem && expected_tagmem != ALL_ZERO_TAGBLK) {
+        /*
+         * Every write to a page with tags takes its block's lock, so any write
+         * since lr.c changes the sequence, and SC fails even if the value was
+         * written back; memory without tags compares values only.
+         */
+        store_fails |= (lock != expected_tagmem) ||
+                       (qatomic_read(&lock->seqlock) != expected_seq + 1);
     }
 
-    // This store may still trap, so we should update env->load_res before
-    store_cap_to_memory(env, val_reg, addr_reg, addr, _host_return_address);
+    if (!store_fails) {
+        /* This store may still trap, so we should update env->load_res */
+        store_cap_to_memory(env, val_reg, addr_reg, addr, _host_return_address,
+                            false);
+    }
 
-    tcg_debug_assert(env->load_res == -1);
-    return 0; // success
-
+    cheri_tag_writer_pop_free_on_exception(env);
+    cheri_tag_writer_release(lock);
 sc_failed:
     tcg_debug_assert(env->load_res == -1);
-    return 1; // failure
+    return store_fails; /* success */
 }
 
 target_ulong HELPER(sc_c_modedep)(CPUArchState *env, uint32_t addr_reg,

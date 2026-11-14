@@ -193,6 +193,17 @@ struct CPUArchState {
     target_ulong load_val;
 #ifdef TARGET_CHERI
     target_ulong load_pesbt;
+    /*
+     * tagblock that lr.c last used, NULL or ALL_ZERO_TAGBLK for memory
+     * without tagblocks.
+     */
+    void *load_tagmem;
+    /*
+     * Sequence number of the tagblock that lr.c used.
+     * sc.c only succeeds if we hold the lock on that tagblock, and seqlock
+     * is load_seq + 1
+     */
+    unsigned long load_seq;
     bool load_tag;
 #endif
 
@@ -804,7 +815,17 @@ bool riscv_cpu_vector_enabled(CPURISCVState *env);
 bool riscv_cpu_virt_enabled(CPURISCVState *env);
 void riscv_cpu_set_virt_enabled(CPURISCVState *env, bool enable);
 bool riscv_cpu_two_stage_lookup(int mmu_idx);
-int riscv_cpu_mmu_index(CPURISCVState *env, bool ifetch);
+
+static inline QEMU_ALWAYS_INLINE int
+riscv_cpu_mmu_index(CPURISCVState *env, bool ifetch)
+{
+#ifdef CONFIG_USER_ONLY
+    return 0;
+#else
+    return env->priv;
+#endif
+}
+
 hwaddr riscv_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
 #ifdef TARGET_CHERI
 hwaddr cpu_riscv_translate_address_tagmem(CPURISCVState *env,

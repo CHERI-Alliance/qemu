@@ -82,7 +82,10 @@ typedef uint64_t target_ulong;
 /* use a fully associative victim tlb of 8 entries */
 #define CPU_VTLB_SIZE 8
 
-#if HOST_LONG_BITS == 32 && TARGET_LONG_BITS == 32
+#ifdef TARGET_CHERI
+/* Tag block pointer makes entry larger than 32 bytes on 64-bit target */
+#define CPU_TLB_ENTRY_BITS 6
+#elif HOST_LONG_BITS == 32 && TARGET_LONG_BITS == 32
 #define CPU_TLB_ENTRY_BITS 4
 #else
 #define CPU_TLB_ENTRY_BITS 5
@@ -127,6 +130,13 @@ typedef struct CPUTLBEntry {
             /* Addend to virtual address to get host address.  IO accesses
                use the corresponding iotlb value.  */
             uintptr_t addend;
+#ifdef TARGET_CHERI
+            /*
+             * Not required on non-CHERI targets.
+             * NULL when tag access must take slow path.
+             */
+            void *tagmem;
+#endif
         };
         /* padding to get a power of two size */
         uint8_t dummy[1 << CPU_TLB_ENTRY_BITS];

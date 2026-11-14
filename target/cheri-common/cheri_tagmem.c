@@ -4,6 +4,7 @@
  * Copyright (c) 2015-2016 Stacey Son <sson@FreeBSD.org>
  * Copyright (c) 2016-2018 Alfredo Mazzinghi <am2419@cl.cam.ac.uk>
  * Copyright (c) 2016-2018 Alex Richardson <Alexander.Richardson@cl.cam.ac.uk>
+ * Copyright (c) 2021-2021 Lawrence Esswood <le277@cam.ac.uk>
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -35,6 +36,7 @@
 #include "exec/exec-all.h"
 #include "exec/log.h"
 #include "exec/ramblock.h"
+#include "hw/boards.h"
 #include "cheri_defs.h"
 #include "cheri-helper-utils.h"
 // XXX: use hbitmap? Or a different data structure?
@@ -50,8 +52,6 @@
 #error "Should only be included for TARGET_CHERI"
 #endif
 
-// XXX: use secure/target_tlb_bit0/target_tlb_bit1 for cheri TLB permissions?
-
 /*
  * Tagged Memory Emulation
  *
@@ -59,99 +59,85 @@
  * capability-sized word in physical memory.  This allows capabilities
  * to be safely loaded and stored in meory without loss of integrity.
  *
- * For emulation purposes the tag is stored in a two-level array containing
- * fixed size bitmaps. To reduce the amount of memory needed the tag flag array
- * is allocated sparsely, 4K tags at at time, and on demand.
- * This 4K number is arbitary and depending on the workload other sizes may be
- * better.
+ * FIXME: rewrite using somethign more like the upcoming MTE changes
+ * (https://github.com/rth7680/qemu/commits/tgt-arm-mte-user)
  *
- * Note: We also support an mode where we use one byte per tag. This makes it
- * easy to set or unset a tag without the need of locking or atomics.
- * This requires eight times the memory.
- *
- * As tag accesses are not atomic with regard to data writes/reads spurious
- * invalid capabilities could be created in a threaded context.
- * Therefore, we don't use atomic bitwise RMW operations and the one byte per
- * tag variant actually performs slightly worse due to increased memory usage.
- *
- * FIXME: find a solution to make tags safe (or just always disable multi-tcg)
- *
- * XXX Should consider adding a reference count per tag block so that
- * blocks can be deallocated when no longer used maybe.
- *
- * FIXME: rewrite using somethign more like the upcoming MTE changes (https://github.com/rth7680/qemu/commits/tgt-arm-mte-user)
- *
- * XXX: I/O threads still exist even without MTTCG and need to have tag
- * clearing be atomic with their writes. Currently various places just write to
- * guest memory directly and then we tag clear in invalidate_and_set_dirty.
- * Well-behaved guests should not be touching memory handed off to DMA-capable
- * devices but a malicious guest could repeatedly DMA powerful capability bit
- * patterns on top of valid capabilities and try to race to read in between the
- * DMA write and the tag invalidate.
+ * I/O threads are also protected. Writes clear tags as required under the tag
+ * block's write lock. A device mapping hides tags until the unmap which will
+ * invalidate the tags.
  */
-
-#define CAP_TAGBLK_SHFT     12          // 2^12 or 4096 tags per block
-#define CAP_TAGBLK_MSK      ((1 << CAP_TAGBLK_SHFT) - 1)
-#define CAP_TAGBLK_SIZE       (1 << CAP_TAGBLK_SHFT)
-#define CAP_TAGBLK_IDX(tag_idx) ((tag_idx) & CAP_TAGBLK_MSK)
-#define TAGS_PER_PAGE        (TARGET_PAGE_SIZE / CHERI_CAP_SIZE)
 
 #ifndef CAP_TAG_GET_MANY_SHFT
 #error "Define a CAP_TAG_GET_MANY_SHFT in appropriate cheri-archspecific.h"
 #endif
 
-_Static_assert(CAP_TAG_GET_MANY_SHFT <= 3, "");
+_Static_assert((1 << CAP_TAG_GET_MANY_SHFT) <= BITS_PER_LONG, "");
 
-#if (CAP_TAG_GET_MANY_SHFT == 3)
-#define byte_unpack byte_unpack_64
-#define byte_pack byte_pack_64
-#else
-#define byte_unpack byte_unpack_32
-#define byte_pack byte_pack_32
-#endif
-
-#define CAP_TAG_GET_MANY_MASK ((1 << (1UL << CAP_TAG_GET_MANY_SHFT)) - 1UL)
+#define CAP_TAG_GET_MANY_MASK (~0UL >> (BITS_PER_LONG - \
+        (1UL << CAP_TAG_GET_MANY_SHFT)))
 #define CAP_TAG_MANY_DATA_SIZE (CHERI_CAP_SIZE << CAP_TAG_GET_MANY_SHFT)
 
 static inline size_t num_tagblocks(RAMBlock* ram)
 {
     uint64_t memory_size = memory_region_size(ram->mr);
-    size_t result = DIV_ROUND_UP(memory_size, CHERI_CAP_SIZE * CAP_TAGBLK_SIZE);
-    if (memory_size != result * CHERI_CAP_SIZE * CAP_TAGBLK_SIZE) {
+    size_t result = DIV_ROUND_UP(memory_size, CHERI_CAP_SIZE * TAGS_PER_PAGE);
+    if (memory_size != result * CHERI_CAP_SIZE * TAGS_PER_PAGE) {
         warn_report_once(
             "WARNING: memory region %s size %" PRIu64
             " is not a multiple of tag block size %d\r",
             memory_region_name(ram->mr),
             memory_size,
-            CHERI_CAP_SIZE * CAP_TAGBLK_SIZE);
+            CHERI_CAP_SIZE * TAGS_PER_PAGE);
     }
     return result;
 }
 
-typedef struct CheriTagBlock {
-    DECLARE_BITMAP(tag_bitmap, CAP_TAGBLK_SIZE);
-} CheriTagBlock;
+static void
+lock_tag_write_tag_and_release(CheriTagBlock *lock, CheriTagBlock *todo,
+                               target_ulong vaddr, bool tag)
+{
+    if (tag) {
+        __tagblock_tag_set(lock, page_vaddr_to_tag_offset(vaddr));
+    } else {
+        __tagblock_tag_clear(lock, page_vaddr_to_tag_offset(vaddr));
+    }
+    if (lock != todo) {
+        tagblock_unlock_write(lock);
+    }
+}
 
+#define TAGBLOCK_CHUNK_SIZE     0x4000
+static __thread CheriTagBlock *tag_alloc_data;
+static __thread unsigned int tag_alloc_used;
 
 static CheriTagBlock *cheri_tag_new_tagblk(RAMBlock *ram, uint64_t tagidx)
 {
     CheriTagBlock *tagblk, *old;
 
-    tagblk = g_malloc0(sizeof(CheriTagBlock));
-    if (tagblk == NULL) {
-        error_report("Can't allocate tag block.");
-        exit(1);
+    assert(TAGBLOCK_CHUNK_SIZE % sizeof(CheriTagBlock) == 0);
+    if (tag_alloc_data == NULL ||
+        tag_alloc_used == TAGBLOCK_CHUNK_SIZE / sizeof(CheriTagBlock)) {
+        tag_alloc_used = 0;
+        tag_alloc_data = mmap(NULL, TAGBLOCK_CHUNK_SIZE,
+                              PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON,
+                              0, 0);
+        if (tag_alloc_data == MAP_FAILED) {
+            error_report("Can't allocate tag block.");
+            exit(1);
+        }
     }
+    tagblk = tag_alloc_data + tag_alloc_used;
+    tag_alloc_used++;
 
     CheriTagBlock **tagmem = (CheriTagBlock **)ram->cheri_tags;
-    size_t tagblock_index = (tagidx >> CAP_TAGBLK_SHFT);
+    size_t tagblock_index = tagidx / TAGS_PER_PAGE;
     /* Possible race here so use atomic compare and swap. */
     cheri_debug_assert(tagblock_index < num_tagblocks(ram) &&
                        "Tag index out of bounds");
     old = qatomic_cmpxchg(&tagmem[tagblock_index], NULL, tagblk);
     if (old != NULL) {
-        /* Lost the race, free. */
-        g_free(tagblk);
+        /* Lost the race, free and give back the block we just grabbed. */
+        tag_alloc_used--;
         return old;
     } else {
         return tagblk;
@@ -161,84 +147,102 @@ static CheriTagBlock *cheri_tag_new_tagblk(RAMBlock *ram, uint64_t tagidx)
 static inline QEMU_ALWAYS_INLINE CheriTagBlock *cheri_tag_block(size_t tag_index,
                                                                 RAMBlock *ram)
 {
-    const size_t tagbock_index = tag_index >> CAP_TAGBLK_SHFT;
+    const size_t tagbock_index = tag_index / TAGS_PER_PAGE;
     cheri_debug_assert(ram->cheri_tags);
     if (tagbock_index >= num_tagblocks(ram)) {
         error_report("Call to access tag out of bounds");
         return NULL;
     }
     CheriTagBlock **tagmem = (CheriTagBlock **)ram->cheri_tags;
-    return tagmem[tagbock_index];
-}
-
-static inline QEMU_ALWAYS_INLINE bool tagblock_get_tag_tagmem(void *tagmem,
-                                                              size_t index)
-{
-    unsigned long *p = (unsigned long *)tagmem + BIT_WORD(index);
-    unsigned long word;
-
-    word = qatomic_read(p);
-    return (word & BIT_MASK(index)) != 0;
-}
-
-static inline QEMU_ALWAYS_INLINE bool tagblock_get_tag(CheriTagBlock *block,
-                                                       size_t block_index)
-{
-    return block ? tagblock_get_tag_tagmem(block->tag_bitmap, block_index)
-                 : false;
-}
-
-static inline QEMU_ALWAYS_INLINE int
-tagblock_get_tag_many_tagmem(void *tagmem, size_t block_index)
-{
-    unsigned long *p = (unsigned long *)tagmem + BIT_WORD(block_index);
-    unsigned long word;
-
-    word = qatomic_read(p);
-    return (word >> (block_index % BITS_PER_LONG)) & CAP_TAG_GET_MANY_MASK;
+    /* pairs with qatomic_cmpxchg in cheri_tag_new_tagblk */
+    return qatomic_load_acquire(&tagmem[tagbock_index]);
 }
 
 static inline QEMU_ALWAYS_INLINE void
-tagblock_set_tag_tagmem(void *tagmem, size_t block_index)
+tagmem_set_tag(CheriTagBlock *tagmem, target_ulong vaddr,
+               tag_writer_lock_t *lock, bool lock_only)
 {
-    unsigned long *p = (unsigned long *)tagmem + BIT_WORD(block_index);
-
-    qatomic_or(p, BIT_MASK(block_index));
-}
-
-static inline QEMU_ALWAYS_INLINE void
-tagblock_set_tag_many_tagmem(void *tagmem, size_t block_index, uint8_t tags)
-{
-    unsigned long *p = (unsigned long *)tagmem + BIT_WORD(block_index);
-    size_t shift = block_index % BITS_PER_LONG;
-    unsigned long mask = CAP_TAG_GET_MANY_MASK << shift;
-    unsigned long tags_shifted = ((unsigned long)tags << shift) & mask;
-
-    if (likely(tags_shifted == 0)) {
-        qatomic_and(p, ~mask);
+    if (lock) {
+        *lock = tagmem;
+        tagblock_lock_write(tagmem);
+        if (!lock_only) {
+            __tagblock_tag_set(tagmem, page_vaddr_to_tag_offset(vaddr));
+        }
     } else {
-        unsigned long old, new, cmp;
-        cmp = qatomic_read(p);
-        do {
-            old = cmp;
-            new = (old & ~mask) | tags_shifted;
-            cmp = qatomic_cmpxchg(p, old, new);
-        } while (cmp != old);
+        __tagblock_tag_set(tagmem, page_vaddr_to_tag_offset(vaddr));
     }
 }
 
-static inline QEMU_ALWAYS_INLINE void tagblock_clear_tag_tagmem(void *tagmem,
-                                                                size_t index)
+static inline QEMU_ALWAYS_INLINE void
+tagmem_clear_tag(CheriTagBlock *tagmem, target_ulong vaddr,
+                 tag_writer_lock_t *lock, tag_writer_lock_t done,
+                 bool lock_only)
 {
-    unsigned long *p = (unsigned long *)tagmem + BIT_WORD(index);
-
-    qatomic_and(p, ~BIT_MASK(index));
+    if (lock) {
+        *lock = tagmem;
+        if (tagmem != done) {
+            tagblock_lock_write(tagmem);
+        }
+        if (!lock_only) {
+            __tagblock_tag_clear(tagmem, page_vaddr_to_tag_offset(vaddr));
+        }
+    } else {
+        __tagblock_tag_clear(tagmem, page_vaddr_to_tag_offset(vaddr));
+    }
 }
 
-static inline QEMU_ALWAYS_INLINE void tagblock_clear_tag(CheriTagBlock *block,
-                                                         size_t block_index)
+static inline QEMU_ALWAYS_INLINE void
+tagblock_clear_locktag_with_lock_and_release(CheriTagBlock *block,
+                                             target_ulong vaddr)
 {
-    tagblock_clear_tag_tagmem(block->tag_bitmap, block_index);
+    tagblock_lock_write(block);
+    __tagblock_tag_clear(block, page_vaddr_to_tag_offset(vaddr));
+    tagblock_unlock_write(block);
+}
+
+static inline QEMU_ALWAYS_INLINE int
+tagmem_get_tag_many(CheriTagBlock *tagmem, target_ulong vaddr)
+{
+    unsigned long res, not_dma;
+    unsigned long index = page_vaddr_to_tag_offset(vaddr);
+    while (1) {
+        unsigned long seq;
+        if (!tagblock_begin_read(tagmem, &seq)) {
+            cpu_relax();
+            continue;
+        }
+        /* Mask so that a tag reads as set only when its dma bit is clear. */
+        not_dma = ~qatomic_read(tagmem->dma_bitmap + BIT_WORD(index));
+        res = qatomic_read(tagmem->tag_bitmap + BIT_WORD(index)) & not_dma;
+        if (tagblock_end_read(tagmem, seq)) {
+            break;
+        }
+        cpu_relax();
+    }
+
+    res >>= (index % BITS_PER_LONG);
+    res &= CAP_TAG_GET_MANY_MASK;
+
+    return res;
+}
+
+/* A 1 in the lowest bit in each byte of a packed_t */
+#define GET_SET_MANY_LOCKTAG_TAG_MASK (((packed_t)~0ULL) / 0xFF)
+
+static inline QEMU_ALWAYS_INLINE void tagmem_set_tag_many(CheriTagBlock *tagmem,
+                                                          target_ulong vaddr,
+                                                          unsigned long tags)
+{
+    unsigned long index = page_vaddr_to_tag_offset(vaddr);
+
+    tagblock_lock_write(tagmem);
+    unsigned long *p = (unsigned long *)tagmem->tag_bitmap + BIT_WORD(index);
+    unsigned long word = qatomic_read(p);
+    uint8_t shift = index % BITS_PER_LONG;
+    unsigned long mask = CAP_TAG_GET_MANY_MASK << shift;
+    word = (word & ~mask) | ((tags << shift) & mask);
+    qatomic_set(p, word);
+    tagblock_unlock_write(tagmem);
 }
 
 void cheri_tag_init(MemoryRegion *mr, uint64_t memory_size)
@@ -248,18 +252,13 @@ void cheri_tag_init(MemoryRegion *mr, uint64_t memory_size)
            "Incorrect tag mem size passed?");
     assert(mr->ram_block->cheri_tags == NULL && "Already initialized?");
 
+    assert(TARGET_PAGE_SIZE == CHERI_TAG_BLOCK_SIZE);
     size_t cheri_ntagblks = num_tagblocks(mr->ram_block);
     mr->ram_block->cheri_tags =
         g_malloc0(cheri_ntagblks * sizeof(CheriTagBlock *));
     if (mr->ram_block->cheri_tags == NULL) {
         error_report("%s: Can't allocated tag memory", __func__);
         exit(-1);
-    }
-    if (qemu_tcg_mttcg_enabled()) {
-        warn_report("The CHERI tagged memory implementation is not thread-safe "
-                    "and therefore not compatible with MTTCG. Capability tags "
-                    "may mysteriously appear/disappear. Run with \"--accel "
-                    "tcg,thread=single\" to fix.");
     }
 }
 
@@ -285,11 +284,13 @@ void *cheri_tagmem_for_addr(CPUArchState *env, target_ulong vaddr,
     uint64_t tag = ram_offset / CHERI_CAP_SIZE;
 #ifndef TARGET_AARCH64
     // AArch64 seems to use different sizes. Might be worth looking into.
+    cheri_debug_assert(ram_offset % TARGET_PAGE_SIZE == 0 &&
+                       "Unexpected offset");
     cheri_debug_assert(size == TARGET_PAGE_SIZE && "Unexpected size");
 #endif
     CheriTagBlock *tagblk = cheri_tag_block(tag, ram);
 
-    if (tag_write && !tagblk) {
+    if (!tagblk) {
         cheri_tag_new_tagblk(ram, tag);
         CPUState *cpu = env_cpu(env);
         /*
@@ -307,8 +308,7 @@ void *cheri_tagmem_for_addr(CPUArchState *env, target_ulong vaddr,
     }
 
     if (tagblk != NULL) {
-        const size_t tagblk_index = CAP_TAGBLK_IDX(tag);
-        return tagblk->tag_bitmap + BIT_WORD(tagblk_index);
+        return tagblk;
     }
 
     if (!(*prot & PAGE_SC_CLEAR)) {
@@ -318,6 +318,249 @@ void *cheri_tagmem_for_addr(CPUArchState *env, target_ulong vaddr,
     }
 
     return ALL_ZERO_TAGBLK;
+}
+
+/*
+ * Given a ram_block address range (block start address, range start address
+ * and length in bytes), return the index within the block of the start/end
+ * clipping to the block's start and end addresses. If the range doesn't fall
+ * in the block's range return false.
+ * block_start and range_offset are both offsets within the RAM block (not
+ * addresses). The end parameter is exclusive of the range.
+ */
+static bool tag_idx_for_range(ram_addr_t block_start,
+                              ram_addr_t range_offset, size_t len,
+                              size_t *first, size_t *end)
+{
+    ram_addr_t clipped_start = MAX(block_start, range_offset);
+    ram_addr_t clipped_end = MIN(block_start + CHERI_TAG_BLOCK_SIZE,
+            range_offset + len);
+
+    if (clipped_start >= clipped_end) {
+        /* Outside range of the block */
+        return false;
+    }
+    *first = (clipped_start - block_start) / CHERI_CAP_SIZE;
+    *end = DIV_ROUND_UP(clipped_end - block_start, CHERI_CAP_SIZE);
+    return true;
+}
+
+typedef enum {
+    ITER_OP_INVAL = 0, /* Prevent 0 initialised ops appearing valid */
+    ITER_OP_SET,
+    ITER_OP_CLEAR,
+    ITER_OP_ANYSET,
+} Bit_Iter_Op;
+
+/*
+ * Iterate over a range of a dma or tag bitmap and run the provided operation.
+ * Range is specified in block local indices.
+ * Assumes a lock is held for the resource.
+ * The operation can be ITER_OP_SET, ITER_OP_CLEAR or ITER_OP_ANYSET
+ * Return value only meaningful for anyset where it indicates if any bits are
+ * set in the target range.
+ */
+static bool bitmap_range_iter(unsigned long *bitmap, size_t start_idx,
+                              size_t end_idx, Bit_Iter_Op op)
+{
+
+    unsigned long mask_operand; /* Mask representing bits to set/clear/test */
+    unsigned long word;
+    int nr, bits_to_clear;
+    unsigned long res = 0;
+
+    mask_operand = BITMAP_FIRST_WORD_MASK(start_idx);
+    nr = end_idx - start_idx;
+    bits_to_clear = BITS_PER_LONG - (start_idx % BITS_PER_LONG);
+    word = BIT_WORD(start_idx);
+    while (nr - bits_to_clear >= 0) {
+        switch (op) {
+        case ITER_OP_CLEAR:
+            qatomic_set(&bitmap[word],
+                    qatomic_read(&bitmap[word]) & ~mask_operand);
+        break;
+        case ITER_OP_SET:
+            qatomic_set(&bitmap[word],
+                    qatomic_read(&bitmap[word]) | mask_operand);
+        break;
+        case ITER_OP_ANYSET:
+            /*
+             * Only holders of the lock call this function, so we are
+             * fine to do a plain read here.
+             */
+            res |= (bitmap[word] & mask_operand);
+        break;
+        default:
+            g_assert_not_reached();
+        }
+        nr -= bits_to_clear;
+        bits_to_clear = BITS_PER_LONG;
+        mask_operand = ~0UL;
+        word++;
+    }
+    if (nr) {
+        mask_operand &= BITMAP_LAST_WORD_MASK(end_idx);
+        switch (op) {
+        case ITER_OP_CLEAR:
+            qatomic_set(&bitmap[word],
+                    qatomic_read(&bitmap[word]) & ~mask_operand);
+        break;
+        case ITER_OP_SET:
+            qatomic_set(&bitmap[word],
+                    qatomic_read(&bitmap[word]) | mask_operand);
+        break;
+        case ITER_OP_ANYSET:
+            res |= (bitmap[word] & mask_operand);
+        break;
+        default:
+            g_assert_not_reached();
+        }
+    }
+    return res != 0;
+}
+
+/*
+ * Add a DMA mapping for the supplied range of the provided block.
+ * Caller holds the tagblock lock.
+ */
+static bool add_block_dma_mapping(CheriTagBlock *tagblk, size_t start,
+                                  size_t end)
+{
+    if (!bitmap_range_iter(tagblk->dma_bitmap, start, end, ITER_OP_ANYSET)) {
+        /* No bits in the requested range are set */
+        bitmap_range_iter(tagblk->dma_bitmap, start, end, ITER_OP_SET);
+        return true;
+    }
+    if (tagblk->num_overlaps == NULL) {
+        tagblk->num_overlaps = g_new0(uint16_t, TAGS_PER_PAGE);
+    }
+    /* Check pass, do this first so if we fail nothing changed */
+    for (size_t idx = start; idx < end; idx++) {
+        if (test_bit(idx, tagblk->dma_bitmap) &&
+                tagblk->num_overlaps[idx] == UINT16_MAX) {
+            return false;
+        }
+    }
+    /*
+     * Apply pass.
+     * Set unset bits.
+     * If bits are already set then increment its counter
+     */
+    for (size_t idx = start; idx < end; idx++) {
+        if (test_bit(idx, tagblk->dma_bitmap)) {
+            tagblk->num_overlaps[idx]++;
+        } else {
+            __tagblock_dma_set(tagblk, idx);
+        }
+    }
+    return true;
+}
+
+/*
+ * Remove the DMA mapping for the range in the given block.
+ * Reduce the overlap count for tags that have one, or unset the bit for
+ * those that do not.
+ */
+static void remove_block_dma_mapping(CheriTagBlock *tagblk, size_t start,
+                                     size_t end)
+{
+    for (size_t idx = start; idx < end; idx++) {
+        cheri_debug_assert(test_bit(idx, tagblk->dma_bitmap));
+    }
+    if (!tagblk->num_overlaps) {
+        /* No overlaps so we can bulk clear the dma bits */
+        bitmap_range_iter(tagblk->dma_bitmap, start, end, ITER_OP_CLEAR);
+        return;
+    }
+    /*
+     * Iterate over the range. Clear the dma flag for capabilities that have
+     * no overlap. Decrement the count for those that do.
+     */
+    for (size_t idx = start; idx < end; idx++) {
+        if (tagblk->num_overlaps[idx]) {
+            tagblk->num_overlaps[idx]--;
+        } else {
+            __tagblock_dma_clear(tagblk, idx);
+        }
+    }
+    if (!bitmap_range_iter(tagblk->dma_bitmap, 0, TAGS_PER_PAGE,
+                           ITER_OP_ANYSET)) {
+        g_free(tagblk->num_overlaps);
+        tagblk->num_overlaps = NULL;
+    }
+}
+
+void cheri_tag_phys_invalidate_range_begin(RAMBlock *ram, ram_addr_t offset,
+                                           size_t *len)
+{
+    CheriTagBlock *tagblk;
+    ram_addr_t blk_start, blk_end;
+    size_t requested_len;
+    size_t first = 0, last = 0;
+    if (ram->cheri_tags == NULL || len == NULL || *len == 0) {
+        return;
+    }
+    requested_len = *len;
+    /*
+     * Iterate over each tagblock in the range.
+     * Start is offset rounded down
+     * end is offset + len unrounded.
+     */
+    for (ram_addr_t blk = blk_start =
+            QEMU_ALIGN_DOWN(offset, CHERI_TAG_BLOCK_SIZE);
+            blk < offset + *len; blk += CHERI_TAG_BLOCK_SIZE) {
+        tagblk = cheri_tag_block(blk / CHERI_CAP_SIZE, ram);
+        if (!tagblk) {
+            /* Attempt to allocate a new tagblock */
+            tagblk = cheri_tag_new_tagblk(ram, blk / CHERI_CAP_SIZE);
+        }
+        tagblock_lock_write(tagblk);
+        tag_idx_for_range(blk, offset, *len, &first, &last);
+        if (!add_block_dma_mapping(tagblk, first, last)) {
+            *len = 0;
+            blk_end = blk;
+            tagblock_unlock_write(tagblk);
+            /*
+             * Need to undo the blocks we added.
+             * Loop up using the variables we already have
+             */
+            for (blk = blk_start; blk < blk_end;
+                    blk += CHERI_TAG_BLOCK_SIZE) {
+                tagblk = cheri_tag_block(blk / CHERI_CAP_SIZE, ram);
+                tagblock_lock_write(tagblk);
+                tag_idx_for_range(blk, offset, requested_len, &first, &last);
+                remove_block_dma_mapping(tagblk, first, last);
+                tagblock_unlock_write(tagblk);
+            }
+            return;
+        }
+        tagblock_unlock_write(tagblk);
+    }
+}
+
+void cheri_tag_phys_invalidate_range_end(RAMBlock *ram, ram_addr_t offset,
+                                         size_t len, size_t access_len)
+{
+    CheriTagBlock *tagblk;
+    size_t first = 0, last = 0;
+    if (ram->cheri_tags == NULL || len == 0) {
+        return;
+    }
+    access_len = MIN(len, access_len);
+    for (ram_addr_t blk = QEMU_ALIGN_DOWN(offset, CHERI_TAG_BLOCK_SIZE);
+            blk < offset + len; blk += CHERI_TAG_BLOCK_SIZE) {
+        tagblk = cheri_tag_block(blk / CHERI_CAP_SIZE, ram);
+        if (!tagblk) {
+            g_assert_not_reached();
+        }
+        tagblock_lock_write(tagblk);
+        if (tag_idx_for_range(blk, offset, access_len, &first, &last)) {
+            bitmap_range_iter(tagblk->tag_bitmap, first, last, ITER_OP_CLEAR);
+        }
+        tag_idx_for_range(blk, offset, len, &first, &last);
+        remove_block_dma_mapping(tagblk, first, last);
+        tagblock_unlock_write(tagblk);
+    }
 }
 
 static inline void *get_tagmem_from_iotlb_entry(CPUArchState *env,
@@ -357,42 +600,78 @@ static inline QEMU_ALWAYS_INLINE TagOffset addr_to_tag_offset(target_ulong addr)
 }
 
 static inline QEMU_ALWAYS_INLINE target_ulong
-page_vaddr_to_tag_offset(target_ulong addr)
-{
-    return (addr & ~TARGET_PAGE_MASK) / CHERI_CAP_SIZE;
-}
-
-static inline QEMU_ALWAYS_INLINE target_ulong
 tag_offset_to_addr(TagOffset offset)
 {
     return offset.value * CHERI_CAP_SIZE;
 }
 
 static void *cheri_tag_invalidate_one(CPUArchState *env, target_ulong vaddr,
-                                      int32_t size, uintptr_t pc, int mmu_idx);
-
-void *cheri_tag_invalidate_aligned(CPUArchState *env, target_ulong vaddr,
-                                   uintptr_t pc, int mmu_idx)
+                                      int32_t size, uintptr_t pc, int mmu_idx,
+                                      tag_writer_lock_t *lock,
+                                      tag_writer_lock_t done, bool lock_only);
+static void invalidate_from_locktag(CheriTagBlock *lock, CheriTagBlock *todo,
+                                    CPUArchState *env,
+                                    target_ulong vaddr, uintptr_t pc,
+                                    int mmu_idx)
 {
-    cheri_debug_assert(QEMU_IS_ALIGNED(vaddr, CHERI_CAP_SIZE));
-    return cheri_tag_invalidate_one(env, vaddr, CHERI_CAP_SIZE, pc, mmu_idx);
+    if (lock != TAG_LOCK_NONE) {
+        if (lock == TAG_LOCK_ERROR) {
+            return;
+        }
+        lock_tag_write_tag_and_release(lock,  todo, vaddr, 0);
+    }
 }
 
-void cheri_tag_invalidate(CPUArchState *env, target_ulong vaddr, int32_t size,
-                          uintptr_t pc, int mmu_idx)
+void *cheri_tag_invalidate_aligned_impl(CPUArchState *env, target_ulong vaddr,
+                                        uintptr_t pc, int mmu_idx,
+                                        tag_writer_lock_t *lock, bool lock_only)
 {
+    cheri_debug_assert(QEMU_IS_ALIGNED(vaddr, CHERI_CAP_SIZE));
+    if (lock && *lock) {
+        invalidate_from_locktag(*lock, NULL, env, vaddr, pc, mmu_idx);
+        return NULL;
+    }
+    return cheri_tag_invalidate_one(env, vaddr, CHERI_CAP_SIZE, pc, mmu_idx,
+                                    lock, NULL, lock_only);
+}
+
+void cheri_tag_invalidate_impl(CPUArchState *env, target_ulong vaddr,
+                               int32_t size, uintptr_t pc, int mmu_idx,
+                               tag_writer_lock_t *first,
+                               tag_writer_lock_t *second, bool lock_only)
+{
+    cheri_debug_assert(size > 0);
+
+    if (first && *first) {
+        vaddr = (vaddr / CHERI_CAP_SIZE) * CHERI_CAP_SIZE;
+        invalidate_from_locktag(*first, second ? *second : NULL, env, vaddr,
+                                pc, mmu_idx);
+        if (second && *second) {
+            invalidate_from_locktag(*second, NULL, env,
+                    vaddr + CHERI_CAP_SIZE, pc, mmu_idx);
+        }
+        return;
+    }
+
     target_ulong first_addr = vaddr;
     target_ulong last_addr = (vaddr + size - 1);
     TagOffset tag_start = addr_to_tag_offset(first_addr);
     TagOffset tag_end = addr_to_tag_offset(last_addr);
     if (likely(tag_start.value == tag_end.value)) {
         // Common case, only one tag (i.e. an aligned store)
-        cheri_tag_invalidate_one(env, vaddr, size, pc, mmu_idx);
+        cheri_tag_invalidate_one(env, vaddr, size, pc, mmu_idx, first, NULL,
+                                 lock_only);
         return;
     }
-    // Unaligned store -> can cross a capabiblity alignment boundary and
-    // therefore invalidate two tags. It can also cross pages
-    size_t ntags = tag_end.value - tag_start.value + 1;
+
+    /*
+     * Unaligned store -> can cross a capability alignment boundary and
+     * therefore invalidate two tags. It can also cross pages.
+     * It can also wrap the address space, so the offset difference should be
+     * computed modulo the number of capability sized granules.
+     */
+    size_t ntags = ((tag_end.value - tag_start.value) &
+            ((target_ulong)-1 / CHERI_CAP_SIZE)) + 1;
     assert(ntags == 2 && "Should invalidate at most two tag bits here");
     // Note: we always do a new page lookup here since unaligned stores
     // should be rare and the probing should be fast if it's in the QEMU TLB
@@ -405,53 +684,86 @@ void cheri_tag_invalidate(CPUArchState *env, target_ulong vaddr, int32_t size,
                     size, vaddr);
     }
 #else
-    FILE *logfile = qemu_log_trylock();
-    error_report("FATAL: %s: " TARGET_FMT_lx
-                 "+%d crosses a page boundary\r",
-                 __func__, vaddr, size);
-    char buffer[256];
-    FILE *f = fmemopen(buffer, sizeof(buffer), "w");
-    fprintf(f, "Probably caused by guest instruction: ");
-    target_disas(f, env_cpu(env), cpu_get_current_pc(env, pc),
-                 /* Only one instr*/ -1);
-    fprintf(f, "\r");
-    fclose(f);
-    buffer[sizeof(buffer) - 1] = '\0';
-    error_report("%s", buffer);
-    qemu_log_unlock(logfile);
-    exit(1);
+    if (!lock_only) {
+        /*
+         * Tags are locked before every store, so this also runs for a
+         * misaligned store that is about to raise its alignment exception;
+         * only an access that is really carried out is fatal.
+         */
+        FILE *logfile = qemu_log_trylock();
+        error_report("FATAL: %s: " TARGET_FMT_lx
+                     "+%d crosses a page boundary\r",
+                     __func__, vaddr, size);
+        char buffer[256];
+        FILE *f = fmemopen(buffer, sizeof(buffer), "w");
+        fprintf(f, "Probably caused by guest instruction: ");
+        target_disas(f, env_cpu(env), cpu_get_current_pc(env, pc),
+                     /* Only one instr*/ -1);
+        fprintf(f, "\r");
+        fclose(f);
+        buffer[sizeof(buffer) - 1] = '\0';
+        error_report("%s", buffer);
+        qemu_log_unlock(logfile);
+        exit(1);
+    }
 #endif
 #endif
-    target_ulong second_addr = tag_offset_to_addr(tag_start) + CHERI_CAP_SIZE;
-    cheri_tag_invalidate_one(env, first_addr, second_addr - first_addr, pc,
-                             mmu_idx);
-    for (target_ulong addr = second_addr; addr <= tag_offset_to_addr(tag_end);
-         addr += CHERI_CAP_SIZE) {
-        target_ulong inval_size = MIN(CHERI_CAP_SIZE, last_addr + 1 - addr);
-        cheri_tag_invalidate_one(env, addr, inval_size, pc, mmu_idx);
+    tag_writer_lock_t done = NULL;
+    target_ulong addr = tag_offset_to_addr(tag_start);
+    for (size_t i = 0; i < ntags; i++, addr += CHERI_CAP_SIZE) {
+        cheri_tag_invalidate_one(env, addr, CHERI_CAP_SIZE, pc, mmu_idx,
+                                 first, done, lock_only);
+        if (first && (*first)) {
+            done = *first;
+        }
+        first = second;
     }
 }
 
 static void *cheri_tag_invalidate_one(CPUArchState *env, target_ulong vaddr,
-                                      int32_t size, uintptr_t pc, int mmu_idx)
+                                      int32_t size, uintptr_t pc, int mmu_idx,
+                                      tag_writer_lock_t *lock,
+                                      tag_writer_lock_t done, bool lock_only)
 {
     cheri_debug_assert(size > 0);
+    if (lock) {
+        *lock = TAG_LOCK_NONE;
+    }
+
+    void *tagmem = NULL;
 
     /*
-     * When resolving this address in the TLB, treat it like a data store
-     * (MMU_DATA_STORE) rather than a capability store (MMU_DATA_CAP_STORE),
-     * so that we don't require that the SC inhibit be clear.
+     * We use the flags version to suppress exceptions if we only want the
+     * lock. This is required as the data access might throw an exception with a
+     * higher priority. It should be the case that the data access will throw an
+     * MMU exception as well, but if it doesn't, I am returning another special
+     * lock value which can be tested later
      */
+    void *host_addr;
+    int access_flags = probe_access_flags_fast(env, vaddr, size,
+                                               MMU_DATA_STORE, mmu_idx,
+                                               lock_only, &host_addr,
+                                               &tagmem, pc);
+    if (likely(tagmem)) {
+        tagmem_clear_tag(tagmem, vaddr, lock, done, lock_only);
+        return host_addr;
+    }
 
-    void *host_addr = probe_write(env, vaddr, size, mmu_idx, pc);
+    if (access_flags & TLB_INVALID_MASK) {
+        if (lock) {
+            *lock = TAG_LOCK_ERROR;
+        }
+        return host_addr;
+    }
+
     // Only RAM and ROM regions are backed by host addresses so if
     // probe_write() returns NULL we know that we can't write the tagmem.
     if (unlikely(!host_addr)) {
-        return NULL;
+        return host_addr;
     }
 
     uintptr_t tagmem_flags;
-    void *tagmem =
+    tagmem =
         get_tagmem_from_iotlb_entry(env, vaddr, mmu_idx, true, &tagmem_flags);
 
     if (tagmem == ALL_ZERO_TAGBLK) {
@@ -468,16 +780,7 @@ static void *cheri_tag_invalidate_one(CPUArchState *env, target_ulong vaddr,
     // bit: The iotlb->tagmem pointer always points to the tag memory
     // for the start of the page so we can simply add the index for the
     // page offset.
-    target_ulong tag_offset = page_vaddr_to_tag_offset(vaddr);
-    if (qemu_log_instr_enabled(env)) {
-        bool old_value = tagblock_get_tag_tagmem(tagmem, tag_offset);
-        qemu_log_instr_extra(
-            env,
-            "    Cap Tag Write [" TARGET_FMT_lx "/" RAM_ADDR_FMT "] %d -> 0\n",
-            vaddr, qemu_ram_addr_from_host(host_addr), old_value);
-    }
-
-    tagblock_clear_tag_tagmem(tagmem, tag_offset);
+    tagmem_clear_tag(tagmem, vaddr, lock, done, lock_only);
     return host_addr;
 }
 
@@ -508,24 +811,130 @@ void cheri_tag_phys_invalidate(CPUArchState *env, RAMBlock *ram,
         uint64_t tag = addr / CHERI_CAP_SIZE;
         CheriTagBlock *tagblk = cheri_tag_block(tag, ram);
         if (tagblk != NULL) {
-            const size_t tagblk_index = CAP_TAGBLK_IDX(tag);
-            if (unlikely(env && vaddr && qemu_log_instr_enabled(env))) {
-                target_ulong write_vaddr =
-                    QEMU_ALIGN_DOWN(*vaddr, CHERI_CAP_SIZE) + (addr - startaddr);
-                qemu_log_instr_extra(env, "    Cap Tag Write [" TARGET_FMT_lx
-                    "/" RAM_ADDR_FMT "] %d -> 0\n", write_vaddr, addr,
-                    tagblock_get_tag(tagblk, tagblk_index));
-            } else if (unlikely(env && qemu_log_instr_enabled(env))) {
-                qemu_log_instr_extra(env, "    Cap Tag ramaddr Write ["
-                    RAM_ADDR_FMT "] %d -> 0\n", addr,
-                    tagblock_get_tag(tagblk, tagblk_index));
+            const size_t tagblk_index = tag % TAGS_PER_PAGE;
+            if (unlikely(env && qemu_log_instr_enabled(env))) {
+                bool old_tag = __tagblock_tag_get(tagblk, tagblk_index);
+                if (vaddr) {
+                    target_ulong write_vaddr =
+                        QEMU_ALIGN_DOWN(*vaddr, CHERI_CAP_SIZE) +
+                        (addr - startaddr);
+                    qemu_log_instr_extra(env,
+                                         "    Cap Tag Write [" TARGET_FMT_lx
+                                         "/" RAM_ADDR_FMT "] %d -> 0\n",
+                                         write_vaddr, addr, old_tag);
+                } else {
+                    qemu_log_instr_extra(
+                        env,
+                        "    Cap Tag ramaddr Write [" RAM_ADDR_FMT
+                        "] %d -> 0\n",
+                        addr, old_tag);
+                }
             }
-            // changed |= tagblock_get_tag(tagblk, tagblk_index);
-            tagblock_clear_tag(tagblk, tagblk_index);
+
+            tagblock_clear_locktag_with_lock_and_release(tagblk,
+                                                         addr | (0x1UL << 63));
         }
     }
 }
 
+void *cheri_tag_phys_invalidate_begin(CPUArchState *env, RAMBlock *ram,
+                                      ram_addr_t ram_offset, size_t *len)
+{
+    CheriTagBlock *tagblk;
+    size_t end_idx;
+    size_t blk_offset;
+    size_t start_idx, cap_idx;
+    int i, nr, bits_to_clear, word;
+    unsigned long mask_to_clear;
+    bool old_tag;
+    ram_addr_t ram_addr;
+
+    /*
+     * The ram offset is the offset into the ramblock. We need to convert this
+     * into capability indices
+     */
+    start_idx = ram_offset / CHERI_CAP_SIZE;
+    blk_offset = ram_offset % CHERI_TAG_BLOCK_SIZE;
+
+    /* Limit the operation to a single tag block */
+    *len = *len + blk_offset < CHERI_TAG_BLOCK_SIZE ? *len :
+        CHERI_TAG_BLOCK_SIZE - blk_offset;
+
+    end_idx = DIV_ROUND_UP(blk_offset + *len, CHERI_CAP_SIZE);
+    if (ram->cheri_tags == NULL) {
+        /* Nothing to lock */
+        return NULL;
+    }
+
+    tagblk = cheri_tag_block(start_idx, ram);
+    if (!tagblk) {
+        /* Attempt to allocate a new tagblock */
+        tagblk = cheri_tag_new_tagblk(ram, start_idx);
+    }
+    tagblock_lock_write(tagblk);
+    if (*len == 0) {
+        return tagblk;
+    }
+    cap_idx = blk_offset / CHERI_CAP_SIZE;
+    mask_to_clear = BITMAP_FIRST_WORD_MASK(cap_idx);
+    nr = end_idx - cap_idx;
+    bits_to_clear = BITS_PER_LONG - (cap_idx % BITS_PER_LONG);
+    word = BIT_WORD(cap_idx);
+    if (unlikely(env && qemu_log_instr_enabled(env))) {
+        /* Before we clear the bits we need to log any that are set */
+        for (ram_addr = QEMU_ALIGN_DOWN(ram_offset, CHERI_CAP_SIZE),
+                i = cap_idx; i < end_idx; i++, ram_addr += CHERI_CAP_SIZE) {
+            old_tag = __tagblock_tag_get(tagblk, i);
+            if (old_tag) {
+                qemu_log_instr_extra(
+                    env,
+                    "    Cap Tag ramaddr Write [" RAM_ADDR_FMT
+                    "] %d -> 0\n",
+                    ram_addr, old_tag);
+            }
+        }
+    }
+    while (nr - bits_to_clear >= 0) {
+        qatomic_set(&tagblk->tag_bitmap[word],
+                    qatomic_read(&tagblk->tag_bitmap[word]) & ~mask_to_clear);
+        nr -= bits_to_clear;
+        bits_to_clear = BITS_PER_LONG;
+        mask_to_clear = ~0UL;
+        word++;
+    }
+    if (nr) {
+        mask_to_clear &= BITMAP_LAST_WORD_MASK(end_idx);
+        qatomic_set(&tagblk->tag_bitmap[word],
+                    qatomic_read(&tagblk->tag_bitmap[word]) & ~mask_to_clear);
+    }
+    return tagblk;
+}
+
+void cheri_tag_phys_invalidate_end(void *tagblock)
+{
+    if (tagblock) {
+        tagblock_unlock_write(tagblock);
+    }
+}
+
+void cheri_phys_memcpy(CPUArchState *env, RAMBlock *ram,
+                       ram_addr_t ram_offset, uint8_t *dst,
+                       const uint8_t *src, size_t len)
+{
+    void *tagblk;
+    size_t towrite = len;
+    while (towrite) {
+        tagblk = cheri_tag_phys_invalidate_begin(env, ram, ram_offset,
+                                                 &towrite);
+        memcpy(dst, src, towrite);
+        cheri_tag_phys_invalidate_end(tagblk);
+        src += towrite;
+        dst += towrite;
+        ram_offset += towrite;
+        len -= towrite;
+        towrite = len;
+    }
+}
 /*
  * TODO: Basically nothing uses this physical address. Tag set probably should
  * not have to return it.
@@ -547,9 +956,20 @@ void cheri_tag_phys_invalidate(CPUArchState *env, RAMBlock *ram,
 #define clear_capcause_reg(env)
 #endif
 
-void *cheri_tag_set(CPUArchState *env, target_ulong vaddr, int reg,
-                    hwaddr *ret_paddr, uintptr_t pc, int mmu_idx)
+void *cheri_tag_set_impl(CPUArchState *env, target_ulong vaddr, int reg,
+                         hwaddr *ret_paddr, uintptr_t pc, int mmu_idx,
+                         tag_writer_lock_t *lock, bool lock_only)
 {
+
+    if (lock && *lock) {
+        if (*lock != TAG_LOCK_NONE) {
+            lock_tag_write_tag_and_release(*lock, NULL, vaddr, 1);
+        }
+        return NULL;
+    }
+
+    void *tagmem;
+
     /*
      * This attempt to resolve a virtual address may cause both a data store
      * TLB fault (entry missing or D bit clear) and a capability store TLB
@@ -557,17 +977,27 @@ void *cheri_tag_set(CPUArchState *env, target_ulong vaddr, int reg,
      */
     store_capcause_reg(env, reg);
     // Note: this probe will handle any store cap faults
-    void *host_addr = probe_cap_write(env, vaddr, CHERI_CAP_SIZE, mmu_idx, pc);
+    void *host_addr = probe_cap_write_fast(env, vaddr, CHERI_CAP_SIZE,
+                                           mmu_idx, pc, &tagmem);
     clear_capcause_reg(env);
 
     handle_paddr_return(write);
+
+    if (lock) {
+        *lock = TAG_LOCK_NONE;
+    }
 
     if (unlikely(!host_addr)) {
         return NULL;
     }
 
+    if (likely(tagmem)) {
+        tagmem_set_tag(tagmem, vaddr, lock, lock_only);
+        return host_addr;
+    }
+
     uintptr_t tagmem_flags;
-    void *tagmem = get_tagmem_from_iotlb_entry(env, vaddr, mmu_idx,
+    tagmem = get_tagmem_from_iotlb_entry(env, vaddr, mmu_idx,
                                                /*write=*/true, &tagmem_flags);
 
     /* Clear + ALL_ZERO_TAGBLK means no tags can be stored here. */
@@ -588,41 +1018,53 @@ void *cheri_tag_set(CPUArchState *env, target_ulong vaddr, int reg,
      */
     cheri_debug_assert(tagmem != ALL_ZERO_TAGBLK);
 
-    target_ulong tag_offset = page_vaddr_to_tag_offset(vaddr);
-
     qemu_maybe_log_instr_extra(
         env, "    Cap Tag Write [" TARGET_FMT_lx "/" RAM_ADDR_FMT "] %d -> 1\n",
         vaddr, qemu_ram_addr_from_host(host_addr),
-        tagblock_get_tag_tagmem(tagmem, tag_offset));
+        __tagblock_tag_get(tagmem, page_vaddr_to_tag_offset(vaddr)));
 
-    tagblock_set_tag_tagmem(tagmem, tag_offset);
+    tagmem_set_tag(tagmem, vaddr, lock, lock_only);
     return host_addr;
 }
 
 bool cheri_tag_get(CPUArchState *env, target_ulong vaddr, int reg,
                    hwaddr *ret_paddr, int *prot, uintptr_t pc, int mmu_idx,
-                   void *host_addr)
+                   void *host_addr, void *tagmem, tag_reader_lock_t *lock)
 {
+    if (lock && lock->tagmem) {
+        bool ret = false;
+        if (lock->tagmem != ALL_ZERO_TAGBLK) {
+            ret = __tagblock_tag_get(lock->tagmem,
+                                     page_vaddr_to_tag_offset(vaddr));
+            lock->success &= tagblock_end_read(lock->tagmem, lock->seq);
+        }
+        return ret;
+    }
 
     if (host_addr == NULL) {
-        host_addr = probe_read(env, vaddr, CHERI_CAP_SIZE, mmu_idx, pc);
+        host_addr = probe_read_fast(env, vaddr, CHERI_CAP_SIZE, mmu_idx, pc,
+                                    &tagmem);
     }
     handle_paddr_return(read);
 
-    uintptr_t tagmem_flags;
-    void *tagmem = get_tagmem_from_iotlb_entry(env, vaddr, mmu_idx,
-                                               /*write=*/false, &tagmem_flags);
-
     if (prot) {
         *prot = 0;
-        if (tagmem_flags & TLBENTRYCAP_FLAG_CLEAR) {
-            *prot |= PAGE_LC_CLEAR;
-        }
-        if (tagmem_flags & TLBENTRYCAP_FLAG_TRAP) {
-            *prot |= PAGE_LC_TRAP;
-        }
-        if (tagmem_flags & TLBENTRYCAP_FLAG_TRAP_ANY) {
-            *prot |= PAGE_LC_TRAP_ANY;
+    }
+    if (unlikely(!tagmem)) {
+        uintptr_t tagmem_flags;
+        tagmem = get_tagmem_from_iotlb_entry(env, vaddr, mmu_idx,
+                                             /*write=*/false, &tagmem_flags);
+
+        if (prot) {
+            if (tagmem_flags & TLBENTRYCAP_FLAG_CLEAR) {
+                *prot |= PAGE_LC_CLEAR;
+            }
+            if (tagmem_flags & TLBENTRYCAP_FLAG_TRAP) {
+                *prot |= PAGE_LC_TRAP;
+            }
+            if (tagmem_flags & TLBENTRYCAP_FLAG_TRAP_ANY) {
+                *prot |= PAGE_LC_TRAP_ANY;
+            }
         }
     }
 
@@ -630,11 +1072,19 @@ bool cheri_tag_get(CPUArchState *env, target_ulong vaddr, int reg,
      * Squash happens in the caller, so read the tagblk even if
      * TLBENTRYCAP_FLAG_CLEAR
      */
-    bool result =
-        (tagmem == ALL_ZERO_TAGBLK)
-            ? 0
-            : tagblock_get_tag_tagmem(tagmem, page_vaddr_to_tag_offset(vaddr));
-
+    bool result = false;
+    if (lock) {
+        lock->tagmem = tagmem;
+        lock->success = true;
+    }
+    /* Memory without tag storage never holds a tag */
+    if (tagmem && tagmem != ALL_ZERO_TAGBLK) {
+        if (lock) {
+            lock->success = tagblock_begin_read(tagmem, &lock->seq);
+        }
+        result = __tagblock_tag_get(tagmem,
+                                    page_vaddr_to_tag_offset(vaddr));
+    }
     // XXX: Not atomic w.r.t. writes to tag memory
     qemu_maybe_log_instr_extra(
         env, "    Cap Tag Read [" TARGET_FMT_lx "/" RAM_ADDR_FMT "] -> %d\n",
@@ -655,10 +1105,10 @@ int cheri_tag_get_many(CPUArchState *env, target_ulong vaddr, int reg,
                                                /*write=*/false, &tagmem_flags);
 
     int result =
-        ((tagmem == ALL_ZERO_TAGBLK) || (tagmem_flags & TLBENTRYCAP_FLAG_CLEAR))
+        ((tagmem == ALL_ZERO_TAGBLK) ||
+         (tagmem_flags & TLBENTRYCAP_FLAG_CLEAR))
             ? 0
-            : tagblock_get_tag_many_tagmem(tagmem,
-                                           page_vaddr_to_tag_offset(vaddr));
+            : tagmem_get_tag_many(tagmem, vaddr);
 
     if ((result && (tagmem_flags & TLBENTRYCAP_FLAG_TRAP)) ||
         (tagmem_flags & TLBENTRYCAP_FLAG_TRAP_ANY)) {
@@ -713,7 +1163,98 @@ void cheri_tag_set_many(CPUArchState *env, uint32_t tags, target_ulong vaddr,
 
     cheri_debug_assert(tagmem);
 
-    tagblock_set_tag_many_tagmem(tagmem, page_vaddr_to_tag_offset(vaddr), tags);
+    tagmem_set_tag_many(tagmem, vaddr, tags);
+}
+
+void cheri_tag_writer_lock_release_impl(tag_writer_lock_t lock)
+{
+    tagblock_unlock_write(lock);
+}
+
+void cheri_tag_free_lock(tag_lock_t lock)
+{
+    if (!lock || lock == TAG_LOCK_NONE || lock == TAG_LOCK_ERROR) {
+        return;
+    }
+    tagblock_unlock_write(lock);
+}
+
+/*
+ * Some TCG operations on data need to be atomic. This is done using atomic host
+ * operations, or single stepping. Tags pose a problem, as no host operations
+ * can simultaneously set tags and data, so that would leave only single
+ * stepping, which would not perform very well.
+ * Luckily, a lock now exists on every capability sized unit of memory, so
+ * atomic TCG operations are done by taking the lock and then doing a non-atomic
+ * sequence. Because it is unknown at translation time whether a location will
+ * have a tag (and therefore a lock), we cannot know whether we can rely
+ * on the tags lock or not.
+ * Therefore, we assume every location is tagged. If it is not, we asign it a
+ * dummy lock (that will always have a zero tag).
+ * We have a few of these to avoid false sharing.
+ */
+
+#define DUMMY_LOCK_BITS 16
+
+CheriTagBlock dummy_tag_table[1 << DUMMY_LOCK_BITS];
+/*
+ * As the address we are passed is virtual but our locks need to be on physical
+ * addresses only use the low order bits i.e. page offset for the hash
+ * This will ensure that accesses to the physical address will use the same hash
+ * It will also increase the likilihood of false sharing but will still be
+ * safe
+ */
+static target_ulong hash_vaddr(target_ulong vaddr)
+{
+    vaddr &= ~TARGET_PAGE_MASK;
+    size_t shft = sizeof(target_ulong);
+    while (shft > DUMMY_LOCK_BITS) {
+        shft /= 2;
+        vaddr ^= vaddr >> shft;
+    }
+    return vaddr & ((1 << DUMMY_LOCK_BITS) - 1);
+}
+
+static CheriTagBlock *get_dummy(target_ulong vaddr)
+{
+    return &dummy_tag_table[hash_vaddr(vaddr)];
+}
+
+void get_dummy_locks(target_ulong vaddr, tag_writer_lock_t *low,
+                     tag_writer_lock_t *high)
+{
+    target_ulong tag_addr1 = vaddr / CHERI_CAP_SIZE;
+    target_ulong tag_addr2 = tag_addr1 + 1;
+    tag_writer_lock_t low_dummy = NULL;
+    tag_writer_lock_t high_dummy = NULL;
+
+    if (*low == TAG_LOCK_NONE) {
+        low_dummy = get_dummy(tag_addr1);
+    }
+
+    if (*high == TAG_LOCK_NONE) {
+        high_dummy = get_dummy(tag_addr2);
+        if (high_dummy == low_dummy) {
+            high_dummy = NULL;
+        }
+    }
+
+    if (low_dummy && high_dummy && high_dummy < low_dummy) {
+        /* Keep lock order consistent. */
+        tag_writer_lock_t tmp = high_dummy;
+        high_dummy = low_dummy;
+        low_dummy = tmp;
+    }
+
+    if (low_dummy) {
+        tagblock_lock_write(low_dummy);
+        *low = low_dummy;
+    }
+
+    if (high_dummy) {
+        tagblock_lock_write(high_dummy);
+        *high = high_dummy;
+    }
 }
 
 bool cheri_tag_get_debug(RAMBlock *ram, ram_addr_t ram_offset)
@@ -731,6 +1272,7 @@ bool cheri_tag_get_debug(RAMBlock *ram, ram_addr_t ram_offset)
     uint64_t tag = ram_offset / CHERI_CAP_SIZE;
     CheriTagBlock *tagblk = cheri_tag_block(tag, ram);
     cheri_debug_assert(tagblk);
-    const size_t tagblk_index = CAP_TAGBLK_IDX(tag);
-    return tagblock_get_tag(tagblk, tagblk_index);
+    const size_t tagblk_index = tag % TAGS_PER_PAGE;
+    bool tag_value = __tagblock_tag_get(tagblk, tagblk_index);
+    return tag_value;
 }

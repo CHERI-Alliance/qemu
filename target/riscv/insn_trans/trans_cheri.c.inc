@@ -472,17 +472,9 @@ static inline bool lr_y_impl(DisasContext *ctx, arg_atomic *a,
 {
     REQUIRE_EXT(ctx, RVA);
     REQUIRE_CAPMODE_RS1_NOT_ZERO(ctx, a->rs1);
-    if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
-        // In a parallel context, stop the world and single step.
-        gen_helper_exit_atomic(cpu_env);
-        ctx->base.is_jmp = DISAS_NORETURN;
-    } else {
-        // Note: we ignore the Acquire/release flags since using
-        // helper_exit_atomic forces exlusive execution so we get SC semantics.
-        tcg_debug_assert(a->rs2 == 0);
-        arg_cc cc = { .cd = a->rd, .cs1 = a->rs1 };
-        gen_cheri_cap_cap(ctx, &cc, helper);
-    }
+    tcg_debug_assert(a->rs2 == 0);
+    arg_cc cc = { .cd = a->rd, .cs1 = a->rs1 };
+    gen_cheri_cap_cap(ctx, &cc, helper);
     return true;
 }
 
@@ -510,16 +502,8 @@ static inline bool sc_y_impl(DisasContext *ctx, arg_atomic *a,
 {
     REQUIRE_EXT(ctx, RVA);
     REQUIRE_CAPMODE_RS1_NOT_ZERO(ctx, a->rs1);
-    if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
-        // In a parallel context, stop the world and single step.
-        gen_helper_exit_atomic(cpu_env);
-        ctx->base.is_jmp = DISAS_NORETURN;
-    } else {
-        // Note: we ignore the Acquire/release flags since using
-        // helper_exit_atomic forces exclusive execution so we get SC semantics.
-        arg_rcc rcc = { .rd = a->rd, .cs1 = a->rs1, .cs2 = a->rs2 };
-        gen_cheri_int_cap_cap(ctx, &rcc, helper);
-    }
+    arg_rcc rcc = { .rd = a->rd, .cs1 = a->rs1, .cs2 = a->rs2 };
+    gen_cheri_int_cap_cap(ctx, &rcc, helper);
     return true;
 }
 
@@ -548,16 +532,8 @@ static inline bool trans_amoswap_y(DisasContext *ctx, arg_atomic *a)
 {
     REQUIRE_EXT(ctx, RVA);
     REQUIRE_CAPMODE_RS1_NOT_ZERO(ctx, a->rs1);
-    if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
-        // In a parallel context, stop the world and single step.
-        gen_helper_exit_atomic(cpu_env);
-        ctx->base.is_jmp = DISAS_NORETURN;
-    } else {
-        // Note: we ignore the Acquire/release flags since using
-        // helper_exit_atomic forces exlusive execution so we get SC semantics.
-        arg_ccc ccc = { .cd = a->rd, .cs1 = a->rs1, .cs2 = a->rs2 };
-        gen_cheri_cap_cap_cap(ctx, &ccc, &gen_helper_amoswap_cap);
-    }
+    arg_ccc ccc = { .cd = a->rd, .cs1 = a->rs1, .cs2 = a->rs2 };
+    gen_cheri_cap_cap_cap(ctx, &ccc, &gen_helper_amoswap_cap);
     return true;
 }
 
