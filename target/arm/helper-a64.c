@@ -1108,7 +1108,7 @@ void HELPER(dc_zva)(CPUARMState *env, target_ulong vaddr_in)
      * (which matches the usual QEMU behaviour of not implementing either
      * alignment faults or any memory attribute handling).
      */
-    int blocklen = 4 << env_archcpu(env)->dcz_blocksize;
+    size_t blocklen = 4 << env_archcpu(env)->dcz_blocksize;
     uint64_t vaddr = vaddr_in & ~(blocklen - 1);
     int mmu_idx = cpu_mmu_index(env, false);
     void *mem;
@@ -1143,16 +1143,31 @@ void HELPER(dc_zva)(CPUARMState *env, target_ulong vaddr_in)
         }
     }
 #endif
-
+    if (likely(mem)) {
 #ifdef TARGET_CHERI
-    assert(blocklen == ((1 << CAP_TAG_GET_MANY_SHFT) * CHERI_CAP_SIZE));
-    // NB: Because this isn't setting any tags, no exception should be possible.
-    // The only reason for passing the register number is for exceptions,
-    // so the fact we pass -1 here should be fine.
-    cheri_tag_set_many(env, 0, vaddr, -1, NULL, GETPC());
-#endif
+        assert(blocklen == ((1 << CAP_TAG_GET_MANY_SHFT) * CHERI_CAP_SIZE));
+        RAMBlock *r;
+        ram_addr_t offs;
+        void *tagblk = NULL;
 
-    memset(mem, 0, blocklen);
+        /*
+         * Acquire a tagblock for the region being invalidated (which clears
+         * its tags), and clear the memory whilst the tag block is held.
+         * Holding the tagblk prevents another thread storing a capability to
+         * the same region whilst clearing the memory and invalidating the tags
+         */
+        rcu_read_lock(); /* protect r from changes while we use it */
+        r = qemu_ram_block_from_host(mem, /* round to page? */ false, &offs);
+        if (r) {
+            tagblk = cheri_tag_phys_invalidate_begin(env, r, offs, &blocklen);
+        }
+        memset(mem, 0, blocklen);
+        cheri_tag_phys_invalidate_end(tagblk); /* NULL tagblk is ignored */
+        rcu_read_unlock();
+#else
+        memset(mem, 0, blocklen);
+#endif
+    }
 }
 
 void G_NORETURN helper_alignment_fault_exception(CPUArchState *env,
