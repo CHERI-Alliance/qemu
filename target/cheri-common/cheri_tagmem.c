@@ -182,9 +182,31 @@ static inline QEMU_ALWAYS_INLINE void tagmem_clear_tag(CheriTagBlock *tagmem,
                                                        tag_writer_lock_t done,
                                                        bool lock_only)
 {
+    /*
+     * When performing a store that spans two capabilities we have to acquire
+     * locks for writing to both capabilities, if the capabilities also span a
+     * page boundary then we will need two separate locks.
+     * In this case we need to prevent the case where another thread is also
+     * trying to acquire the locks but in reverse order due to having different
+     * mappings to the same physical pages. So to handle this we enforce an
+     * order based on the tagblock's address (tag_writer_lock_ts are
+     * CheriTagBlocks), we can do this by detecting an incorrect order, freeing
+     * the already held lock (which may allow another thread to complete its
+     * work), acquire our first and reacquire the second lock, clearing the tag
+     * as another thread may have set it between the release/acquire.
+     */
     if (lock) {
         *lock = tagmem;
-        if (tagmem != done) {
+        if (done && done != TAG_LOCK_NONE && done != TAG_LOCK_ERROR &&
+            (tagmem < done)) {
+            tagblock_unlock_write(done);
+            tagblock_lock_write(tagmem);
+            tagblock_lock_write(done);
+            if (!lock_only) {
+                __tagblock_tag_clear(
+                    done, page_vaddr_to_tag_offset(vaddr - CHERI_CAP_SIZE));
+            }
+        } else if (tagmem != done) {
             tagblock_lock_write(tagmem);
         }
         if (!lock_only) {
