@@ -196,15 +196,20 @@ void helper_store_exclusive_cap_via_cap(CPUArchState *env, uint32_t rs,
 
     // Check first cap value equal
     if (success) {
-
         /*
-         * Get both locks
-         * (for the strongest possible operation that might occur)
+         * Get both locks using the appropriate lock type for the individual
+         * capability, either a set lock for a tagged capability, or an
+         * invalidate otherwise.
          */
         int mmu_indx = cpu_mmu_index(env, false);
-
-        cheri_lock_for_tag_set(env, addr, cb, NULL, _host_return_address,
-                               mmu_indx, &low_lock);
+        if (get_without_decompress_tag(env, cd)) {
+            cheri_lock_for_tag_set(env, addr, cb, NULL, _host_return_address,
+                                   mmu_indx, &low_lock);
+        } else {
+            /* Not tagged so take a lock for tag invalidation instead. */
+            cheri_lock_for_tag_invalidate_aligned(
+                env, addr, _host_return_address, mmu_indx, &low_lock);
+        }
         cheri_tag_writer_push_free_on_exception(env, low_lock);
 
         /*
@@ -212,8 +217,18 @@ void helper_store_exclusive_cap_via_cap(CPUArchState *env, uint32_t rs,
          * pages.
          */
         if ((cd2 != REG_NONE) && span_page) {
-            cheri_lock_for_tag_set(env, addr + CHERI_CAP_SIZE, cb, NULL,
-                                   _host_return_address, mmu_indx, &high_lock);
+            if (get_without_decompress_tag(env, cd2)) {
+                cheri_lock_for_tag_set(env, addr + CHERI_CAP_SIZE, cb, NULL,
+                                       _host_return_address, mmu_indx,
+                                       &high_lock);
+            } else {
+                /*
+                 * If it isn't tagged then instead take a lock for invalidate.
+                 */
+                cheri_lock_for_tag_invalidate_aligned(
+                    env, addr + CHERI_CAP_SIZE, _host_return_address, mmu_indx,
+                    &high_lock);
+            }
             cheri_tag_writer_push_free_on_exception(env, high_lock);
         }
 
@@ -264,6 +279,7 @@ static void swap_cap_via_cap_impl(CPUArchState *env, uint32_t cd, uint32_t cs,
 {
 
     const cap_register_t *cbp = get_capreg_or_special(env, cb);
+    tag_writer_lock_t lock = NULL;
 
     uint32_t perms = min_perms_for_store(env, cd) | min_perms_for_load();
 
@@ -278,14 +294,27 @@ static void swap_cap_via_cap_impl(CPUArchState *env, uint32_t cd, uint32_t cs,
     bool cd_tagged = get_without_decompress_tag(env, cd);
     int mmu_index = cpu_mmu_index(env, false);
 
-    if (cd_tagged)
+    if (cd_tagged) {
+        /*
+         * If we are trying to store a tagged capability we might need to
+         * raise an exception.
+         */
         probe_cap_write(env, addr, CHERI_CAP_SIZE, mmu_index,
                         _host_return_address);
-
-    tag_writer_lock_t lock = NULL;
-
-    cheri_lock_for_tag_set(env, addr, cb, NULL, _host_return_address,
-                           cpu_mmu_index(env, false), &lock);
+        cheri_lock_for_tag_set(env, addr, cb, NULL, _host_return_address,
+                               mmu_index, &lock);
+    } else {
+        /*
+         * An untagged store only needs data-write permission. Probing first
+         * means that a store permission fault takes priority over a
+         * capability load fault. This is done before the lock so that no lock
+         * is held when it faults.
+         */
+        probe_write(env, addr, CHERI_CAP_SIZE, mmu_index, _host_return_address);
+        /* If it isn't tagged then instead take a lock for invalidate. */
+        cheri_lock_for_tag_invalidate_aligned(env, addr, _host_return_address,
+                                              mmu_index, &lock);
+    }
     cheri_tag_writer_push_free_on_exception(env, lock);
 
     // load (without modifying cs as we will need it for the comparison)
@@ -308,12 +337,6 @@ static void swap_cap_via_cap_impl(CPUArchState *env, uint32_t cd, uint32_t cs,
     // Store
     if (do_store) {
         store_cap_to_memory(env, cd, cb, addr, _host_return_address, false);
-    } else {
-        cd_tagged = get_without_decompress_tag(env, cd);
-        // Even if there is no store, we possibly need an MMU permission fault
-        if (!cd_tagged)
-            probe_write(env, addr, CHERI_CAP_SIZE, mmu_index,
-                        _host_return_address);
     }
 
     cheri_tag_writer_pop_free_on_exception(env);
