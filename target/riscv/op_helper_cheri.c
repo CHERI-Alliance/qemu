@@ -485,7 +485,7 @@ static target_ulong sc_c_impl(CPUArchState *env, uint32_t addr_reg,
                               uintptr_t _host_return_address)
 {
     const cap_register_t *auth_cap = get_load_store_base_cap(env, addr_reg);
-    bool store_tag;
+    bool store_tag, res_invalid;
 
     /* All checks for SC.Y are reported as store/AMO faults. */
     if (!auth_cap->cr_tag) {
@@ -544,6 +544,23 @@ static target_ulong sc_c_impl(CPUArchState *env, uint32_t addr_reg,
         store_fails = true;
         goto sc_failed;
     }
+
+    /*
+     * Figure out if the sequence number is current for a LR/SC operation.
+     * Check for tagmem first, if available we get the sequence number for the
+     * op. If the sequence number has moved on since we stored it then the
+     * reservation is stale, so the store is not going to go ahead.
+     * Locking and unlocking would move the sequence value on breaking other
+     * harts' live reservations on this page, so skip the lock/unlock.
+     */
+    res_invalid = (expected_tagmem && expected_tagmem != ALL_ZERO_TAGBLK) &&
+                  (qatomic_read(&((CheriTagBlock *)expected_tagmem)->seqlock) !=
+                   expected_seq);
+    if (res_invalid) {
+        store_fails = true;
+        goto sc_failed;
+    }
+
     /*
      * Now perform the "cmpxchg" operation by checking if the current values
      * in memory are the same as the ones that the load-reserved observed.
