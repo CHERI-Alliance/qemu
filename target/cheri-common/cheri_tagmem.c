@@ -1196,16 +1196,18 @@ void cheri_tag_free_lock(tag_lock_t lock)
 #define DUMMY_LOCK_BITS 16
 
 CheriTagBlock dummy_tag_table[1 << DUMMY_LOCK_BITS];
+
 /*
- * As the address we are passed is virtual but our locks need to be on physical
- * addresses only use the low order bits i.e. page offset for the hash
- * This will ensure that accesses to the physical address will use the same hash
+ * As vaddr is virtual but our locks need to be on physical
+ * addresses only use the low order bits i.e. page offset for the hash.
+ * We then divide this down by the capability size so that accesses to the same
+ * physical capability map to the same hash.
  * It will also increase the likilihood of false sharing but will still be
  * safe
  */
 static target_ulong hash_vaddr(target_ulong vaddr)
 {
-    vaddr &= ~TARGET_PAGE_MASK;
+    vaddr = (vaddr & ~TARGET_PAGE_MASK) / CHERI_CAP_SIZE;
     size_t shft = sizeof(target_ulong);
     while (shft > DUMMY_LOCK_BITS) {
         shft /= 2;
@@ -1222,8 +1224,8 @@ static CheriTagBlock *get_dummy(target_ulong vaddr)
 void get_dummy_locks(target_ulong vaddr, tag_writer_lock_t *low,
                      tag_writer_lock_t *high)
 {
-    target_ulong tag_addr1 = vaddr / CHERI_CAP_SIZE;
-    target_ulong tag_addr2 = tag_addr1 + 1;
+    target_ulong tag_addr1 = vaddr;
+    target_ulong tag_addr2 = tag_addr1 + CHERI_CAP_SIZE;
     tag_writer_lock_t low_dummy = NULL;
     tag_writer_lock_t high_dummy = NULL;
 
