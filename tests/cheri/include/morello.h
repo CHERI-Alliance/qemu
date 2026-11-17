@@ -14,6 +14,7 @@
 #define MORELLO_PTE_ATTRS       ((1ULL << 10) | (3ULL << 8) | \
                                  (1ULL << 60) | (1ULL << 61))
 #define MORELLO_PTE_ATTRS_NO_SC ((1ULL << 10) | (3ULL << 8) | (1ULL << 61))
+#define MORELLO_PTE_ATTRS_LC_TRAP ((1ULL << 10) | (3ULL << 8) | (3ULL << 61))
 #define MORELLO_PTE_AP_RO       (1ULL << 7)
 #define MORELLO_TCR_EL1         ((25ULL << 0) | (1ULL << 8) | (1ULL << 10) | \
                                  (3ULL << 12) | (1ULL << 23) | \

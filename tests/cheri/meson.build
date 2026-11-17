@@ -43,6 +43,8 @@ cheri_tests = [
                  '-uuid', '11223344-5566-7788-0000-000000000000']},
   {'name': 'morello-swap-untagged-probe', 'arch': 'morello',
    'variants': cheri_tcg_variants},
+  {'name': 'morello-untagged-atomic-ro', 'arch': 'morello',
+   'variants': cheri_tcg_variants},
   {'name': 'rv64y-seqlock-tearing', 'arch': 'rv64y',
    'variants': cheri_smp4_variants,
    'gdb_variants': {
