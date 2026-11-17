@@ -485,7 +485,8 @@ static target_ulong sc_c_impl(CPUArchState *env, uint32_t addr_reg,
                               uintptr_t _host_return_address)
 {
     const cap_register_t *auth_cap = get_load_store_base_cap(env, addr_reg);
-    bool store_tag, res_invalid;
+    bool store_tag;
+    tag_writer_lock_t lock;
 
     /* All checks for SC.Y are reported as store/AMO faults. */
     if (!auth_cap->cr_tag) {
@@ -545,35 +546,24 @@ static target_ulong sc_c_impl(CPUArchState *env, uint32_t addr_reg,
         goto sc_failed;
     }
 
-    /*
-     * Figure out if the sequence number is current for a LR/SC operation.
-     * Check for tagmem first, if available we get the sequence number for the
-     * op. If the sequence number has moved on since we stored it then the
-     * reservation is stale, so the store is not going to go ahead.
-     * Locking and unlocking would move the sequence value on breaking other
-     * harts' live reservations on this page, so skip the lock/unlock.
-     */
-    res_invalid = (expected_tagmem && expected_tagmem != ALL_ZERO_TAGBLK) &&
-                  (qatomic_read(&((CheriTagBlock *)expected_tagmem)->seqlock) !=
-                   expected_seq);
-    if (res_invalid) {
-        store_fails = true;
-        goto sc_failed;
-    }
-
-    /*
-     * Now perform the "cmpxchg" operation by checking if the current values
-     * in memory are the same as the ones that the load-reserved observed.
-     * The load_cap_from_memory_raw_tag_mmu_idx performs the load and returns
-     * the new tag value
-     */
     target_ulong current_pesbt;
     target_ulong current_cursor;
     bool current_tag;
 
-    tag_writer_lock_t lock =
-        lock_for_cap_rmw(env, addr, addr_reg, store_tag, _host_return_address);
-
+    if (!cheri_tag_lock_reserved(
+            env, addr, addr_reg, store_tag, _host_return_address,
+            cpu_mmu_index(env, false), expected_tagmem, expected_seq, &lock)) {
+        store_fails = true;
+        goto sc_failed;
+    }
+    /*
+     * Having acquired the lock at this stage means that no locked writer
+     * changed the block. However we must still check the current value to cope
+     * with writers that do not take the block lock (e.g. DMA writes through
+     * address_space_map), and memory without tag storage.
+     * The load_cap_from_memory_raw_tag_mmu_idx performs the load and returns
+     * the new tag value
+     */
 #ifdef CONFIG_RVFI_DII
     /*
      * The load_cap_from_memory_raw_tag_mmu_idx will appear as load, which we
@@ -593,15 +583,6 @@ static target_ulong sc_c_impl(CPUArchState *env, uint32_t addr_reg,
     store_fails = current_cursor != env->load_val ||
                   current_pesbt != env->load_pesbt ||
                   current_tag != env->load_tag;
-    if (expected_tagmem && expected_tagmem != ALL_ZERO_TAGBLK) {
-        /*
-         * Every write to a page with tags takes its block's lock, so any write
-         * since lr.c changes the sequence, and SC fails even if the value was
-         * written back; memory without tags compares values only.
-         */
-        store_fails |= (lock != expected_tagmem) ||
-                       (qatomic_read(&lock->seqlock) != expected_seq + 1);
-    }
 
     if (!store_fails) {
         /* This store may still trap, so we should update env->load_res */
@@ -609,8 +590,7 @@ static target_ulong sc_c_impl(CPUArchState *env, uint32_t addr_reg,
                             false);
     }
 
-    cheri_tag_writer_pop_free_on_exception(env);
-    cheri_tag_writer_release(lock);
+    cheri_tag_unlock_reserved(env, lock);
 sc_failed:
     tcg_debug_assert(env->load_res == -1);
     return store_fails; /* success */

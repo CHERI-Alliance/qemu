@@ -1050,6 +1050,77 @@ void *cheri_tag_set_impl(CPUArchState *env, target_ulong vaddr, int reg,
     return host_addr;
 }
 
+bool cheri_tag_lock_reserved(CPUArchState *env, target_ulong vaddr, int reg,
+                             bool tag, uintptr_t pc, int mmu_idx,
+                             void *res_tagmem, unsigned long res_seq,
+                             tag_writer_lock_t *lock)
+{
+    void *tagmem;
+    void *host;
+    uintptr_t tagmem_flags;
+    unsigned long new_seq;
+    tag_writer_lock_t unused;
+    *lock = NULL;
+
+    if (tag) {
+        store_capcause_reg(env, reg);
+        /* Note: this probe will handle any store cap faults */
+        host = probe_cap_write_fast(env, vaddr, CHERI_CAP_SIZE, mmu_idx, pc,
+                                    &tagmem);
+        clear_capcause_reg(env);
+    } else {
+        probe_access_flags_fast(env, vaddr, CHERI_CAP_SIZE, MMU_DATA_STORE,
+                                mmu_idx, false, &host, &tagmem, pc);
+    }
+    /* If we still haven't got tagmem, but it isn't MMIO get it from iotlb */
+    if (!tagmem && host) {
+        tagmem = get_tagmem_from_iotlb_entry(env, vaddr, mmu_idx, true,
+                                             &tagmem_flags);
+    }
+    /* Handle real tagmem */
+    if (tagmem && tagmem != ALL_ZERO_TAGBLK) {
+        if (tagmem != res_tagmem) {
+            /* The tagmem is for a different block than the reservation */
+            return false;
+        }
+        if (res_seq % 2 != 0) {
+            /* Already locked */
+            return false;
+        }
+        /* Attempt to update the sequence */
+        new_seq = qatomic_cmpxchg(&((CheriTagBlock *)tagmem)->seqlock, res_seq,
+                                  res_seq + 1);
+        if (new_seq != res_seq) {
+            /* Update failed, sequence already moved on */
+            return false;
+        }
+        *lock = tagmem;
+    }
+    if (tagmem == NULL || tagmem == ALL_ZERO_TAGBLK) {
+        /* Memory without a tag store */
+        if (res_tagmem && res_tagmem != ALL_ZERO_TAGBLK) {
+            /*
+             * Load reservation saw memory with tag storage, which has since
+             * been remapped to memory without storage, so fail the lock as
+             * the reservation is now stale.
+             */
+            return false;
+        }
+        /* Memory without locks uses the dummy lock mechanism */
+        unused = NULL;
+        *lock = TAG_LOCK_NONE;
+        get_dummy_locks(vaddr, lock, &unused);
+    }
+    cheri_tag_writer_push_free_on_exception(env, *lock);
+    return true;
+}
+
+void cheri_tag_unlock_reserved(CPUArchState *env, tag_writer_lock_t lock)
+{
+    cheri_tag_writer_pop_free_on_exception(env);
+    cheri_tag_writer_release(lock);
+}
+
 bool cheri_tag_get(CPUArchState *env, target_ulong vaddr, int reg,
                    hwaddr *ret_paddr, int *prot, uintptr_t pc, int mmu_idx,
                    void *host_addr, void *tagmem, tag_reader_lock_t *lock)

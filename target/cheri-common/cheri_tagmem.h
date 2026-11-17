@@ -115,6 +115,27 @@ typedef CheriTagBlock *tag_writer_lock_t;
 /* This is a lock indicating some kind of error in lookup that got supressed */
 #define TAG_LOCK_ERROR ((void *)-2)
 
+/* Lock handling for Load reservation, Store Conditional */
+
+/*
+ * vaddr is an already probed capability aligned address
+ * tag indicates if this is a tag set or tag clear
+ * res_tagmem is the LR's tag_reader_lock_t
+ * res_seq is the LR's sequence value.
+ * Returns: true with the *lock held or false with no lock on failure to lock.
+ * In this event the *lock is null. An acquired lock is also pushed for release
+ * on exception. Caller must hold the lock while they check the value in case
+ * of writers that do not take block lock and writes to memory without tags.
+ * Probe cannot fault as the caller has already probed.
+ */
+bool cheri_tag_lock_reserved(CPUArchState *env, target_ulong vaddr, int reg,
+                             bool tag, uintptr_t pc, int mmu_idx,
+                             void *res_tagmem, unsigned long res_seq,
+                             tag_writer_lock_t *lock);
+
+/* Releases the lock taken by cheri_tag_lock_reserved */
+void cheri_tag_unlock_reserved(CPUArchState *env, tag_writer_lock_t lock);
+
 /* If we for some reason require a tag for untagged memory */
 void get_dummy_locks(target_ulong vaddr, tag_writer_lock_t *low,
                      tag_writer_lock_t *high);
