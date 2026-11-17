@@ -4,9 +4,9 @@
 > prompted to generate adversarial regression tests that expose MTTCG
 > capability tag memory bugs.
 
-Small freestanding C tests for `qemu-system-riscv64y` and
-`qemu-system-morello`, built with a stock clang and ld.lld (skipped if none is
-found). Run them with:
+Small freestanding C tests for `qemu-system-riscv64y`, `qemu-system-riscv32y`,
+and `qemu-system-morello`, built with a stock clang and ld.lld (skipped if none
+is found). Run them with:
 
     meson test -C build --suite cheri --print-errorlogs
 

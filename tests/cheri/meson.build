@@ -76,6 +76,8 @@ cheri_tests = [
    }},
   {'name': 'rv64y-tagblk-alloc-size', 'arch': 'rv64y',
    'variants': cheri_tcg_variants},
+  {'name': 'rv32y-tagblk-alloc-size', 'arch': 'rv32y',
+   'variants': cheri_tcg_variants},
   {'name': 'morello-pair-store-tag', 'arch': 'morello',
    'variants': cheri_tcg_variants},
   {'name': 'morello-ddc-wrap', 'arch': 'morello'},
@@ -85,6 +87,14 @@ cheri_common_cflags = ['-O2', '-ffreestanding', '-fno-builtin',
                        '-Wall', '-Wextra', '-Werror']
 
 cheri_arches = {
+  'rv32y': {
+    'target': 'riscv32y-softmmu',
+    'qemu': 'qemu-system-riscv32y',
+    'cflags': ['--target=riscv32', '-march=rv32g',
+               '-mcmodel=medany'] + cheri_common_cflags,
+    'qemu_args': ['-M', 'virt', '-bios', 'none',
+                  '-semihosting-config', 'enable=on'],
+  },
   'rv64y': {
     'target': 'riscv64y-softmmu',
     'qemu': 'qemu-system-riscv64y',
@@ -171,12 +181,13 @@ foreach t : cheri_tests
   common_qemu_args = ([emulator.full_path()] + info['qemu_args'] +
                       ['-m', '128M', '-display', 'none', '-serial', 'stdio',
                        '-monitor', 'none'] + t.get('qemu_args', []))
+  test_timeout = t.get('timeout', 60)
   foreach suffix, variant_args : t.get('variants', {'': []})
     test(t['name'] + suffix, python,
          args: runner_args + common_qemu_args + variant_args + ['-kernel', elf],
          depends: [emulator, elf],
          suite: ['cheri'],
-         timeout: 60)
+         timeout: test_timeout)
   endforeach
   foreach suffix, gdb_info : t.get('gdb_variants', {})
     gdb_runner_args = [cheri_runner, '--gdb', cheri_src_dir / gdb_info['gdb']]
@@ -188,6 +199,6 @@ foreach t : cheri_tests
                 ['-kernel', elf]),
          depends: [emulator, elf],
          suite: ['cheri'],
-         timeout: 60)
+         timeout: test_timeout)
   endforeach
 endforeach
