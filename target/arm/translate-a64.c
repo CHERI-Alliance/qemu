@@ -3134,7 +3134,8 @@ static void gen_store_exclusive(DisasContext *s, int rd, int rt, int rt2,
                 cpu_exclusive_val, tmp, get_mem_index(s),
                 MO_64 | MO_ALIGN | s->be_data);
             tcg_gen_setcond_i64(TCG_COND_NE, tmp, tmp, cpu_exclusive_val);
-        } else if (tb_cflags(s->base.tb) & CF_PARALLEL) {
+        } else if ((tb_cflags(s->base.tb) & CF_PARALLEL) &&
+                   !ALL_WRITES_ATOMIC) {
             if (!HAVE_CMPXCHG128) {
                 gen_helper_exit_atomic(cpu_env);
                 /*
