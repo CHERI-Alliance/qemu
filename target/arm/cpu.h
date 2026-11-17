@@ -725,13 +725,19 @@ typedef struct CPUArchState {
     uint64_t exclusive_val;
     uint64_t exclusive_high;
 #ifdef TARGET_CHERI
-    // For CAP sized atomics exclusive_high is used as a pesbt, but we also need
-    // a tag. We need a second set for store/load pair. None of these are
-    // currently need as globals because they are only used by helpers.
+    /*
+     * For CAP sized atomics exclusive_high is used as a pesbt, but we also need
+     * a tag. We need a second set for store/load pair. None of these are
+     * currently need as globals because they are only used by helpers.
+     * The tagmem and seq fields are used to snapshot the tagmem and sequence
+     * number, they are written by load-exclusive, and read by store-exclusive.
+     */
     uint32_t exclusive_tag;
     uint64_t exclusive_val2;
     uint64_t exclusive_high2;
     uint32_t exclusive_tag2;
+    void *exclusive_tagmem;      /* Tagblock snapshot from load exclusive. */
+    unsigned long exclusive_seq; /* That block's even seqlock value. */
 #endif
 
     /* iwMMXt coprocessor state.  */

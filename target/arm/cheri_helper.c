@@ -119,6 +119,7 @@ void helper_load_exclusive_cap_via_cap(CPUArchState *env, uint32_t cd,
                                        uint32_t cd2, uint32_t cb,
                                        target_ulong addr)
 {
+    tag_reader_lock_t snapshot;
     GET_HOST_RETPC();
 
     env->exclusive_addr = addr;
@@ -135,8 +136,10 @@ void helper_load_exclusive_cap_via_cap(CPUArchState *env, uint32_t cd,
     bool raw_tag;
     bool tag1 = load_cap_from_memory_raw_tag(
         env, &env->exclusive_high, &env->exclusive_val, cb, cbp, addr,
-        _host_return_address, NULL, true, NULL, &raw_tag);
+        _host_return_address, NULL, true, &snapshot, &raw_tag);
     env->exclusive_tag = raw_tag;
+    env->exclusive_tagmem = snapshot.tagmem;
+    env->exclusive_seq = snapshot.seq;
 
     if (cd2 != REG_NONE) {
         bool tag2 = load_cap_from_memory_raw_tag(
@@ -157,10 +160,12 @@ void helper_store_exclusive_cap_via_cap(CPUArchState *env, uint32_t rs,
                                         uint32_t cd, uint32_t cd2, uint32_t cb,
                                         target_ulong addr)
 {
+    tag_writer_lock_t lock = NULL;
     GET_HOST_RETPC();
 
     cap_register_t cbp = *get_capreg_or_special(env, cb);
 
+    bool store_tag;
     // In order to match hardware when storing two caps we need two cap perms
     // and bounds checks and _then_ an alignment check. So have no alignment
     // requirement if storing two caps, then do the check manually.
@@ -190,48 +195,19 @@ void helper_store_exclusive_cap_via_cap(CPUArchState *env, uint32_t rs,
     temp_perms &= ~CAP_PERM_LOAD_CAP;
     cap_set_perms(env, &cbp, temp_perms);
 
-    tag_writer_lock_t low_lock = NULL;
-    tag_writer_lock_t high_lock = NULL;
-    bool span_page = ((addr ^ (addr + CHERI_CAP_SIZE)) & TARGET_PAGE_MASK) != 0;
+    /* If either cd or cd2 have a tag then we are setting a tag */
+    store_tag = get_without_decompress_tag(env, cd) ||
+                (cd2 != REG_NONE && get_without_decompress_tag(env, cd2));
 
-    // Check first cap value equal
     if (success) {
-        /*
-         * Get both locks using the appropriate lock type for the individual
-         * capability, either a set lock for a tagged capability, or an
-         * invalidate otherwise.
-         */
-        int mmu_indx = cpu_mmu_index(env, false);
-        if (get_without_decompress_tag(env, cd)) {
-            cheri_lock_for_tag_set(env, addr, cb, NULL, _host_return_address,
-                                   mmu_indx, &low_lock);
-        } else {
-            /* Not tagged so take a lock for tag invalidation instead. */
-            cheri_lock_for_tag_invalidate_aligned(
-                env, addr, _host_return_address, mmu_indx, &low_lock);
-        }
-        cheri_tag_writer_push_free_on_exception(env, low_lock);
+        success = cheri_tag_lock_reserved(
+            env, addr, cb, store_tag, _host_return_address,
+            cpu_mmu_index(env, false), env->exclusive_tagmem,
+            env->exclusive_seq, &lock);
+    }
 
-        /*
-         * Locks are per page so only take a second lock if we will span two
-         * pages.
-         */
-        if ((cd2 != REG_NONE) && span_page) {
-            if (get_without_decompress_tag(env, cd2)) {
-                cheri_lock_for_tag_set(env, addr + CHERI_CAP_SIZE, cb, NULL,
-                                       _host_return_address, mmu_indx,
-                                       &high_lock);
-            } else {
-                /*
-                 * If it isn't tagged then instead take a lock for invalidate.
-                 */
-                cheri_lock_for_tag_invalidate_aligned(
-                    env, addr + CHERI_CAP_SIZE, _host_return_address, mmu_indx,
-                    &high_lock);
-            }
-            cheri_tag_writer_push_free_on_exception(env, high_lock);
-        }
-
+    /* Check first cap value equal */
+    if (success) {
         load_cap_from_memory_raw_tag(env, &pesbt, &cursor, cb, &cbp, addr,
                                      _host_return_address, NULL, false, NULL,
                                      &tag);
@@ -258,18 +234,11 @@ void helper_store_exclusive_cap_via_cap(CPUArchState *env, uint32_t rs,
                                 _host_return_address, false);
     }
 
-    if (high_lock) {
-        cheri_tag_writer_pop_free_on_exception(env);
-        cheri_tag_writer_release(high_lock);
-    }
-
-    if (low_lock) {
-        cheri_tag_writer_pop_free_on_exception(env);
-        cheri_tag_writer_release(low_lock);
+    if (lock) {
+        cheri_tag_unlock_reserved(env, lock);
     }
 
     env->exclusive_addr = -1;
-
     update_capreg_to_intval(env, rs, success ? 0ULL : 1ULL);
 }
 
