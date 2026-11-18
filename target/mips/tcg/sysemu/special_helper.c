@@ -236,3 +236,10 @@ void helper_cache(CPUMIPSState *env, target_ulong addr, uint32_t op)
         break;
     }
 }
+
+void helper_smp_yield(CPUMIPSState *env)
+{
+    CPUState *cs = env_cpu(env);
+    cs->exception_index = EXCP_YIELD;
+    cpu_loop_exit(cs);
+}

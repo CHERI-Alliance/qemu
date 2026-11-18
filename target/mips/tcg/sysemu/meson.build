@@ -3,5 +3,4 @@ mips_softmmu_ss.add(files(
   'mips-semi.c',
   'special_helper.c',
   'tlb_helper.c',
-  'op_helper_magic.c',
 ))
