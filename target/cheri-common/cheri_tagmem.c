@@ -278,7 +278,7 @@ void cheri_tag_init(MemoryRegion *mr, uint64_t memory_size)
            "Incorrect tag mem size passed?");
     assert(mr->ram_block->cheri_tags == NULL && "Already initialized?");
 
-    assert(TARGET_PAGE_SIZE == CHERI_TAG_BLOCK_SIZE);
+    assert(TARGET_PAGE_SIZE <= CHERI_TAG_BLOCK_MAX_SIZE);
     size_t cheri_ntagblks = num_tagblocks(mr->ram_block);
     mr->ram_block->cheri_tags =
         g_malloc0(cheri_ntagblks * sizeof(CheriTagBlock *));

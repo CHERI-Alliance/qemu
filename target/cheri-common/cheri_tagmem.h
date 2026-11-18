@@ -77,20 +77,24 @@ void cheri_tag_phys_invalidate_external(RAMBlock *ram,
  */
 
 /*
- * Define a constant block size as TARGET_PAGE_SIZE can vary on some targets.
- * A tagblock is one guest page. cheri_tag_init() checks it.
+ * A tagblock covers one target page. The TARGET_PAGE_SIZE can vary at runtime.
+ * Size the bitmaps for the largest page size supported (4K).
+ * A smaller page only uses the first TAGS_PER_PAGE bits.
+ * cheri_tag_init() checks that the page fits.
  */
-#define CHERI_TAG_BLOCK_SIZE 4096
-#define TAGS_PER_PAGE        (CHERI_TAG_BLOCK_SIZE / CHERI_CAP_SIZE)
+#define CHERI_TAG_BLOCK_MAX_SIZE 4096
+#define TAGS_PER_BLOCK_MAX       (CHERI_TAG_BLOCK_MAX_SIZE / CHERI_CAP_SIZE)
+#define CHERI_TAG_BLOCK_SIZE     TARGET_PAGE_SIZE
+#define TAGS_PER_PAGE            (CHERI_TAG_BLOCK_SIZE / CHERI_CAP_SIZE)
 
 typedef struct CheriTagBlock_s {
     unsigned long seqlock;
-    DECLARE_BITMAP(tag_bitmap, TAGS_PER_PAGE);
+    DECLARE_BITMAP(tag_bitmap, TAGS_PER_BLOCK_MAX);
     /*
      * Bitmap indicating capabilities currently in a device writable mapping
      * written by DMA add/remove functions.
      */
-    DECLARE_BITMAP(dma_bitmap, TAGS_PER_PAGE);
+    DECLARE_BITMAP(dma_bitmap, TAGS_PER_BLOCK_MAX);
     /*
      * Pointer to TAGS_PER_PAGE sized array, each entry contains the number of
      * additional mappings covering it
