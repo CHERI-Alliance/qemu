@@ -633,6 +633,15 @@ static void *cheri_tag_invalidate_one(CPUArchState *env, target_ulong vaddr,
                                       int32_t size, uintptr_t pc, int mmu_idx,
                                       tag_writer_lock_t *lock,
                                       tag_writer_lock_t done, bool lock_only);
+
+static void *cheri_tag_probe_one(CPUArchState *env, target_ulong vaddr,
+                                 int32_t size, uintptr_t pc, int mmu_idx,
+                                 bool lock_only, void **tagmem_out);
+
+static void cheri_tag_lock_probed(void *tagmem, target_ulong vaddr,
+                                  tag_writer_lock_t *lock,
+                                  tag_writer_lock_t done, bool lock_only);
+
 static void invalidate_from_locktag(CheriTagBlock *lock, CheriTagBlock *todo,
                                     CPUArchState *env, target_ulong vaddr,
                                     uintptr_t pc, int mmu_idx)
@@ -733,10 +742,21 @@ void cheri_tag_invalidate_impl(CPUArchState *env, target_ulong vaddr,
 #endif
 #endif
     tag_writer_lock_t done = NULL;
+    void *tagmem[2];
+    /*
+     * Probe both addresses before locking.
+     * The probe of the second address could invoke a page walk which can in
+     * turn require a lock in order to write the PTE A/D bit. If this bit is
+     * in the region covered by the first lock we could deadlock. So instead
+     * do two probes before either one gets locked.
+     */
     target_ulong addr = tag_offset_to_addr(tag_start);
+    cheri_tag_probe_one(env, addr, CHERI_CAP_SIZE, pc, mmu_idx, lock_only,
+                        &tagmem[0]);
+    cheri_tag_probe_one(env, addr + CHERI_CAP_SIZE, CHERI_CAP_SIZE, pc, mmu_idx,
+                        lock_only, &tagmem[1]);
     for (size_t i = 0; i < ntags; i++, addr += CHERI_CAP_SIZE) {
-        cheri_tag_invalidate_one(env, addr, CHERI_CAP_SIZE, pc, mmu_idx, first,
-                                 done, lock_only);
+        cheri_tag_lock_probed(tagmem[i], addr, first, done, lock_only);
         if (first && (*first)) {
             done = *first;
         }
@@ -744,18 +764,14 @@ void cheri_tag_invalidate_impl(CPUArchState *env, target_ulong vaddr,
     }
 }
 
-static void *cheri_tag_invalidate_one(CPUArchState *env, target_ulong vaddr,
-                                      int32_t size, uintptr_t pc, int mmu_idx,
-                                      tag_writer_lock_t *lock,
-                                      tag_writer_lock_t done, bool lock_only)
+static void *cheri_tag_probe_one(CPUArchState *env, target_ulong vaddr,
+                                 int32_t size, uintptr_t pc, int mmu_idx,
+                                 bool lock_only, void **tagmem_out)
 {
     cheri_debug_assert(size > 0);
-    if (lock) {
-        *lock = TAG_LOCK_NONE;
-    }
-
     void *tagmem = NULL;
 
+    *tagmem_out = NULL;
     /*
      * We use the flags version to suppress exceptions if we only want the
      * lock. This is required as the data access might throw an exception with a
@@ -768,14 +784,12 @@ static void *cheri_tag_invalidate_one(CPUArchState *env, target_ulong vaddr,
         probe_access_flags_fast(env, vaddr, size, MMU_DATA_STORE, mmu_idx,
                                 lock_only, &host_addr, &tagmem, pc);
     if (likely(tagmem)) {
-        tagmem_clear_tag(tagmem, vaddr, lock, done, lock_only);
+        *tagmem_out = tagmem;
         return host_addr;
     }
 
     if (access_flags & TLB_INVALID_MASK) {
-        if (lock) {
-            *lock = TAG_LOCK_ERROR;
-        }
+        *tagmem_out = TAG_LOCK_ERROR;
         return host_addr;
     }
 
@@ -803,11 +817,39 @@ static void *cheri_tag_invalidate_one(CPUArchState *env, target_ulong vaddr,
     // bit: The iotlb->tagmem pointer always points to the tag memory
     // for the start of the page so we can simply add the index for the
     // page offset.
-    tagmem_clear_tag(tagmem, vaddr, lock, done, lock_only);
+    *tagmem_out = tagmem;
     return host_addr;
 }
 
+static void cheri_tag_lock_probed(void *tagmem, target_ulong vaddr,
+                                  tag_writer_lock_t *lock,
+                                  tag_writer_lock_t done, bool lock_only)
+{
+    if (lock) {
+        *lock = TAG_LOCK_NONE;
+    }
+    if (tagmem == TAG_LOCK_ERROR) {
+        if (lock) {
+            *lock = TAG_LOCK_ERROR;
+        }
+    } else if (tagmem) {
+        tagmem_clear_tag(tagmem, vaddr, lock, done, lock_only);
+    }
+}
 
+static void *cheri_tag_invalidate_one(CPUArchState *env, target_ulong vaddr,
+                                      int32_t size, uintptr_t pc, int mmu_idx,
+                                      tag_writer_lock_t *lock,
+                                      tag_writer_lock_t done, bool lock_only)
+{
+    void *tagmem = NULL;
+    void *host_addr;
+    cheri_debug_assert(size > 0);
+    host_addr =
+        cheri_tag_probe_one(env, vaddr, size, pc, mmu_idx, lock_only, &tagmem);
+    cheri_tag_lock_probed(tagmem, vaddr, lock, done, lock_only);
+    return host_addr;
+}
 
 void cheri_tag_phys_invalidate_external(RAMBlock *ram,
                                ram_addr_t ram_offset, ram_addr_t len)
