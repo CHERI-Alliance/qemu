@@ -1379,7 +1379,9 @@ bool cheri_tag_get_debug(RAMBlock *ram, ram_addr_t ram_offset)
 
     uint64_t tag = ram_offset / CHERI_CAP_SIZE;
     CheriTagBlock *tagblk = cheri_tag_block(tag, ram);
-    cheri_debug_assert(tagblk);
+    if (!tagblk) {
+        return false; /* No tagblock == no tags on this page. */
+    }
     const size_t tagblk_index = tag % TAGS_PER_PAGE;
     bool tag_value = __tagblock_tag_get(tagblk, tagblk_index);
     return tag_value;
