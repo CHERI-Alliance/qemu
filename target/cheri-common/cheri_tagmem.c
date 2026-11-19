@@ -217,15 +217,6 @@ static inline QEMU_ALWAYS_INLINE void tagmem_clear_tag(CheriTagBlock *tagmem,
     }
 }
 
-static inline QEMU_ALWAYS_INLINE void
-tagblock_clear_locktag_with_lock_and_release(CheriTagBlock *block,
-                                             target_ulong vaddr)
-{
-    tagblock_lock_write(block);
-    __tagblock_tag_clear(block, page_vaddr_to_tag_offset(vaddr));
-    tagblock_unlock_write(block);
-}
-
 static inline QEMU_ALWAYS_INLINE int tagmem_get_tag_many(CheriTagBlock *tagmem,
                                                          target_ulong vaddr)
 {
@@ -851,54 +842,28 @@ static void *cheri_tag_invalidate_one(CPUArchState *env, target_ulong vaddr,
     return host_addr;
 }
 
-void cheri_tag_phys_invalidate_external(RAMBlock *ram,
-                               ram_addr_t ram_offset, ram_addr_t len)
+static void tagblk_clear_tags(CheriTagBlock *tagblk, size_t cap_idx,
+                              size_t end_idx)
 {
-    cheri_tag_phys_invalidate(NULL,ram,ram_offset,len,NULL);
-}
+    int nr, bits_to_clear, word;
+    unsigned long mask_to_clear;
 
-
-void cheri_tag_phys_invalidate(CPUArchState *env, RAMBlock *ram,
-                               ram_addr_t ram_offset, ram_addr_t len,
-                               const target_ulong *vaddr)
-{
-    // Ignore tag clearing requests for ROM, etc.
-    if (!ram->cheri_tags) {
-        return;
+    mask_to_clear = BITMAP_FIRST_WORD_MASK(cap_idx);
+    nr = end_idx - cap_idx;
+    bits_to_clear = BITS_PER_LONG - (cap_idx % BITS_PER_LONG);
+    word = BIT_WORD(cap_idx);
+    while (nr - bits_to_clear >= 0) {
+        qatomic_set(&tagblk->tag_bitmap[word],
+                    qatomic_read(&tagblk->tag_bitmap[word]) & ~mask_to_clear);
+        nr -= bits_to_clear;
+        bits_to_clear = BITS_PER_LONG;
+        mask_to_clear = ~0UL;
+        word++;
     }
-    cheri_debug_assert(!memory_region_is_rom(ram->mr) &&
-                       !memory_region_is_romd(ram->mr));
-
-    ram_addr_t endaddr = (uint64_t)(ram_offset + len);
-    ram_addr_t startaddr = QEMU_ALIGN_DOWN(ram_offset, CHERI_CAP_SIZE);
-
-    for(ram_addr_t addr = startaddr; addr < endaddr; addr += CHERI_CAP_SIZE) {
-        uint64_t tag = addr / CHERI_CAP_SIZE;
-        CheriTagBlock *tagblk = cheri_tag_block(tag, ram);
-        if (tagblk != NULL) {
-            const size_t tagblk_index = tag % TAGS_PER_PAGE;
-            if (unlikely(env && qemu_log_instr_enabled(env))) {
-                bool old_tag = __tagblock_tag_get(tagblk, tagblk_index);
-                if (vaddr) {
-                    target_ulong write_vaddr =
-                        QEMU_ALIGN_DOWN(*vaddr, CHERI_CAP_SIZE) +
-                        (addr - startaddr);
-                    qemu_log_instr_extra(env,
-                                         "    Cap Tag Write [" TARGET_FMT_lx
-                                         "/" RAM_ADDR_FMT "] %d -> 0\n",
-                                         write_vaddr, addr, old_tag);
-                } else {
-                    qemu_log_instr_extra(
-                        env,
-                        "    Cap Tag ramaddr Write [" RAM_ADDR_FMT
-                        "] %d -> 0\n",
-                        addr, old_tag);
-                }
-            }
-
-            tagblock_clear_locktag_with_lock_and_release(tagblk,
-                                                         addr | (0x1UL << 63));
-        }
+    if (nr) {
+        mask_to_clear &= BITMAP_LAST_WORD_MASK(end_idx);
+        qatomic_set(&tagblk->tag_bitmap[word],
+                    qatomic_read(&tagblk->tag_bitmap[word]) & ~mask_to_clear);
     }
 }
 
@@ -909,11 +874,9 @@ void *cheri_tag_phys_invalidate_begin(CPUArchState *env, RAMBlock *ram,
     size_t end_idx;
     size_t blk_offset;
     size_t start_idx, cap_idx;
-    int i, nr, bits_to_clear, word;
-    unsigned long mask_to_clear;
-    bool old_tag;
     ram_addr_t ram_addr;
-
+    int i;
+    bool old_tag;
     /*
      * The ram offset is the offset into the ramblock. We need to convert this
      * into capability indices
@@ -942,10 +905,6 @@ void *cheri_tag_phys_invalidate_begin(CPUArchState *env, RAMBlock *ram,
         return tagblk;
     }
     cap_idx = blk_offset / CHERI_CAP_SIZE;
-    mask_to_clear = BITMAP_FIRST_WORD_MASK(cap_idx);
-    nr = end_idx - cap_idx;
-    bits_to_clear = BITS_PER_LONG - (cap_idx % BITS_PER_LONG);
-    word = BIT_WORD(cap_idx);
     if (unlikely(env && qemu_log_instr_enabled(env))) {
         /* Before we clear the bits we need to log any that are set */
         for (ram_addr = QEMU_ALIGN_DOWN(ram_offset, CHERI_CAP_SIZE),
@@ -960,19 +919,7 @@ void *cheri_tag_phys_invalidate_begin(CPUArchState *env, RAMBlock *ram,
             }
         }
     }
-    while (nr - bits_to_clear >= 0) {
-        qatomic_set(&tagblk->tag_bitmap[word],
-                    qatomic_read(&tagblk->tag_bitmap[word]) & ~mask_to_clear);
-        nr -= bits_to_clear;
-        bits_to_clear = BITS_PER_LONG;
-        mask_to_clear = ~0UL;
-        word++;
-    }
-    if (nr) {
-        mask_to_clear &= BITMAP_LAST_WORD_MASK(end_idx);
-        qatomic_set(&tagblk->tag_bitmap[word],
-                    qatomic_read(&tagblk->tag_bitmap[word]) & ~mask_to_clear);
-    }
+    tagblk_clear_tags(tagblk, cap_idx, end_idx);
     return tagblk;
 }
 
@@ -980,6 +927,31 @@ void cheri_tag_phys_invalidate_end(void *tagblock)
 {
     if (tagblock) {
         tagblock_unlock_write(tagblock);
+    }
+}
+
+void cheri_tag_phys_clear_range(RAMBlock *ram, ram_addr_t ram_offset,
+                                ram_addr_t len)
+{
+    size_t blk_offset, chunk;
+    CheriTagBlock *tagblk;
+
+    if (!ram->cheri_tags) {
+        return; /* No tags so nothing to do */
+    }
+    while (len) {
+        blk_offset = ram_offset % CHERI_TAG_BLOCK_SIZE;
+        chunk = MIN(len, CHERI_TAG_BLOCK_SIZE - blk_offset);
+        tagblk = cheri_tag_block(ram_offset / CHERI_CAP_SIZE, ram);
+        if (tagblk) {
+            /* A tagblock exists for this range */
+            tagblock_lock_write(tagblk);
+            tagblk_clear_tags(tagblk, blk_offset / CHERI_CAP_SIZE,
+                              DIV_ROUND_UP(blk_offset + chunk, CHERI_CAP_SIZE));
+            tagblock_unlock_write(tagblk);
+        }
+        ram_offset += chunk;
+        len -= chunk;
     }
 }
 

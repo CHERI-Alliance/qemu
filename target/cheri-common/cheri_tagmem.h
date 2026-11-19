@@ -43,9 +43,12 @@
 
 #if defined(TARGET_CHERI)
 
-/* Invalidate intended to be called outside CPU*/
-void cheri_tag_phys_invalidate_external(RAMBlock *ram,
-                               ram_addr_t ram_offset, ram_addr_t len);
+/*
+ * Clear the tags of a RAM range from outside a CPU, locking each block once.
+ * Skip pages without tags.
+ */
+void cheri_tag_phys_clear_range(RAMBlock *ram, ram_addr_t ram_offset,
+                                ram_addr_t len);
 
 /*
  * Usage notes:
@@ -361,10 +364,6 @@ cheri_tag_writer_pop_free_on_exception(CPUArchState *env)
     return cheri_tag_pop_on_exception(env);
 }
 
-/* Note: for cheri_tag_phys_invalidate, env may be NULL */
-void cheri_tag_phys_invalidate(CPUArchState *env, RAMBlock *ram,
-                               ram_addr_t offset, size_t len,
-                               const target_ulong *vaddr);
 void cheri_tag_init(MemoryRegion *mr, uint64_t memory_size);
 
 /**
