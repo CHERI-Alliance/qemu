@@ -3054,7 +3054,10 @@ static void tcg_gen_qemu_st_i32_with_checked_addr_cond_invalidate(
 #endif
 
 #ifdef TARGET_CHERI
-    gen_helper_cheri_invalidate_lock_tags_start_or_dummy(cpu_env, addr, tcoi);
+    if (take_lock) {
+        gen_helper_cheri_invalidate_lock_tags_start_or_dummy(cpu_env, addr,
+                                                             tcoi);
+    }
 #endif
     if (TCG_TARGET_HAS_qemu_st8_i32 && (memop & MO_SIZE) == MO_8) {
         gen_ldst_i32(INDEX_op_qemu_st8_i32, val, addr, memop, idx);
