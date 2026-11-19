@@ -185,7 +185,7 @@ static void check_zicbo_envcfg(CPURISCVState *env, target_ulong envbits,
 static void do_cbo_zero(CPURISCVState *env, target_ulong address, uintptr_t ra)
 {
     RISCVCPU *cpu = env_archcpu(env);
-    uint16_t cbozlen = cpu->cfg.cboz_blocksize;
+    size_t cbozlen = cpu->cfg.cboz_blocksize;
     int mmu_idx = cpu_mmu_index(env, false);
     void *mem;
 
@@ -202,19 +202,25 @@ static void do_cbo_zero(CPURISCVState *env, target_ulong address, uintptr_t ra)
 #ifdef TARGET_CHERI
         RAMBlock *r;
         ram_addr_t offs;
+        void *tagblk = NULL;
 
-        /* TODO: Memory update and tag change must be atomic. */
-        assert(!qemu_tcg_mttcg_enabled() ||
-                cpu_in_exclusive_context(env_cpu(env)));
-
+        /*
+         * Acquire a tagblock for the region being invalidated (which clears
+         * its tags), and clear the memory whilst the tag block is held.
+         * Holding the tagblk prevents another thread storing a capability to
+         * the same region whilst clearing the memory and invalidating the tags
+         */
         rcu_read_lock(); /* protect r from changes while we use it */
         r = qemu_ram_block_from_host(mem, /* round to page? */ false, &offs);
         if (r) {
-            cheri_tag_phys_invalidate(env, r, offs, cbozlen, NULL);
+            tagblk = cheri_tag_phys_invalidate_begin(env, r, offs, &cbozlen);
         }
-        rcu_read_unlock();
-#endif
         memset(mem, 0, cbozlen);
+        cheri_tag_phys_invalidate_end(tagblk); /* NULL tagblk is ignored */
+        rcu_read_unlock();
+#else
+        memset(mem, 0, cbozlen);
+#endif
     } else {
         /*
          * This means that we're dealing with an I/O page. Section 4.2
@@ -332,7 +338,7 @@ static void check_zicbom_access(CPURISCVState *env,
      * size = cbomlen.
      */
 
-    ret = probe_access_flags(env, address, MMU_DATA_LOAD,
+    ret = probe_access_flags(env, address, cbomlen, MMU_DATA_LOAD,
                              mmu_idx, true, &phost, ra);
     if (ret != TLB_INVALID_MASK) {
         /* Success: readable */

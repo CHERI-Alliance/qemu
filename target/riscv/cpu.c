@@ -759,6 +759,9 @@ static void riscv_cpu_reset(DeviceState *dev)
     riscv_cpu_update_mask(env);
     cs->exception_index = RISCV_EXCP_NONE;
     env->load_res = -1;
+#if defined(TARGET_CHERI)
+    env->load_seq = 0;
+#endif
     set_default_nan_mode(1, &env->fp_status);
 
 #ifndef CONFIG_USER_ONLY

@@ -511,6 +511,34 @@ uint64_t HELPER(crc32c_64)(uint64_t acc, uint64_t val, uint32_t bytes)
     return crc32c(acc, buf, bytes) ^ 0xffffffff;
 }
 
+#if defined(TARGET_CHERI)
+static tag_writer_lock_t paired_cmpxchg_lock(CPUARMState *env, uint64_t addr,
+                                             int mem_idx, uintptr_t ra)
+{
+    tag_writer_lock_t lock = NULL, unused = NULL;
+
+    cheri_lock_for_tag_invalidate_aligned(env, addr, ra, mem_idx, &lock);
+    if (lock == TAG_LOCK_NONE) {
+        /* Memory has no tags so use dummy locks */
+        get_dummy_locks(addr, &lock, &unused);
+    }
+    cheri_tag_writer_push_free_on_exception(env, lock);
+    return lock;
+}
+
+static void paired_cmpxchg_unlock(CPUARMState *env, uint64_t addr, int mem_idx,
+                                  uintptr_t ra, tag_writer_lock_t lock,
+                                  bool stored)
+{
+    cheri_tag_writer_pop_free_on_exception(env);
+    if (stored) {
+        cheri_tag_invalidate_aligned(env, addr, ra, mem_idx, &lock);
+    } else {
+        cheri_tag_writer_release(lock);
+    }
+}
+#endif /* TARGET_CHERI */
+
 uint64_t HELPER(paired_cmpxchg64_le)(CPUARMState *env, uint64_t addr,
                                      uint64_t new_lo, uint64_t new_hi)
 {
@@ -524,6 +552,10 @@ uint64_t HELPER(paired_cmpxchg64_le)(CPUARMState *env, uint64_t addr,
     MemOpIdx oi0 = make_memop_idx(MO_LEUQ | MO_ALIGN_16, mem_idx);
     MemOpIdx oi1 = make_memop_idx(MO_LEUQ, mem_idx);
 
+#if defined(TARGET_CHERI)
+    tag_writer_lock_t lock = paired_cmpxchg_lock(env, addr, mem_idx, ra);
+#endif /* TARGET_CHERI */
+
     o0 = cpu_ldq_le_mmu(env, addr + 0, oi0, ra);
     o1 = cpu_ldq_le_mmu(env, addr + 8, oi1, ra);
     oldv = int128_make128(o0, o1);
@@ -534,6 +566,9 @@ uint64_t HELPER(paired_cmpxchg64_le)(CPUARMState *env, uint64_t addr,
         cpu_stq_le_mmu(env, addr + 8, int128_gethi(newv), oi1, ra);
     }
 
+#if defined(TARGET_CHERI)
+    paired_cmpxchg_unlock(env, addr, mem_idx, ra, lock, success);
+#endif /* TARGET_CHERI */
     return !success;
 }
 
@@ -576,6 +611,10 @@ uint64_t HELPER(paired_cmpxchg64_be)(CPUARMState *env, uint64_t addr,
     MemOpIdx oi0 = make_memop_idx(MO_BEUQ | MO_ALIGN_16, mem_idx);
     MemOpIdx oi1 = make_memop_idx(MO_BEUQ, mem_idx);
 
+#if defined(TARGET_CHERI)
+    tag_writer_lock_t lock = paired_cmpxchg_lock(env, addr, mem_idx, ra);
+#endif /* TARGET_CHERI */
+
     o1 = cpu_ldq_be_mmu(env, addr + 0, oi0, ra);
     o0 = cpu_ldq_be_mmu(env, addr + 8, oi1, ra);
     oldv = int128_make128(o0, o1);
@@ -586,6 +625,9 @@ uint64_t HELPER(paired_cmpxchg64_be)(CPUARMState *env, uint64_t addr,
         cpu_stq_be_mmu(env, addr + 8, int128_getlo(newv), oi1, ra);
     }
 
+#if defined(TARGET_CHERI)
+    paired_cmpxchg_unlock(env, addr, mem_idx, ra, lock, success);
+#endif /* TARGET_CHERI */
     return !success;
 }
 
@@ -1108,7 +1150,7 @@ void HELPER(dc_zva)(CPUARMState *env, target_ulong vaddr_in)
      * (which matches the usual QEMU behaviour of not implementing either
      * alignment faults or any memory attribute handling).
      */
-    int blocklen = 4 << env_archcpu(env)->dcz_blocksize;
+    size_t blocklen = 4 << env_archcpu(env)->dcz_blocksize;
     uint64_t vaddr = vaddr_in & ~(blocklen - 1);
     int mmu_idx = cpu_mmu_index(env, false);
     void *mem;
@@ -1143,16 +1185,31 @@ void HELPER(dc_zva)(CPUARMState *env, target_ulong vaddr_in)
         }
     }
 #endif
-
+    if (likely(mem)) {
 #ifdef TARGET_CHERI
-    assert(blocklen == ((1 << CAP_TAG_GET_MANY_SHFT) * CHERI_CAP_SIZE));
-    // NB: Because this isn't setting any tags, no exception should be possible.
-    // The only reason for passing the register number is for exceptions,
-    // so the fact we pass -1 here should be fine.
-    cheri_tag_set_many(env, 0, vaddr, -1, NULL, GETPC());
-#endif
+        assert(blocklen == ((1 << CAP_TAG_GET_MANY_SHFT) * CHERI_CAP_SIZE));
+        RAMBlock *r;
+        ram_addr_t offs;
+        void *tagblk = NULL;
 
-    memset(mem, 0, blocklen);
+        /*
+         * Acquire a tagblock for the region being invalidated (which clears
+         * its tags), and clear the memory whilst the tag block is held.
+         * Holding the tagblk prevents another thread storing a capability to
+         * the same region whilst clearing the memory and invalidating the tags
+         */
+        rcu_read_lock(); /* protect r from changes while we use it */
+        r = qemu_ram_block_from_host(mem, /* round to page? */ false, &offs);
+        if (r) {
+            tagblk = cheri_tag_phys_invalidate_begin(env, r, offs, &blocklen);
+        }
+        memset(mem, 0, blocklen);
+        cheri_tag_phys_invalidate_end(tagblk); /* NULL tagblk is ignored */
+        rcu_read_unlock();
+#else
+        memset(mem, 0, blocklen);
+#endif
+    }
 }
 
 void G_NORETURN helper_alignment_fault_exception(CPUArchState *env,

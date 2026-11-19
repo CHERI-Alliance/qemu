@@ -2713,9 +2713,6 @@ static void invalidate_and_set_dirty(MemoryRegion *mr, hwaddr addr,
                                      hwaddr length)
 {
     uint8_t dirty_log_mask = memory_region_get_dirty_log_mask(mr);
-#if defined(TARGET_CHERI)
-    ram_addr_t ram_offset = addr;
-#endif
     addr += memory_region_get_ram_addr(mr);
 
     /* No early return if dirty_log_mask is or becomes 0, because
@@ -2732,14 +2729,10 @@ static void invalidate_and_set_dirty(MemoryRegion *mr, hwaddr addr,
         dirty_log_mask &= ~(1 << DIRTY_MEMORY_CODE);
     }
     cpu_physical_memory_set_dirty_range(addr, length, dirty_log_mask);
-
-#if defined(TARGET_CHERI)
-    /* Invalidate the CHERI memory tags. */
-    if (mr->ram_block) {
-        cheri_tag_phys_invalidate(NULL, mr->ram_block, ram_offset, length,
-                                  NULL);
-    }
-#endif
+    /*
+     * No need for CHERI variants to clear tags. All callers that write tagged
+     * RAM clear the tags.
+     */
 }
 
 void memory_region_flush_rom_device(MemoryRegion *mr, hwaddr addr, hwaddr size)
@@ -2852,7 +2845,11 @@ static MemTxResult flatview_write_continue(FlatView *fv, hwaddr addr,
         } else {
             /* RAM case */
             ram_ptr = qemu_ram_ptr_length(mr->ram_block, addr1, &l, false);
+#if defined(TARGET_CHERI)
+            cheri_phys_memcpy(NULL, mr->ram_block, addr1, ram_ptr, buf, l);
+#else
             memcpy(ram_ptr, buf, l);
+#endif
             invalidate_and_set_dirty(mr, addr1, l);
         }
 
@@ -3142,7 +3139,11 @@ static inline MemTxResult address_space_write_rom_internal(AddressSpace *as,
             ram_ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
             switch (type) {
             case WRITE_DATA:
+#if defined(TARGET_CHERI)
+                cheri_phys_memcpy(NULL, mr->ram_block, addr1, ram_ptr, buf, l);
+#else
                 memcpy(ram_ptr, buf, l);
+#endif
                 invalidate_and_set_dirty(mr, addr1, l);
                 break;
             case FLUSH_CACHE:
@@ -3385,6 +3386,25 @@ void *address_space_map(AddressSpace *as,
     memory_region_ref(mr);
     *plen = flatview_extend_translation(fv, addr, len, mr, xlat,
                                         l, is_write, attrs);
+#if defined(TARGET_CHERI)
+    if (is_write && mr->ram_block && mr->ram_block->cheri_tags) {
+        size_t invalidate_len = *plen;
+        /*
+         * Mark that we are mapping the address range for dma use. This will
+         * cause tag reads for the associated range to return 0.
+         * If this fails because of too many overlapping mappings then
+         * *invalidate_len is returned as zero and the mapping makes no change.
+         */
+        cheri_tag_phys_invalidate_range_begin(mr->ram_block, xlat,
+                                              &invalidate_len);
+        if (invalidate_len == 0) {
+            /* Mapping has failed due to too many overlapping mappings */
+            memory_region_unref(mr);
+            *plen = 0;
+            return NULL;
+        }
+    }
+#endif /* TARGET_CHERI */
     fuzz_dma_read_cb(addr, *plen, mr);
     ptr = qemu_ram_ptr_length(mr->ram_block, xlat, plen, true);
 
@@ -3405,6 +3425,12 @@ void address_space_unmap(AddressSpace *as, void *buffer, hwaddr len,
         mr = memory_region_from_host(buffer, &addr1);
         assert(mr != NULL);
         if (is_write) {
+#if defined(TARGET_CHERI)
+            if (mr->ram_block && mr->ram_block->cheri_tags) {
+                cheri_tag_phys_invalidate_range_end(mr->ram_block, addr1, len,
+                                                    access_len);
+            }
+#endif /* TARGET_CHERI */
             invalidate_and_set_dirty(mr, addr1, access_len);
         }
         if (xen_enabled()) {
@@ -3475,7 +3501,18 @@ int64_t address_space_cache_init(MemoryRegionCache *cache,
 
     mr = cache->mrs.mr;
     memory_region_ref(mr);
+#if defined(TARGET_CHERI)
+    /*
+     * A writable cache over tagged RAM must not get a writable pointer as this
+     * would bypass the tagblock lock/unlock mechanism.
+     * Instead fall back to slow path.
+     */
+    if (is_write && mr->ram_block && mr->ram_block->cheri_tags) {
+        cache->ptr = NULL;
+    } else if (memory_access_is_direct(mr, is_write)) {
+#else
     if (memory_access_is_direct(mr, is_write)) {
+#endif
         /* We don't care about the memory attributes here as we're only
          * doing this if we found actual RAM, which behaves the same
          * regardless of attributes; so UNSPECIFIED is fine.

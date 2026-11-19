@@ -47,6 +47,7 @@
 #include "tb-hash.h"
 #include "tb-context.h"
 #include "internal.h"
+#include "cheri_tagmem.h"
 
 /* -icount align implementation. */
 
@@ -498,10 +499,13 @@ cpu_tb_exec(CPUState *cpu, TranslationBlock *itb, int *tb_exit)
 
     /*
      * If gdb single-step, and we haven't raised another exception,
-     * raise a debug exception.  Single-step with another exception
-     * is handled in cpu_handle_exception.
+     * and the TB actually ran, raise a debug exception.
+     * A TB can exit before its first instruction runs, in which case the
+     * debug exception would be spurious.
+     * Single-step with another exception is handled in cpu_handle_exception.
      */
-    if (unlikely(cpu->singlestep_enabled) && cpu->exception_index == -1) {
+    if (unlikely(cpu->singlestep_enabled) && cpu->exception_index == -1 &&
+        *tb_exit <= TB_EXIT_IDX1) {
         cpu->exception_index = EXCP_DEBUG;
         cpu_loop_exit(cpu);
     }
@@ -573,6 +577,11 @@ void cpu_exec_step_atomic(CPUState *cpu)
         cpu_tb_exec(cpu, tb, &tb_exit);
         cpu_exec_exit(cpu);
     } else {
+        cheri_tag_locks_exception_thrown(cpu);
+        /*
+         * The mmap_lock is dropped by tb_gen_code if it runs out of
+         * memory.
+         */
 #ifndef CONFIG_SOFTMMU
         clear_helper_retaddr();
         if (have_mmap_lock()) {
@@ -960,19 +969,13 @@ int cpu_exec(CPUState *cpu)
 
     /* prepare setjmp context for exception handling */
     if (sigsetjmp(cpu->jmp_env, 0) != 0) {
+
 #if defined(__clang__)
         /*
          * Some compilers wrongly smash all local variables after
-         * siglongjmp (the spec requires that only non-volatile locals
-         * which are changed between the sigsetjmp and siglongjmp are
-         * permitted to be trashed). There were bug reports for gcc
-         * 4.5.0 and clang.  The bug is fixed in all versions of gcc
-         * that we support, but is still unfixed in clang:
-         *   https://bugs.llvm.org/show_bug.cgi?id=21183
-         *
-         * Reload an essential local variable here for those compilers.
-         * Newer versions of gcc would complain about this code (-Wclobbered),
-         * so we only perform the workaround for clang.
+         * siglongjmp. There were bug reports for gcc 4.5.0 and clang.
+         * Reload essential local variables here for those compilers.
+         * Newer versions of gcc would complain about this code (-Wclobbered).
          */
         cpu = current_cpu;
 #else
@@ -986,6 +989,9 @@ int cpu_exec(CPUState *cpu)
             mmap_unlock();
         }
 #endif
+
+        cheri_tag_locks_exception_thrown(cpu);
+
         if (qemu_mutex_iothread_locked()) {
             qemu_mutex_unlock_iothread();
         }
