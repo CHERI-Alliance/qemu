@@ -4,75 +4,80 @@
 # Rule: get_dummy_locks() indexes dummy_tag_table strictly by the page
 # offset, write-acquires each distinct dummy lock at most once (even when
 # both granules hash to the same one), and releasing both returned locks
-# with cheri_tag_free_lock() leaves every lock unlocked.
-#
-# 0x1108 and 0x2108 have the same page offset (0x108) on different virtual
-# pages and must acquire the exact same pair of dummy locks.
-# 0x7fffffff8 spans granules 0x7fffffff and 0x80000000; if a page-boundary
-# hash maps both to the same dummy lock, get_dummy_locks() must deduplicate
-# them rather than self-deadlocking.
+# leaves every lock unlocked.
 
 set direct-call-timeout 10
 
 break main
 run
+
 python
-if gdb.lookup_global_symbol("get_dummy_locks") is None:
-    print("SKIP: get_dummy_locks not present in this build")
-    gdb.execute("quit 77")
-end
-set $p = (void **)malloc(2 * sizeof(void *))
-set $none = (void *)-1
+import cheri_gdb
+import gdb
 
-define check_held
-  if $arg0 != $none && !(*(unsigned long *)$arg0 & 1)
-    printf "FAIL: lock %p not write-locked\n", $arg0
-    quit 1
-  end
+get_sym = cheri_gdb.require_symbol("get_dummy_locks")
+free_sym = cheri_gdb.require_symbol("cheri_tag_free_lock",
+                                    "cheri_tag_writer_release")
+
+TAG_LOCK_NONE = (1 << 64) - 1
+pair_buf = int(gdb.parse_and_eval("(uintptr_t)malloc(2 * sizeof(void *))"))
+
+
+def read_ptr(addr):
+    val = int(gdb.parse_and_eval(f"*(uintptr_t *)0x{addr:x}"))
+    return val & ((1 << 64) - 1)
+
+
+def write_ptr(addr, val):
+    gdb.execute(f"set var *(uintptr_t *)0x{addr:x} = 0x{val:x}ULL")
+
+
+def is_locked(lock_addr):
+    try:
+        expr = f"((CheriTagBlock *)0x{lock_addr:x})->seqlock"
+        seq = int(gdb.parse_and_eval(expr))
+    except gdb.error as exc:
+        cheri_gdb.fail(f"CheriTagBlock.seqlock unavailable ({exc})")
+    return (seq & 1) != 0
+
+
+def check_dummy_pair(vaddr):
+    write_ptr(pair_buf, TAG_LOCK_NONE)
+    write_ptr(pair_buf + 8, TAG_LOCK_NONE)
+    gdb.execute(f"call (void){get_sym}(0x{vaddr:x}ULL, "
+                f"(void **)0x{pair_buf:x}, (void **)0x{pair_buf + 8:x})")
+    low = read_ptr(pair_buf)
+    high = read_ptr(pair_buf + 8)
+    if (low in (0, TAG_LOCK_NONE)) and (high in (0, TAG_LOCK_NONE)):
+        print(f"FAIL: get_dummy_locks(0x{vaddr:x}) took no lock")
+        gdb.execute("quit 1")
+    for ptr in (low, high):
+        if ptr not in (0, TAG_LOCK_NONE) and not is_locked(ptr):
+            print(f"FAIL: lock 0x{ptr:x} not write-locked")
+            gdb.execute("quit 1")
+    gdb.execute(f"call (void){free_sym}((void *)0x{low:x})")
+    gdb.execute(f"call (void){free_sym}((void *)0x{high:x})")
+    for ptr in (low, high):
+        if ptr not in (0, TAG_LOCK_NONE) and is_locked(ptr):
+            print(f"FAIL: lock 0x{ptr:x} still locked after release")
+            gdb.execute("quit 1")
+    return low, high
+
+
+low1, high1 = check_dummy_pair(0x1108)
+if low1 in (0, TAG_LOCK_NONE) or high1 in (0, TAG_LOCK_NONE) or low1 == high1:
+    print("FAIL: expected two distinct dummy locks for 0x1108")
+    gdb.execute("quit 1")
+
+low2, high2 = check_dummy_pair(0x2108)
+if (low1, high1) != (low2, high2):
+    print("FAIL: virtual aliases 0x1108 and 0x2108 returned different locks")
+    gdb.execute("quit 1")
+
+check_dummy_pair(0x7fffffff8)
+print("PASS: get_dummy_locks() handled all pairs")
+gdb.execute("delete")
 end
 
-define check_free
-  if $arg0 != $none && (*(unsigned long *)$arg0 & 1)
-    printf "FAIL: lock %p state 0x%lx after release\n", $arg0, \
-      *(unsigned long *)$arg0
-    quit 1
-  end
-end
-
-define dummy_pair
-  set $p[0] = $none
-  set $p[1] = $none
-  printf "get_dummy_locks(0x%lx)\n", $arg0
-  call get_dummy_locks($arg0, $p, $p + 1)
-  set $low = $p[0]
-  set $high = $p[1]
-  if $low == $none && $high == $none
-    printf "FAIL: no lock taken\n"
-    quit 1
-  end
-  check_held $low
-  check_held $high
-  call cheri_tag_free_lock($low)
-  call cheri_tag_free_lock($high)
-  check_free $low
-  check_free $high
-end
-
-dummy_pair 0x1108
-if $low == $none || $high == $none || $low == $high
-  printf "FAIL: expected two distinct dummy locks\n"
-  quit 1
-end
-set $low_p1 = $low
-set $high_p1 = $high
-dummy_pair 0x2108
-if $low != $low_p1 || $high != $high_p1
-  printf "FAIL: virtual aliases 0x1108 and 0x2108 returned different locks\n"
-  quit 1
-end
-dummy_pair 0x7fffffff8
-printf "PASS: get_dummy_locks() handled all pairs\n"
-
-delete
 continue
 quit $_exitcode

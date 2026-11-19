@@ -1,73 +1,88 @@
 # Note: This test script is AI-generated (prompted to generate deterministic
 # MTTCG capability tag race reproducers).
 #
-# Deterministically forces an AB-BA cross-page tag-lock collision in
-# tagmem_clear_tag() on Morello:
-# - CPU 0 executes an unaligned store straddling VA_AB ([page_a, page_b]),
-#   locks page_a's CheriTagBlock, and pauses on entry to the second
-#   tagmem_clear_tag() call at 0x40203000 before locking page_b.
-# - With CPU 0 held, CPU 1 executes an unaligned store straddling VA_BA
-#   ([page_b, page_a]), locks page_b's CheriTagBlock, and pauses on entry to
-#   its second tagmem_clear_tag() call at 0x40205000 before locking page_a.
-# - Releases both CPUs simultaneously so unfixed lock acquisition deadlocks
-#   immediately while ordered lock acquisition completes cleanly.
+# Deterministically forces an AB-BA cross-page tag-lock collision on Morello
+# using hardware watchpoints on page_a and page_b's CheriTagBlock seqlocks
+# (without depending on internal cheri_tagmem.c helper names):
+# - Runs whichever CPU maps [higher_blk, lower_blk] first until it acquires
+#   its first page lock. If it already pre-sorted into canonical (lower_blk,
+#   higher_blk) order, no AB-BA deadlock is possible.
+# - Otherwise it holds higher_blk while lower_blk is still free; steps the
+#   other CPU ([lower_blk, higher_blk]) until it acquires lower_blk, then
+#   releases both CPUs simultaneously so unfixed lock acquisition deadlocks
+#   immediately while ordered lock recovery completes cleanly.
 
 python
 import cheri_gdb
 import gdb
 
-VA_AB_PAGE2 = 0x40203000
-VA_BA_PAGE2 = 0x40205000
+inv_sym = cheri_gdb.require_symbol(
+    "helper_cheri_invalidate_lock_tags_start_or_dummy"
+)
+syms = cheri_gdb.elf_symbols()
+ram_base = syms["_start"]
+idx_a = (syms["page_a"] - ram_base) // 4096
+idx_b = (syms["page_b"] - ram_base) // 4096
 
 
-class CrossPageBreak(gdb.Breakpoint):
-    def __init__(self, thread_name, second_page_va):
-        super().__init__("tagmem_clear_tag")
-        self.thread_name = thread_name
-        self.second_page_va = second_page_va
-
-    def stop(self):
-        t = gdb.selected_thread()
-        if t is None or t.name != self.thread_name:
-            return False
-        f = gdb.selected_frame()
-        return (int(f.read_var("vaddr")) == self.second_page_va and
-                int(f.read_var("done")) != 0)
+def ready_and_unlocked():
+    smp_go_host = cheri_gdb.ram_host_addr(syms["smp_go"], ram_base)
+    if cheri_gdb.read_u32(smp_go_host) != 1:
+        return False
+    ptr_a, blk_a = cheri_gdb.get_tagblock(idx_a)
+    ptr_b, blk_b = cheri_gdb.get_tagblock(idx_b)
+    if not ptr_a or not ptr_b:
+        return False
+    return (int(blk_a["seqlock"]) & 1) == 0 and (int(blk_b["seqlock"]) & 1) == 0
 
 
-bp0 = CrossPageBreak("CPU 0/TCG", VA_AB_PAGE2)
+start_bp = cheri_gdb.ThreadBreakpoint(inv_sym, cond_fn=ready_and_unlocked)
 end
 
 run
 
 python
-bp0.delete()
+start_bp.delete()
 cpu0 = cheri_gdb.find_vcpu(0)
 cpu1 = cheri_gdb.find_vcpu(1)
-f0 = gdb.selected_frame()
-cpu0_done = int(f0.read_var("done"))
-cpu0_want = int(f0.read_var("tagmem"))
+ptr_a, blk_a = cheri_gdb.get_tagblock(idx_a)
+ptr_b, blk_b = cheri_gdb.get_tagblock(idx_b)
+
+# CPU 0 maps VA_AB ([page_a, page_b]); CPU 1 maps VA_BA ([page_b, page_a]).
+if ptr_a > ptr_b:
+    reverse_cpu, forward_cpu = cpu0, cpu1
+    higher_blk, lower_blk = blk_a, blk_b
+else:
+    reverse_cpu, forward_cpu = cpu1, cpu0
+    higher_blk, lower_blk = blk_b, blk_a
+
+higher_seq = int(higher_blk["seqlock"].address)
+lower_seq = int(lower_blk["seqlock"].address)
 
 gdb.execute("set scheduler-locking on")
-cpu1.switch()
-bp1 = CrossPageBreak("CPU 1/TCG", VA_BA_PAGE2)
-end
+reverse_cpu.switch()
+wp_hi = cheri_gdb.HostWatchpoint(higher_seq, ctype="unsigned long",
+                                 thread_name=reverse_cpu.name)
+wp_lo = cheri_gdb.HostWatchpoint(lower_seq, ctype="unsigned long",
+                                 thread_name=reverse_cpu.name)
+gdb.execute("continue")
+wp_hi.delete()
+wp_lo.delete()
 
-continue
+hi_locked = (int(higher_blk["seqlock"]) & 1) != 0
+lo_locked = (int(lower_blk["seqlock"]) & 1) != 0
+if hi_locked and not lo_locked:
+    forward_cpu.switch()
+    wp_fwd = cheri_gdb.HostWatchpoint(lower_seq, ctype="unsigned long",
+                                      thread_name=forward_cpu.name)
+    gdb.execute("continue")
+    wp_fwd.delete()
+    print(f"cross-page-alias: forced AB-BA lock collision "
+          f"(0x{int(higher_blk.address):x} <-> 0x{int(lower_blk.address):x}), "
+          f"releasing both CPUs")
+else:
+    print("cross-page-alias: reverse mapping locked lower block first")
 
-python
-bp1.delete()
-f1 = gdb.selected_frame()
-cpu1_done = int(f1.read_var("done"))
-cpu1_want = int(f1.read_var("tagmem"))
-
-if cpu0_done != cpu1_want or cpu1_done != cpu0_want:
-    print(f"FAIL: expected inverted locks, got CPU0 ({cpu0_done:#x} -> "
-          f"{cpu0_want:#x}) vs CPU1 ({cpu1_done:#x} -> {cpu1_want:#x})")
-    gdb.execute("quit 6")
-
-print(f"cross-page-alias: forced AB-BA lock collision "
-      f"(0x{cpu0_done:x} <-> 0x{cpu1_done:x}), releasing both CPUs")
 gdb.execute("set scheduler-locking off")
 end
 

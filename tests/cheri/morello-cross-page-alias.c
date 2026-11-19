@@ -44,10 +44,10 @@ static void hammer_cross_page_boundary(uint8_t *base, uint64_t scalar_val)
     uint8_t *next_granule = base + 0x1000;
 
     for (int i = 0; i < SMP_ITERS; i++) {
-        morello_store_ddc_addr(last_granule, (uintptr_t)last_granule);
-        morello_store_ddc_addr(next_granule, (uintptr_t)last_granule);
         morello_store_u64(last_granule + 12, scalar_val);
         morello_store_pair_u64(last_granule + 8, scalar_val, scalar_val);
+        morello_store_ddc_addr(last_granule, (uintptr_t)last_granule);
+        morello_store_ddc_addr(next_granule, (uintptr_t)last_granule);
         (void)morello_load_cap(last_granule);
     }
 }
@@ -130,6 +130,9 @@ int test_main(void)
     check(!morello_load_cap(fault_last).tag, 4);
     morello_store_ddc_addr(fault_last, (uintptr_t)ring_last);
     check(morello_load_cap(fault_last).tag, 5);
+
+    /* Ensure page_b also has an allocated tag block before waking CPU 1. */
+    morello_store_ddc_addr((void *)VA_BA, VA_BA);
 
     /* Wake CPU 1 for concurrent [page_a, page_b] vs [page_b, page_a] test. */
     if (morello_cpu_on(1) != 0) {

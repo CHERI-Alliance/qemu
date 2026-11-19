@@ -56,6 +56,7 @@ def main() -> int:
         cmd = ["gdb", "-nx", "-q", "-batch",
                "-ex", "set pagination off",
                "-ex", "set confirm off",
+               "-ex", "set breakpoint pending off",
                "-ex", "set print thread-events off",
                "-ex", "handle SIGUSR1 SIGPIPE nostop noprint",
                "-x", args.gdb, "--args"] + cmd
