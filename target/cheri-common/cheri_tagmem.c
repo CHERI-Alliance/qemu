@@ -33,6 +33,7 @@
  * SUCH DAMAGE.
  */
 #include "cheri_tagmem.h"
+#include "cheri_tag_txn.h"
 #include "exec/exec-all.h"
 #include "exec/log.h"
 #include "exec/ramblock.h"
@@ -1323,7 +1324,7 @@ static target_ulong hash_vaddr(target_ulong vaddr)
     return vaddr & ((1 << DUMMY_LOCK_BITS) - 1);
 }
 
-static CheriTagBlock *get_dummy(target_ulong vaddr)
+CheriTagBlock *cheri_tag_dummy_block(target_ulong vaddr)
 {
     return &dummy_tag_table[hash_vaddr(vaddr)];
 }
@@ -1337,11 +1338,11 @@ void get_dummy_locks(target_ulong vaddr, tag_writer_lock_t *low,
     tag_writer_lock_t high_dummy = NULL;
 
     if (*low == TAG_LOCK_NONE) {
-        low_dummy = get_dummy(tag_addr1);
+        low_dummy = cheri_tag_dummy_block(tag_addr1);
     }
 
     if (*high == TAG_LOCK_NONE) {
-        high_dummy = get_dummy(tag_addr2);
+        high_dummy = cheri_tag_dummy_block(tag_addr2);
         if (high_dummy == low_dummy) {
             high_dummy = NULL;
         }
