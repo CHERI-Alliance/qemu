@@ -6,6 +6,9 @@
  * - A failed untagged STXR to a read-only page (where the in-memory value no
  *   longer matches the load-exclusive value) must raise a write permission
  *   Data Abort rather than returning status 1 without faulting.
+ * - A failed 128-bit integer STXP to a read-only page must likewise raise a
+ *   write permission Data Abort rather than returning status 1 without
+ *   faulting.
  * - An untagged SWP to a read-only page that also traps capability loads
  *   (LC=11) must report the higher-priority store permission fault (WnR=1,
  *   DFSC=0x0f) rather than a load capability fault (WnR=0, DFSC=0x28), and
@@ -14,8 +17,9 @@
  * Note: This test was AI-generated for the tests/cheri regression suite.
  * Exit status: 0 pass, 1 failed untagged STXR on RO page did not fault, 2
  * STXR fault syndrome wrong, 3 untagged SWP on RO+LC_TRAP page did not fault,
- * 4 SWP fault syndrome had wrong priority, 5 memory clobbered, 10 unexpected
- * exception.
+ * 4 SWP fault syndrome had wrong priority, 5 memory clobbered, 6 failed
+ * integer STXP on RO page did not fault, 7 STXP fault syndrome wrong, 10
+ * unexpected exception.
  */
 #include "morello.h"
 
@@ -29,6 +33,7 @@ static uint64_t l3[512] ALIGNED(PAGE_SIZE);
 static uint8_t data_page[PAGE_SIZE] ALIGNED(PAGE_SIZE);
 
 extern const char stxr_ro_insn[];
+extern const char stxp_ro_insn[];
 extern const char swp_ro_lc_insn[];
 static volatile uint64_t fault_count;
 static volatile uint64_t last_esr;
@@ -101,5 +106,33 @@ int test_main(void)
 
     struct cap_info preserved = morello_load_cap(rw_ptr);
     check(preserved.tag && preserved.addr == 0x2222, 5);
+
+    /*
+     * Failed 128-bit integer STXP on a read-only page must still raise a
+     * write permission Data Abort rather than returning status 1.
+     */
+    {
+        register void *x0 asm("x0") = ro_ptr;
+        asm volatile("ldxp x2, x3, [x0]" :: "r"(x0) : "x2", "x3", "memory");
+    }
+    morello_store_u64(rw_ptr, 0x3333);
+
+    fault_count = 0;
+    {
+        register void *x0 asm("x0") = ro_ptr;
+        register uintptr_t status asm("x4") = 0xdead;
+        asm volatile(
+            "mov  x5, #0x55\n\t"
+            "mov  x6, #0x66\n\t"
+            ".globl stxp_ro_insn\n\t"
+            "stxp_ro_insn:\n\t"
+            "stxp w4, x5, x6, [x0]\n\t"
+            : "+r"(status)
+            : "r"(x0)
+            : "x5", "x6", "memory");
+    }
+    check(fault_count == 1, 6);
+    check(last_elr == (uintptr_t)stxp_ro_insn, 7);
+    check(((last_esr >> 6) & 1) == 1 && (last_esr & 0x3f) == 0x0f, 7);
     return 0;
 }

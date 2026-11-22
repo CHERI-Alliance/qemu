@@ -63,6 +63,9 @@ asm(
     ".inst 0x42800000 | ((((\\off) / 16) & 0x7f) << 15) | ((\\ct2) << 10) | "
     "((\\xn) << 5) | (\\ct1)\n\t"
     ".endm\n\t"
+    ".macro CASPAL_X rs, rt, xn\n\t"
+    ".inst 0x4860fc00 | ((\\rs) << 16) | ((\\xn) << 5) | (\\rt)\n\t"
+    ".endm\n\t"
     ".endif\n\t"
 );
 

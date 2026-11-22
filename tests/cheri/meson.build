@@ -14,6 +14,11 @@ cheri_tcg_variants = {
   '-mttcg': ['-smp', '2', '-accel', 'tcg,thread=multi'],
 }
 
+cheri_smp2_variants = {
+  '-stcg': ['-smp', '2', '-accel', 'tcg,thread=single'],
+  '-mttcg': ['-smp', '2', '-accel', 'tcg,thread=multi'],
+}
+
 cheri_smp4_variants = {
   '-stcg': ['-smp', '4', '-accel', 'tcg,thread=single'],
   '-mttcg': ['-smp', '4', '-accel', 'tcg,thread=multi'],
@@ -86,6 +91,20 @@ cheri_tests = [
   {'name': 'morello-pair-store-tag', 'arch': 'morello',
    'variants': cheri_tcg_variants},
   {'name': 'morello-ddc-wrap', 'arch': 'morello'},
+  {'name': 'rv64y-mmio-cap-load', 'arch': 'rv64y',
+   'variants': cheri_tcg_variants},
+  {'name': 'rv64y-tag-lock-error', 'arch': 'rv64y',
+   'variants': cheri_smp4_variants},
+  {'name': 'rv64y-ptw-cmpxchg-tag-loss', 'arch': 'rv64y',
+   'qemu_args': ['-smp', '2', '-accel', 'tcg,thread=multi'],
+   'gdb_variants': {
+     '-gdb': {'gdb': 'rv64y-ptw-cmpxchg-tag-loss.gdb',
+              'args': ['-name', 'ptw,debug-threads=on']},
+   }},
+  {'name': 'morello-casp-tag-race', 'arch': 'morello',
+   'variants': cheri_smp2_variants},
+  {'name': 'morello-ldxp-pair-tearing', 'arch': 'morello',
+   'variants': cheri_smp2_variants},
 ]
 
 cheri_common_cflags = ['-O2', '-ffreestanding', '-fno-builtin',
