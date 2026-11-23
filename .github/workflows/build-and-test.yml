@@ -55,6 +55,7 @@ jobs:
           sudo apt-get update
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
               clang \
+              lld \
               python3 \
               python-is-python3 \
               ninja-build \
@@ -65,6 +66,9 @@ jobs:
               libfdt-dev \
               libslirp-dev \
               libpixman-1-dev
+          # tests/rvy uses custom_target(build_subdir:), which needs Meson >= 1.10.
+          python -m venv .venv-meson
+          .venv-meson/bin/pip install 'meson>=1.10.0'
 
       - name: Install dependencies
         if: matrix.host == 'macos'
@@ -78,7 +82,9 @@ jobs:
           # Homebrew's prefix isn't on clang's default search path, so
           # meson can't find libfdt etc without this (see freebsd.yml).
           extra_flags="${{ matrix.configure_flags }}"
-          if [ "${{ matrix.host }}" = "macos" ]; then
+          if [ "${{ matrix.host }}" = "linux" ]; then
+            extra_flags="$extra_flags --meson=$GITHUB_WORKSPACE/.venv-meson/bin/meson --rvy-test-cc=clang"
+          elif [ "${{ matrix.host }}" = "macos" ]; then
             # Homebrew python 3.14 is not compatible with the bundled meson, use system meson.
             extra_flags="$extra_flags --meson=meson --extra-cflags=-I$(brew --prefix)/include --extra-ldflags=-L$(brew --prefix)/lib"
           fi
@@ -115,7 +121,7 @@ jobs:
         run: |
           cd build
           pwd
-          _meson=../meson/meson.py
+          _meson="$GITHUB_WORKSPACE/.venv-meson/bin/meson"
           if [ "${{ matrix.host }}" = "macos" ]; then
             _meson=meson
           fi
