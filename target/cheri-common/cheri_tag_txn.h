@@ -36,6 +36,10 @@
 #if defined(TARGET_CHERI)
 
 CheriTagBlock *cheri_tag_dummy_block(target_ulong vaddr);
+void cheri_tagblock_clear_range(CheriTagBlock *tagblk, size_t cap_idx,
+                                size_t end_idx);
+void cheri_tag_txn_log_tags(CheriTagTxn *txn);
+void cheri_tag_txn_log_tag_write(CheriTagTxn *txn);
 
 /* API functions for Cheri Tag Transaction Locking */
 
@@ -199,6 +203,74 @@ cheri_tag_txn_lock_reserved(CheriTagTxn *txn, void *resblock,
         return true;
     }
     g_assert_not_reached();
+}
+
+static inline QEMU_ALWAYS_INLINE void
+cheri_tag_txn_init_cap(CheriTagTxn *txn, CPUState *cpu, CheriTagBlock *block,
+                       target_ulong vaddr, void *host)
+{
+    cheri_debug_assert(block && block != ALL_ZERO_TAGBLK);
+    cheri_tag_txn_init(txn, cpu, CHERI_TAG_TXN_VIRT);
+    txn->host = host;
+    txn->addr = vaddr;
+    cheri_tag_txn_add_cap(txn, block, page_vaddr_to_tag_offset(vaddr));
+}
+
+/* Cheri transaction API resolve functions */
+
+bool cheri_tag_txn_resolve(CheriTagTxn *txn, CPUArchState *env,
+                           target_ulong vaddr, int size, int mmu_idx,
+                           bool non_fault, uintptr_t pc);
+
+void cheri_tag_txn_resolve_cap(CheriTagTxn *txn, CPUArchState *env,
+                               target_ulong vaddr, int reg, int mmu_idx,
+                               uintptr_t pc);
+void cheri_tag_txn_resolve_phys(CheriTagTxn *txn, CPUArchState *env,
+                                RAMBlock *ram, ram_addr_t offset, size_t *len);
+
+/* Clear a range of tags. If logging is enabled log the non zero tags first */
+static inline QEMU_ALWAYS_INLINE void cheri_tag_txn_clear_tags(CheriTagTxn *txn)
+{
+    int nspan;
+    if ((txn->flags & CHERI_TAG_TXN_FAILED)) {
+        return;
+    }
+    if (unlikely(txn->flags & CHERI_TAG_TXN_LOG) &&
+        !(txn->flags & CHERI_TAG_TXN_VIRT)) {
+        cheri_tag_txn_log_tags(txn);
+    }
+    for (nspan = 0; nspan < txn->nspans; nspan++) {
+        cheri_tagblock_clear_range(txn->span[nspan].block,
+                                   txn->span[nspan].first,
+                                   txn->span[nspan].end);
+    }
+}
+
+/* Cheri transaction API mutate functions */
+
+/* Do a single tag clear transaction */
+static inline QEMU_ALWAYS_INLINE void cheri_tag_txn_clear_tag(CheriTagTxn *txn)
+{
+    if (txn->nspans == 0 || (txn->flags & CHERI_TAG_TXN_FAILED)) {
+        return;
+    }
+    cheri_debug_assert(txn->nspans == 1);
+    cheri_debug_assert(txn->span[0].end == txn->span[0].first + 1);
+    __tagblock_tag_clear(txn->span[0].block, txn->span[0].first);
+}
+
+/* Do a single tag set transaction */
+static inline QEMU_ALWAYS_INLINE void cheri_tag_txn_set_tag(CheriTagTxn *txn)
+{
+    if (txn->nspans == 0 || (txn->flags & CHERI_TAG_TXN_FAILED)) {
+        return;
+    }
+    cheri_debug_assert(txn->nspans == 1);
+    cheri_debug_assert(txn->span[0].end == txn->span[0].first + 1);
+    if (txn->flags & CHERI_TAG_TXN_LOG) {
+        cheri_tag_txn_log_tag_write(txn);
+    }
+    __tagblock_tag_set(txn->span[0].block, txn->span[0].first);
 }
 
 #endif /* TARGET_CHERI */

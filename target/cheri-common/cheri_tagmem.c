@@ -53,6 +53,14 @@
 #error "Should only be included for TARGET_CHERI"
 #endif
 
+#ifdef TARGET_MIPS
+#define store_capcause_reg(env, reg) cpu_mips_store_capcause_reg(env, reg)
+#define clear_capcause_reg(env)      cpu_mips_clear_capcause_reg(env)
+#else
+#define store_capcause_reg(env, reg)
+#define clear_capcause_reg(env)
+#endif
+
 /*
  * Tagged Memory Emulation
  *
@@ -829,6 +837,258 @@ static void cheri_tag_lock_probed(void *tagmem, target_ulong vaddr,
     }
 }
 
+/*
+ * Resolve the tagblocks required for a data store transaction.
+ * This touches at most two capabilities
+ */
+bool cheri_tag_txn_resolve(CheriTagTxn *txn, CPUArchState *env,
+                           target_ulong vaddr, int size, int mmu_idx,
+                           bool non_fault, uintptr_t pc)
+{
+    target_ulong page_first, page_last;
+    void *blocks[2];
+    void *host[2];
+    target_ulong offset[2];
+    int access_flags[2];
+    int tries = 1;
+    int caps = 1;
+    uintptr_t tagmem_flags;
+
+    cheri_debug_assert(size > 0);
+
+    cheri_tag_txn_init(txn, env_cpu(env), CHERI_TAG_TXN_VIRT);
+    txn->addr = vaddr;
+    offset[0] = QEMU_ALIGN_DOWN(vaddr, CHERI_CAP_SIZE);
+    offset[1] = QEMU_ALIGN_DOWN(vaddr + size - 1, CHERI_CAP_SIZE);
+    page_first = offset[0] & TARGET_PAGE_MASK;
+    page_last = offset[1] & TARGET_PAGE_MASK;
+
+    if (offset[0] != offset[1]) {
+        caps = 2;
+#if defined(TARGET_ALIGNED_ONLY)
+#if defined(CHERI_UNALIGNED)
+        if (unlikely(page_first != page_last)) {
+            warn_report("Got unaligned %d-byte store across page "
+                        "boundary at 0x" TARGET_FMT_lx "\r",
+                        size, vaddr);
+        }
+#else
+        if (!non_fault) {
+            /*
+             * Tags are locked before every store, so this also runs for a
+             * misaligned store that is about to raise its alignment exception;
+             * only an access that is really carried out is fatal.
+             */
+            FILE *logfile = qemu_log_trylock();
+            error_report("FATAL: %s: " TARGET_FMT_lx
+                         "+%d crosses a page boundary\r",
+                         __func__, vaddr, size);
+            char buffer[256];
+            FILE *f = fmemopen(buffer, sizeof(buffer), "w");
+            fprintf(f, "Probably caused by guest instruction: ");
+            target_disas(f, env_cpu(env), cpu_get_current_pc(env, pc),
+                         /* Only one instr*/ -1);
+            fprintf(f, "\r");
+            fclose(f);
+            buffer[sizeof(buffer) - 1] = '\0';
+            error_report("%s", buffer);
+            qemu_log_unlock(logfile);
+            exit(1);
+        }
+#endif
+#endif
+        access_flags[0] = probe_access_flags_fast(
+            env, offset[0], CHERI_CAP_SIZE, MMU_DATA_STORE, mmu_idx, non_fault,
+            &host[0], &blocks[0], pc);
+    } else {
+        access_flags[0] =
+            probe_access_flags_fast(env, vaddr, size, MMU_DATA_STORE, mmu_idx,
+                                    non_fault, &host[0], &blocks[0], pc);
+    }
+
+    if (access_flags[0] & TLB_INVALID_MASK) {
+        txn->flags |= CHERI_TAG_TXN_FAILED;
+        txn->host = NULL;
+        return false;
+    }
+
+    if (caps == 2) {
+        if (page_first != page_last) {
+            tries = 2;
+            /*
+             * If we span multiple pages then we may need to cope with
+             * tlb evictions. Limit these to 3 attempts total
+             */
+        }
+        while (tries) {
+            access_flags[1] = probe_access_flags_fast(
+                env, offset[1], CHERI_CAP_SIZE, MMU_DATA_STORE, mmu_idx,
+                non_fault, &host[1], &blocks[1], pc);
+            if (access_flags[1] & TLB_INVALID_MASK) {
+                txn->flags |= CHERI_TAG_TXN_FAILED;
+                txn->host = NULL;
+                return false;
+            }
+            /* Check if the probe evicted the first entry */
+            if (tlb_hit(tlb_addr_write(tlb_entry(env, mmu_idx, offset[0])),
+                        offset[0])) {
+                break;
+            }
+
+            access_flags[0] = probe_access_flags_fast(
+                env, offset[0], CHERI_CAP_SIZE, MMU_DATA_STORE, mmu_idx,
+                non_fault, &host[0], &blocks[0], pc);
+            if (access_flags[0] & TLB_INVALID_MASK) {
+                txn->flags |= CHERI_TAG_TXN_FAILED;
+                txn->host = NULL;
+                return false;
+            }
+
+            /* And then check that didn't evict the second */
+            if (tlb_hit(tlb_addr_write(tlb_entry(env, mmu_idx, offset[1])),
+                        offset[1])) {
+                break;
+            }
+            tries--;
+        }
+        if (host[0]) {
+            host[0] += (vaddr - offset[0]);
+        }
+    }
+    for (int i = 0; i < caps; i++) {
+        if (likely(blocks[i])) {
+            cheri_tag_txn_add_cap(txn, blocks[i],
+                                  page_vaddr_to_tag_offset(offset[i]));
+        } else {
+            if (!host[i]) {
+                cheri_tag_txn_add_lock(txn, cheri_tag_dummy_block(offset[i]),
+                                       true);
+                continue;
+            }
+            blocks[i] = get_tagmem_from_iotlb_entry(env, offset[i], mmu_idx,
+                                                    true, &tagmem_flags);
+            if (blocks[i] == ALL_ZERO_TAGBLK || (blocks[i] == NULL)) {
+                cheri_tag_txn_add_lock(txn, cheri_tag_dummy_block(offset[i]),
+                                       true);
+            } else {
+                /* We found this block in the iotlb */
+                cheri_debug_assert(!(tagmem_flags & TLBENTRYCAP_FLAG_CLEAR));
+                cheri_tag_txn_add_cap(txn, blocks[i],
+                                      page_vaddr_to_tag_offset(offset[i]));
+            }
+        }
+    }
+    txn->host = host[0];
+    return true;
+}
+
+void cheri_tag_txn_resolve_cap(CheriTagTxn *txn, CPUArchState *env,
+                               target_ulong vaddr, int reg, int mmu_idx,
+                               uintptr_t pc)
+{
+    void *tagmem;
+    uintptr_t tagmem_flags;
+    cheri_debug_assert(QEMU_ALIGN_DOWN(vaddr, CHERI_CAP_SIZE) == vaddr);
+    cheri_tag_txn_init(txn, env_cpu(env),
+                       qemu_log_instr_enabled(env)
+                           ? (CHERI_TAG_TXN_VIRT | CHERI_TAG_TXN_LOG)
+                           : CHERI_TAG_TXN_VIRT);
+    txn->addr = vaddr;
+    store_capcause_reg(env, reg);
+    /* Note: this probe will handle any store cap faults */
+    void *host_addr =
+        probe_cap_write_fast(env, vaddr, CHERI_CAP_SIZE, mmu_idx, pc, &tagmem);
+    clear_capcause_reg(env);
+    if (tagmem) {
+        /* Real tagged memory */
+        cheri_tag_txn_add_cap(txn, tagmem, page_vaddr_to_tag_offset(vaddr));
+    } else if (host_addr) {
+        tagmem = get_tagmem_from_iotlb_entry(env, vaddr, mmu_idx, true,
+                                             &tagmem_flags);
+        if (tagmem != ALL_ZERO_TAGBLK && tagmem != NULL) {
+            cheri_tag_txn_add_cap(txn, tagmem, page_vaddr_to_tag_offset(vaddr));
+
+            cheri_debug_assert(!(tagmem_flags & TLBENTRYCAP_FLAG_CLEAR));
+            cheri_debug_assert(!(tagmem_flags & TLBENTRYCAP_FLAG_TRAP));
+        } else {
+            cheri_tag_txn_add_lock(txn, cheri_tag_dummy_block(vaddr), true);
+        }
+    } else {
+        cheri_tag_txn_add_lock(txn, cheri_tag_dummy_block(vaddr), true);
+    }
+    txn->host = host_addr;
+}
+
+static CheriTagBlock *cheri_tagblk_find_or_alloc(RAMBlock *ram,
+                                                 ram_addr_t ram_offset)
+{
+    CheriTagBlock *tagblk;
+    size_t start_idx = ram_offset / CHERI_CAP_SIZE;
+    tagblk = cheri_tag_block(start_idx, ram);
+    if (!tagblk) {
+        /* Attempt to allocate a new tagblock */
+        tagblk = cheri_tag_new_tagblk(ram, start_idx);
+    }
+    return tagblk;
+}
+
+void cheri_tag_txn_resolve_phys(CheriTagTxn *txn, CPUArchState *env,
+                                RAMBlock *ram, ram_addr_t offset, size_t *len)
+{
+    size_t blk_offset = offset % CHERI_TAG_BLOCK_SIZE;
+    void *tagmem;
+    size_t first = 0, end = 0;
+    cheri_tag_txn_init(txn, env ? env_cpu(env) : NULL,
+                       (env && qemu_log_instr_enabled(env)) ? CHERI_TAG_TXN_LOG
+                                                            : 0);
+    txn->addr = offset;
+    *len = MIN(*len, CHERI_TAG_BLOCK_SIZE - blk_offset);
+    if (!ram->cheri_tags) {
+        return;
+    }
+    tagmem = cheri_tagblk_find_or_alloc(ram, offset);
+    if (*len == 0) {
+        /* Just take a lock do not record a span */
+        cheri_tag_txn_add_lock(txn, tagmem, false);
+    } else {
+        tag_idx_for_range(offset - blk_offset, offset, *len, &first, &end);
+        txn->span[0].block = tagmem;
+        txn->span[0].first = first;
+        txn->span[0].end = end;
+        txn->nspans = 1;
+        cheri_tag_txn_add_lock(txn, tagmem, false);
+    }
+}
+
+void cheri_tag_txn_log_tags(CheriTagTxn *txn)
+{
+    int i, span_idx;
+    ram_addr_t addr;
+    bool old_tag;
+    for (span_idx = 0; span_idx < txn->nspans; span_idx++) {
+        for (i = txn->span[span_idx].first; i < txn->span[span_idx].end; i++) {
+            old_tag = __tagblock_tag_get(txn->span[span_idx].block, i);
+            if (old_tag) {
+                addr = QEMU_ALIGN_DOWN(txn->addr, CHERI_CAP_SIZE) +
+                       (i - txn->span[span_idx].first) * CHERI_CAP_SIZE;
+                qemu_log_instr_extra(txn->cpu->env_ptr,
+                                     "    Cap Tag ramaddr Write [" RAM_ADDR_FMT
+                                     "] %d -> 0\n",
+                                     addr, old_tag);
+            }
+        }
+    }
+}
+
+void cheri_tag_txn_log_tag_write(CheriTagTxn *txn)
+{
+    bool old_tag = __tagblock_tag_get(txn->span[0].block, txn->span[0].first);
+    qemu_maybe_log_instr_extra(
+        txn->cpu->env_ptr,
+        "    Cap Tag Write [" TARGET_FMT_lx "/" RAM_ADDR_FMT "] %d -> 1\n",
+        txn->addr, qemu_ram_addr_from_host(txn->host), old_tag);
+}
+
 static void *cheri_tag_invalidate_one(CPUArchState *env, target_ulong vaddr,
                                       int32_t size, uintptr_t pc, int mmu_idx,
                                       tag_writer_lock_t *lock,
@@ -843,8 +1103,8 @@ static void *cheri_tag_invalidate_one(CPUArchState *env, target_ulong vaddr,
     return host_addr;
 }
 
-static void tagblk_clear_tags(CheriTagBlock *tagblk, size_t cap_idx,
-                              size_t end_idx)
+void cheri_tagblock_clear_range(CheriTagBlock *tagblk, size_t cap_idx,
+                                size_t end_idx)
 {
     int nr, bits_to_clear, word;
     unsigned long mask_to_clear;
@@ -920,7 +1180,7 @@ void *cheri_tag_phys_invalidate_begin(CPUArchState *env, RAMBlock *ram,
             }
         }
     }
-    tagblk_clear_tags(tagblk, cap_idx, end_idx);
+    cheri_tagblock_clear_range(tagblk, cap_idx, end_idx);
     return tagblk;
 }
 
@@ -947,8 +1207,9 @@ void cheri_tag_phys_clear_range(RAMBlock *ram, ram_addr_t ram_offset,
         if (tagblk) {
             /* A tagblock exists for this range */
             tagblock_lock_write(tagblk);
-            tagblk_clear_tags(tagblk, blk_offset / CHERI_CAP_SIZE,
-                              DIV_ROUND_UP(blk_offset + chunk, CHERI_CAP_SIZE));
+            cheri_tagblock_clear_range(
+                tagblk, blk_offset / CHERI_CAP_SIZE,
+                DIV_ROUND_UP(blk_offset + chunk, CHERI_CAP_SIZE));
             tagblock_unlock_write(tagblk);
         }
         ram_offset += chunk;
@@ -985,14 +1246,6 @@ void cheri_phys_memcpy(CPUArchState *env, RAMBlock *ram, ram_addr_t ram_offset,
                           TARGET_PAGE_MASK);                                   \
         }                                                                      \
     } while (0)
-
-#ifdef TARGET_MIPS
-#define store_capcause_reg(env, reg) cpu_mips_store_capcause_reg(env, reg)
-#define clear_capcause_reg(env) cpu_mips_clear_capcause_reg(env)
-#else
-#define store_capcause_reg(env, reg)
-#define clear_capcause_reg(env)
-#endif
 
 void *cheri_tag_set_impl(CPUArchState *env, target_ulong vaddr, int reg,
                          hwaddr *ret_paddr, uintptr_t pc, int mmu_idx,
