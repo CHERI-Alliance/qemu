@@ -3271,6 +3271,18 @@ static void gen_compare_and_swap_pair(DisasContext *s, int rs, int rt,
         TCGv_i64 c2 = tcg_temp_new_i64();
         TCGv_i64 zero = tcg_constant_i64(0);
 
+#ifdef TARGET_CHERI
+        /*
+         * This is a horrible hack. Sadly, there is no MO_128, and two MO_64's
+         * might trap half way. However, because we know the alignment of
+         * clean_addr, clean_addr + 4 with MO_64 will cross enough tag
+         * boundaries to work.
+         */
+        TCGv_i64 checked_addr = tcg_temp_new_i64();
+        tcg_gen_addi_i64(checked_addr, (TCGv_i64)clean_addr, 4);
+        TCGv_i32 tcoi = handle_conditional_invalidate_start(
+            (TCGv_cap_checked_ptr)checked_addr, MO_64, memidx);
+#endif
         /* Load the two words, in memory order.  */
         tcg_gen_qemu_ld_i64_with_checked_addr(d1, clean_addr, memidx,
                                               MO_64 | MO_ALIGN_16 | s->be_data);
@@ -3284,17 +3296,8 @@ static void gen_compare_and_swap_pair(DisasContext *s, int rs, int rt,
         tcg_gen_and_i64(c2, c2, c1);
 
 #ifdef TARGET_CHERI
-        /* This is a horrible hack. Sadly, there is no MO_128, and two MO_64's
-           might trap half way. However, because we know the
-           alignment of clean_addr, clean_addr + 4 with MO_64 will
-           cross enough tag boundaries to work.
-        */
-        TCGv_i64 checked_addr = tcg_temp_new_i64();
         TCGv_i32 store_happens = tcg_temp_new_i32();
         tcg_gen_extrl_i64_i32(store_happens, c2);
-        tcg_gen_addi_i64(checked_addr, (TCGv_i64)clean_addr, 4);
-        TCGv_i32 tcoi = handle_conditional_invalidate_start(
-            (TCGv_cap_checked_ptr)checked_addr, MO_64, memidx);
 #endif
         /* If compare equal, write back new data, else write back old data.  */
         tcg_gen_movcond_i64(TCG_COND_NE, c1, c2, zero, t1, d1);

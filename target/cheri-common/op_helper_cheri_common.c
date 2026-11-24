@@ -44,6 +44,7 @@
 
 #include "cheri-helper-utils.h"
 #include "cheri_tagmem.h"
+#include "cheri_tag_txn.h"
 
 #if TARGET_LONG_BITS == 32
 #define ld_cap_word_p ldl_p
@@ -247,45 +248,35 @@ void CHERI_HELPER_IMPL(cheri_invalidate_tags_condition(
 void CHERI_HELPER_IMPL(cheri_invalidate_lock_tags_start_or_dummy(
     CPUArchState *env, target_ulong vaddr, MemOpIdx oi))
 {
-    tag_writer_lock_t low = NULL;
-    tag_writer_lock_t high = NULL;
-    cheri_lock_for_tag_invalidate(env, vaddr, memop_size(get_memop(oi)),
-                                  GETPC(), get_mmuidx(oi), &low, &high);
-    if (low == TAG_LOCK_NONE || high == TAG_LOCK_NONE) {
-        get_dummy_locks(vaddr, &low, &high);
-    }
+    int size = memop_size(get_memop(oi));
+    int mmu_idx = get_mmuidx(oi);
+    uintptr_t pc = GETPC();
 
-    cheri_tag_writer_push_free_on_exception(env, low);
-    cheri_tag_writer_push_free_on_exception(env, high);
+    cheri_tag_store_begin(env, vaddr, size, mmu_idx, pc);
 }
 
 void CHERI_HELPER_IMPL(cheri_invalidate_lock_tags_end(CPUArchState *env,
                                                       target_ulong vaddr,
                                                       MemOpIdx oi))
 {
-    tag_writer_lock_t high = cheri_tag_writer_pop_free_on_exception(env);
-    tag_writer_lock_t low = cheri_tag_writer_pop_free_on_exception(env);
-    cheri_tag_invalidate(env, vaddr, memop_size(get_memop(oi)), GETPC(),
-                         get_mmuidx(oi), &low, &high);
+    int size = memop_size(get_memop(oi));
+    int mmu_idx = get_mmuidx(oi);
+    uintptr_t pc = GETPC();
+
+    cheri_tag_store_invalidate(env, vaddr, size, mmu_idx, pc);
 }
 
 void CHERI_HELPER_IMPL(cheri_invalidate_lock_tags_end_condition(
     CPUArchState *env, target_ulong vaddr, MemOpIdx oi, uint32_t cond))
 {
-    tag_writer_lock_t high = cheri_tag_writer_pop_free_on_exception(env);
-    tag_writer_lock_t low = cheri_tag_writer_pop_free_on_exception(env);
-    if (cond)
-        cheri_tag_invalidate(env, vaddr, memop_size(get_memop(oi)), GETPC(),
-                             get_mmuidx(oi), &low, &high);
-    else {
-        /*
-         * Don't free it twice e.g if high and low are in the same page
-         * (sharing the same lock)
-         */
-        if (high != low) {
-            cheri_tag_writer_release(high);
-        }
-        cheri_tag_writer_release(low);
+    int size = memop_size(get_memop(oi));
+    int mmu_idx = get_mmuidx(oi);
+    uintptr_t pc = GETPC();
+
+    if (cond) {
+        cheri_tag_store_invalidate(env, vaddr, size, mmu_idx, pc);
+    } else {
+        cheri_tag_store_end(env);
     }
 }
 
