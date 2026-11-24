@@ -1365,6 +1365,9 @@ static void tlb_fill(CPUState *cpu, target_ulong addr, int size,
      * This is not a probe, so only valid return is success; failure
      * should result in exception + longjmp to the cpu loop.
      */
+#if defined(TARGET_CHERI) && defined(CONFIG_DEBUG_TCG)
+    assert(cpu->cheri_txn.nheld == 0);
+#endif
     ok = cpu->cc->tcg_ops->tlb_fill(cpu, addr, size,
                                     access_type, mmu_idx, false, retaddr);
     assert(ok);
@@ -1635,6 +1638,9 @@ probe_access_internal(CPUArchState *env, target_ulong addr, int fault_size,
                             access_type == MMU_DATA_CAP_STORE)) {
             CPUState *cs = env_cpu(env);
 
+#if defined(TARGET_CHERI) && defined(CONFIG_DEBUG_TCG)
+            assert(cs->cheri_txn.nheld == 0);
+#endif
             if (!cs->cc->tcg_ops->tlb_fill(cs, addr, fault_size, access_type,
                                            mmu_idx, nonfault, retaddr)) {
                 /* Non-faulting page table read failed.  */

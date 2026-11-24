@@ -329,10 +329,17 @@ static inline tag_lock_t cheri_tag_pop_on_exception(CPUArchState *env)
 }
 
 void cheri_tag_free_lock(tag_lock_t lock);
+/*
+ * Transaction handler called on an exception.
+ * A longjmp will occur losing the stack so we must release the locks that are
+ * held using the state in the cpu.
+ */
+void cheri_tag_txn_exception_thrown(CPUState *cpu);
 
 static inline void cheri_tag_locks_exception_thrown(CPUState *cpu)
 {
     cheri_exception_locks_t *locks = &cpu->cheri_exception_locks;
+    cheri_tag_txn_exception_thrown(cpu);
     for (size_t i = 0; i != MAX_CHERI_EXCEPTION_LOCKS; i++) {
         bool freed = false;
         if (locks->locks[i] && locks->locks[i] != TAG_LOCK_NONE) {

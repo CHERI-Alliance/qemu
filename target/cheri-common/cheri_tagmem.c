@@ -1089,6 +1089,19 @@ void cheri_tag_txn_log_tag_write(CheriTagTxn *txn)
         txn->addr, qemu_ram_addr_from_host(txn->host), old_tag);
 }
 
+void cheri_tag_txn_exception_thrown(CPUState *cpu)
+{
+    int i;
+    CheriTagTxnCpu *txn_cpu = &cpu->cheri_txn;
+    for (i = txn_cpu->nheld - 1; i >= 0; i--) {
+        /* Release locks in reverse order */
+        tagblock_unlock_write(txn_cpu->held[i]);
+    }
+    txn_cpu->nheld = 0;
+    txn_cpu->active = NULL;
+    txn_cpu->store_open = false;
+}
+
 static void *cheri_tag_invalidate_one(CPUArchState *env, target_ulong vaddr,
                                       int32_t size, uintptr_t pc, int mmu_idx,
                                       tag_writer_lock_t *lock,

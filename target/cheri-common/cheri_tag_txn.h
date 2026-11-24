@@ -43,6 +43,42 @@ void cheri_tag_txn_log_tag_write(CheriTagTxn *txn);
 
 /* API functions for Cheri Tag Transaction Locking */
 
+/* Cheri tag transaction API cpu registration functions */
+
+/*
+ * In the event of a guest fault between lock and commit, QEMU jumps to the
+ * CPU loop, and transactions in the stack are gone. So we keep the record with
+ * the CPU so that cheri_tag_txn_exception_thrown has a record of the
+ * transactions.
+ */
+
+static inline QEMU_ALWAYS_INLINE void
+cheri_tag_txn_cpu_register(CheriTagTxn *txn)
+{
+    int i;
+    CheriTagTxnCpu *cpu = &txn->cpu->cheri_txn;
+
+    cheri_debug_assert(cpu->nheld + txn->nlocks <= CHERI_TAG_TXN_MAX_HELD);
+    txn->outer = cpu->active;
+    txn->held_base = cpu->nheld;
+
+    for (i = 0; i < txn->nlocks; i++) {
+        cpu->held[cpu->nheld + i] = txn->lock[i];
+    }
+    cpu->nheld += txn->nlocks;
+    cpu->active = txn;
+}
+
+static inline QEMU_ALWAYS_INLINE void
+cheri_tag_txn_cpu_unregister(CheriTagTxn *txn)
+{
+    CheriTagTxnCpu *cpu = &txn->cpu->cheri_txn;
+
+    cheri_debug_assert(cpu->active == txn);
+    cpu->nheld = txn->held_base;
+    cpu->active = txn->outer;
+}
+
 /* Initialise the Transaction with CPU state and Flags given */
 static inline QEMU_ALWAYS_INLINE void
 cheri_tag_txn_init(CheriTagTxn *txn, CPUState *cpu, uint8_t flags)
@@ -136,20 +172,57 @@ cheri_tag_txn_add_cap(CheriTagTxn *txn, CheriTagBlock *block, size_t index)
  */
 static inline QEMU_ALWAYS_INLINE void cheri_tag_txn_lock(CheriTagTxn *txn)
 {
-    size_t i;
+    CheriTagTxnCpu *cpu_txn;
+    size_t i, j;
+    bool covered = true;
+
     if (txn->flags & CHERI_TAG_TXN_FAILED) {
         return;
+    }
+    if (txn->cpu != NULL && (txn->flags & CHERI_TAG_TXN_VIRT)) {
+        cpu_txn = &txn->cpu->cheri_txn;
+        if (cpu_txn->active) {
+            /*
+             * If the transaction we are locking is already covered by the held
+             * locks then we just do a join instead.
+             */
+            for (i = 0; i < txn->nreal; i++) {
+                covered = false;
+                for (j = 0; j < cpu_txn->nheld; j++) {
+                    if (txn->lock[i] == cpu_txn->held[j]) {
+                        covered = true;
+                        break;
+                    }
+                }
+                if (!covered) {
+                    break;
+                }
+            }
+            if (covered) {
+                txn->flags |= CHERI_TAG_TXN_JOINED;
+                return;
+            } else {
+                cheri_debug_assert(false);
+            }
+        }
     }
     for (i = 0; i < txn->nlocks; i++) {
         txn->lock_seq[i] = tagblock_lock_write(txn->lock[i]);
     }
     txn->flags |= CHERI_TAG_TXN_LOCKED;
+    if (txn->cpu != NULL && (txn->flags & CHERI_TAG_TXN_VIRT)) {
+        cheri_tag_txn_cpu_register(txn);
+    }
 }
 
 /* Unlock the transactions held locks */
 static inline QEMU_ALWAYS_INLINE void cheri_tag_txn_commit(CheriTagTxn *txn)
 {
     size_t i;
+    if (txn->flags & CHERI_TAG_TXN_JOINED) {
+        txn->flags &= ~CHERI_TAG_TXN_JOINED;
+        return;
+    }
     if (!(txn->flags & CHERI_TAG_TXN_LOCKED)) {
         return;
     }
@@ -158,6 +231,9 @@ static inline QEMU_ALWAYS_INLINE void cheri_tag_txn_commit(CheriTagTxn *txn)
         tagblock_unlock_write_fast(txn->lock[i - 1], txn->lock_seq[i - 1]);
     }
     txn->flags &= ~CHERI_TAG_TXN_LOCKED;
+    if (txn->cpu != NULL && (txn->flags & CHERI_TAG_TXN_VIRT)) {
+        cheri_tag_txn_cpu_unregister(txn);
+    }
 }
 
 /* Lock for the conditional store operations */
@@ -200,6 +276,9 @@ cheri_tag_txn_lock_reserved(CheriTagTxn *txn, void *resblock,
         smp_wmb();
         txn->lock_seq[0] = res_seq + 1;
         txn->flags |= CHERI_TAG_TXN_LOCKED;
+        if (txn->cpu != NULL && (txn->flags & CHERI_TAG_TXN_VIRT)) {
+            cheri_tag_txn_cpu_register(txn);
+        }
         return true;
     }
     g_assert_not_reached();
