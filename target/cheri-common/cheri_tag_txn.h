@@ -307,6 +307,10 @@ void cheri_tag_txn_resolve_cap(CheriTagTxn *txn, CPUArchState *env,
 void cheri_tag_txn_resolve_phys(CheriTagTxn *txn, CPUArchState *env,
                                 RAMBlock *ram, ram_addr_t offset, size_t *len);
 
+void cheri_tag_txn_resolve_phys_store(CheriTagTxn *txn, CPUArchState *env,
+                                      RAMBlock *ram, ram_addr_t offset,
+                                      size_t size);
+
 /* Clear a range of tags. If logging is enabled log the non zero tags first */
 static inline QEMU_ALWAYS_INLINE void cheri_tag_txn_clear_tags(CheriTagTxn *txn)
 {
@@ -350,6 +354,15 @@ static inline QEMU_ALWAYS_INLINE void cheri_tag_txn_set_tag(CheriTagTxn *txn)
         cheri_tag_txn_log_tag_write(txn);
     }
     __tagblock_tag_set(txn->span[0].block, txn->span[0].first);
+}
+
+static inline void
+cheri_tag_txn_begin_phys_write(CheriTagTxn *txn, CPUArchState *env,
+                               RAMBlock *ram, ram_addr_t offset, size_t *len)
+{
+    cheri_tag_txn_resolve_phys(txn, env, ram, offset, len);
+    cheri_tag_txn_lock(txn);
+    cheri_tag_txn_clear_tags(txn);
 }
 
 #endif /* TARGET_CHERI */

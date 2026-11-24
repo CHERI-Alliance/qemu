@@ -1060,6 +1060,32 @@ void cheri_tag_txn_resolve_phys(CheriTagTxn *txn, CPUArchState *env,
     }
 }
 
+void cheri_tag_txn_resolve_phys_store(CheriTagTxn *txn, CPUArchState *env,
+                                      RAMBlock *ram, ram_addr_t offset,
+                                      size_t size)
+{
+    void *tagmem;
+    size_t first = 0, end = 0;
+    size_t c, idx;
+    cheri_debug_assert(size > 0 && size <= CHERI_CAP_SIZE);
+    cheri_tag_txn_init(txn, env ? env_cpu(env) : NULL,
+                       (env && qemu_log_instr_enabled(env)) ? CHERI_TAG_TXN_LOG
+                                                            : 0);
+    txn->addr = offset;
+    if (!ram->cheri_tags) {
+        return;
+    }
+    first = offset / CHERI_CAP_SIZE;
+    end = (offset + size - 1) / CHERI_CAP_SIZE;
+
+    for (c = first; c <= end; c++) {
+        /* Expect to pass through this only one or two passes */
+        tagmem = cheri_tagblk_find_or_alloc(ram, c * CHERI_CAP_SIZE);
+        idx = (c * CHERI_CAP_SIZE % CHERI_TAG_BLOCK_SIZE) / CHERI_CAP_SIZE;
+        cheri_tag_txn_add_cap(txn, tagmem, idx);
+    }
+}
+
 void cheri_tag_txn_log_tags(CheriTagTxn *txn)
 {
     int i, span_idx;
@@ -1144,57 +1170,13 @@ void cheri_tagblock_clear_range(CheriTagBlock *tagblk, size_t cap_idx,
 void *cheri_tag_phys_invalidate_begin(CPUArchState *env, RAMBlock *ram,
                                       ram_addr_t ram_offset, size_t *len)
 {
-    CheriTagBlock *tagblk;
-    size_t end_idx;
-    size_t blk_offset;
-    size_t start_idx, cap_idx;
-    ram_addr_t ram_addr;
-    int i;
-    bool old_tag;
-    /*
-     * The ram offset is the offset into the ramblock. We need to convert this
-     * into capability indices
-     */
-    start_idx = ram_offset / CHERI_CAP_SIZE;
-    blk_offset = ram_offset % CHERI_TAG_BLOCK_SIZE;
+    CheriTagTxn txn;
 
-    /* Limit the operation to a single tag block */
-    *len = *len + blk_offset < CHERI_TAG_BLOCK_SIZE
-               ? *len
-               : CHERI_TAG_BLOCK_SIZE - blk_offset;
-
-    end_idx = DIV_ROUND_UP(blk_offset + *len, CHERI_CAP_SIZE);
-    if (ram->cheri_tags == NULL) {
-        /* Nothing to lock */
-        return NULL;
+    cheri_tag_txn_begin_phys_write(&txn, env, ram, ram_offset, len);
+    if (txn.nlocks) {
+        return txn.lock[0];
     }
-
-    tagblk = cheri_tag_block(start_idx, ram);
-    if (!tagblk) {
-        /* Attempt to allocate a new tagblock */
-        tagblk = cheri_tag_new_tagblk(ram, start_idx);
-    }
-    tagblock_lock_write(tagblk);
-    if (*len == 0) {
-        return tagblk;
-    }
-    cap_idx = blk_offset / CHERI_CAP_SIZE;
-    if (unlikely(env && qemu_log_instr_enabled(env))) {
-        /* Before we clear the bits we need to log any that are set */
-        for (ram_addr = QEMU_ALIGN_DOWN(ram_offset, CHERI_CAP_SIZE),
-            i = cap_idx;
-             i < end_idx; i++, ram_addr += CHERI_CAP_SIZE) {
-            old_tag = __tagblock_tag_get(tagblk, i);
-            if (old_tag) {
-                qemu_log_instr_extra(env,
-                                     "    Cap Tag ramaddr Write [" RAM_ADDR_FMT
-                                     "] %d -> 0\n",
-                                     ram_addr, old_tag);
-            }
-        }
-    }
-    cheri_tagblock_clear_range(tagblk, cap_idx, end_idx);
-    return tagblk;
+    return NULL;
 }
 
 void cheri_tag_phys_invalidate_end(void *tagblock)
@@ -1209,6 +1191,7 @@ void cheri_tag_phys_clear_range(RAMBlock *ram, ram_addr_t ram_offset,
 {
     size_t blk_offset, chunk;
     CheriTagBlock *tagblk;
+    CheriTagTxn txn;
 
     if (!ram->cheri_tags) {
         return; /* No tags so nothing to do */
@@ -1219,11 +1202,8 @@ void cheri_tag_phys_clear_range(RAMBlock *ram, ram_addr_t ram_offset,
         tagblk = cheri_tag_block(ram_offset / CHERI_CAP_SIZE, ram);
         if (tagblk) {
             /* A tagblock exists for this range */
-            tagblock_lock_write(tagblk);
-            cheri_tagblock_clear_range(
-                tagblk, blk_offset / CHERI_CAP_SIZE,
-                DIV_ROUND_UP(blk_offset + chunk, CHERI_CAP_SIZE));
-            tagblock_unlock_write(tagblk);
+            cheri_tag_txn_begin_phys_write(&txn, NULL, ram, ram_offset, &chunk);
+            cheri_tag_txn_commit(&txn);
         }
         ram_offset += chunk;
         len -= chunk;
@@ -1233,13 +1213,12 @@ void cheri_tag_phys_clear_range(RAMBlock *ram, ram_addr_t ram_offset,
 void cheri_phys_memcpy(CPUArchState *env, RAMBlock *ram, ram_addr_t ram_offset,
                        uint8_t *dst, const uint8_t *src, size_t len)
 {
-    void *tagblk;
+    CheriTagTxn txn;
     size_t towrite = len;
     while (towrite) {
-        tagblk =
-            cheri_tag_phys_invalidate_begin(env, ram, ram_offset, &towrite);
+        cheri_tag_txn_begin_phys_write(&txn, env, ram, ram_offset, &towrite);
         memcpy(dst, src, towrite);
-        cheri_tag_phys_invalidate_end(tagblk);
+        cheri_tag_txn_commit(&txn);
         src += towrite;
         dst += towrite;
         ram_offset += towrite;

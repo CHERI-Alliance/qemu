@@ -312,8 +312,7 @@ static inline void glue(address_space_stl_internal, SUFFIX)(ARG1_DECL,
     MemTxResult r;
     bool release_lock = false;
 #if defined(TARGET_CHERI)
-    void *tag_block;
-    size_t len = l;
+    CheriTagTxn txn;
 #endif
 
     RCU_READ_LOCK();
@@ -326,8 +325,9 @@ static inline void glue(address_space_stl_internal, SUFFIX)(ARG1_DECL,
         /* RAM case */
         ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
 #if defined(TARGET_CHERI)
-        tag_block =
-            cheri_tag_phys_invalidate_begin(NULL, mr->ram_block, addr1, &len);
+        cheri_tag_txn_resolve_phys_store(&txn, NULL, mr->ram_block, addr1, l);
+        cheri_tag_txn_lock(&txn);
+        cheri_tag_txn_clear_tags(&txn);
 #endif
         switch (endian) {
         case DEVICE_LITTLE_ENDIAN:
@@ -341,7 +341,7 @@ static inline void glue(address_space_stl_internal, SUFFIX)(ARG1_DECL,
             break;
         }
 #if defined(TARGET_CHERI)
-        cheri_tag_phys_invalidate_end(tag_block);
+        cheri_tag_txn_commit(&txn);
 #endif
         invalidate_and_set_dirty(mr, addr1, 4);
         r = MEMTX_OK;
@@ -386,8 +386,7 @@ void glue(address_space_stb, SUFFIX)(ARG1_DECL,
     MemTxResult r;
     bool release_lock = false;
 #if defined(TARGET_CHERI)
-    void *tag_block;
-    size_t len = l;
+    CheriTagTxn txn;
 #endif
 
     RCU_READ_LOCK();
@@ -399,12 +398,13 @@ void glue(address_space_stb, SUFFIX)(ARG1_DECL,
         /* RAM case */
         ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
 #if defined(TARGET_CHERI)
-        tag_block =
-            cheri_tag_phys_invalidate_begin(NULL, mr->ram_block, addr1, &len);
+        cheri_tag_txn_resolve_phys_store(&txn, NULL, mr->ram_block, addr1, l);
+        cheri_tag_txn_lock(&txn);
+        cheri_tag_txn_clear_tags(&txn);
 #endif
         stb_p(ptr, val);
 #if defined(TARGET_CHERI)
-        cheri_tag_phys_invalidate_end(tag_block);
+        cheri_tag_txn_commit(&txn);
 #endif
         invalidate_and_set_dirty(mr, addr1, 1);
         r = MEMTX_OK;
@@ -430,8 +430,7 @@ static inline void glue(address_space_stw_internal, SUFFIX)(ARG1_DECL,
     MemTxResult r;
     bool release_lock = false;
 #if defined(TARGET_CHERI)
-    void *tag_block;
-    size_t len = l;
+    CheriTagTxn txn;
 #endif
 
     RCU_READ_LOCK();
@@ -444,8 +443,9 @@ static inline void glue(address_space_stw_internal, SUFFIX)(ARG1_DECL,
         /* RAM case */
         ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
 #if defined(TARGET_CHERI)
-        tag_block =
-            cheri_tag_phys_invalidate_begin(NULL, mr->ram_block, addr1, &len);
+        cheri_tag_txn_resolve_phys_store(&txn, NULL, mr->ram_block, addr1, l);
+        cheri_tag_txn_lock(&txn);
+        cheri_tag_txn_clear_tags(&txn);
 #endif
         switch (endian) {
         case DEVICE_LITTLE_ENDIAN:
@@ -459,7 +459,7 @@ static inline void glue(address_space_stw_internal, SUFFIX)(ARG1_DECL,
             break;
         }
 #if defined(TARGET_CHERI)
-        cheri_tag_phys_invalidate_end(tag_block);
+        cheri_tag_txn_commit(&txn);
 #endif
         invalidate_and_set_dirty(mr, addr1, 2);
         r = MEMTX_OK;
@@ -505,8 +505,7 @@ static void glue(address_space_stq_internal, SUFFIX)(ARG1_DECL,
     MemTxResult r;
     bool release_lock = false;
 #if defined(TARGET_CHERI)
-    void *tag_block;
-    size_t len = l;
+    CheriTagTxn txn;
 #endif
 
     RCU_READ_LOCK();
@@ -519,8 +518,9 @@ static void glue(address_space_stq_internal, SUFFIX)(ARG1_DECL,
         /* RAM case */
         ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
 #if defined(TARGET_CHERI)
-        tag_block =
-            cheri_tag_phys_invalidate_begin(NULL, mr->ram_block, addr1, &len);
+        cheri_tag_txn_resolve_phys_store(&txn, NULL, mr->ram_block, addr1, l);
+        cheri_tag_txn_lock(&txn);
+        cheri_tag_txn_clear_tags(&txn);
 #endif
         switch (endian) {
         case DEVICE_LITTLE_ENDIAN:
@@ -534,7 +534,7 @@ static void glue(address_space_stq_internal, SUFFIX)(ARG1_DECL,
             break;
         }
 #if defined(TARGET_CHERI)
-        cheri_tag_phys_invalidate_end(tag_block);
+        cheri_tag_txn_commit(&txn);
 #endif
         invalidate_and_set_dirty(mr, addr1, 8);
         r = MEMTX_OK;

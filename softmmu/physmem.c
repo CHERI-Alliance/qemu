@@ -59,6 +59,7 @@
 
 #if defined(TARGET_CHERI)
 #include "cheri_tagmem.h"
+#include "cheri_tag_txn.h"
 #endif
 
 #include "qemu/rcu_queue.h"
