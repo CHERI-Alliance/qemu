@@ -1173,16 +1173,38 @@ void cheri_tag_store_end(CPUArchState *env)
 bool cheri_tag_lock_reserved_txn(CheriTagTxn *txn, CPUArchState *env,
                                  target_ulong vaddr, int reg, bool tag,
                                  uintptr_t pc, int mmu_idx, void *res_tagmem,
-                                 unsigned long res_seq)
+                                 unsigned long res_seq, int ncaps)
 {
+    /* Make sure we are either working on one capability, or an aligned pair */
+    cheri_debug_assert(ncaps == 1 ||
+                       QEMU_IS_ALIGNED(vaddr, 2 * CHERI_CAP_SIZE));
     if (tag) {
         cheri_tag_txn_resolve_cap(txn, env, vaddr, reg, mmu_idx, pc);
+        if (ncaps == 2) {
+            if (txn->nspans == 1) {
+                /*
+                 * Resolve recorded a real block.
+                 * Extends the lock to the next capability in the same block
+                 */
+                cheri_tag_txn_add_cap(
+                    txn, txn->span[0].block,
+                    page_vaddr_to_tag_offset(vaddr + CHERI_CAP_SIZE));
+            } else {
+                cheri_tag_txn_add_lock(
+                    txn, cheri_tag_dummy_block(vaddr + CHERI_CAP_SIZE), true);
+            }
+        }
     } else {
         /* Store without a tag is just a plain data store */
-        cheri_tag_txn_resolve(txn, env, vaddr, CHERI_CAP_SIZE, mmu_idx, false,
-                              pc);
+        cheri_tag_txn_resolve(txn, env, vaddr, ncaps * CHERI_CAP_SIZE, mmu_idx,
+                              false, pc);
     }
     return cheri_tag_txn_lock_reserved(txn, res_tagmem, res_seq);
+}
+
+void cheri_tag_unlock_reserved_txn(CheriTagTxn *txn)
+{
+    cheri_tag_txn_commit(txn);
 }
 
 static void *cheri_tag_invalidate_one(CPUArchState *env, target_ulong vaddr,

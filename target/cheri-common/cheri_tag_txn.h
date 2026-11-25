@@ -322,7 +322,9 @@ void cheri_tag_store_end(CPUArchState *env);
 bool cheri_tag_lock_reserved_txn(CheriTagTxn *txn, CPUArchState *env,
                                  target_ulong vaddr, int reg, bool tag,
                                  uintptr_t pc, int mmu_idx, void *res_tagmem,
-                                 unsigned long res_seq);
+                                 unsigned long res_seq, int ncaps);
+
+void cheri_tag_unlock_reserved_txn(CheriTagTxn *txn);
 
 /* Clear a range of tags. If logging is enabled log the non zero tags first */
 static inline QEMU_ALWAYS_INLINE void cheri_tag_txn_clear_tags(CheriTagTxn *txn)
