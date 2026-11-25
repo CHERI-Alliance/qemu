@@ -286,11 +286,15 @@ static inline const char* cheri_cause_str(CheriCapExcCause cause) {
     abort();
 }
 
+/*
+ * Store a capability in a tag write transaction. If a caller already has one
+ * open on the same block, the store joins it.
+ */
 void store_cap_to_memory(CPUArchState *env, uint32_t cs, uint32_t cb,
-                         target_ulong vaddr, uintptr_t retpc, bool take_lock);
+                         target_ulong vaddr, uintptr_t retpc);
 void store_cap_to_memory_mmu_index(CPUArchState *env, uint32_t cs, uint32_t cb,
                                    target_ulong vaddr, uintptr_t retpc,
-                                   int mmu_idx, bool take_lock);
+                                   int mmu_idx);
 
 void load_cap_from_memory(CPUArchState *env, uint32_t cd, uint32_t cb,
                           const cap_register_t *source, target_ulong vaddr,

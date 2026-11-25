@@ -1610,7 +1610,7 @@ void CHERI_HELPER_IMPL(store_cap_via_cap(CPUArchState *env, uint32_t valreg,
     }
     /* Fall back to slow path */
     store_cap_to_memory(env, valreg, authreg, checked_addr,
-                        _host_return_address, true);
+                        _host_return_address);
 }
 
 void CHERI_HELPER_IMPL(store_cap_via_ddc(CPUArchState *env, uint32_t valreg,
@@ -1623,7 +1623,7 @@ void CHERI_HELPER_IMPL(store_cap_via_ddc(CPUArchState *env, uint32_t valreg,
         _host_return_address, cheri_get_ddc(env), CHERI_CAP_SIZE,
         raise_unaligned_store_exception);
     store_cap_to_memory(env, valreg, CHERI_EXC_REGNUM_DDC, checked_addr,
-                        _host_return_address, true);
+                        _host_return_address);
 }
 
 static inline bool
@@ -1911,7 +1911,7 @@ void load_cap_from_memory(CPUArchState *env, uint32_t cd, uint32_t cb,
 void store_cap_to_memory_mmu_index(CPUArchState *env, uint32_t cs,
                                    uint32_t cb __attribute__((unused)),
                                    target_ulong vaddr, uintptr_t retpc,
-                                   int mmu_idx, bool take_lock)
+                                   int mmu_idx)
 {
     target_ulong cursor = get_capreg_cursor(env, cs);
     target_ulong pesbt_for_mem = get_capreg_pesbt(env, cs) ^ CAP_MEM_XOR_MASK;
@@ -1929,8 +1929,8 @@ void store_cap_to_memory_mmu_index(CPUArchState *env, uint32_t cs,
     }
     /*
      * Resolve takes any data-write or capability-write faults before anything
-     * is written. The data and tag are then written under the block's lock
-     * (the callers lock when take_lock is false).
+     * is written. The data and tag are then written under the block's lock,
+     * joining the caller's transaction if the caller already holds it.
      */
     env->statcounters_cap_write++;
     if (tag) {
@@ -1940,9 +1940,7 @@ void store_cap_to_memory_mmu_index(CPUArchState *env, uint32_t cs,
         cheri_tag_txn_resolve(&txn, env, vaddr, CHERI_CAP_SIZE, mmu_idx, false,
                               retpc);
     }
-    if (take_lock) {
-        cheri_tag_txn_lock(&txn);
-    }
+    cheri_tag_txn_lock(&txn);
 
     // When writing back pesbt we have to XOR with the NULL mask to ensure that
     // NULL capabilities have an all-zeroes representation.
@@ -1991,10 +1989,10 @@ void store_cap_to_memory_mmu_index(CPUArchState *env, uint32_t cs,
 }
 
 void store_cap_to_memory(CPUArchState *env, uint32_t cs, uint32_t cb,
-                         target_ulong vaddr, uintptr_t retpc, bool take_lock)
+                         target_ulong vaddr, uintptr_t retpc)
 {
     return store_cap_to_memory_mmu_index(env, cs, cb, vaddr, retpc,
-                                         cpu_mmu_index(env, false), take_lock);
+                                         cpu_mmu_index(env, false));
 }
 
 target_ulong CHERI_HELPER_IMPL(cloadtags(CPUArchState *env, uint32_t cb))

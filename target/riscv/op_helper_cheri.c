@@ -357,8 +357,7 @@ void HELPER(amoswap_cap)(CPUArchState *env, uint32_t dest_reg,
                                  cbp, addr, _host_return_address, NULL, false);
     // The store may still trap, so we must only update the dest register after
     // the store succeeded.
-    store_cap_to_memory(env, val_reg, addr_reg, addr, _host_return_address,
-                        false);
+    store_cap_to_memory(env, val_reg, addr_reg, addr, _host_return_address);
     cheri_tag_txn_commit(&txn);
 
     // Store succeeded -> we can update cd
@@ -562,8 +561,7 @@ static target_ulong sc_c_impl(CPUArchState *env, uint32_t addr_reg,
 
     if (!store_fails) {
         /* This store may still trap, so we should update env->load_res */
-        store_cap_to_memory(env, val_reg, addr_reg, addr, _host_return_address,
-                            false);
+        store_cap_to_memory(env, val_reg, addr_reg, addr, _host_return_address);
     }
 
     cheri_tag_unlock_reserved_txn(&txn);
