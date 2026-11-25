@@ -28,6 +28,7 @@
 #include "internal.h"
 #ifdef TARGET_CHERI
 #include "cheri_tagmem.h"
+#include "cheri_tag_txn.h"
 #endif
 
 #ifndef CONFIG_USER_ONLY
@@ -96,12 +97,10 @@ static inline target_ulong ccheck_store_right(CPUMIPSState *env, target_ulong of
 }
 /* swr/sdr/swl/sdl will never invalidate more than one capability */
 #define invalidate_tags_store_left_right_start(env, addr, retpc, mem_idx)      \
-    tag_writer_lock_t writer_lock = NULL;                                      \
-    cheri_lock_for_tag_invalidate(env, addr, 1, retpc, mem_idx, &writer_lock,  \
-                                  NULL)
+    cheri_tag_store_begin(env, addr, 1, mem_idx, retpc)
 
 #define invalidate_tags_store_left_right_end(env, addr, retpc, mem_idx)        \
-    cheri_tag_invalidate(env, addr, 1, retpc, mem_idx, &writer_lock, NULL)
+    cheri_tag_store_invalidate(env, addr, 1, mem_idx, retpc)
 
 #else /* !TARGET_CHERI */
 

@@ -99,10 +99,12 @@ typedef struct CheriTagTxnCpu {
     /* All locks this cpu holds */
     struct CheriTagBlock_s *held[CHERI_TAG_TXN_MAX_HELD];
     uint8_t nheld;     /* Used entries in held. */
-    bool store_open;   /*
-                        * A TCG data store's transaction is open (between start
-                        * and end helpers.)
-                        */
-    CheriTagTxn store; /* That TCG data stores transaction */
+    /*
+     * store_open and store record the transaction for a data store
+     * that runs between a begin and an invalidate/end call. This includes the
+     * TCG store helpers and the MIPS SWL/SWR/SDL/SDR handlers.
+     */
+    bool store_open;
+    CheriTagTxn store;
 } CheriTagTxnCpu;
 #endif /* CHERI_TAG_TXN_TYPES_H */

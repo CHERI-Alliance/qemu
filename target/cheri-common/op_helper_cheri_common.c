@@ -216,9 +216,13 @@ void CHERI_HELPER_IMPL(cheri_invalidate_tags(CPUArchState *env,
 {
     /* Should only be used when locking is off */
     CPUState *cpu = env_cpu(env);
+    int size = memop_size(get_memop(oi));
+    int mmu_idx = get_mmuidx(oi);
+    uintptr_t pc = GETPC();
+
     tcg_debug_assert(!(cpu->tcg_cflags & CF_PARALLEL));
-    cheri_tag_invalidate(env, vaddr, memop_size(get_memop(oi)), GETPC(),
-                         get_mmuidx(oi), NULL, NULL);
+    cheri_tag_store_begin(env, vaddr, size, mmu_idx, pc);
+    cheri_tag_store_invalidate(env, vaddr, size, mmu_idx, pc);
 }
 
 /*
@@ -229,10 +233,14 @@ void CHERI_HELPER_IMPL(cheri_invalidate_tags_condition(
     CPUArchState *env, target_ulong vaddr, MemOpIdx oi, uint32_t cond))
 {
     CPUState *cpu = env_cpu(env);
+    int size = memop_size(get_memop(oi));
+    int mmu_idx = get_mmuidx(oi);
+    uintptr_t pc = GETPC();
+
     tcg_debug_assert(!(cpu->tcg_cflags & CF_PARALLEL));
     if (cond) {
-        cheri_tag_invalidate(env, vaddr, memop_size(get_memop(oi)), GETPC(),
-                             get_mmuidx(oi), NULL, NULL);
+        cheri_tag_store_begin(env, vaddr, size, mmu_idx, pc);
+        cheri_tag_store_invalidate(env, vaddr, size, mmu_idx, pc);
     }
 }
 

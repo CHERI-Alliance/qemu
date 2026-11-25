@@ -592,16 +592,21 @@ static inline void *get_tagmem_from_iotlb_entry(CPUArchState *env,
                                                 bool isWrite,
                                                 uintptr_t *flags_out)
 {
-    /* XXXAR: see mte_helper.c */
     /*
      * Find the iotlbentry for ptr.  This *must* be present in the TLB
-     * because we just found the mapping.
+     * because the caller has just probed the vaddr, so the entry at tlb_index
+     * is the one for this access.
+     * A fill for less than a page sets TLB_INVALID_MASK so that the next access
+     * fills again.
+     * We ignore the bit as probe_access_internal does in its own fill.
      * TODO: Perhaps there should be a cputlb helper that returns a
      * matching tlb entry + iotlb entry.
      */
 #ifdef CONFIG_DEBUG_TCG
     CPUTLBEntry *entry = tlb_entry(env, mmu_idx, vaddr);
-    g_assert(tlb_hit(isWrite ? tlb_addr_write(entry) : entry->addr_read, vaddr));
+    g_assert(tlb_hit((isWrite ? tlb_addr_write(entry) : entry->addr_read) &
+                         ~TLB_INVALID_MASK,
+                     vaddr));
 #endif
     CPUTLBEntryFull *pfull =
         &env_tlb(env)->d[mmu_idx].fulltlb[tlb_index(env, mmu_idx, vaddr)];
