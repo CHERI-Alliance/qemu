@@ -155,6 +155,19 @@ static inline QEMU_ALWAYS_INLINE CheriTagBlock *cheri_tag_block(size_t tag_index
     return qatomic_load_acquire(&tagmem[tagbock_index]);
 }
 
+static CheriTagBlock *cheri_tagblk_find_or_alloc(RAMBlock *ram,
+                                                 ram_addr_t ram_offset)
+{
+    CheriTagBlock *tagblk;
+    size_t start_idx = ram_offset / CHERI_CAP_SIZE;
+    tagblk = cheri_tag_block(start_idx, ram);
+    if (!tagblk) {
+        /* Attempt to allocate a new tagblock */
+        tagblk = cheri_tag_new_tagblk(ram, start_idx);
+    }
+    return tagblk;
+}
+
 static inline QEMU_ALWAYS_INLINE int tagmem_get_tag_many(CheriTagBlock *tagmem,
                                                          target_ulong vaddr)
 {
@@ -217,6 +230,12 @@ void cheri_tag_init(MemoryRegion *mr, uint64_t memory_size)
     }
 }
 
+/*
+ * Returns the tagblock for a TLB fill, allocating it on first use, or
+ * ALL_ZERO_TAGBLK for memory without tags.
+ * A fill of tagged RAM always allocates the block, so no TLB entry for
+ * tagged RAM is missing it and no flush is needed.
+ */
 void *cheri_tagmem_for_addr(CPUArchState *env, target_ulong vaddr,
                             RAMBlock *ram, ram_addr_t ram_offset, size_t size,
                             int *prot, bool tag_write)
@@ -236,43 +255,13 @@ void *cheri_tagmem_for_addr(CPUArchState *env, target_ulong vaddr,
         return ALL_ZERO_TAGBLK;
     }
 
-    uint64_t tag = ram_offset / CHERI_CAP_SIZE;
 #ifndef TARGET_AARCH64
     // AArch64 seems to use different sizes. Might be worth looking into.
     cheri_debug_assert(ram_offset % TARGET_PAGE_SIZE == 0 &&
                        "Unexpected offset");
     cheri_debug_assert(size == TARGET_PAGE_SIZE && "Unexpected size");
 #endif
-    CheriTagBlock *tagblk = cheri_tag_block(tag, ram);
-
-    if (!tagblk) {
-        cheri_tag_new_tagblk(ram, tag);
-        CPUState *cpu = env_cpu(env);
-        /*
-         * A vaddr-based shootdown is insufficient as multiple mappings may
-         * exist. Short of an inverted table, a complete shootdown is required.
-         */
-        tlb_flush_all_cpus_synced(cpu);
-        /*
-         * An un-synced flush the current cpu is required as we want to complete
-         * this instruction and THEN exit.
-         */
-        tlb_flush(cpu);
-        tagblk = cheri_tag_block(tag, ram);
-        cheri_debug_assert(tagblk);
-    }
-
-    if (tagblk != NULL) {
-        return tagblk;
-    }
-
-    if (!(*prot & PAGE_SC_CLEAR)) {
-        // Add in a (fake) SC_TRAP to prompt a TLB refill if a tag is stored
-        // to this location. See the comment around TLBENTRYCAP_INVALID_WRITE_*.
-        *prot |= PAGE_SC_TRAP;
-    }
-
-    return ALL_ZERO_TAGBLK;
+    return cheri_tagblk_find_or_alloc(ram, ram_offset);
 }
 
 /*
@@ -728,19 +717,6 @@ void cheri_tag_txn_resolve_cap(CheriTagTxn *txn, CPUArchState *env,
         cheri_tag_txn_add_lock(txn, cheri_tag_dummy_block(vaddr), true);
     }
     txn->host = host_addr;
-}
-
-static CheriTagBlock *cheri_tagblk_find_or_alloc(RAMBlock *ram,
-                                                 ram_addr_t ram_offset)
-{
-    CheriTagBlock *tagblk;
-    size_t start_idx = ram_offset / CHERI_CAP_SIZE;
-    tagblk = cheri_tag_block(start_idx, ram);
-    if (!tagblk) {
-        /* Attempt to allocate a new tagblock */
-        tagblk = cheri_tag_new_tagblk(ram, start_idx);
-    }
-    return tagblk;
 }
 
 void cheri_tag_txn_resolve_phys(CheriTagTxn *txn, CPUArchState *env,
