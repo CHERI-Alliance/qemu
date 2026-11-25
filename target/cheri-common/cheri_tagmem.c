@@ -1135,40 +1135,17 @@ void cheri_tag_set_many(CPUArchState *env, uint32_t tags, target_ulong vaddr,
  * stepping, which would not perform very well.
  * Luckily, a lock now exists on every capability sized unit of memory, so
  * atomic TCG operations are done by taking the lock and then doing a non-atomic
- * sequence. Because it is unknown at translation time whether a location will
- * have a tag (and therefore a lock), we cannot know whether we can rely
- * on the tags lock or not.
- * Therefore, we assume every location is tagged. If it is not, we asign it a
- * dummy lock (that will always have a zero tag).
- * We have a few of these to avoid false sharing.
+ * sequence. Memory without tag storage has no tag block, so a transaction
+ * locks a dummy block instead. The dummy block depends only on the capability's
+ * index in its page. Every virtual alias of a physical capability gets the
+ * same dummy lock.
  */
 
-#define DUMMY_LOCK_BITS 16
-
-CheriTagBlock dummy_tag_table[1 << DUMMY_LOCK_BITS];
-
-/*
- * As vaddr is virtual but our locks need to be on physical
- * addresses only use the low order bits i.e. page offset for the hash.
- * We then divide this down by the capability size so that accesses to the same
- * physical capability map to the same hash.
- * It will also increase the likilihood of false sharing but will still be
- * safe
- */
-static target_ulong hash_vaddr(target_ulong vaddr)
-{
-    vaddr = (vaddr & ~TARGET_PAGE_MASK) / CHERI_CAP_SIZE;
-    size_t shft = sizeof(target_ulong);
-    while (shft > DUMMY_LOCK_BITS) {
-        shft /= 2;
-        vaddr ^= vaddr >> shft;
-    }
-    return vaddr & ((1 << DUMMY_LOCK_BITS) - 1);
-}
+CheriTagBlock dummy_tag_table[TAGS_PER_BLOCK_MAX];
 
 CheriTagBlock *cheri_tag_dummy_block(target_ulong vaddr)
 {
-    return &dummy_tag_table[hash_vaddr(vaddr)];
+    return &dummy_tag_table[page_vaddr_to_tag_offset(vaddr)];
 }
 
 bool cheri_tag_get_debug(RAMBlock *ram, ram_addr_t ram_offset)
