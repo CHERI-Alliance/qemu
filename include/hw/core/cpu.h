@@ -21,7 +21,6 @@
 #define QEMU_CPU_H
 
 #include "target/cheri-common/cheri_tag_txn_types.h"
-#include "target/cheri-common/cheri_tagmem_ex_locks.h"
 #include "hw/qdev-core.h"
 #include "disas/dis-asm.h"
 #include "exec/cpu-common.h"
@@ -456,7 +455,6 @@ struct CPUState {
 #endif
 
     /* TARGET_CHERI is poison in this context. Keep these here for now. */
-    cheri_exception_locks_t cheri_exception_locks;
     CheriTagTxnCpu cheri_txn;
 };
 

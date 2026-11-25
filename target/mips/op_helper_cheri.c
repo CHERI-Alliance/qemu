@@ -658,9 +658,10 @@ target_ulong CHERI_HELPER_IMPL(cstorecond(CPUArchState *env, uint32_t cb, uint32
             TARGET_FMT_plx " lladdr=" TARGET_FMT_plx " CP0_LLaddr="
             TARGET_FMT_plx "\n", addr, env->lladdr, env->CP0_LLAddr);
 
-        // Can't do this here.  It might miss in the TLB.
-        // cheri_tag_invalidate(env, addr, size);
-        // Also, rd is set by the actual store conditional operation.
+        /*
+         * Can't do this here because the address might miss in the TLB.
+         * Also, rd is set by the actual store conditional operation.
+         */
         return addr;
     }
     return 0;

@@ -136,9 +136,6 @@ DEF_HELPER_3(cheri_invalidate_lock_tags_end, void, env, cap_checked_ptr,
 DEF_HELPER_4(cheri_invalidate_lock_tags_end_condition, void, env,
              cap_checked_ptr, memop_idx, i32)
 
-DEF_HELPER_2(cheri_invalidate_lock_tags_assert_exist, void, env,
-             cap_checked_ptr)
-
 #endif
 
 DEF_HELPER_FLAGS_3(gvec_mov, TCG_CALL_NO_RWG, void, ptr, ptr, i32)

@@ -288,22 +288,6 @@ void CHERI_HELPER_IMPL(cheri_invalidate_lock_tags_end_condition(
     }
 }
 
-/* Assert that there was actually a tag lock taken (for debugging) */
-void CHERI_HELPER_IMPL(cheri_invalidate_lock_tags_assert_exist(
-    CPUArchState *env, target_ulong vaddr))
-{
-    tag_writer_lock_t high = cheri_tag_writer_pop_free_on_exception(env);
-    tag_writer_lock_t low = cheri_tag_writer_pop_free_on_exception(env);
-
-    if (!(low != NULL && low != TAG_LOCK_NONE)) {
-        printf("Addr: " TARGET_FMT_lx ". Low: %p. High %p\n", vaddr, low, high);
-        assert(0);
-    }
-
-    cheri_tag_writer_push_free_on_exception(env, low);
-    cheri_tag_writer_push_free_on_exception(env, high);
-}
-
 /// Implementations of individual instructions start here
 
 /// Two operand inspection instructions:
