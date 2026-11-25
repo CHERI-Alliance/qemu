@@ -43,6 +43,7 @@
 #include "exec/helper-proto.h"
 #include "cheri-helper-utils.h"
 #include "cheri_tagmem.h"
+#include "cheri_tag_txn.h"
 #ifndef TARGET_CHERI
 #error TARGET_CHERI must be set
 #endif
@@ -277,38 +278,13 @@ void HELPER(modesw)(CPUArchState *env, int to_capmode)
                       to_capmode ? CHERI_EXEC_CAPMODE : CHERI_EXEC_INTMODE);
 }
 
-/*
- * Write lock for a capability rmw.
- * Memory without tags gets a dummy lock. Tag parameter indicates if the
- * operation will result in a tag invalidate or tag set.
- */
-static tag_writer_lock_t lock_for_cap_rmw(CPUArchState *env, target_ulong addr,
-                                          uint32_t reg, bool tag,
-                                          uintptr_t retpc)
-{
-    tag_writer_lock_t lock = NULL, unused = NULL;
-    /* Choose the lock based on if we are setting or invalidating a tag */
-    if (tag) {
-        cheri_lock_for_tag_set(env, addr, reg, NULL, retpc,
-                               cpu_mmu_index(env, false), &lock);
-    } else {
-        cheri_lock_for_tag_invalidate_aligned(env, addr, retpc,
-                                              cpu_mmu_index(env, false), &lock);
-    }
-    if (lock == TAG_LOCK_NONE) {
-        /* No tag memory, so get a dummy lock */
-        get_dummy_locks(addr, &lock, &unused);
-    }
-    cheri_tag_writer_push_free_on_exception(env, lock);
-    return lock;
-}
-
 void HELPER(amoswap_cap)(CPUArchState *env, uint32_t dest_reg,
                          uint32_t addr_reg, uint32_t val_reg)
 {
     uintptr_t _host_return_address = GETPC();
     target_long addr = get_capreg_cursor(env, addr_reg);
     bool store_tag;
+    CheriTagTxn txn;
 
     if (!cheri_in_capmode(env)) {
         addr = cheri_ddc_relative_addr(env, addr);
@@ -361,19 +337,21 @@ void HELPER(amoswap_cap)(CPUArchState *env, uint32_t dest_reg,
     store_tag = cheri_will_store_tag(env, cbp, val_reg);
     /* Store/AMO page faults take priority over load capability faults. */
     if (store_tag) {
-        probe_cap_write(env, addr, CHERI_CAP_SIZE, cpu_mmu_index(env, false),
-                        _host_return_address);
+        cheri_tag_txn_resolve_cap(&txn, env, addr, addr_reg,
+                                  cpu_mmu_index(env, false),
+                                  _host_return_address);
     } else {
-        probe_write(env, addr, CHERI_CAP_SIZE, cpu_mmu_index(env, false),
-                    _host_return_address);
+        /* Not storing a tag is just a data write */
+        cheri_tag_txn_resolve(&txn, env, addr, CHERI_CAP_SIZE,
+                              cpu_mmu_index(env, false), false,
+                              _host_return_address);
     }
     // Load the value to store from the register file now in case the
     // load_cap_from_memory call overwrites that register
     target_ulong loaded_pesbt;
     target_ulong loaded_cursor;
 
-    tag_writer_lock_t lock =
-        lock_for_cap_rmw(env, addr, addr_reg, store_tag, _host_return_address);
+    cheri_tag_txn_lock(&txn);
     bool loaded_tag =
         load_cap_from_memory_raw(env, &loaded_pesbt, &loaded_cursor, addr_reg,
                                  cbp, addr, _host_return_address, NULL, false);
@@ -381,8 +359,7 @@ void HELPER(amoswap_cap)(CPUArchState *env, uint32_t dest_reg,
     // the store succeeded.
     store_cap_to_memory(env, val_reg, addr_reg, addr, _host_return_address,
                         false);
-    cheri_tag_writer_pop_free_on_exception(env);
-    cheri_tag_writer_release(lock);
+    cheri_tag_txn_commit(&txn);
 
     // Store succeeded -> we can update cd
     update_compressed_capreg(env, dest_reg, loaded_pesbt, loaded_tag,
@@ -486,7 +463,7 @@ static target_ulong sc_c_impl(CPUArchState *env, uint32_t addr_reg,
 {
     const cap_register_t *auth_cap = get_load_store_base_cap(env, addr_reg);
     bool store_tag;
-    tag_writer_lock_t lock;
+    CheriTagTxn txn;
 
     /* All checks for SC.Y are reported as store/AMO faults. */
     if (!auth_cap->cr_tag) {
@@ -540,7 +517,7 @@ static target_ulong sc_c_impl(CPUArchState *env, uint32_t addr_reg,
         probe_write(env, addr, CHERI_CAP_SIZE, cpu_mmu_index(env, false),
                     _host_return_address);
     }
-    bool store_fails;
+    bool store_fails = true;
     if (addr != expected_addr) {
         store_fails = true;
         goto sc_failed;
@@ -550,10 +527,9 @@ static target_ulong sc_c_impl(CPUArchState *env, uint32_t addr_reg,
     target_ulong current_cursor;
     bool current_tag;
 
-    if (!cheri_tag_lock_reserved(
-            env, addr, addr_reg, store_tag, _host_return_address,
-            cpu_mmu_index(env, false), expected_tagmem, expected_seq, &lock)) {
-        store_fails = true;
+    if (!cheri_tag_lock_reserved_txn(
+            &txn, env, addr, addr_reg, store_tag, _host_return_address,
+            cpu_mmu_index(env, false), expected_tagmem, expected_seq)) {
         goto sc_failed;
     }
     /*
@@ -590,7 +566,7 @@ static target_ulong sc_c_impl(CPUArchState *env, uint32_t addr_reg,
                             false);
     }
 
-    cheri_tag_unlock_reserved(env, lock);
+    cheri_tag_txn_commit(&txn);
 sc_failed:
     tcg_debug_assert(env->load_res == -1);
     return store_fails; /* success */

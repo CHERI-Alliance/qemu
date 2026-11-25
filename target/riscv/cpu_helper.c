@@ -32,6 +32,7 @@
 #include "helper_utils.h"
 #ifdef TARGET_CHERI
 #include "cheri-helper-utils.h"
+#include "cheri_tag_txn.h"
 #endif
 #include "cpu_bits.h"
 
@@ -1374,21 +1375,32 @@ restart:
                      * store sees the new PTE with the old tag.
                      */
                     size_t len = sizeof(target_ulong);
-                    void *tagblk = cheri_tag_phys_invalidate_begin(
-                        env, mr->ram_block, addr1, &len);
+                    CheriTagTxn txn;
+                    /*
+                     * Resolve the PTE's tag block physically, lock it, and
+                     * clear the tag only if the PTE is written.
+                     */
+                    cheri_tag_txn_resolve_phys(&txn, env, mr->ram_block, addr1,
+                                               &len);
+                    cheri_tag_txn_lock(&txn);
 #endif /* TARGET_CHERI */
 #if TCG_OVERSIZED_GUEST
                     /* MTTCG is not enabled on oversized TCG guests so
                      * page table updates do not need to be atomic */
                     *pte_pa = pte = updated_pte;
 #if defined(TARGET_CHERI)
-                    cheri_tag_phys_invalidate_end(tagblk);
+                    cheri_tag_txn_clear_tags(&txn);
+                    cheri_tag_txn_commit(&txn);
 #endif /* TARGET_CHERI */
 #else  /* TCG_OVERSIZED_GUEST */
                     target_ulong old_pte =
                         qatomic_cmpxchg(pte_pa, pte, updated_pte);
 #if defined(TARGET_CHERI)
-                    cheri_tag_phys_invalidate_end(tagblk);
+                    if (old_pte == pte) {
+                        /* cmpxchg succeeded so clear tags */
+                        cheri_tag_txn_clear_tags(&txn);
+                    }
+                    cheri_tag_txn_commit(&txn);
 #endif /* TARGET_CHERI */
                     if (old_pte != pte) {
                         goto restart;

@@ -1510,13 +1510,13 @@ static bool load_cap_fast(CPUArchState *env, uint32_t dstreg,
 static bool store_cap_fast(CPUArchState *env, uint32_t valreg,
                            const cap_register_t *cbp, target_ulong vaddr)
 {
-    unsigned long seq;
     target_ulong pesbt;
     target_ulong cursor;
     bool tag;
     CheriTagBlock *tagmem;
     CPUTLBEntry *entry;
     char *host;
+    CheriTagTxn txn;
 
     if (!cap_ldst_fast_path_enabled(env)) {
         return false;
@@ -1534,16 +1534,17 @@ static bool store_cap_fast(CPUArchState *env, uint32_t valreg,
     tag = cheri_will_store_tag(env, cbp, valreg);
 
     /* Acquire the write lock */
-    seq = tagblock_lock_write(tagmem);
-    if (tag) {
-        __tagblock_tag_set(tagmem, page_vaddr_to_tag_offset(vaddr));
-    } else {
-        __tagblock_tag_clear(tagmem, page_vaddr_to_tag_offset(vaddr));
-    }
+    cheri_tag_txn_init_cap(&txn, env_cpu(env), tagmem, vaddr, host);
+    cheri_tag_txn_lock(&txn);
     st_cap_word_p(host + CHERI_MEM_OFFSET_METADATA, pesbt);
     st_cap_word_p(host + CHERI_MEM_OFFSET_CURSOR, cursor);
+    if (tag) {
+        cheri_tag_txn_set_tag(&txn);
+    } else {
+        cheri_tag_txn_clear_tag(&txn);
+    }
     /* Release the write lock */
-    tagblock_unlock_write_fast(tagmem, seq);
+    cheri_tag_txn_commit(&txn);
     env->statcounters_cap_write++;
     if (tag) {
         env->statcounters_cap_write_tagged++;
@@ -1906,6 +1907,7 @@ void store_cap_to_memory_mmu_index(CPUArchState *env, uint32_t cs,
 {
     target_ulong cursor = get_capreg_cursor(env, cs);
     target_ulong pesbt_for_mem = get_capreg_pesbt(env, cs) ^ CAP_MEM_XOR_MASK;
+    CheriTagTxn txn;
 #ifdef CONFIG_DEBUG_TCG
     if (get_capreg_state(cheri_get_gpcrs(env), cs) == CREG_INTEGER) {
         tcg_debug_assert(pesbt_for_mem == 0 && "Integer values should have NULL PESBT");
@@ -1918,44 +1920,43 @@ void store_cap_to_memory_mmu_index(CPUArchState *env, uint32_t cs,
         tcg_debug_assert(!tag && "Wrong value for cnull?");
     }
     /*
-     * Touching the tags will take both the data write TLB fault and
-     * capability write TLB fault before updating anything.  Thereafter, the
-     * data stores will not take additional faults, so there is no risk of
-     * accidentally tagging a shorn data write.  This, like the rest of the
-     * tag logic, is not multi-TCG-thread safe.
+     * Resolve takes any data-write or capability-write faults before anything
+     * is written. The data and tag are then written under the block's lock
+     * (the callers lock when take_lock is false).
      */
-    tag_writer_lock_t lock = NULL;
-
     env->statcounters_cap_write++;
-    void *host = NULL;
     if (tag) {
         env->statcounters_cap_write_tagged++;
-        host = cheri_tag_set(env, vaddr, cs, NULL, retpc, mmu_idx,
-                             take_lock ? &lock : NULL);
+        cheri_tag_txn_resolve_cap(&txn, env, vaddr, cs, mmu_idx, retpc);
     } else {
-        host = cheri_tag_invalidate_aligned(env, vaddr, retpc, mmu_idx,
-                                            take_lock ? &lock : NULL);
+        cheri_tag_txn_resolve(&txn, env, vaddr, CHERI_CAP_SIZE, mmu_idx, false,
+                              retpc);
     }
+    if (take_lock) {
+        cheri_tag_txn_lock(&txn);
+    }
+
     // When writing back pesbt we have to XOR with the NULL mask to ensure that
     // NULL capabilities have an all-zeroes representation.
-    if (likely(host)) {
+    if (likely(txn.host)) {
         // Fast path, host address in TLB
-        st_cap_word_p((char*)host + CHERI_MEM_OFFSET_METADATA, pesbt_for_mem);
-        st_cap_word_p((char *)host + CHERI_MEM_OFFSET_CURSOR, cursor);
+        st_cap_word_p((char *)txn.host + CHERI_MEM_OFFSET_METADATA,
+                      pesbt_for_mem);
+        st_cap_word_p((char *)txn.host + CHERI_MEM_OFFSET_CURSOR, cursor);
     } else {
         // Slow path for e.g. IO regions.
-        cheri_tag_writer_push_free_on_exception(env, lock);
         qemu_maybe_log_instr_extra(env, "Using slow path for store to guest "
             "address " TARGET_FMT_lx "\n", vaddr);
         cpu_st_cap_word_ra(env, vaddr + CHERI_MEM_OFFSET_METADATA,
                            pesbt_for_mem, retpc);
-        cpu_st_cap_word_ra(env, vaddr + CHERI_MEM_OFFSET_CURSOR, cursor,
-                           retpc);
-        cheri_tag_writer_pop_free_on_exception(env);
+        cpu_st_cap_word_ra(env, vaddr + CHERI_MEM_OFFSET_CURSOR, cursor, retpc);
     }
-
-    cheri_tag_writer_release(lock);
-
+    if (tag) {
+        cheri_tag_txn_set_tag(&txn);
+    } else {
+        cheri_tag_txn_clear_tags(&txn);
+    }
+    cheri_tag_txn_commit(&txn);
 #if defined(TARGET_RISCV) && defined(CONFIG_RVFI_DII)
     env->rvfi_dii_trace.MEM.rvfi_mem_addr = vaddr;
     env->rvfi_dii_trace.MEM.rvfi_mem_wdata[0] = cursor;

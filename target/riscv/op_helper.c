@@ -26,6 +26,7 @@
 #ifdef TARGET_CHERI
 #include "cheri-helper-utils.h"
 #include "cheri_tagmem.h"
+#include "cheri_tag_txn.h"
 #endif
 
 /* Exceptions processing helpers */
@@ -202,21 +203,23 @@ static void do_cbo_zero(CPURISCVState *env, target_ulong address, uintptr_t ra)
 #ifdef TARGET_CHERI
         RAMBlock *r;
         ram_addr_t offs;
-        void *tagblk = NULL;
+        CheriTagTxn txn;
 
         /*
-         * Acquire a tagblock for the region being invalidated (which clears
-         * its tags), and clear the memory whilst the tag block is held.
-         * Holding the tagblk prevents another thread storing a capability to
-         * the same region whilst clearing the memory and invalidating the tags
+         * The transaction holds the tag block's lock whilst we clear the
+         * memory. The tags are cleared and the lock released when we commit.
+         * The begin_phys_write call clips the cbozlen to the end of the
+         * tagblock. A cache block never crosses one.
          */
         rcu_read_lock(); /* protect r from changes while we use it */
         r = qemu_ram_block_from_host(mem, /* round to page? */ false, &offs);
         if (r) {
-            tagblk = cheri_tag_phys_invalidate_begin(env, r, offs, &cbozlen);
+            cheri_tag_txn_begin_phys_write(&txn, env, r, offs, &cbozlen);
+            memset(mem, 0, cbozlen);
+            cheri_tag_txn_commit(&txn);
+        } else {
+            memset(mem, 0, cbozlen);
         }
-        memset(mem, 0, cbozlen);
-        cheri_tag_phys_invalidate_end(tagblk); /* NULL tagblk is ignored */
         rcu_read_unlock();
 #else
         memset(mem, 0, cbozlen);

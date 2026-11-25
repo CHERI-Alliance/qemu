@@ -1170,6 +1170,21 @@ void cheri_tag_store_end(CPUArchState *env)
     txn_cpu->store_open = false;
 }
 
+bool cheri_tag_lock_reserved_txn(CheriTagTxn *txn, CPUArchState *env,
+                                 target_ulong vaddr, int reg, bool tag,
+                                 uintptr_t pc, int mmu_idx, void *res_tagmem,
+                                 unsigned long res_seq)
+{
+    if (tag) {
+        cheri_tag_txn_resolve_cap(txn, env, vaddr, reg, mmu_idx, pc);
+    } else {
+        /* Store without a tag is just a plain data store */
+        cheri_tag_txn_resolve(txn, env, vaddr, CHERI_CAP_SIZE, mmu_idx, false,
+                              pc);
+    }
+    return cheri_tag_txn_lock_reserved(txn, res_tagmem, res_seq);
+}
+
 static void *cheri_tag_invalidate_one(CPUArchState *env, target_ulong vaddr,
                                       int32_t size, uintptr_t pc, int mmu_idx,
                                       tag_writer_lock_t *lock,
