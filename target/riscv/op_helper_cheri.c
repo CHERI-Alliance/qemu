@@ -526,9 +526,9 @@ static target_ulong sc_c_impl(CPUArchState *env, uint32_t addr_reg,
     target_ulong current_cursor;
     bool current_tag;
 
-    if (!cheri_tag_lock_reserved_txn(
-            &txn, env, addr, addr_reg, store_tag, _host_return_address,
-            cpu_mmu_index(env, false), expected_tagmem, expected_seq, 1)) {
+    if (!cheri_tag_sc_begin(&txn, env, addr, addr_reg, store_tag,
+                            _host_return_address, cpu_mmu_index(env, false),
+                            expected_tagmem, expected_seq, 1)) {
         goto sc_failed;
     }
     /*
@@ -564,7 +564,7 @@ static target_ulong sc_c_impl(CPUArchState *env, uint32_t addr_reg,
         store_cap_to_memory(env, val_reg, addr_reg, addr, _host_return_address);
     }
 
-    cheri_tag_unlock_reserved_txn(&txn);
+    cheri_tag_sc_end(&txn);
 sc_failed:
     tcg_debug_assert(env->load_res == -1);
     return store_fails; /* success */

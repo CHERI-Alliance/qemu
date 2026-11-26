@@ -246,11 +246,6 @@ static inline QEMU_ALWAYS_INLINE void __tagblock_dma_clear(CheriTagBlock *block,
  */
 void cheri_tag_txn_exception_thrown(CPUState *cpu);
 
-static inline void cheri_tag_locks_exception_thrown(CPUState *cpu)
-{
-    cheri_tag_txn_exception_thrown(cpu);
-}
-
 void cheri_tag_init(MemoryRegion *mr, uint64_t memory_size);
 
 /* Get a single tag */
@@ -272,9 +267,9 @@ int cheri_tag_get_many(CPUArchState *env, target_ulong vaddr, int reg,
 void cheri_tag_set_many(CPUArchState *env, uint32_t tags, target_ulong vaddr,
                         int reg, hwaddr *ret_paddr, uintptr_t pc);
 
-void *cheri_tagmem_for_addr(CPUArchState *env, target_ulong vaddr,
-                            RAMBlock *ram, ram_addr_t ram_offset, size_t size,
-                            int *prot, bool tag_write);
+void *cheri_tag_block_for_fill(CPUArchState *env, target_ulong vaddr,
+                               RAMBlock *ram, ram_addr_t ram_offset,
+                               size_t size, int *prot, bool tag_write);
 
 /* Helpers for writes to tagged RAM */
 
@@ -329,6 +324,6 @@ void cheri_tag_phys_invalidate_range_end(RAMBlock *ram, ram_addr_t offset,
 bool cheri_tag_get_debug(RAMBlock *ram, ram_addr_t ram_offset);
 #else /* !TARGET_CHERI */
 
-#define cheri_tag_locks_exception_thrown(...)
+#define cheri_tag_txn_exception_thrown(...)
 
 #endif /* TARGET_CHERI */

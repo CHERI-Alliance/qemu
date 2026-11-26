@@ -210,40 +210,6 @@ void CHERI_HELPER_IMPL(cgetpccsetaddr(CPUArchState *env, uint32_t cd,
     derive_cap_from_pcc(env, cd, new_addr, GETPC(), OOB_INFO(cgetpccsetaddr));
 }
 
-void CHERI_HELPER_IMPL(cheri_invalidate_tags(CPUArchState *env,
-                                             target_ulong vaddr,
-                                             MemOpIdx oi))
-{
-    /* Should only be used when locking is off */
-    CPUState *cpu = env_cpu(env);
-    int size = memop_size(get_memop(oi));
-    int mmu_idx = get_mmuidx(oi);
-    uintptr_t pc = GETPC();
-
-    tcg_debug_assert(!(cpu->tcg_cflags & CF_PARALLEL));
-    cheri_tag_store_begin(env, vaddr, size, mmu_idx, pc);
-    cheri_tag_store_invalidate(env, vaddr, size, mmu_idx, pc);
-}
-
-/*
- * Use this for conditional clear when needing to avoid a branch in the TCG
- * backend.
- */
-void CHERI_HELPER_IMPL(cheri_invalidate_tags_condition(
-    CPUArchState *env, target_ulong vaddr, MemOpIdx oi, uint32_t cond))
-{
-    CPUState *cpu = env_cpu(env);
-    int size = memop_size(get_memop(oi));
-    int mmu_idx = get_mmuidx(oi);
-    uintptr_t pc = GETPC();
-
-    tcg_debug_assert(!(cpu->tcg_cflags & CF_PARALLEL));
-    if (cond) {
-        cheri_tag_store_begin(env, vaddr, size, mmu_idx, pc);
-        cheri_tag_store_invalidate(env, vaddr, size, mmu_idx, pc);
-    }
-}
-
 /*
  * These versions take (possibly two) locks, and also register them to be freed
  * On an exception
@@ -253,8 +219,8 @@ void CHERI_HELPER_IMPL(cheri_invalidate_tags_condition(
  * If using the lock to protect a standard atomic, then we always need a lock
  * if we are accessing mmio we need a dummy lock
  */
-void CHERI_HELPER_IMPL(cheri_invalidate_lock_tags_start_or_dummy(
-    CPUArchState *env, target_ulong vaddr, MemOpIdx oi))
+void CHERI_HELPER_IMPL(cheri_tag_store_begin(CPUArchState *env,
+                                             target_ulong vaddr, MemOpIdx oi))
 {
     int size = memop_size(get_memop(oi));
     int mmu_idx = get_mmuidx(oi);
@@ -263,18 +229,18 @@ void CHERI_HELPER_IMPL(cheri_invalidate_lock_tags_start_or_dummy(
     cheri_tag_store_begin(env, vaddr, size, mmu_idx, pc);
 }
 
-void CHERI_HELPER_IMPL(cheri_invalidate_lock_tags_end(CPUArchState *env,
-                                                      target_ulong vaddr,
-                                                      MemOpIdx oi))
+void CHERI_HELPER_IMPL(cheri_tag_store_end_clear(CPUArchState *env,
+                                                 target_ulong vaddr,
+                                                 MemOpIdx oi))
 {
     int size = memop_size(get_memop(oi));
     int mmu_idx = get_mmuidx(oi);
     uintptr_t pc = GETPC();
 
-    cheri_tag_store_invalidate(env, vaddr, size, mmu_idx, pc);
+    cheri_tag_store_end_clear(env, vaddr, size, mmu_idx, pc);
 }
 
-void CHERI_HELPER_IMPL(cheri_invalidate_lock_tags_end_condition(
+void CHERI_HELPER_IMPL(cheri_tag_store_end_condition(
     CPUArchState *env, target_ulong vaddr, MemOpIdx oi, uint32_t cond))
 {
     int size = memop_size(get_memop(oi));
@@ -282,7 +248,7 @@ void CHERI_HELPER_IMPL(cheri_invalidate_lock_tags_end_condition(
     uintptr_t pc = GETPC();
 
     if (cond) {
-        cheri_tag_store_invalidate(env, vaddr, size, mmu_idx, pc);
+        cheri_tag_store_end_clear(env, vaddr, size, mmu_idx, pc);
     } else {
         cheri_tag_store_end(env);
     }

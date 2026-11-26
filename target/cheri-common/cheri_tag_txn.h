@@ -35,9 +35,9 @@
 
 #if defined(TARGET_CHERI)
 
-CheriTagBlock *cheri_tag_dummy_block(target_ulong vaddr);
-void cheri_tagblock_clear_range(CheriTagBlock *tagblk, size_t cap_idx,
-                                size_t end_idx);
+CheriTagBlock *cheri_tag_block_dummy(target_ulong vaddr);
+void cheri_tag_block_clear_range(CheriTagBlock *tagblk, size_t cap_idx,
+                                 size_t end_idx);
 void cheri_tag_txn_log_tags(CheriTagTxn *txn);
 void cheri_tag_txn_log_tag_write(CheriTagTxn *txn);
 
@@ -314,17 +314,16 @@ void cheri_tag_txn_resolve_phys_store(CheriTagTxn *txn, CPUArchState *env,
 void cheri_tag_store_begin(CPUArchState *env, target_ulong vaddr, int size,
                            int mmu_idx, uintptr_t pc);
 
-void cheri_tag_store_invalidate(CPUArchState *env, target_ulong vaddr, int size,
-                                int mmu_idx, uintptr_t pc);
+void cheri_tag_store_end_clear(CPUArchState *env, target_ulong vaddr, int size,
+                               int mmu_idx, uintptr_t pc);
 
 void cheri_tag_store_end(CPUArchState *env);
 
-bool cheri_tag_lock_reserved_txn(CheriTagTxn *txn, CPUArchState *env,
-                                 target_ulong vaddr, int reg, bool tag,
-                                 uintptr_t pc, int mmu_idx, void *res_tagmem,
-                                 unsigned long res_seq, int ncaps);
+bool cheri_tag_sc_begin(CheriTagTxn *txn, CPUArchState *env, target_ulong vaddr,
+                        int reg, bool tag, uintptr_t pc, int mmu_idx,
+                        void *res_tagmem, unsigned long res_seq, int ncaps);
 
-void cheri_tag_unlock_reserved_txn(CheriTagTxn *txn);
+void cheri_tag_sc_end(CheriTagTxn *txn);
 
 /* Clear a range of tags. If logging is enabled log the non zero tags first */
 static inline QEMU_ALWAYS_INLINE void cheri_tag_txn_clear_tags(CheriTagTxn *txn)
@@ -343,9 +342,9 @@ static inline QEMU_ALWAYS_INLINE void cheri_tag_txn_clear_tags(CheriTagTxn *txn)
             __tagblock_tag_clear(txn->span[nspan].block,
                                  txn->span[nspan].first);
         } else {
-            cheri_tagblock_clear_range(txn->span[nspan].block,
-                                       txn->span[nspan].first,
-                                       txn->span[nspan].end);
+            cheri_tag_block_clear_range(txn->span[nspan].block,
+                                        txn->span[nspan].first,
+                                        txn->span[nspan].end);
         }
     }
 }

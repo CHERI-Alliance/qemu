@@ -109,7 +109,7 @@ QEMU_BUILD_BUG_ON(sizeof(CheriTagBlock) > TAGBLOCK_CHUNK_SIZE);
 static __thread CheriTagBlock *tag_alloc_data;
 static __thread unsigned int tag_alloc_used;
 
-static CheriTagBlock *cheri_tag_new_tagblk(RAMBlock *ram, uint64_t tagidx)
+static CheriTagBlock *cheri_tag_block_alloc(RAMBlock *ram, uint64_t tagidx)
 {
     CheriTagBlock *tagblk, *old;
 
@@ -151,19 +151,19 @@ cheri_tag_block_at(size_t tag_index, RAMBlock *ram)
         return NULL;
     }
     CheriTagBlock **tagmem = (CheriTagBlock **)ram->cheri_tags;
-    /* pairs with qatomic_cmpxchg in cheri_tag_new_tagblk */
+    /* pairs with qatomic_cmpxchg in cheri_tag_block_alloc */
     return qatomic_load_acquire(&tagmem[tagbock_index]);
 }
 
-static CheriTagBlock *cheri_tagblk_find_or_alloc(RAMBlock *ram,
-                                                 ram_addr_t ram_offset)
+static CheriTagBlock *cheri_tag_block_find_or_alloc(RAMBlock *ram,
+                                                    ram_addr_t ram_offset)
 {
     CheriTagBlock *tagblk;
     size_t start_idx = ram_offset / CHERI_CAP_SIZE;
     tagblk = cheri_tag_block_at(start_idx, ram);
     if (!tagblk) {
         /* Attempt to allocate a new tagblock */
-        tagblk = cheri_tag_new_tagblk(ram, start_idx);
+        tagblk = cheri_tag_block_alloc(ram, start_idx);
     }
     return tagblk;
 }
@@ -236,9 +236,9 @@ void cheri_tag_init(MemoryRegion *mr, uint64_t memory_size)
  * A fill of tagged RAM always allocates the block, so no TLB entry for
  * tagged RAM is missing it and no flush is needed.
  */
-void *cheri_tagmem_for_addr(CPUArchState *env, target_ulong vaddr,
-                            RAMBlock *ram, ram_addr_t ram_offset, size_t size,
-                            int *prot, bool tag_write)
+void *cheri_tag_block_for_fill(CPUArchState *env, target_ulong vaddr,
+                               RAMBlock *ram, ram_addr_t ram_offset,
+                               size_t size, int *prot, bool tag_write)
 {
 
     if (unlikely(!ram || !ram->cheri_tags)) {
@@ -261,7 +261,7 @@ void *cheri_tagmem_for_addr(CPUArchState *env, target_ulong vaddr,
                        "Unexpected offset");
     cheri_debug_assert(size == TARGET_PAGE_SIZE && "Unexpected size");
 #endif
-    return cheri_tagblk_find_or_alloc(ram, ram_offset);
+    return cheri_tag_block_find_or_alloc(ram, ram_offset);
 }
 
 /*
@@ -455,7 +455,7 @@ void cheri_tag_phys_invalidate_range_begin(RAMBlock *ram, ram_addr_t offset,
         tagblk = cheri_tag_block_at(blk / CHERI_CAP_SIZE, ram);
         if (!tagblk) {
             /* Attempt to allocate a new tagblock */
-            tagblk = cheri_tag_new_tagblk(ram, blk / CHERI_CAP_SIZE);
+            tagblk = cheri_tag_block_alloc(ram, blk / CHERI_CAP_SIZE);
         }
         tagblock_lock_write(tagblk);
         tag_idx_for_range(blk, offset, *len, &first, &last);
@@ -505,10 +505,9 @@ void cheri_tag_phys_invalidate_range_end(RAMBlock *ram, ram_addr_t offset,
     }
 }
 
-static inline void *get_tagmem_from_iotlb_entry(CPUArchState *env,
-                                                target_ulong vaddr, int mmu_idx,
-                                                bool isWrite,
-                                                uintptr_t *flags_out)
+static inline void *cheri_tag_block_from_tlb(CPUArchState *env,
+                                             target_ulong vaddr, int mmu_idx,
+                                             bool isWrite, uintptr_t *flags_out)
 {
     /*
      * Find the iotlbentry for ptr.  This *must* be present in the TLB
@@ -555,8 +554,7 @@ cheri_tag_block_for_probed(CPUArchState *env, target_ulong vaddr, int mmu_idx,
         *flags_out = 0;
         return probe_block;
     }
-    return get_tagmem_from_iotlb_entry(env, vaddr, mmu_idx, is_write,
-                                       flags_out);
+    return cheri_tag_block_from_tlb(env, vaddr, mmu_idx, is_write, flags_out);
 }
 
 /*
@@ -686,7 +684,7 @@ bool cheri_tag_txn_resolve(CheriTagTxn *txn, CPUArchState *env,
             cheri_tag_txn_add_cap(txn, block,
                                   page_vaddr_to_tag_offset(offset[i]));
         } else {
-            cheri_tag_txn_add_lock(txn, cheri_tag_dummy_block(offset[i]), true);
+            cheri_tag_txn_add_lock(txn, cheri_tag_block_dummy(offset[i]), true);
         }
     }
     txn->host = host[0];
@@ -717,7 +715,7 @@ void cheri_tag_txn_resolve_cap(CheriTagTxn *txn, CPUArchState *env,
         cheri_debug_assert(!(tagmem_flags & TLBENTRYCAP_FLAG_TRAP));
         cheri_tag_txn_add_cap(txn, tagmem, page_vaddr_to_tag_offset(vaddr));
     } else {
-        cheri_tag_txn_add_lock(txn, cheri_tag_dummy_block(vaddr), true);
+        cheri_tag_txn_add_lock(txn, cheri_tag_block_dummy(vaddr), true);
     }
     txn->host = host_addr;
 }
@@ -736,7 +734,7 @@ void cheri_tag_txn_resolve_phys(CheriTagTxn *txn, CPUArchState *env,
     if (!ram->cheri_tags) {
         return;
     }
-    tagmem = cheri_tagblk_find_or_alloc(ram, offset);
+    tagmem = cheri_tag_block_find_or_alloc(ram, offset);
     if (*len == 0) {
         /* Just take a lock do not record a span */
         cheri_tag_txn_add_lock(txn, tagmem, false);
@@ -770,7 +768,7 @@ void cheri_tag_txn_resolve_phys_store(CheriTagTxn *txn, CPUArchState *env,
 
     for (c = first; c <= end; c++) {
         /* Expect to pass through this only one or two passes */
-        tagmem = cheri_tagblk_find_or_alloc(ram, c * CHERI_CAP_SIZE);
+        tagmem = cheri_tag_block_find_or_alloc(ram, c * CHERI_CAP_SIZE);
         idx = (c * CHERI_CAP_SIZE % CHERI_TAG_BLOCK_SIZE) / CHERI_CAP_SIZE;
         cheri_tag_txn_add_cap(txn, tagmem, idx);
     }
@@ -870,8 +868,8 @@ void cheri_tag_store_begin(CPUArchState *env, target_ulong vaddr, int size,
     txn_cpu->store_open = true;
 }
 
-void cheri_tag_store_invalidate(CPUArchState *env, target_ulong vaddr, int size,
-                                int mmu_idx, uintptr_t pc)
+void cheri_tag_store_end_clear(CPUArchState *env, target_ulong vaddr, int size,
+                               int mmu_idx, uintptr_t pc)
 {
     CheriTagTxnCpu *txn_cpu = &env_cpu(env)->cheri_txn;
     CheriTagTxn txn;
@@ -902,10 +900,9 @@ void cheri_tag_store_end(CPUArchState *env)
     txn_cpu->store_open = false;
 }
 
-bool cheri_tag_lock_reserved_txn(CheriTagTxn *txn, CPUArchState *env,
-                                 target_ulong vaddr, int reg, bool tag,
-                                 uintptr_t pc, int mmu_idx, void *res_tagmem,
-                                 unsigned long res_seq, int ncaps)
+bool cheri_tag_sc_begin(CheriTagTxn *txn, CPUArchState *env, target_ulong vaddr,
+                        int reg, bool tag, uintptr_t pc, int mmu_idx,
+                        void *res_tagmem, unsigned long res_seq, int ncaps)
 {
     /* Make sure we are either working on one capability, or an aligned pair */
     cheri_debug_assert(ncaps == 1 ||
@@ -923,7 +920,7 @@ bool cheri_tag_lock_reserved_txn(CheriTagTxn *txn, CPUArchState *env,
                     page_vaddr_to_tag_offset(vaddr + CHERI_CAP_SIZE));
             } else {
                 cheri_tag_txn_add_lock(
-                    txn, cheri_tag_dummy_block(vaddr + CHERI_CAP_SIZE), true);
+                    txn, cheri_tag_block_dummy(vaddr + CHERI_CAP_SIZE), true);
             }
         }
     } else {
@@ -934,13 +931,13 @@ bool cheri_tag_lock_reserved_txn(CheriTagTxn *txn, CPUArchState *env,
     return cheri_tag_txn_lock_reserved(txn, res_tagmem, res_seq);
 }
 
-void cheri_tag_unlock_reserved_txn(CheriTagTxn *txn)
+void cheri_tag_sc_end(CheriTagTxn *txn)
 {
     cheri_tag_txn_commit(txn);
 }
 
-void cheri_tagblock_clear_range(CheriTagBlock *tagblk, size_t cap_idx,
-                                size_t end_idx)
+void cheri_tag_block_clear_range(CheriTagBlock *tagblk, size_t cap_idx,
+                                 size_t end_idx)
 {
     int nr, bits_to_clear, word;
     unsigned long mask_to_clear;
@@ -1185,7 +1182,7 @@ void cheri_tag_set_many(CPUArchState *env, uint32_t tags, target_ulong vaddr,
 
 CheriTagBlock dummy_tag_table[TAGS_PER_BLOCK_MAX];
 
-CheriTagBlock *cheri_tag_dummy_block(target_ulong vaddr)
+CheriTagBlock *cheri_tag_block_dummy(target_ulong vaddr)
 {
     return &dummy_tag_table[page_vaddr_to_tag_offset(vaddr)];
 }

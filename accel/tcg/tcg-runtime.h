@@ -122,19 +122,10 @@ DEF_HELPER_3(pcc_check_bounds, void, env, tl, tl)
  * TCG_CALL_NO_WG? tags are not globals, so it should be all of them?
  */
 
-/* Clear tags due to a store. Only calll this after the store succeeded. */
-DEF_HELPER_3(cheri_invalidate_tags, void, env, cap_checked_ptr, memop_idx)
-
-/* Clear tags due to a store, last argument is whether the store succeeded. */
-DEF_HELPER_4(cheri_invalidate_tags_condition, void, env, cap_checked_ptr,
+DEF_HELPER_3(cheri_tag_store_begin, void, env, cap_checked_ptr, memop_idx)
+DEF_HELPER_3(cheri_tag_store_end_clear, void, env, cap_checked_ptr, memop_idx)
+DEF_HELPER_4(cheri_tag_store_end_condition, void, env, cap_checked_ptr,
              memop_idx, i32)
-
-DEF_HELPER_3(cheri_invalidate_lock_tags_start_or_dummy, void, env,
-             cap_checked_ptr, memop_idx)
-DEF_HELPER_3(cheri_invalidate_lock_tags_end, void, env, cap_checked_ptr,
-             memop_idx)
-DEF_HELPER_4(cheri_invalidate_lock_tags_end_condition, void, env,
-             cap_checked_ptr, memop_idx, i32)
 
 #endif
 

@@ -2999,8 +2999,7 @@ TCGv_i32 handle_conditional_invalidate_start(TCGv_cap_checked_ptr checked_addr,
 #if defined(TARGET_CHERI)
     tcoi = tcg_const_i32(make_memop_idx(memop, mmu_idx));
 
-    gen_helper_cheri_invalidate_lock_tags_start_or_dummy(cpu_env, checked_addr,
-                                                         tcoi);
+    gen_helper_cheri_tag_store_begin(cpu_env, checked_addr, tcoi);
 #endif
     return tcoi;
 }
@@ -3010,8 +3009,8 @@ void handle_conditional_invalidate_end(TCGv_cap_checked_ptr checked_addr,
 {
 #ifdef TARGET_CHERI
     /* Condition handled in helper */
-    gen_helper_cheri_invalidate_lock_tags_end_condition(cpu_env, checked_addr,
-                                                        oi, store_happens);
+    gen_helper_cheri_tag_store_end_condition(cpu_env, checked_addr, oi,
+                                             store_happens);
     tcg_temp_free_i32(oi);
 #endif
 #if defined(TARGET_MIPS) || defined(TARGET_RISCV)
@@ -3055,8 +3054,7 @@ static void tcg_gen_qemu_st_i32_with_checked_addr_cond_invalidate(
 
 #ifdef TARGET_CHERI
     if (take_lock) {
-        gen_helper_cheri_invalidate_lock_tags_start_or_dummy(cpu_env, addr,
-                                                             tcoi);
+        gen_helper_cheri_tag_store_begin(cpu_env, addr, tcoi);
     }
 #endif
     if (TCG_TARGET_HAS_qemu_st8_i32 && (memop & MO_SIZE) == MO_8) {
@@ -3066,7 +3064,7 @@ static void tcg_gen_qemu_st_i32_with_checked_addr_cond_invalidate(
     }
 #ifdef TARGET_CHERI
     if (invalidate) {
-        gen_helper_cheri_invalidate_lock_tags_end(cpu_env, addr, tcoi);
+        gen_helper_cheri_tag_store_end_clear(cpu_env, addr, tcoi);
     }
 #endif
 
@@ -3215,8 +3213,7 @@ void tcg_gen_qemu_st_i64_with_checked_addr_cond_invalidate(
     TCGv_i32 tcoi = tcg_const_i32(make_memop_idx(memop, idx));
 #ifdef TARGET_CHERI
     if (take_lock) {
-        gen_helper_cheri_invalidate_lock_tags_start_or_dummy(cpu_env, addr,
-                                                             tcoi);
+        gen_helper_cheri_tag_store_begin(cpu_env, addr, tcoi);
     }
 #endif
     gen_ldst_i64(INDEX_op_qemu_st_i64, val, addr, memop, idx);
@@ -3230,7 +3227,7 @@ void tcg_gen_qemu_st_i64_with_checked_addr_cond_invalidate(
 #endif
 #if defined(TARGET_CHERI)
     if (invalidate) {
-        gen_helper_cheri_invalidate_lock_tags_end(cpu_env, addr, tcoi);
+        gen_helper_cheri_tag_store_end_clear(cpu_env, addr, tcoi);
     }
 #endif
 
@@ -3493,8 +3490,7 @@ static void do_nonatomic_op_i32(TCGv_i32 ret, TCGv_cap_checked_ptr checked_addr,
 
 #ifdef TARGET_CHERI
     TCGv_i32 tcoi = tcg_const_i32(make_memop_idx(memop, idx));
-    gen_helper_cheri_invalidate_lock_tags_start_or_dummy(cpu_env, checked_addr,
-                                                         tcoi);
+    gen_helper_cheri_tag_store_begin(cpu_env, checked_addr, tcoi);
     tcg_temp_free_i32(tcoi);
 #endif
 
@@ -3554,8 +3550,7 @@ static void do_nonatomic_op_i64(TCGv_i64 ret, TCGv_cap_checked_ptr checked_addr,
 
 #ifdef TARGET_CHERI
     TCGv_i32 tcop = tcg_const_i32(make_memop_idx(memop, idx));
-    gen_helper_cheri_invalidate_lock_tags_start_or_dummy(cpu_env, checked_addr,
-                                                         tcop);
+    gen_helper_cheri_tag_store_begin(cpu_env, checked_addr, tcop);
     tcg_temp_free_i32(tcop);
 #endif
 

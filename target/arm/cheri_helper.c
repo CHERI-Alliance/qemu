@@ -218,7 +218,7 @@ void helper_store_exclusive_cap_via_cap(CPUArchState *env, uint32_t rs,
 
     if (success) {
         reserved = true;
-        success = cheri_tag_lock_reserved_txn(
+        success = cheri_tag_sc_begin(
             &txn, env, addr, cb, store_tag, _host_return_address,
             cpu_mmu_index(env, false), env->exclusive_tagmem,
             env->exclusive_seq, cd2 == REG_NONE ? 1 : 2);
@@ -253,7 +253,7 @@ void helper_store_exclusive_cap_via_cap(CPUArchState *env, uint32_t rs,
     }
 
     if (reserved) {
-        cheri_tag_unlock_reserved_txn(&txn);
+        cheri_tag_sc_end(&txn);
     }
 
     env->exclusive_addr = -1;

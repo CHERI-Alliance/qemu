@@ -577,7 +577,7 @@ void cpu_exec_step_atomic(CPUState *cpu)
         cpu_tb_exec(cpu, tb, &tb_exit);
         cpu_exec_exit(cpu);
     } else {
-        cheri_tag_locks_exception_thrown(cpu);
+        cheri_tag_txn_exception_thrown(cpu);
         /*
          * The mmap_lock is dropped by tb_gen_code if it runs out of
          * memory.
@@ -990,7 +990,7 @@ int cpu_exec(CPUState *cpu)
         }
 #endif
 
-        cheri_tag_locks_exception_thrown(cpu);
+        cheri_tag_txn_exception_thrown(cpu);
 
         if (qemu_mutex_iothread_locked()) {
             qemu_mutex_unlock_iothread();

@@ -1153,7 +1153,7 @@ void tlb_set_page_full(CPUState *cpu, int mmu_idx,
      * Getting tagmem can cause an invalidation, so best to do this before
      * any other entries are modified.
      */
-    uintptr_t tagmem = (uintptr_t)cheri_tagmem_for_addr(
+    uintptr_t tagmem = (uintptr_t)cheri_tag_block_for_fill(
         env, vaddr, section->mr->ram_block, xlat, sz, &prot, tag_setting);
     assert((tagmem & TLBENTRYCAP_MASK) == 0);
 #endif

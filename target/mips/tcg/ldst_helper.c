@@ -100,7 +100,7 @@ static inline target_ulong ccheck_store_right(CPUMIPSState *env, target_ulong of
     cheri_tag_store_begin(env, addr, 1, mem_idx, retpc)
 
 #define invalidate_tags_store_left_right_end(env, addr, retpc, mem_idx)        \
-    cheri_tag_store_invalidate(env, addr, 1, mem_idx, retpc)
+    cheri_tag_store_end_clear(env, addr, 1, mem_idx, retpc)
 
 #else /* !TARGET_CHERI */
 
