@@ -815,12 +815,54 @@ void cheri_tag_txn_exception_thrown(CPUState *cpu)
     txn_cpu->store_open = false;
 }
 
+/*
+ * The most common case for a resolve is the simple case i.e.
+ * all bytes in one capability and hitting tagged RAM in the TLB.
+ * So optimise for that case, return false if the fast probe fails and we must
+ * fall back to the slow, general purpose resolve.
+ */
+static inline QEMU_ALWAYS_INLINE bool
+cheri_tag_txn_resolve_fastcap(CPUArchState *env, CheriTagTxnCpu *txn_cpu,
+                              target_ulong vaddr, int size, int mmu_idx,
+                              uintptr_t pc)
+{
+    CheriTagTxn *txn = &txn_cpu->store;
+    int flags;
+    void *host, *block;
+    /* Check that the first and last byte are in the same capability */
+    if ((vaddr & (CHERI_CAP_SIZE - 1)) + size <= CHERI_CAP_SIZE) {
+        flags = probe_access_flags_fast(env, vaddr, size, MMU_DATA_STORE,
+                                        mmu_idx, true, &host, &block, pc);
+        /* Check we got a real tagblock */
+        if (block && ((flags & TLB_INVALID_MASK) == 0)) {
+            txn->cpu = env_cpu(env);
+            txn->flags = CHERI_TAG_TXN_VIRT;
+            txn->addr = vaddr;
+            txn->host = host;
+            txn->lock[0] = block;
+            txn->nlocks = 1;
+            txn->nreal = 1;
+            txn->span[0].block = block;
+            txn->span[0].first = page_vaddr_to_tag_offset(vaddr);
+            txn->span[0].end = txn->span[0].first + 1;
+            txn->nspans = 1;
+            return true;
+        }
+    }
+    return false;
+}
+
 void cheri_tag_store_begin(CPUArchState *env, target_ulong vaddr, int size,
                            int mmu_idx, uintptr_t pc)
 {
     CheriTagTxnCpu *txn_cpu = &env_cpu(env)->cheri_txn;
     cheri_debug_assert(!txn_cpu->store_open);
-    cheri_tag_txn_resolve(&txn_cpu->store, env, vaddr, size, mmu_idx, true, pc);
+    /* Try the resolve_fastcap path else fall back to the slow path */
+    if (!cheri_tag_txn_resolve_fastcap(env, txn_cpu, vaddr, size, mmu_idx,
+                                       pc)) {
+        cheri_tag_txn_resolve(&txn_cpu->store, env, vaddr, size, mmu_idx, true,
+                              pc);
+    }
     cheri_tag_txn_lock(&txn_cpu->store);
     txn_cpu->store_open = true;
 }

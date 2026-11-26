@@ -338,9 +338,15 @@ static inline QEMU_ALWAYS_INLINE void cheri_tag_txn_clear_tags(CheriTagTxn *txn)
         cheri_tag_txn_log_tags(txn);
     }
     for (nspan = 0; nspan < txn->nspans; nspan++) {
-        cheri_tagblock_clear_range(txn->span[nspan].block,
-                                   txn->span[nspan].first,
-                                   txn->span[nspan].end);
+        if (txn->span[nspan].end == txn->span[nspan].first + 1) {
+            /* If a span covers a single capability we can clear it faster */
+            __tagblock_tag_clear(txn->span[nspan].block,
+                                 txn->span[nspan].first);
+        } else {
+            cheri_tagblock_clear_range(txn->span[nspan].block,
+                                       txn->span[nspan].first,
+                                       txn->span[nspan].end);
+        }
     }
 }
 
