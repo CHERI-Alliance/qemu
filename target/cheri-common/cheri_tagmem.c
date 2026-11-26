@@ -232,7 +232,7 @@ void cheri_tag_init(MemoryRegion *mr, uint64_t memory_size)
 
 /*
  * Returns the tagblock for a TLB fill, allocating it on first use, or
- * ALL_ZERO_TAGBLK for memory without tags.
+ * NULL for memory without tags.
  * A fill of tagged RAM always allocates the block, so no TLB entry for
  * tagged RAM is missing it and no flush is needed.
  */
@@ -252,7 +252,7 @@ void *cheri_tagmem_for_addr(CPUArchState *env, target_ulong vaddr,
                          (uintmax_t)vaddr, ram ? ram->idstr : NULL,
                          (uintmax_t)ram_offset);
         }
-        return ALL_ZERO_TAGBLK;
+        return NULL;
     }
 
 #ifndef TARGET_AARCH64
@@ -550,20 +550,13 @@ cheri_tag_block_for_probed(CPUArchState *env, target_ulong vaddr, int mmu_idx,
                            bool is_write, void *probe_block,
                            uintptr_t *flags_out)
 {
-    CheriTagBlock *block;
-
     if (probe_block) {
         /* If we have a real probed block, return it */
         *flags_out = 0;
         return probe_block;
     }
-    block =
-        get_tagmem_from_iotlb_entry(env, vaddr, mmu_idx, is_write, flags_out);
-    if (block == ALL_ZERO_TAGBLK) {
-        return NULL;
-    }
-    /* return tagged iotlb memory */
-    return block;
+    return get_tagmem_from_iotlb_entry(env, vaddr, mmu_idx, is_write,
+                                       flags_out);
 }
 
 /*

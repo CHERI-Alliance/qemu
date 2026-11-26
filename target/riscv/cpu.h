@@ -194,8 +194,7 @@ struct CPUArchState {
 #ifdef TARGET_CHERI
     target_ulong load_pesbt;
     /*
-     * tagblock that lr.c last used, NULL or ALL_ZERO_TAGBLK for memory
-     * without tagblocks.
+     * tagblock that lr.c last used or NULL for memory without tag storage.
      */
     void *load_tagmem;
     /*

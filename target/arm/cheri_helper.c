@@ -147,7 +147,7 @@ void helper_load_exclusive_cap_via_cap(CPUArchState *env, uint32_t cd,
                 addr + CHERI_CAP_SIZE, _host_return_address, NULL, true, NULL,
                 &raw_tag);
             env->exclusive_tag2 = raw_tag;
-            if (snapshot.tagmem != NULL && snapshot.tagmem != ALL_ZERO_TAGBLK) {
+            if (snapshot.tagmem) {
                 /* Snapshot contains a real tagblock */
                 if (!tagblock_end_read(snapshot.tagmem, snapshot.seq)) {
                     /*

@@ -1289,7 +1289,7 @@ void tlb_set_page_full(CPUState *cpu, int mmu_idx,
      * Pages without tag memory have nothing for fast paths to lock or read.
      * So they take slow path, like pages with tag flags.
      */
-    tn.tagmem = tagmem == (uintptr_t)ALL_ZERO_TAGBLK ? NULL : (void *)tagmem;
+    tn.tagmem = (void *)tagmem;
 
 #endif
     desc->fulltlb[index].phys_addr = paddr_page;

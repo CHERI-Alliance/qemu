@@ -169,8 +169,6 @@ typedef struct CPUTLBEntryFull {
 #define TLBENTRYCAP_FLAG_TRAP_ANY (uintptr_t)0x4
     /* Clear any tag read/written. */
 #define TLBENTRYCAP_FLAG_CLEAR (uintptr_t)0x2
-    /* This page contains only zero tag bits. */
-#define ALL_ZERO_TAGBLK ((void *)(uintptr_t)(~0 & ~TLBENTRYCAP_MASK))
     /*
      * Just as with CPUTLBEntry we split this via read/write for simpler logic
      * generation. Eventually it will be moved there for fast TCG access.
@@ -217,10 +215,7 @@ typedef struct CPUTLBEntryFull {
 } CPUTLBEntryFull;
 
 #define IOTLB_GET_TAGMEM(iotlbentry, rw)                                       \
-    ({                                                                         \
-        cheri_debug_assert(iotlbentry->tagmem_##rw != (uintptr_t)0);           \
-        (void *)((uintptr_t)iotlbentry->tagmem_##rw & ~TLBENTRYCAP_MASK);      \
-    })
+    ((void *)((uintptr_t)iotlbentry->tagmem_##rw & ~TLBENTRYCAP_MASK))
 #define IOTLB_GET_TAGMEM_FLAGS(iotlbentry, rw)                                 \
     ((uintptr_t)iotlbentry->tagmem_##rw & TLBENTRYCAP_MASK);
 /*

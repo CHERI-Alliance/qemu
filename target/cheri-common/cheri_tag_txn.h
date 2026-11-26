@@ -244,7 +244,7 @@ cheri_tag_txn_lock_reserved(CheriTagTxn *txn, void *resblock,
     unsigned long old_seq;
     cheri_debug_assert((txn->flags & CHERI_TAG_TXN_FAILED) == 0);
     if (txn->nspans == 0) {
-        if (resblock && resblock != ALL_ZERO_TAGBLK) {
+        if (resblock) {
             /*
              * The reservation was for tagged memory which has since been
              * remapped.
@@ -288,7 +288,7 @@ static inline QEMU_ALWAYS_INLINE void
 cheri_tag_txn_init_cap(CheriTagTxn *txn, CPUState *cpu, CheriTagBlock *block,
                        target_ulong vaddr, void *host)
 {
-    cheri_debug_assert(block && block != ALL_ZERO_TAGBLK);
+    cheri_debug_assert(block);
     cheri_tag_txn_init(txn, cpu, CHERI_TAG_TXN_VIRT);
     txn->host = host;
     txn->addr = vaddr;
