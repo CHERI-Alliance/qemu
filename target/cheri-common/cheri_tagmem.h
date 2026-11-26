@@ -88,6 +88,7 @@ struct tag_reader_lock_s {
     CheriTagBlock *tagmem;
     unsigned long seq;
     bool success;
+    bool started; /* cheri_tag_get has begun the read */
 };
 typedef struct tag_reader_lock_s tag_reader_lock_t;
 

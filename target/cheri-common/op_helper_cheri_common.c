@@ -1751,6 +1751,7 @@ retry:
     read_lock.tagmem = NULL;
     read_lock.success = true;
     read_lock.seq = 0;
+    read_lock.started = false;
     if (take_lock) {
         cheri_tag_get(env, vaddr, cb, physaddr, &prot, retpc, mmu_idx, host,
                       tagmem, &read_lock);
