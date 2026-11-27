@@ -97,7 +97,7 @@ static inline target_ulong ccheck_store_right(CPUMIPSState *env, target_ulong of
 }
 /* swr/sdr/swl/sdl will never invalidate more than one capability */
 #define invalidate_tags_store_left_right_start(env, addr, retpc, mem_idx)      \
-    cheri_tag_store_begin(env, addr, 1, mem_idx, retpc)
+    cheri_tag_store_begin(env, addr, make_memop_idx(MO_UB, mem_idx), retpc)
 
 #define invalidate_tags_store_left_right_end(env, addr, retpc, mem_idx)        \
     cheri_tag_store_end_clear(env, addr, 1, mem_idx, retpc)

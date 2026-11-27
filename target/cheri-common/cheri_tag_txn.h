@@ -311,8 +311,8 @@ void cheri_tag_txn_resolve_phys_store(CheriTagTxn *txn, CPUArchState *env,
                                       RAMBlock *ram, ram_addr_t offset,
                                       size_t size);
 
-void cheri_tag_store_begin(CPUArchState *env, target_ulong vaddr, int size,
-                           int mmu_idx, uintptr_t pc);
+void cheri_tag_store_begin(CPUArchState *env, target_ulong vaddr, MemOpIdx oi,
+                           uintptr_t pc);
 
 void cheri_tag_store_end_clear(CPUArchState *env, target_ulong vaddr, int size,
                                int mmu_idx, uintptr_t pc);

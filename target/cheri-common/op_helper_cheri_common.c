@@ -222,11 +222,9 @@ void CHERI_HELPER_IMPL(cgetpccsetaddr(CPUArchState *env, uint32_t cd,
 void CHERI_HELPER_IMPL(cheri_tag_store_begin(CPUArchState *env,
                                              target_ulong vaddr, MemOpIdx oi))
 {
-    int size = memop_size(get_memop(oi));
-    int mmu_idx = get_mmuidx(oi);
     uintptr_t pc = GETPC();
 
-    cheri_tag_store_begin(env, vaddr, size, mmu_idx, pc);
+    cheri_tag_store_begin(env, vaddr, oi, pc);
 }
 
 void CHERI_HELPER_IMPL(cheri_tag_store_end_clear(CPUArchState *env,
