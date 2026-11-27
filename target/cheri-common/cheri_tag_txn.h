@@ -34,7 +34,6 @@
 #include "target/cheri-common/cheri_tag_txn_types.h"
 
 #if defined(TARGET_CHERI)
-
 CheriTagBlock *cheri_tag_block_dummy(target_ulong vaddr);
 void cheri_tag_block_clear_range(CheriTagBlock *tagblk, size_t cap_idx,
                                  size_t end_idx);
@@ -278,6 +277,20 @@ cheri_tag_txn_lock_reserved(CheriTagTxn *txn, void *resblock,
         txn->flags |= CHERI_TAG_TXN_LOCKED;
         if (txn->cpu != NULL && (txn->flags & CHERI_TAG_TXN_VIRT)) {
             cheri_tag_txn_cpu_register(txn);
+        }
+        /*
+         * Need to check for dma reservations so that we fail a store
+         * conditional while its capability is marked for DMA.
+         * As a device holding the dma lock can write the reserved memory
+         * without the tag-block lock so an unchanged sequence doesn't
+         * prove the memory is unchanged.
+         */
+        if (tagblock_bitmap_range_iter(txn->span[0].block->dma_bitmap,
+                                       txn->span[0].first, txn->span[0].end,
+                                       ITER_OP_ANYSET)) {
+            cheri_tag_txn_commit(txn);
+            txn->flags |= CHERI_TAG_TXN_FAILED;
+            return false;
         }
         return true;
     }

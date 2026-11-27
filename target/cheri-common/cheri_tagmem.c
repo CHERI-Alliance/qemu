@@ -288,13 +288,6 @@ static bool tag_idx_for_range(ram_addr_t block_start, ram_addr_t range_offset,
     return true;
 }
 
-typedef enum {
-    ITER_OP_INVAL = 0, /* Prevent 0 initialised ops appearing valid */
-    ITER_OP_SET,
-    ITER_OP_CLEAR,
-    ITER_OP_ANYSET,
-} Bit_Iter_Op;
-
 /*
  * Iterate over a range of a dma or tag bitmap and run the provided operation.
  * Range is specified in block local indices.
@@ -303,8 +296,8 @@ typedef enum {
  * Return value only meaningful for anyset where it indicates if any bits are
  * set in the target range.
  */
-static bool bitmap_range_iter(unsigned long *bitmap, size_t start_idx,
-                              size_t end_idx, Bit_Iter_Op op)
+bool tagblock_bitmap_range_iter(unsigned long *bitmap, size_t start_idx,
+                                size_t end_idx, Bit_Iter_Op op)
 {
 
     unsigned long mask_operand; /* Mask representing bits to set/clear/test */
@@ -369,9 +362,10 @@ static bool bitmap_range_iter(unsigned long *bitmap, size_t start_idx,
 static bool add_block_dma_mapping(CheriTagBlock *tagblk, size_t start,
                                   size_t end)
 {
-    if (!bitmap_range_iter(tagblk->dma_bitmap, start, end, ITER_OP_ANYSET)) {
+    if (!tagblock_bitmap_range_iter(tagblk->dma_bitmap, start, end,
+                                    ITER_OP_ANYSET)) {
         /* No bits in the requested range are set */
-        bitmap_range_iter(tagblk->dma_bitmap, start, end, ITER_OP_SET);
+        tagblock_bitmap_range_iter(tagblk->dma_bitmap, start, end, ITER_OP_SET);
         return true;
     }
     if (tagblk->num_overlaps == NULL) {
@@ -412,7 +406,8 @@ static void remove_block_dma_mapping(CheriTagBlock *tagblk, size_t start,
     }
     if (!tagblk->num_overlaps) {
         /* No overlaps so we can bulk clear the dma bits */
-        bitmap_range_iter(tagblk->dma_bitmap, start, end, ITER_OP_CLEAR);
+        tagblock_bitmap_range_iter(tagblk->dma_bitmap, start, end,
+                                   ITER_OP_CLEAR);
         return;
     }
     /*
@@ -426,8 +421,8 @@ static void remove_block_dma_mapping(CheriTagBlock *tagblk, size_t start,
             __tagblock_dma_clear(tagblk, idx);
         }
     }
-    if (!bitmap_range_iter(tagblk->dma_bitmap, 0, TAGS_PER_PAGE,
-                           ITER_OP_ANYSET)) {
+    if (!tagblock_bitmap_range_iter(tagblk->dma_bitmap, 0, TAGS_PER_PAGE,
+                                    ITER_OP_ANYSET)) {
         g_free(tagblk->num_overlaps);
         tagblk->num_overlaps = NULL;
     }
@@ -497,7 +492,8 @@ void cheri_tag_phys_invalidate_range_end(RAMBlock *ram, ram_addr_t offset,
         }
         tagblock_lock_write(tagblk);
         if (tag_idx_for_range(blk, offset, access_len, &first, &last)) {
-            bitmap_range_iter(tagblk->tag_bitmap, first, last, ITER_OP_CLEAR);
+            tagblock_bitmap_range_iter(tagblk->tag_bitmap, first, last,
+                                       ITER_OP_CLEAR);
         }
         tag_idx_for_range(blk, offset, len, &first, &last);
         remove_block_dma_mapping(tagblk, first, last);

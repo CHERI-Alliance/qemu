@@ -534,8 +534,7 @@ static target_ulong sc_c_impl(CPUArchState *env, uint32_t addr_reg,
     /*
      * Having acquired the lock at this stage means that no locked writer
      * changed the block. However we must still check the current value to cope
-     * with writers that do not take the block lock (e.g. DMA writes through
-     * address_space_map), and memory without tag storage.
+     * with memory without tag storage.
      * The load_cap_from_memory_raw_tag_mmu_idx performs the load and returns
      * the new tag value
      */

@@ -92,6 +92,16 @@ struct tag_reader_lock_s {
 };
 typedef struct tag_reader_lock_s tag_reader_lock_t;
 
+typedef enum {
+    ITER_OP_INVAL = 0, /* Prevent 0 initialised ops appearing valid */
+    ITER_OP_SET,
+    ITER_OP_CLEAR,
+    ITER_OP_ANYSET,
+} Bit_Iter_Op;
+
+bool tagblock_bitmap_range_iter(unsigned long *bitmap, size_t start_idx,
+                                size_t end_idx, Bit_Iter_Op op);
+
 static inline QEMU_ALWAYS_INLINE void
 tagblock_unlock_write(CheriTagBlock *block)
 {
