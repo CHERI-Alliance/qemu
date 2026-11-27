@@ -20,6 +20,7 @@
 #ifndef QEMU_CPU_H
 #define QEMU_CPU_H
 
+#include "target/cheri-common/cheri_tag_txn_types.h"
 #include "hw/qdev-core.h"
 #include "disas/dis-asm.h"
 #include "exec/cpu-common.h"
@@ -452,6 +453,9 @@ struct CPUState {
 #ifdef CONFIG_TCG_LOG_INSTR
     cpu_log_instr_state_t log_state;
 #endif
+
+    /* TARGET_CHERI is poison in this context. Keep these here for now. */
+    CheriTagTxnCpu cheri_txn;
 };
 
 typedef QTAILQ_HEAD(CPUTailQ, CPUState) CPUTailQ;

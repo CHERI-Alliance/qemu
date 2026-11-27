@@ -311,6 +311,9 @@ static inline void glue(address_space_stl_internal, SUFFIX)(ARG1_DECL,
     hwaddr addr1;
     MemTxResult r;
     bool release_lock = false;
+#if defined(TARGET_CHERI)
+    CheriTagTxn txn;
+#endif
 
     RCU_READ_LOCK();
     mr = TRANSLATE(addr, &addr1, &l, true, attrs);
@@ -321,6 +324,11 @@ static inline void glue(address_space_stl_internal, SUFFIX)(ARG1_DECL,
     } else {
         /* RAM case */
         ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
+#if defined(TARGET_CHERI)
+        cheri_tag_txn_resolve_phys_store(&txn, NULL, mr->ram_block, addr1, l);
+        cheri_tag_txn_lock(&txn);
+        cheri_tag_txn_clear_tags(&txn);
+#endif
         switch (endian) {
         case DEVICE_LITTLE_ENDIAN:
             stl_le_p(ptr, val);
@@ -332,6 +340,9 @@ static inline void glue(address_space_stl_internal, SUFFIX)(ARG1_DECL,
             stl_p(ptr, val);
             break;
         }
+#if defined(TARGET_CHERI)
+        cheri_tag_txn_commit(&txn);
+#endif
         invalidate_and_set_dirty(mr, addr1, 4);
         r = MEMTX_OK;
     }
@@ -374,6 +385,9 @@ void glue(address_space_stb, SUFFIX)(ARG1_DECL,
     hwaddr addr1;
     MemTxResult r;
     bool release_lock = false;
+#if defined(TARGET_CHERI)
+    CheriTagTxn txn;
+#endif
 
     RCU_READ_LOCK();
     mr = TRANSLATE(addr, &addr1, &l, true, attrs);
@@ -383,7 +397,15 @@ void glue(address_space_stb, SUFFIX)(ARG1_DECL,
     } else {
         /* RAM case */
         ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
+#if defined(TARGET_CHERI)
+        cheri_tag_txn_resolve_phys_store(&txn, NULL, mr->ram_block, addr1, l);
+        cheri_tag_txn_lock(&txn);
+        cheri_tag_txn_clear_tags(&txn);
+#endif
         stb_p(ptr, val);
+#if defined(TARGET_CHERI)
+        cheri_tag_txn_commit(&txn);
+#endif
         invalidate_and_set_dirty(mr, addr1, 1);
         r = MEMTX_OK;
     }
@@ -407,6 +429,9 @@ static inline void glue(address_space_stw_internal, SUFFIX)(ARG1_DECL,
     hwaddr addr1;
     MemTxResult r;
     bool release_lock = false;
+#if defined(TARGET_CHERI)
+    CheriTagTxn txn;
+#endif
 
     RCU_READ_LOCK();
     mr = TRANSLATE(addr, &addr1, &l, true, attrs);
@@ -417,6 +442,11 @@ static inline void glue(address_space_stw_internal, SUFFIX)(ARG1_DECL,
     } else {
         /* RAM case */
         ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
+#if defined(TARGET_CHERI)
+        cheri_tag_txn_resolve_phys_store(&txn, NULL, mr->ram_block, addr1, l);
+        cheri_tag_txn_lock(&txn);
+        cheri_tag_txn_clear_tags(&txn);
+#endif
         switch (endian) {
         case DEVICE_LITTLE_ENDIAN:
             stw_le_p(ptr, val);
@@ -428,6 +458,9 @@ static inline void glue(address_space_stw_internal, SUFFIX)(ARG1_DECL,
             stw_p(ptr, val);
             break;
         }
+#if defined(TARGET_CHERI)
+        cheri_tag_txn_commit(&txn);
+#endif
         invalidate_and_set_dirty(mr, addr1, 2);
         r = MEMTX_OK;
     }
@@ -471,6 +504,9 @@ static void glue(address_space_stq_internal, SUFFIX)(ARG1_DECL,
     hwaddr addr1;
     MemTxResult r;
     bool release_lock = false;
+#if defined(TARGET_CHERI)
+    CheriTagTxn txn;
+#endif
 
     RCU_READ_LOCK();
     mr = TRANSLATE(addr, &addr1, &l, true, attrs);
@@ -481,6 +517,11 @@ static void glue(address_space_stq_internal, SUFFIX)(ARG1_DECL,
     } else {
         /* RAM case */
         ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
+#if defined(TARGET_CHERI)
+        cheri_tag_txn_resolve_phys_store(&txn, NULL, mr->ram_block, addr1, l);
+        cheri_tag_txn_lock(&txn);
+        cheri_tag_txn_clear_tags(&txn);
+#endif
         switch (endian) {
         case DEVICE_LITTLE_ENDIAN:
             stq_le_p(ptr, val);
@@ -492,6 +533,9 @@ static void glue(address_space_stq_internal, SUFFIX)(ARG1_DECL,
             stq_p(ptr, val);
             break;
         }
+#if defined(TARGET_CHERI)
+        cheri_tag_txn_commit(&txn);
+#endif
         invalidate_and_set_dirty(mr, addr1, 8);
         r = MEMTX_OK;
     }

@@ -2249,6 +2249,12 @@ VFIOGroup *vfio_get_group(int groupid, AddressSpace *as, Error **errp)
     char path[32];
     struct vfio_group_status status = { .argsz = sizeof(status) };
 
+    if (qemu_ram_has_cheri_tags()) {
+        error_setg(errp, "VFIO is not supported on a machine with CHERI"
+                         " tagged memory");
+        return NULL;
+    }
+
     QLIST_FOREACH(group, &vfio_group_list, next) {
         if (group->groupid == groupid) {
             /* Found it.  Now is it already in the right context? */

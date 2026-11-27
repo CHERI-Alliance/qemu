@@ -35,6 +35,7 @@
 #include "exec/translate-all.h"
 #include "trace/trace-root.h"
 #include "cheri_tagmem.h"
+#include "cheri_tag_txn.h"
 #include "tb-hash.h"
 #include "internal.h"
 #ifdef CONFIG_PLUGIN
@@ -1153,7 +1154,7 @@ void tlb_set_page_full(CPUState *cpu, int mmu_idx,
      * Getting tagmem can cause an invalidation, so best to do this before
      * any other entries are modified.
      */
-    uintptr_t tagmem = (uintptr_t)cheri_tagmem_for_addr(
+    uintptr_t tagmem = (uintptr_t)cheri_tag_block_for_fill(
         env, vaddr, section->mr->ram_block, xlat, sz, &prot, tag_setting);
     assert((tagmem & TLBENTRYCAP_MASK) == 0);
 #endif
@@ -1266,19 +1267,30 @@ void tlb_set_page_full(CPUState *cpu, int mmu_idx,
 
     if (prot & PAGE_LC_CLEAR) {
         desc->fulltlb[index].tagmem_read |= TLBENTRYCAP_FLAG_CLEAR;
+        tagmem = 0;
     }
     if (prot & PAGE_LC_TRAP) {
         desc->fulltlb[index].tagmem_read |= TLBENTRYCAP_FLAG_TRAP;
+        tagmem = 0;
     }
     if (prot & PAGE_LC_TRAP_ANY) {
         desc->fulltlb[index].tagmem_read |= TLBENTRYCAP_FLAG_TRAP_ANY;
+        tagmem = 0;
     }
     if (prot & PAGE_SC_CLEAR) {
         desc->fulltlb[index].tagmem_write |= TLBENTRYCAP_FLAG_CLEAR;
+        tagmem = 0;
     }
     if (prot & PAGE_SC_TRAP) {
         desc->fulltlb[index].tagmem_write |= TLBENTRYCAP_FLAG_TRAP;
+        tagmem = 0;
     }
+
+    /*
+     * Pages without tag memory have nothing for fast paths to lock or read.
+     * So they take slow path, like pages with tag flags.
+     */
+    tn.tagmem = (void *)tagmem;
 
 #endif
     desc->fulltlb[index].phys_addr = paddr_page;
@@ -1354,6 +1366,9 @@ static void tlb_fill(CPUState *cpu, target_ulong addr, int size,
      * This is not a probe, so only valid return is success; failure
      * should result in exception + longjmp to the cpu loop.
      */
+#if defined(TARGET_CHERI) && defined(CONFIG_DEBUG_TCG)
+    assert(cpu->cheri_txn.nheld == 0);
+#endif
     ok = cpu->cc->tcg_ops->tlb_fill(cpu, addr, size,
                                     access_type, mmu_idx, false, retaddr);
     assert(ok);
@@ -1624,6 +1639,9 @@ probe_access_internal(CPUArchState *env, target_ulong addr, int fault_size,
                             access_type == MMU_DATA_CAP_STORE)) {
             CPUState *cs = env_cpu(env);
 
+#if defined(TARGET_CHERI) && defined(CONFIG_DEBUG_TCG)
+            assert(cs->cheri_txn.nheld == 0);
+#endif
             if (!cs->cc->tcg_ops->tlb_fill(cs, addr, fault_size, access_type,
                                            mmu_idx, nonfault, retaddr)) {
                 /* Non-faulting page table read failed.  */
@@ -1677,15 +1695,25 @@ int probe_access_full(CPUArchState *env, target_ulong addr,
     return flags;
 }
 
-
-int probe_access_flags(CPUArchState *env, target_ulong addr,
+int probe_access_flags(CPUArchState *env, target_ulong addr, int size,
                        MMUAccessType access_type, int mmu_idx,
                        bool nonfault, void **phost, uintptr_t retaddr)
 {
     CPUTLBEntryFull *full;
+    int flags;
 
-    return probe_access_full(env, addr, access_type, mmu_idx,
-                             nonfault, phost, &full, retaddr);
+    g_assert(-(addr | TARGET_PAGE_MASK) >= size);
+
+    flags = probe_access_internal(env, addr, size, access_type, mmu_idx,
+                                  nonfault, phost, &full, retaddr);
+
+    /* Handle clean RAM pages. */
+    if (unlikely(flags & TLB_NOTDIRTY)) {
+        notdirty_write(env_cpu(env), addr, size ? size : 1, full, retaddr);
+        flags &= ~TLB_NOTDIRTY;
+    }
+
+    return flags;
 }
 
 static inline QEMU_ALWAYS_INLINE void *
@@ -1721,7 +1749,7 @@ probe_access_inlined(CPUArchState *env, target_ulong addr, int size,
 
         /* Handle clean RAM pages.  */
         if (flags & TLB_NOTDIRTY) {
-            notdirty_write(env_cpu(env), addr, 1, full, retaddr);
+            notdirty_write(env_cpu(env), addr, size ? size : 1, full, retaddr);
         }
     }
 
@@ -2708,7 +2736,40 @@ static inline void cpu_store_helper(CPUArchState *env, target_ulong addr,
                                     uint64_t val, MemOpIdx oi, uintptr_t ra,
                                     FullStoreHelper *full_store)
 {
+#if defined(TARGET_CHERI)
+    CheriTagTxn txn;
+    MemOp memop = get_memop(oi);
+    int size = memop_size(memop);
+    int mmu_idx = get_mmuidx(oi);
+
+    if (cheri_tag_txn_resolve(&txn, env, addr, size, mmu_idx, true, ra)) {
+        cheri_tag_txn_lock(&txn);
+        cpu_store_helper_no_log(env, addr, val, oi, ra, full_store);
+        cheri_tag_txn_clear_tags(&txn);
+        cheri_tag_txn_commit(&txn);
+    } else {
+        /*
+         * The non-faulting resolve failed, so the store should fault, but it is
+         * possible that another hart could have made the PTE valid in-between.
+         * So we first check if the access is misaligned, as if it is the store
+         * should fault with an alignment fault. Otherwise we take the resolve
+         * again with faulting enabled.
+         */
+        if (addr & ((1 << get_alignment_bits(memop)) - 1)) {
+            /* This store will raise an alignment fault */
+            cpu_store_helper_no_log(env, addr, val, oi, ra, full_store);
+            g_assert_not_reached();
+        } else {
+            cheri_tag_txn_resolve(&txn, env, addr, size, mmu_idx, false, ra);
+            cheri_tag_txn_lock(&txn);
+            cpu_store_helper_no_log(env, addr, val, oi, ra, full_store);
+            cheri_tag_txn_clear_tags(&txn);
+            cheri_tag_txn_commit(&txn);
+        }
+    }
+#else
     cpu_store_helper_no_log(env, addr, val, oi, ra, full_store);
+#endif
     log_instr_store_int(env, addr, val, oi);
 }
 

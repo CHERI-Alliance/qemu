@@ -36,6 +36,7 @@
 
 #include "cheri-helper-utils.h"
 #include "cheri_tagmem.h"
+#include "cheri_tag_txn.h"
 
 void helper_load_cap_via_cap_mmu_idx(CPUArchState *env, uint32_t cd,
                                      uint32_t cb, target_ulong addr,
@@ -51,8 +52,8 @@ void helper_load_cap_via_cap_mmu_idx(CPUArchState *env, uint32_t cd,
     target_ulong pesbt;
     target_ulong cursor;
     bool tag = load_cap_from_memory_raw_tag_mmu_idx(
-        env, &pesbt, &cursor, cb, cbp, addr, _host_return_address, NULL, NULL,
-        mmu_idx, /* all_raw */ false);
+        env, &pesbt, &cursor, cb, cbp, addr, _host_return_address, NULL, true,
+        NULL, NULL, mmu_idx, /* all_raw */ false);
     update_compressed_capreg(env, cd, pesbt, tag, cursor);
 }
 
@@ -88,10 +89,10 @@ void helper_load_cap_pair_via_cap(CPUArchState *env, uint32_t cd, uint32_t cd2,
     uint64_t pesbt;
     uint64_t cursor;
     bool tag = load_cap_from_memory_raw(env, &pesbt, &cursor, cb, cbp, addr,
-                                        _host_return_address, NULL);
+                                        _host_return_address, NULL, true);
 
     load_cap_from_memory(env, cd2, cb, cbp, addr + CHERI_CAP_SIZE,
-                         _host_return_address, NULL);
+                         _host_return_address, NULL, true);
     // Once the second load has finished, we can modify the register file.
     update_compressed_capreg(env, cd, pesbt, tag, cursor);
 }
@@ -119,8 +120,11 @@ void helper_load_exclusive_cap_via_cap(CPUArchState *env, uint32_t cd,
                                        uint32_t cd2, uint32_t cb,
                                        target_ulong addr)
 {
+    tag_reader_lock_t snapshot;
+    bool tag1, tag2, raw_tag, done;
     GET_HOST_RETPC();
 
+    tag2 = false;
     env->exclusive_addr = addr;
 
     const cap_register_t *cbp = get_capreg_or_special(env, cb);
@@ -131,18 +135,34 @@ void helper_load_exclusive_cap_via_cap(CPUArchState *env, uint32_t cd,
     cap_check_common_reg(min_perms_for_load(), env, cb, addr, size,
                          _host_return_address, cbp, size,
                          raise_unaligned_load_exception);
+    do {
+        done = true;
+        tag1 = load_cap_from_memory_raw_tag(
+            env, &env->exclusive_high, &env->exclusive_val, cb, cbp, addr,
+            _host_return_address, NULL, true, &snapshot, &raw_tag);
+        env->exclusive_tag = raw_tag;
+        if (cd2 != REG_NONE) {
+            tag2 = load_cap_from_memory_raw_tag(
+                env, &env->exclusive_high2, &env->exclusive_val2, cb, cbp,
+                addr + CHERI_CAP_SIZE, _host_return_address, NULL, true, NULL,
+                &raw_tag);
+            env->exclusive_tag2 = raw_tag;
+            if (snapshot.tagmem) {
+                /* Snapshot contains a real tagblock */
+                if (!tagblock_end_read(snapshot.tagmem, snapshot.seq)) {
+                    /*
+                     * A writer committed to the block after the first load
+                     * began, so keep retrying until we succeed.
+                     */
+                    done = false;
+                }
+            }
+        }
+    } while (!done);
 
-    bool raw_tag;
-    bool tag1 = load_cap_from_memory_raw_tag(
-        env, &env->exclusive_high, &env->exclusive_val, cb, cbp, addr,
-        _host_return_address, NULL, &raw_tag);
-    env->exclusive_tag = raw_tag;
-
+    env->exclusive_tagmem = snapshot.tagmem;
+    env->exclusive_seq = snapshot.seq;
     if (cd2 != REG_NONE) {
-        bool tag2 = load_cap_from_memory_raw_tag(
-            env, &env->exclusive_high2, &env->exclusive_val2, cb, cbp,
-            addr + CHERI_CAP_SIZE, _host_return_address, NULL, &raw_tag);
-        env->exclusive_tag2 = raw_tag;
         update_compressed_capreg(env, cd2, env->exclusive_high2, tag2,
                                  env->exclusive_val2);
     }
@@ -156,10 +176,13 @@ void helper_store_exclusive_cap_via_cap(CPUArchState *env, uint32_t rs,
                                         uint32_t cd, uint32_t cd2, uint32_t cb,
                                         target_ulong addr)
 {
+    CheriTagTxn txn;
+    bool reserved = false;
     GET_HOST_RETPC();
 
     cap_register_t cbp = *get_capreg_or_special(env, cb);
 
+    bool store_tag;
     // In order to match hardware when storing two caps we need two cap perms
     // and bounds checks and _then_ an alignment check. So have no alignment
     // requirement if storing two caps, then do the check manually.
@@ -189,10 +212,23 @@ void helper_store_exclusive_cap_via_cap(CPUArchState *env, uint32_t rs,
     temp_perms &= ~CAP_PERM_LOAD_CAP;
     cap_set_perms(env, &cbp, temp_perms);
 
-    // Check first cap value equal
+    /* If either cd or cd2 have a tag then we are setting a tag */
+    store_tag = get_without_decompress_tag(env, cd) ||
+                (cd2 != REG_NONE && get_without_decompress_tag(env, cd2));
+
+    if (success) {
+        reserved = true;
+        success = cheri_tag_sc_begin(
+            &txn, env, addr, cb, store_tag, _host_return_address,
+            cpu_mmu_index(env, false), env->exclusive_tagmem,
+            env->exclusive_seq, cd2 == REG_NONE ? 1 : 2);
+    }
+
+    /* Check first cap value equal */
     if (success) {
         load_cap_from_memory_raw_tag(env, &pesbt, &cursor, cb, &cbp, addr,
-                                     _host_return_address, NULL, &tag);
+                                     _host_return_address, NULL, false, NULL,
+                                     &tag);
 
         if ((cursor != env->exclusive_val) || (pesbt != env->exclusive_high) ||
             (tag != env->exclusive_tag))
@@ -201,9 +237,9 @@ void helper_store_exclusive_cap_via_cap(CPUArchState *env, uint32_t rs,
 
     // Check second value (if any)
     if (success && cd2 != REG_NONE) {
-        load_cap_from_memory_raw_tag(env, &pesbt, &cursor, cb, &cbp,
-                                     addr + CHERI_CAP_SIZE,
-                                     _host_return_address, NULL, &tag);
+        load_cap_from_memory_raw_tag(
+            env, &pesbt, &cursor, cb, &cbp, addr + CHERI_CAP_SIZE,
+            _host_return_address, NULL, false, NULL, &tag);
         if ((cursor != env->exclusive_val2) ||
             (pesbt != env->exclusive_high2) || (tag != env->exclusive_tag2))
             success = false;
@@ -216,8 +252,11 @@ void helper_store_exclusive_cap_via_cap(CPUArchState *env, uint32_t rs,
                                 _host_return_address);
     }
 
-    env->exclusive_addr = -1;
+    if (reserved) {
+        cheri_tag_sc_end(&txn);
+    }
 
+    env->exclusive_addr = -1;
     update_capreg_to_intval(env, rs, success ? 0ULL : 1ULL);
 }
 
@@ -227,6 +266,7 @@ static void swap_cap_via_cap_impl(CPUArchState *env, uint32_t cd, uint32_t cs,
 {
 
     const cap_register_t *cbp = get_capreg_or_special(env, cb);
+    CheriTagTxn txn;
 
     uint32_t perms = min_perms_for_store(env, cd) | min_perms_for_load();
 
@@ -236,21 +276,32 @@ static void swap_cap_via_cap_impl(CPUArchState *env, uint32_t cd, uint32_t cs,
                          _host_return_address, cbp, CHERI_CAP_SIZE,
                          raise_unaligned_load_exception);
 
-    // Now do a probe early, so that we get the store fault with priority
-    // (LC/SC MMU fault priority) is the reverse of cap permissions)
+    /*
+     * The resolve functions probe the address raising a fault if required.
+     * LC/SC MMU fault priority is the reverse of the cap permission checks.
+     * Once we have resolved we can then take the lock, our changes are done
+     * with the lock held, and then we commit the changes to update the tags
+     * and release the lock
+     */
     bool cd_tagged = get_without_decompress_tag(env, cd);
     int mmu_index = cpu_mmu_index(env, false);
 
-    if (cd_tagged)
-        probe_cap_write(env, addr, CHERI_CAP_SIZE, mmu_index,
-                        _host_return_address);
+    if (cd_tagged) {
+        cheri_tag_txn_resolve_cap(&txn, env, addr, cb, mmu_index,
+                                  _host_return_address);
+    } else {
+        /* Resolve the block using a normal data write as it is untagged */
+        cheri_tag_txn_resolve(&txn, env, addr, CHERI_CAP_SIZE, mmu_index, false,
+                              _host_return_address);
+    }
+    cheri_tag_txn_lock(&txn);
 
     // load (without modifying cs as we will need it for the comparison)
 
     uint64_t pesbt;
     uint64_t cursor;
     bool tag = load_cap_from_memory_raw(env, &pesbt, &cursor, cb, cbp, addr,
-                                        _host_return_address, NULL);
+                                        _host_return_address, NULL, false);
 
     bool do_store;
 
@@ -265,14 +316,9 @@ static void swap_cap_via_cap_impl(CPUArchState *env, uint32_t cd, uint32_t cs,
     // Store
     if (do_store) {
         store_cap_to_memory(env, cd, cb, addr, _host_return_address);
-    } else {
-        cd_tagged = get_without_decompress_tag(env, cd);
-        // Even if there is no store, we possibly need an MMU permission fault
-        if (!cd_tagged)
-            probe_write(env, addr, CHERI_CAP_SIZE, mmu_index,
-                        _host_return_address);
     }
 
+    cheri_tag_txn_commit(&txn);
     // Write back to cs
     update_compressed_capreg(env, cs, pesbt, tag, cursor);
 }
@@ -318,9 +364,11 @@ void helper_load_pair_and_branch_and_link(CPUArchState *env, uint32_t cn,
                          CHERI_CAP_SIZE, raise_unaligned_load_exception);
 
     cap_register_t target = load_and_decompress_cap_from_memory_raw(
-        env, cn, &base, addr + CHERI_CAP_SIZE, _host_return_address, NULL);
+        env, cn, &base, addr + CHERI_CAP_SIZE, _host_return_address, NULL,
+        true);
     // We do this load SECOND as it has a register-file side effect.
-    load_cap_from_memory(env, ct, cn, &base, addr, _host_return_address, NULL);
+    load_cap_from_memory(env, ct, cn, &base, addr, _host_return_address, NULL,
+                         true);
 
     cheri_jump_and_link(env, &target, cap_get_cursor(&target), link, link_pc,
                         flags);
@@ -348,7 +396,7 @@ void helper_load_and_branch_and_link(CPUArchState *env, uint32_t cn,
                          raise_unaligned_load_exception);
 
     cap_register_t target = load_and_decompress_cap_from_memory_raw(
-        env, cn, &base, addr, _host_return_address, NULL);
+        env, cn, &base, addr, _host_return_address, NULL, true);
     cheri_jump_and_link(env, &target, cap_get_cursor(&target), link, link_pc,
                         flags);
 }

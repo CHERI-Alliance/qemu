@@ -26,6 +26,7 @@
 #ifdef TARGET_CHERI
 #include "cheri-helper-utils.h"
 #include "cheri_tagmem.h"
+#include "cheri_tag_txn.h"
 #endif
 
 /* Exceptions processing helpers */
@@ -185,7 +186,7 @@ static void check_zicbo_envcfg(CPURISCVState *env, target_ulong envbits,
 static void do_cbo_zero(CPURISCVState *env, target_ulong address, uintptr_t ra)
 {
     RISCVCPU *cpu = env_archcpu(env);
-    uint16_t cbozlen = cpu->cfg.cboz_blocksize;
+    size_t cbozlen = cpu->cfg.cboz_blocksize;
     int mmu_idx = cpu_mmu_index(env, false);
     void *mem;
 
@@ -202,19 +203,27 @@ static void do_cbo_zero(CPURISCVState *env, target_ulong address, uintptr_t ra)
 #ifdef TARGET_CHERI
         RAMBlock *r;
         ram_addr_t offs;
+        CheriTagTxn txn;
 
-        /* TODO: Memory update and tag change must be atomic. */
-        assert(!qemu_tcg_mttcg_enabled() ||
-                cpu_in_exclusive_context(env_cpu(env)));
-
+        /*
+         * The transaction holds the tag block's lock whilst we clear the
+         * memory. The tags are cleared and the lock released when we commit.
+         * The begin_phys_write call clips the cbozlen to the end of the
+         * tagblock. A cache block never crosses one.
+         */
         rcu_read_lock(); /* protect r from changes while we use it */
         r = qemu_ram_block_from_host(mem, /* round to page? */ false, &offs);
         if (r) {
-            cheri_tag_phys_invalidate(env, r, offs, cbozlen, NULL);
+            cheri_tag_txn_begin_phys_write(&txn, env, r, offs, &cbozlen);
+            memset(mem, 0, cbozlen);
+            cheri_tag_txn_commit(&txn);
+        } else {
+            memset(mem, 0, cbozlen);
         }
         rcu_read_unlock();
-#endif
+#else
         memset(mem, 0, cbozlen);
+#endif
     } else {
         /*
          * This means that we're dealing with an I/O page. Section 4.2
@@ -332,7 +341,7 @@ static void check_zicbom_access(CPURISCVState *env,
      * size = cbomlen.
      */
 
-    ret = probe_access_flags(env, address, MMU_DATA_LOAD,
+    ret = probe_access_flags(env, address, cbomlen, MMU_DATA_LOAD,
                              mmu_idx, true, &phost, ra);
     if (ret != TLB_INVALID_MASK) {
         /* Success: readable */

@@ -32,6 +32,7 @@
 #include "helper_utils.h"
 #ifdef TARGET_CHERI
 #include "cheri-helper-utils.h"
+#include "cheri_tag_txn.h"
 #endif
 #include "cpu_bits.h"
 
@@ -46,15 +47,6 @@
         (env)->dst = (env)->src;                                \
     } while (false)
 #endif
-
-int riscv_cpu_mmu_index(CPURISCVState *env, bool ifetch)
-{
-#ifdef CONFIG_USER_ONLY
-    return 0;
-#else
-    return env->priv;
-#endif
-}
 
 void riscv_cpu_get_tb_cpu_state(CPURISCVState *env, target_ulong *pc,
                            target_ulong *cs_base, target_ulong *pcc_base,
@@ -773,6 +765,9 @@ void riscv_cpu_set_mode(CPURISCVState *env, target_ulong newpriv)
      * preemptive context switch. As a result, do both.
      */
     env->load_res = -1;
+#if defined(TARGET_CHERI)
+    env->load_seq = 0;
+#endif
 
 #ifdef CONFIG_TCG_LOG_INSTR
     qemu_log_instr_cpu_mode_t mode;
@@ -793,10 +788,6 @@ void riscv_cpu_set_mode(CPURISCVState *env, target_ulong newpriv)
     qemu_log_instr_mode_switch(env, mode, cpu_get_recent_pc(env));
 #endif
 }
-
-#ifdef CONFIG_RVFI_DII
-extern bool rvfi_debug_output;
-#endif
 
 #ifndef RISCV_PTE_TRAPPY
 /*
@@ -1360,7 +1351,7 @@ restart:
                 break;
             }
 
-            /* Page table updates need to be atomic with MTTCG enabled */
+            /* Page table updates need to be atomic with MTTCG enabled. */
             if (updated_pte != pte) {
                 /*
                  * - if accessed or dirty bits need updating, and the PTE is
@@ -1377,19 +1368,46 @@ restart:
                 if (memory_region_is_ram(mr)) {
                     target_ulong *pte_pa =
                         qemu_map_ram_ptr(mr->ram_block, addr1);
+#if defined(TARGET_CHERI)
+                    /*
+                     * For CHERI PTE writes are considered data writes and must
+                     * safely clear a tag if one is present, so no load or
+                     * store sees the new PTE with the old tag.
+                     */
+                    size_t len = sizeof(target_ulong);
+                    CheriTagTxn txn;
+                    /*
+                     * Resolve the PTE's tag block physically, lock it, and
+                     * clear the tag only if the PTE is written.
+                     */
+                    cheri_tag_txn_resolve_phys(&txn, env, mr->ram_block, addr1,
+                                               &len);
+                    cheri_tag_txn_lock(&txn);
+#endif /* TARGET_CHERI */
 #if TCG_OVERSIZED_GUEST
                     /* MTTCG is not enabled on oversized TCG guests so
                      * page table updates do not need to be atomic */
                     *pte_pa = pte = updated_pte;
-#else
+#if defined(TARGET_CHERI)
+                    cheri_tag_txn_clear_tags(&txn);
+                    cheri_tag_txn_commit(&txn);
+#endif /* TARGET_CHERI */
+#else  /* TCG_OVERSIZED_GUEST */
                     target_ulong old_pte =
                         qatomic_cmpxchg(pte_pa, pte, updated_pte);
+#if defined(TARGET_CHERI)
+                    if (old_pte == pte) {
+                        /* cmpxchg succeeded so clear tags */
+                        cheri_tag_txn_clear_tags(&txn);
+                    }
+                    cheri_tag_txn_commit(&txn);
+#endif /* TARGET_CHERI */
                     if (old_pte != pte) {
                         goto restart;
                     } else {
                         pte = updated_pte;
                     }
-#endif
+#endif /* TCG_OVERSIZED_GUEST */
                 } else {
                     /* misconfigured PTE in ROM (AD bits are not preset) or
                      * PTE is in IO space and can't be updated atomically */

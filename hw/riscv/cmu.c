@@ -196,7 +196,7 @@ static void cmu_class_init(ObjectClass *oc, void *data)
     device_class_set_props(dc, cmu_properties);
 
 #ifdef TARGET_CHERI
-    c->invalidate_region = cheri_tag_phys_invalidate_external;
+    c->invalidate_region = cheri_tag_phys_clear_range;
 #else
     c->invalidate_region = NULL;
 #endif

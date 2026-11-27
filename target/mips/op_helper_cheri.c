@@ -658,9 +658,10 @@ target_ulong CHERI_HELPER_IMPL(cstorecond(CPUArchState *env, uint32_t cb, uint32
             TARGET_FMT_plx " lladdr=" TARGET_FMT_plx " CP0_LLaddr="
             TARGET_FMT_plx "\n", addr, env->lladdr, env->CP0_LLAddr);
 
-        // Can't do this here.  It might miss in the TLB.
-        // cheri_tag_invalidate(env, addr, size);
-        // Also, rd is set by the actual store conditional operation.
+        /*
+         * Can't do this here because the address might miss in the TLB.
+         * Also, rd is set by the actual store conditional operation.
+         */
         return addr;
     }
     return 0;
@@ -741,7 +742,7 @@ void CHERI_HELPER_IMPL(cllc_without_tcg(CPUArchState *env, uint32_t cd, uint32_t
     }
     cheri_debug_assert(align_of(CHERI_CAP_SIZE, addr) == 0);
     load_cap_from_memory(env, cd, cb, cbp, /*addr=*/cap_get_cursor(cbp),
-                         _host_return_address, &env->CP0_LLAddr);
+                         _host_return_address, &env->CP0_LLAddr, true);
     env->lladdr = addr;
 }
 
