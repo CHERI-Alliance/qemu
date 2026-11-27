@@ -35,6 +35,7 @@
 #include "exec/translate-all.h"
 #include "trace/trace-root.h"
 #include "cheri_tagmem.h"
+#include "cheri_tag_txn.h"
 #include "tb-hash.h"
 #include "internal.h"
 #ifdef CONFIG_PLUGIN
@@ -2735,7 +2736,40 @@ static inline void cpu_store_helper(CPUArchState *env, target_ulong addr,
                                     uint64_t val, MemOpIdx oi, uintptr_t ra,
                                     FullStoreHelper *full_store)
 {
+#if defined(TARGET_CHERI)
+    CheriTagTxn txn;
+    MemOp memop = get_memop(oi);
+    int size = memop_size(memop);
+    int mmu_idx = get_mmuidx(oi);
+
+    if (cheri_tag_txn_resolve(&txn, env, addr, size, mmu_idx, true, ra)) {
+        cheri_tag_txn_lock(&txn);
+        cpu_store_helper_no_log(env, addr, val, oi, ra, full_store);
+        cheri_tag_txn_clear_tags(&txn);
+        cheri_tag_txn_commit(&txn);
+    } else {
+        /*
+         * The non-faulting resolve failed, so the store should fault, but it is
+         * possible that another hart could have made the PTE valid in-between.
+         * So we first check if the access is misaligned, as if it is the store
+         * should fault with an alignment fault. Otherwise we take the resolve
+         * again with faulting enabled.
+         */
+        if (addr & ((1 << get_alignment_bits(memop)) - 1)) {
+            /* This store will raise an alignment fault */
+            cpu_store_helper_no_log(env, addr, val, oi, ra, full_store);
+            g_assert_not_reached();
+        } else {
+            cheri_tag_txn_resolve(&txn, env, addr, size, mmu_idx, false, ra);
+            cheri_tag_txn_lock(&txn);
+            cpu_store_helper_no_log(env, addr, val, oi, ra, full_store);
+            cheri_tag_txn_clear_tags(&txn);
+            cheri_tag_txn_commit(&txn);
+        }
+    }
+#else
     cpu_store_helper_no_log(env, addr, val, oi, ra, full_store);
+#endif
     log_instr_store_int(env, addr, val, oi);
 }
 
