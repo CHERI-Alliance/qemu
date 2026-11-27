@@ -3762,6 +3762,21 @@ int qemu_ram_foreach_block(RAMBlockIterFunc func, void *opaque)
     return ret;
 }
 
+bool qemu_ram_has_cheri_tags(void)
+{
+    RAMBlock *block;
+    bool ret = false;
+    RCU_READ_LOCK_GUARD();
+    RAMBLOCK_FOREACH(block)
+    {
+        ret = block->cheri_tags != NULL;
+        if (ret) {
+            break;
+        }
+    }
+    return ret;
+}
+
 /*
  * Unmap pages of memory from start to start+length such that
  * they a) read as 0, b) Trigger whatever fault mechanism

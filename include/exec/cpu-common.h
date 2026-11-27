@@ -154,6 +154,8 @@ void cpu_flush_icache_range(hwaddr start, hwaddr len);
 typedef int (RAMBlockIterFunc)(RAMBlock *rb, void *opaque);
 
 int qemu_ram_foreach_block(RAMBlockIterFunc func, void *opaque);
+/* returns true is any ram block has cheri tags */
+bool qemu_ram_has_cheri_tags(void);
 int ram_block_discard_range(RAMBlock *rb, uint64_t start, size_t length);
 
 #endif

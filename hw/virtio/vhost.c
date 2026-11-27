@@ -1458,6 +1458,12 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
         r = -EINVAL;
         goto fail_busyloop;
     }
+    if (qemu_ram_has_cheri_tags()) {
+        error_setg(errp, "vhost is not supported on a machine with CHERI"
+                         " tagged memory");
+        r = -EINVAL;
+        goto fail_busyloop;
+    }
 
     return 0;
 
@@ -1805,6 +1811,12 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev, bool vrings)
 
     /* should only be called after backend is connected */
     assert(hdev->vhost_ops);
+
+    if (qemu_ram_has_cheri_tags()) {
+        error_report("vhost is not supported on a machine with CHERI"
+                     " tagged memory");
+        return -ENOTSUP;
+    }
 
     trace_vhost_dev_start(hdev, vdev->name, vrings);
 
